@@ -1,0 +1,2 @@
+class ConflictWebAPIError(Exception):
+    pass
