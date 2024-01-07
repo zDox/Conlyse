@@ -6,6 +6,8 @@ import hashlib
 from parser import parse_international_games
 from exceptions import ConflictWebAPIError
 from fake_useragent import UserAgent
+from pprint import pprint
+from data_types import GameInfo
 
 interesting_keys = ["userID", "authHash", "authTstamp", "chatAuth",
                     "chatAuthTstamp", "uberAuthHash",
@@ -41,9 +43,7 @@ class WebAPI():
             headers=headers,
             data=data,
         )
-        if response.status_code != 200:
-            print("Error not able to login")
-            return False
+        response.raise_for_status()
 
         response_html = lxml.html.fromstring(response.text)
 
@@ -117,7 +117,25 @@ class WebAPI():
 
         return result["result"]
 
-    def get_international_games(self):
+    def get_my_games(self):
         res = self.sendApiRequest({"userID": self.auth["userID"]},
                                   "getInternationalGames")
+        pprint(res)
         return parse_international_games(res)
+
+    def get_global_games(self):
+        last_page = False
+        page = 0
+        games = []
+        while not last_page:
+            res = self.sendApiRequest({"userID": self.auth["userID"],
+                                       "global": "1",
+                                       "page": str(page)},
+                                      "getInternationalGames")
+            last_page = res["lastPage"]
+            page += 1
+            games = games + parse_international_games(res["games"])
+        return games
+
+    def join_game(self, game_info: GameInfo):
+        pass
