@@ -1,10 +1,10 @@
-from web_api import WebAPI
+from conflict_interface import ConflictInterface
 import creds
 from pprint import pprint
 
 
 if __name__ == "__main__":
-    web_api = WebAPI()
-    web_api.login(creds.username, creds.password)
-    res = web_api.get_global_games()
-    pprint(len(res))
+    interface = ConflictInterface()
+    interface.login(creds.username, creds.password)
+    res = interface.get_my_games(True)
+    pprint(res)
