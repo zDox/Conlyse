@@ -1,13 +1,16 @@
-from requests import Session
-import lxml.html
-import json
-import base64
-import hashlib
 from parser import parse_international_games
 from authentification import AuthDetails
 from exceptions import ConflictWebAPIError
 from fake_useragent import UserAgent
 from game_interface import GameInterface
+from game_api import GameAPI
+
+
+from requests import Session
+from lxml import html
+import json
+import base64
+import hashlib
 
 
 def protected(func):
@@ -45,7 +48,7 @@ class ConflictInterface():
         )
         response.raise_for_status()
 
-        response_html = lxml.html.fromstring(response.text)
+        response_html = html.fromstring(response.text)
 
         url = response_html.xpath(r'//iframe[@id="ifm"]/@src')[0]
 
@@ -127,7 +130,8 @@ class ConflictInterface():
         return games
 
     def join_game(self, game_id: int):
-        return GameInterface(self.session.cookies.get_dict(),
-                             self.session.headers,
-                             self.auth,
-                             game_id)
+        game_api = GameAPI(self.session.cookies.get_dict(),
+                           self.session.headers,
+                           self.auth,
+                           game_id)
+        return GameInterface(game_id, game_api)
