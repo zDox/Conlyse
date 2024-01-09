@@ -18,7 +18,7 @@ class TerrainType(Enum):
 
 
 class ProvinceStateID(Enum):
-    NONE: 0
+    NONE: -1
     OCCUPIED_PROVINCE: 51
     MAINLAND_PROVINCE: 52
     OCCUPIED_CITY: 53
@@ -27,6 +27,7 @@ class ProvinceStateID(Enum):
 
 
 class ResourceProductionType(Enum):
+    NONE: -1
     SUPPLIES: 1
     COMPONENTS: 2
     MANPOWER: 3
@@ -40,19 +41,40 @@ class ResourceProductionType(Enum):
     MONEY: 20
 
 
-class Building(Enum):
-    pass
+class Region(Enum):
+    NONE: -1
+    EUROPA: 0
+    ASIA: 1
+    AFRICA: 2
+    NORTH_AMERICA: 3
+    SOUTH_AMERICA: 4
+    OCEANIA: 5
+
+
+@dataclass
+class Building():
+    healh: int
+    harbour_x: int
+    harbour_y: int
+    upgrade_id: int
 
 
 @dataclass
 class Province:
+    # Static Data
     province_id: int
     name: str
     terrain_type: TerrainType
-    province_state_id: ProvinceStateID
-    resource_production: int
     resource_production_typ: ResourceProductionType
-    victory_points: int
     adjacent_to_water: bool
     legal_owner: int
+    region: Region
+    center_coordinate: tuple(int, int)
+
+    # Dynamic Data
+    province_state_id: ProvinceStateID
+    resource_production: int
+    money_production: int
+    victory_points: int
+    owner_id: int
     buildings: list[Building]
