@@ -8,4 +8,4 @@ if __name__ == "__main__":
     interface = ConflictInterface()
     interface.login(creds.username, creds.password)
     game = interface.join_game(8141919)
-    game.list_playable_countries()
+    print(game.list_playable_countries())

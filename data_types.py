@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from datetime import date, datetime
-from enum import StrEnum
+from enum import Enum
 
 
-class GameInfoState(StrEnum):
+class GameInfoState(Enum):
     UNDEFINED = "undefined"
     NONE = "none"
     READY_TO_JOIN = "readytojoin"
@@ -167,4 +167,74 @@ class GameInfo():
                 parsed_data[f_name] = val
 
         parsed_data['state'] = GameInfoState.from_string(obj.get("state"))
+        return cls(**parsed_data)
+
+
+class Faction(Enum):
+    NONE = 0
+    NONE_2 = None
+    WESTERN = 1
+    EASTERN = 2
+    EUROPEAN = 3
+
+
+@dataclass
+class PlayerProfile:
+    id: int
+    faction: Faction
+    team_id: int
+    name: str
+    nation_name: str
+    computer_player: bool
+    native_computer: bool
+    site_user_id: int
+    defeated: bool
+    retired: bool
+    passive_ai: bool
+    playing: bool
+    taken: bool
+    available: bool
+
+    @classmethod
+    def from_dict(cls, obj: dict):
+        json_to_class_mapping = {
+            "id": "playerID",
+            "faction": "faction",
+            "team_id": "teamID",
+            "name": "name",
+            "nation_name": "nationName",
+            "computer_player": "computerPlayer",
+            "native_computer": "nativeComputer",
+            "site_user_id": "siteUserID",
+            "defeated": "defeated",
+            "retired": "retired",
+            "passive_ai": "passiveAI",
+            "playing": "playing",
+            "taken": "taken",
+            "available": "available",
+        }
+
+        parsed_data = {}
+        print(obj)
+        for mapping, orignal in json_to_class_mapping.items():
+            parsed_data[mapping] = cls.__annotations__[mapping](obj.get(orignal))
+        return cls(**parsed_data)
+
+
+@dataclass
+class TeamProfile:
+    id: int
+    name: str
+    description: str
+    leader_id: int
+    disbanded: bool
+
+    @classmethod
+    def from_dict(cls, obj: dict):
+        parsed_data = {}
+        parsed_data["id"] = obj["teamID"]
+        parsed_data["name"] = obj["name"]
+        parsed_data["description"] = obj["description"]
+        parsed_data["leader_id"] = obj["leaderID"]
+        parsed_data["disbanded"] = obj["disbanded"]
         return cls(**parsed_data)

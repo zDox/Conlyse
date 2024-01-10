@@ -1,6 +1,7 @@
 from authentification import AuthDetails
 from exceptions import ConflictJoinError
 from game_activation_result import GameActivationResult
+from parser import parse_player_state
 
 from requests import Session
 from lxml import html
@@ -247,4 +248,4 @@ class GameAPI:
 
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
-        return res
+        return parse_player_state(res["result"]["states"]["1"])
