@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from datetime import date, datetime
-from enum import Enum
+from enum import StrEnum
 
 
-class GameInfoState(Enum):
-    UNDEFINED = -2
-    NONE = -1
-    READY_TO_JOIN = 0
-    RUNNING = 1
+class GameInfoState(StrEnum):
+    UNDEFINED = "undefined"
+    NONE = "none"
+    READY_TO_JOIN = "readytojoin"
+    RUNNING = "running"
 
     @classmethod
     def from_string(cls, string):

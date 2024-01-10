@@ -28,6 +28,7 @@ class ConflictInterface():
                 "User-Agent": self.user_agent,
                 "Accept-Language": 'en-US,en;q=0.9',
         }
+        print(self.user_agent)
         self.auth = None
 
     def login(self, username, password):

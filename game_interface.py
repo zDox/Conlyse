@@ -10,3 +10,5 @@ class GameInterface:
     def join_game(self):
         self.game_api.load_game_site()
         self.game_api.get_static_map_data()
+        print(self.game_api.activate_game())
+        self.game_api.make_game_login_action()

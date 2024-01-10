@@ -9,4 +9,6 @@ if __name__ == "__main__":
     interface.login(creds.username, creds.password)
     res = interface.get_my_games()
     pprint(res)
-    game_interface = interface.join_game(8141919)
+    game = interface.join_game(8141919)
+    if game.is_country_selection_required():
+        game.select_country(3)
