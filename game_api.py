@@ -1,14 +1,13 @@
 from authentification import AuthDetails
 from exceptions import ConflictJoinError
+from game_activation_result import GameActivationResult
 
 from requests import Session
 from lxml import html
-from pprint import pprint
 import re
 from time import time
 from dataclasses import dataclass
 from json import loads, dumps
-from enum import Enum
 
 
 @dataclass
@@ -20,19 +19,6 @@ class DeviceDetails:
     def from_user_agent(user_agent):
         os = re.findall(r"(?<=\()([A-Z])\w+(?=;| )", user_agent)[0]
         return DeviceDetails(os, "")
-
-
-class ActivateGameActionResultCode(Enum):
-    SUCCESS = 34
-    USER_NOT_FOUND = -3
-    GAME_NOT_FOUND = -4
-    USER_EXISTED = -5
-    COUNTRY_SELECTION_REQUESTED = -6
-    COUNTRY_SELECTION_IMPOSSIBLE = -7
-    VACATION_MODE_ACTIVE = -8
-    GAME_FULL = -9
-    GAME_TOO_OLD = -10
-    ANTI_CHEAT_IP_CONFLICT = -11
 
 
 class GameAPI:
@@ -55,6 +41,10 @@ class GameAPI:
 
         # Set headers from previous ConflictInterface Session
         self.session.headers = headers
+
+        # Get set from the auto GameUpdate request
+        self.time_stamps = None
+        self.state_ids = None
 
     def load_game_php(self):
         """
@@ -177,28 +167,26 @@ class GameAPI:
         response.raise_for_status()
         return loads(response.text)
 
-    def activate_game_first(self):
+    def request_first_game_activation(self):
         res = self.make_game_server_request({
             "@c": "ultshared.action.UltActivateGameAction",
             "selectedPlayerID": -1,
             "selectedTeamID": -1,
             "randomTeamAndCountrySelection": False,
             }, None)
-        return ActivateGameActionResultCode(res["result"])
+        return GameActivationResult(res["result"])
 
-    def select_country(self,
-                       country_id=-1,
-                       team_id=-1,
-                       random_team_country_selection=False):
+    def request_selected_country(self, country_id=-1, team_id=-1,
+                                 random_team_country_selection=False):
         res = self.make_game_server_request({
             "@c": "ultshared.action.UltActivateGameAction",
             "selectedPlayerID": country_id,
             "selectedTeamID": team_id,
-            "randomTeamAndCountrySelection": False,
+            "randomTeamAndCountrySelection": random_team_country_selection,
             }, None)
-        return ActivateGameActionResultCode(res["result"])
+        return GameActivationResult(res["result"])
 
-    def make_game_login_action(self):
+    def request_login_action(self):
         res = self.make_game_server_request(
                 {
                     "@c": "ultshared.action.UltUpdateGameStateAction",
@@ -229,4 +217,34 @@ class GameAPI:
                         }
                 }
             )
+        return res
+
+    def request_game_update(self, with_states=True):
+        time_stamps = {"@c": "java.util.HashMap"}
+        state_ids = {"@c": "java.util.HashMap"}
+
+        if with_states and self.time_stamps and self.state_ids:
+            time_stamps = self.time_stamps
+            state_ids = self.state_ids
+
+        res = self.make_game_server_request(
+                {
+                    "@c": "ultshared.action.UltUpdateGameStateAction",
+                    "stateType": 0,
+                    "stateID": "0",
+                    "addStateIDsOnSent": True,
+                    "option": None,
+                    "stateIDs": state_ids,
+                    "tstamps": time_stamps,
+                })
+
+        self.time_stamps = {"@c": "java.util.HashMap"}
+        self.state_ids = {"@c": "java.util.HashMap"}
+
+        # Set stateIDs and tstamps from response
+        for state in list(res["result"]["states"].values())[1:]:
+            state_type = str(state["stateType"])
+
+            self.time_stamps[state_type] = state["timeStamp"]
+            self.state_ids[state_type] = state["stateID"]
         return res
