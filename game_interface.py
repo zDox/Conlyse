@@ -11,11 +11,11 @@ class GameInterface:
 
     def join_game(self):
         self.game_api.load_game_site()
-        self.game_api.get_static_map_data()
         activation_result = self.game_api.request_first_game_activation()
         if activation_result != GameActivationResult.SUCCESS:
             raise GameActivationResult_to_exception(activation_result)
 
+        self.game_api.get_static_map_data()
         self.game_api.request_login_action()
 
     def select_country(self, country_id=-1, team_id=-1,
@@ -26,6 +26,7 @@ class GameInterface:
         if res != GameActivationResult.SUCCESS:
             raise GameActivationResult_to_exception(res)
 
+        self.game_api.get_static_map_data()
         self.game_api.request_login_action()
 
     def list_playable_countries(self):

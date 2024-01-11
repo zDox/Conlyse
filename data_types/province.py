@@ -1,3 +1,5 @@
+from data_types.utils import MappedValue
+
 from dataclasses import dataclass
 from enum import Enum
 
@@ -88,45 +90,66 @@ class Province:
     morale: int
     buildings: list[Building]
 
+    static_mapping = {
+        "id": "id",
+        "rg": MappedValue("region", rg_to_region),
+        "tt": "terrain_type",
+        "c": MappedValue("center_coordinate", position_to_tuple),
+    }
+
+    dynamic_mapping = {
+        "id": "id",
+        "n": "name",
+        "c": "adjacent_to_water",
+        "o": "owner_id",
+        "m": "morale",
+        "pst": "province_state_id",
+        "rp": "resource_production",
+        "tp": "money_production",
+        "lo": "legal_owner",
+    }
+
     @classmethod
     def from_static(cls, obj):
-        json_to_class_mapping = {
-            "id": "id",
-            "rg": ["region", rg_to_region],
-            "tt": ["terrain_type", TerrainType],
-            "c": ["center_coordinate", position_to_tuple],
-        }
         parsed_data = {}
-        for key, mapping in json_to_class_mapping.items():
-            if isinstance(mapping, list):
-                value = obj.get(key) if obj.get(key) else -1
-                parsed_data[mapping[0]] = mapping[1](value)
-            elif cls.__annotations__[mapping[0]] == bool:
-                parsed_data[mapping] = bool(value)
-            elif cls.__annotations__[mapping[0]] == int:
-                parsed_data[mapping] = int(obj[key])
-            elif cls.__annotations__[mapping[0]] == str:
-                parsed_data[mapping] = str(obj[key])
+        for new_name, mapped_value in cls.static_mapping.items():
+            if not isinstance(mapped_value, MappedValue):
+                if obj.get(mapped_value) is None:
+                    parsed_data[new_name] = None
+                else:
+                    parsed_data[new_name] = cls.__annotations__[new_name](
+                            obj.get(mapped_value))
+                continue
+
+            if mapped_value.function:
+                if mapped_value.needs_entire_obj:
+                    parsed_data[new_name] = mapped_value.function(
+                            obj, obj.get(mapped_value.original))
+                else:
+                    parsed_data[new_name] = mapped_value.function(
+                            obj.get(mapped_value.original))
+            else:
+                parsed_data[new_name] = cls.__annotations__[new_name](
+                        obj.get(mapped_value.original))
         return cls(**parsed_data)
 
     def set_dynamic(self, obj):
-        json_to_class_mapping = {
-            "id": "id",
-            "n": "name",
-            "c": "adjacent_to_water",
-            "o": "owner_id",
-            "m": "morale",
-            "pst": "province_state_id",
-            "rp": "resource_production",
-            "tp": "money_production",
-            "lo": "legal_owner",
-        }
-        for key, value in json_to_class_mapping.items():
-            if isinstance(value, list):
-                self[value[0]] = value[1](obj[key])
-            elif self[value[0]] == bool:
-                self[value] = bool(obj[key])
-            elif self[value[0]] == int:
-                self[value] = int(obj[key])
-            elif self[value[0]] == str:
-                self[value] = str(obj[key])
+        for new_name, mapped_value in self.dynamic_mapping.items():
+            if not isinstance(mapped_value, MappedValue):
+                if obj.get(mapped_value) is None:
+                    self[new_name] = None
+                else:
+                    self[new_name] = self.__annotations__[new_name](
+                            obj.get(mapped_value))
+                continue
+
+            if mapped_value.function:
+                if mapped_value.needs_entire_obj:
+                    self[new_name] = mapped_value.function(
+                            obj, obj.get(mapped_value.original))
+                else:
+                    self[new_name] = mapped_value.function(
+                            obj.get(mapped_value.original))
+            else:
+                self[new_name] = self.__annotations__[new_name](
+                        obj.get(mapped_value.original))

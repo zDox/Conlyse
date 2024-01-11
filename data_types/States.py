@@ -1,0 +1,193 @@
+from data_types.team_profile import TeamProfile
+from data_types.player_profile import PlayerProfile
+from data_types.article import Article
+from data_types.province import Province, ProvinceProperty
+from data_types.relationship import Relationship
+from data_types.army import Army
+from data_types.upgrade import Upgrade
+from data_types.unit_type import UnitType
+from data_types.research_type import ResearchType
+
+from dataclasses import dataclass
+from datetime import date
+
+
+"""
+The following are all states but not every state
+is implemented
+
+STATE_TYPE_GAME_STATE: 0,
+STATE_TYPE_PLAYER_STATE: 1,
+STATE_TYPE_NEWSPAPER_STATE: 2,
+STATE_TYPE_MAP_STATE: 3,
+STATE_TYPE_RESOURCE_STATE: 4,
+STATE_TYPE_FOREIGN_AFFAIRS_STATE: 5,
+STATE_TYPE_ARMY_STATE: 6,
+STATE_TYPE_SPY_STATE: 7,
+STATE_TYPE_MAP_INFO_STATE: 8,
+STATE_TYPE_ADMIN_STATE: 9,
+STATE_TYPE_STATISTIC_STATE: 10,
+STATE_TYPE_MOD_STATE: 11,
+STATE_TYPE_GAME_INFO_STATE: 12,
+STATE_TYPE_AI_STATE: 13,
+STATE_TYPE_PREMIUM_STATE: 14,
+STATE_TYPE_USER_OPTIONS_STATE: 15,
+STATE_TYPE_USER_INVENTORY_STATE: 16,
+STATE_TYPE_USER_SMS_OPTION_STATE: 17,
+STATE_TYPE_TUTORIAL_STATE: 18,
+STATE_TYPE_BUILD_QUEUE_STATE: 19,
+STATE_TYPE_LOCATION_STATE: 20,
+STATE_TYPE_TRIGGERED_TUTORIAL: 21,
+STATE_TYPE_WHEEL_OF_FORTUNE_STATE: 22,
+STATE_TYPE_RESEARCH_STATE: 23,
+STATE_TYPE_GAME_EVENT_STATE: 24,
+STATE_TYPE_IN_GAME_ALLIANCE: 25,
+STATE_TYPE_EXPLORATION_STATE: 26,
+STATE_TYPE_QUEST_STATE: 27,
+STATE_TYPE_CONFIGURATION_STATE: 28
+STATE_TYPE_MISSION_STATE: 29
+"""
+
+
+@dataclass
+class PlayerState:
+    STATE_ID = 1
+    players: list(PlayerProfile)
+    teams: list(TeamProfile)
+
+
+@dataclass
+class NewspaperState:
+    STATE_ID = 2
+    articles: list(Article)
+
+
+@dataclass
+class MapState:
+    STATE_ID = 3
+    provinces: list(Province)
+    # Provinces which are owned by the current player
+    province_properties: list(ProvinceProperty)
+
+
+@dataclass
+class ResourceState:
+    STATE_ID = 4
+    # Trading, Own Resources
+
+
+@dataclass
+class ForeignAffairsState:
+    STATE_ID = 5
+    relations: list(Relationship)
+
+
+@dataclass
+class ArmyState:
+    STATE_ID = 6
+    armies: list(Army)
+
+
+@dataclass
+class SpyState:
+    STATE_ID = 7
+    # Spies, Nations, SpyReports
+
+
+@dataclass
+class ModState:
+    STATE_ID = 11
+    upgrades: list(Upgrade)
+    unit_types: list(UnitType)
+    research_types: list(ResearchType)
+
+
+@dataclass
+class GameInfoState:
+    STATE_ID = 12
+    start_of_game: date
+    next_day_time: date
+    next_heal_time: date
+    gold_round: date
+    demo_game: date
+
+
+@dataclass
+class AIState:
+    STATE_ID = 13
+
+
+@dataclass
+class PremiumState:
+    STATE_ID = 14
+
+
+@dataclass
+class UserOptionsState:
+    STATE_ID = 15
+
+
+@dataclass
+class UserInventoryState:
+    STATE_ID = 16
+
+
+@dataclass
+class TutorialState:
+    STATE_ID = 18
+
+
+@dataclass
+class BuildQueueState:
+    STATE_ID = 19
+
+
+@dataclass
+class ResearchState:
+    STATE_ID = 23
+    current_researches: list(Research)
+    completed_researches: list(Research)
+    research_slots: int
+
+
+@dataclass
+class GameEventState:
+    STATE_ID = 24
+
+
+@dataclass
+class InGameAllianceState:
+    STATE_ID = 25
+
+
+@dataclass
+class ConfigurationState:
+    STATE_ID = 28
+
+
+@dataclass
+class MissionState:
+    STATE_ID = 29
+
+
+@dataclass
+class States:
+    player_state: PlayerState
+    newspaper_state: NewspaperState
+    map_state: MapState
+    resource_state: ResourceState
+    foreign_affairs_state: ForeignAffairsState
+    army_state: ArmyState
+    mod_state: ModState
+    game_info_state: GameInfoState
+    ai_state: AIState
+    premium_state: PremiumState
+    user_options_state: UserOptionsState
+    user_inventory_state: UserInventoryState
+    tutorial_state: TutorialState
+    build_queue_state: BuildQueueState
+    research_state: ResearchState
+    game_event_state: GameEventState
+    in_game_alliance_state: InGameAllianceState
+    configuration_state: ConfigurationState
+    mission_state: MissionState
