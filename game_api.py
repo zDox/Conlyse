@@ -1,6 +1,6 @@
-from authentification import AuthDetails
+from data_types.authentification import AuthDetails
 from exceptions import ConflictJoinError
-from game_activation_result import GameActivationResult
+from data_types.game_activation_result import GameActivationResult
 from parser import parse_player_state
 
 from requests import Session

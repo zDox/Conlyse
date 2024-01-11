@@ -1,18 +1,6 @@
 from dataclasses import dataclass
 
 
-json_to_auth_details_mapping = {
-        "userID": "user_id",
-        "authHash": "auth_hash",
-        "authTstamp": "auth_tstamp",
-        "chatAuth": "chat_auth",
-        "chatAuthTstamp": "chat_auth_tstamp",
-        "uberAuthHash": "uber_auth_hash",
-        "uberAuthTstamp": "uber_auth_tstamp",
-        "rights": "rights"
-}
-
-
 @dataclass
 class AuthDetails:
     user_id: int
@@ -24,6 +12,17 @@ class AuthDetails:
     uber_auth_tstamp: int
     rights: str
 
+    mapping = {
+            "userID": "user_id",
+            "authHash": "auth_hash",
+            "authTstamp": "auth_tstamp",
+            "chatAuth": "chat_auth",
+            "chatAuthTstamp": "chat_auth_tstamp",
+            "uberAuthHash": "uber_auth_hash",
+            "uberAuthTstamp": "uber_auth_tstamp",
+            "rights": "rights"
+    }
+
     @classmethod
     def from_url_parameters(cls, url: str):
         parameters = url.split('&')
@@ -32,8 +31,8 @@ class AuthDetails:
 
         for parameter in parameters[1:]:
             key, value = parameter.split("=")
-            if key not in json_to_auth_details_mapping.keys():
+            if key not in cls.mapping.keys():
                 continue
-            parsed_data[json_to_auth_details_mapping[key]] = value
+            parsed_data[cls.mapping[key]] = value
 
         return cls(**parsed_data)

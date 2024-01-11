@@ -1,5 +1,5 @@
 from game_api import GameAPI
-from game_activation_result import GameActivationResult, \
+from data_types.game_activation_result import GameActivationResult, \
         GameActivationResult_to_exception
 
 

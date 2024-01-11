@@ -1,5 +1,5 @@
 from parser import parse_international_games
-from authentification import AuthDetails
+from data_types.authentification import AuthDetails
 from exceptions import ConflictWebAPIError
 from fake_useragent import UserAgent
 from game_interface import GameInterface
@@ -28,7 +28,6 @@ class ConflictInterface():
                 "User-Agent": self.user_agent,
                 "Accept-Language": 'en-US,en;q=0.9',
         }
-        print(self.user_agent)
         self.auth = None
 
     def login(self, username, password):
