@@ -1,4 +1,4 @@
-from data_types.utils import MappedValue
+from data_types.utils import JsonMappedClass, MappedValue
 
 from dataclasses import dataclass
 from enum import Enum
@@ -70,6 +70,49 @@ def position_to_tuple(value):
 
 
 @dataclass
+class DynamicProvince(JsonMappedClass):
+    id: int
+    province_state_id: ProvinceStateID
+    name: str
+    resource_production: int
+    money_production: int
+    victory_points: int
+    owner_id: int
+    morale: int
+    terrain_type: TerrainType
+    region: Region
+    buildings: list[Building]
+
+    dynamic_mapping = {
+        "id": "id",
+        "n": "name",
+        "c": "adjacent_to_water",
+        "o": "owner_id",
+        "m": "morale",
+        "pst": "province_state_id",
+        "rp": "resource_production",
+        "tp": "money_production",
+        "lo": "legal_owner",
+    }
+
+
+@dataclass
+class StaticProvince(JsonMappedClass):
+    id: int
+    resource_production_typ: ResourceProductionType
+    adjacent_to_water: bool
+    legal_owner: int
+    center_coordinate: tuple(int, int)
+
+    static_mapping = {
+        "id": "id",
+        "rg": MappedValue("region", rg_to_region),
+        "tt": "terrain_type",
+        "c": MappedValue("center_coordinate", position_to_tuple),
+    }
+
+
+@dataclass
 class Province:
     # Static Data
     id: int
@@ -108,48 +151,3 @@ class Province:
         "tp": "money_production",
         "lo": "legal_owner",
     }
-
-    @classmethod
-    def from_static(cls, obj):
-        parsed_data = {}
-        for new_name, mapped_value in cls.static_mapping.items():
-            if not isinstance(mapped_value, MappedValue):
-                if obj.get(mapped_value) is None:
-                    parsed_data[new_name] = None
-                else:
-                    parsed_data[new_name] = cls.__annotations__[new_name](
-                            obj.get(mapped_value))
-                continue
-
-            if mapped_value.function:
-                if mapped_value.needs_entire_obj:
-                    parsed_data[new_name] = mapped_value.function(
-                            obj, obj.get(mapped_value.original))
-                else:
-                    parsed_data[new_name] = mapped_value.function(
-                            obj.get(mapped_value.original))
-            else:
-                parsed_data[new_name] = cls.__annotations__[new_name](
-                        obj.get(mapped_value.original))
-        return cls(**parsed_data)
-
-    def set_dynamic(self, obj):
-        for new_name, mapped_value in self.dynamic_mapping.items():
-            if not isinstance(mapped_value, MappedValue):
-                if obj.get(mapped_value) is None:
-                    self[new_name] = None
-                else:
-                    self[new_name] = self.__annotations__[new_name](
-                            obj.get(mapped_value))
-                continue
-
-            if mapped_value.function:
-                if mapped_value.needs_entire_obj:
-                    self[new_name] = mapped_value.function(
-                            obj, obj.get(mapped_value.original))
-                else:
-                    self[new_name] = mapped_value.function(
-                            obj.get(mapped_value.original))
-            else:
-                self[new_name] = self.__annotations__[new_name](
-                        obj.get(mapped_value.original))

@@ -3,13 +3,21 @@ from dataclasses import dataclass
 
 @dataclass
 class MappedValue:
-    original: str  # how conflict of nations names this field
     """
-    a function which needs to be called to convert
-    between the conflict of nations value and python representation
+    Attributes
+    ----------
+    original : str
+        the sound that the animal makes
+    function : callable
+        a function which needs to be called to convert
+        between the conflict of nations value and python representation
+    needs_entire_obj : bool
+        the function needs the entire json object
     """
+
+    original: str
     function: callable = None
-    needs_entire_obj: bool = False  # the function needs the entire json object
+    needs_entire_obj: bool = False
 
 
 class JsonMappedClass:

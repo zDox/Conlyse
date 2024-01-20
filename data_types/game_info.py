@@ -9,6 +9,7 @@ class GameInfoState(Enum):
     NONE = "none"
     READY_TO_JOIN = "readytojoin"
     RUNNING = "running"
+    FINISHED = "finished"
 
 
 def timestamp_to_datetime(timestamp):

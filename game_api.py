@@ -1,7 +1,7 @@
 from data_types.authentification import AuthDetails
 from exceptions import ConflictJoinError
 from data_types.game_activation_result import GameActivationResult
-from parser import parse_player_state
+from data_types.states import States
 
 from requests import Session
 from lxml import html
@@ -220,7 +220,7 @@ class GameAPI:
             )
         return res
 
-    def request_game_update(self, with_states=True):
+    def request_game_update(self, with_states=True) -> States:
         time_stamps = {"@c": "java.util.HashMap"}
         state_ids = {"@c": "java.util.HashMap"}
 
@@ -248,4 +248,4 @@ class GameAPI:
 
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
-        return parse_player_state(res["result"]["states"]["1"])
+        return States.from_dict(res["result"]["states"])

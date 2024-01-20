@@ -30,4 +30,6 @@ class GameInterface:
         self.game_api.request_login_action()
 
     def list_playable_countries(self):
-        return self.game_api.request_game_update(with_states=False)
+        return [player for player
+                in self.game_api.request_game_update(with_states=False)
+                .player_state.players.values() if player.available]

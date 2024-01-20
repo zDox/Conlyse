@@ -1,15 +1,19 @@
 from data_types.team_profile import TeamProfile
 from data_types.player_profile import PlayerProfile
+
+"""
 from data_types.article import Article
-from data_types.province import Province, ProvinceProperty
+from data_types.province import DynamicProvince, ProvinceProperty
 from data_types.relationship import Relationship
 from data_types.army import Army
 from data_types.upgrade import Upgrade
 from data_types.unit_type import UnitType
 from data_types.research_type import ResearchType
+"""
 
 from dataclasses import dataclass
 from datetime import date
+from typing import Dict
 
 
 """
@@ -52,22 +56,37 @@ STATE_TYPE_MISSION_STATE: 29
 @dataclass
 class PlayerState:
     STATE_ID = 1
-    players: list(PlayerProfile)
-    teams: list(TeamProfile)
+    players: Dict[int, PlayerProfile]
+    teams: Dict[int, TeamProfile]
+
+    @classmethod
+    def from_dict(cls, obj):
+        players = {}
+        for player in list(obj["players"].values())[1:]:
+            players[player["playerID"]] = PlayerProfile.from_dict(player)
+
+        teams = {}
+        for team in list(obj["teams"].values())[1:]:
+            teams[team["teamID"]] = TeamProfile.from_dict(team)
+
+        return cls(**{
+            "players": players,
+            "teams": teams,
+            })
 
 
 @dataclass
 class NewspaperState:
     STATE_ID = 2
-    articles: list(Article)
+    # articles: list(Article)
 
 
 @dataclass
 class MapState:
     STATE_ID = 3
-    provinces: list(Province)
+    # provinces: list(DynamicProvince)
     # Provinces which are owned by the current player
-    province_properties: list(ProvinceProperty)
+    # province_properties: list(ProvinceProperty)
 
 
 @dataclass
@@ -79,13 +98,13 @@ class ResourceState:
 @dataclass
 class ForeignAffairsState:
     STATE_ID = 5
-    relations: list(Relationship)
+    # relations: list(Relationship)
 
 
 @dataclass
 class ArmyState:
     STATE_ID = 6
-    armies: list(Army)
+    # armies: list(Army)
 
 
 @dataclass
@@ -95,11 +114,26 @@ class SpyState:
 
 
 @dataclass
+class MapInfoState:
+    STATE_ID = 8
+
+
+@dataclass
+class AdminState:
+    STATE_ID = 8
+
+
+@dataclass
+class StatisticState:
+    STATE_ID = 9
+
+
+@dataclass
 class ModState:
     STATE_ID = 11
-    upgrades: list(Upgrade)
-    unit_types: list(UnitType)
-    research_types: list(ResearchType)
+    # upgrades: list(Upgrade)
+    # unit_types: list(UnitType)
+    # research_types: list(ResearchType)
 
 
 @dataclass
@@ -133,6 +167,11 @@ class UserInventoryState:
 
 
 @dataclass
+class UserSMSState:
+    STATE_ID = 17
+
+
+@dataclass
 class TutorialState:
     STATE_ID = 18
 
@@ -143,10 +182,25 @@ class BuildQueueState:
 
 
 @dataclass
+class LocationState:
+    STATE_ID = 20
+
+
+@dataclass
+class TriggeredTutorialState:
+    STATE_ID = 21
+
+
+@dataclass
+class WheelOfFortuneState:
+    STATE_ID = 22
+
+
+@dataclass
 class ResearchState:
     STATE_ID = 23
-    current_researches: list(Research)
-    completed_researches: list(Research)
+    # current_researches: list(Research)
+    # completed_researches: list(Research)
     research_slots: int
 
 
@@ -158,6 +212,16 @@ class GameEventState:
 @dataclass
 class InGameAllianceState:
     STATE_ID = 25
+
+
+@dataclass
+class ExplorationState:
+    STATE_ID = 26
+
+
+@dataclass
+class QuestState:
+    STATE_ID = 27
 
 
 @dataclass
@@ -178,16 +242,41 @@ class States:
     resource_state: ResourceState
     foreign_affairs_state: ForeignAffairsState
     army_state: ArmyState
+    spy_state: SpyState
+    map_info_state: MapInfoState
+    admin_state: AdminState
+    statistic_state: StatisticState
     mod_state: ModState
     game_info_state: GameInfoState
     ai_state: AIState
     premium_state: PremiumState
     user_options_state: UserOptionsState
     user_inventory_state: UserInventoryState
+    user_sms_state: UserSMSState
     tutorial_state: TutorialState
     build_queue_state: BuildQueueState
+    location_state: LocationState
+    triggered_tutorial_state: TriggeredTutorialState
+    wheel_of_fortune_state: WheelOfFortuneState
     research_state: ResearchState
     game_event_state: GameEventState
     in_game_alliance_state: InGameAllianceState
+    exploration_state: ExplorationState
+    quest_state: QuestState
     configuration_state: ConfigurationState
     mission_state: MissionState
+
+    @classmethod
+    def from_dict(cls, obj):
+        parsed_data = {}
+        for i, (field_name, field_type) \
+                in enumerate(cls.__annotations__.items()):
+            parsed_data[field_name] = None
+
+            # if state is in object and state is implemented
+            if str(i+1) in obj \
+                    and callable(getattr(field_type, "from_dict", None)):
+                parsed_data[field_name] = field_type.from_dict(
+                        obj[str(i+1)])
+
+        return cls(**parsed_data)
