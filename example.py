@@ -9,4 +9,4 @@ if __name__ == "__main__":
     interface.login(creds.username, creds.password)
     print(interface.get_my_games())
     game = interface.join_game(8141919)
-    print(game.list_playable_countries())
+    game.update()

@@ -1,6 +1,7 @@
 from game_api import GameAPI
 from data_types.game_activation_result import GameActivationResult, \
         GameActivationResult_to_exception
+from pprint import pprint
 
 
 class GameInterface:
@@ -8,6 +9,7 @@ class GameInterface:
         self.game_api = game_api
         self.game_id = game_id
         self.join_game()
+        self.current_state = None
 
     def join_game(self):
         self.game_api.load_game_site()
@@ -15,8 +17,9 @@ class GameInterface:
         if activation_result != GameActivationResult.SUCCESS:
             raise GameActivationResult_to_exception(activation_result)
 
-        self.game_api.get_static_map_data()
-        self.game_api.request_login_action()
+        static_map_data = self.game_api.get_static_map_data()
+        pprint(static_map_data)
+        self.current_state = self.game_api.request_login_action()
 
     def select_country(self, country_id=-1, team_id=-1,
                        random_country_team=False):
@@ -31,5 +34,9 @@ class GameInterface:
 
     def list_playable_countries(self):
         return [player for player
-                in self.game_api.request_game_update(with_states=False)
-                .player_state.players.values() if player.available]
+                in self.current_state.player_state.players.values()
+                if player.available]
+
+    def update(self):
+        new_states = self.game_api.request_game_update()
+        return new_states

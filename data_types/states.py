@@ -1,19 +1,19 @@
 from data_types.team_profile import TeamProfile
 from data_types.player_profile import PlayerProfile
+from data_types.province import DynamicProvince
 
 """
 from data_types.article import Article
-from data_types.province import DynamicProvince, ProvinceProperty
 from data_types.relationship import Relationship
 from data_types.army import Army
 from data_types.upgrade import Upgrade
 from data_types.unit_type import UnitType
 from data_types.research_type import ResearchType
 """
-
+from pprint import pprint
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict
+from typing import Dict, List
 
 
 """
@@ -84,9 +84,20 @@ class NewspaperState:
 @dataclass
 class MapState:
     STATE_ID = 3
-    # provinces: list(DynamicProvince)
+    provinces: List[DynamicProvince]
     # Provinces which are owned by the current player
     # province_properties: list(ProvinceProperty)
+
+    @classmethod
+    def from_dict(cls, obj):
+        provinces = []
+        for province in obj["map"]["locations"][1]:
+            # pprint(province)
+            provinces.append(DynamicProvince.from_dict(province))
+
+        return cls(**{
+            "provinces": provinces
+        })
 
 
 @dataclass

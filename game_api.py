@@ -2,6 +2,7 @@ from data_types.authentification import AuthDetails
 from exceptions import ConflictJoinError
 from data_types.game_activation_result import GameActivationResult
 from data_types.states import States
+from data_types.static_map_data import StaticMapData
 
 from requests import Session
 from lxml import html
@@ -118,7 +119,7 @@ class GameAPI:
         }
 
         params = {
-            'bust': '1700054640135',
+            # 'bust': '1700054640135',
         }
 
         domain = "static1.bytro.com"
@@ -130,7 +131,7 @@ class GameAPI:
         )
 
         response.raise_for_status()
-        return response.text
+        return StaticMapData.from_dict(loads(response.text))
 
     def make_game_server_request(self, parameters, actions=None):
         headers = {
@@ -218,7 +219,7 @@ class GameAPI:
                         }
                 }
             )
-        return res
+        return States.from_dict(res["result"]["states"])
 
     def request_game_update(self, with_states=True) -> States:
         time_stamps = {"@c": "java.util.HashMap"}
