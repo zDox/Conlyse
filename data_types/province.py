@@ -1,7 +1,7 @@
+from __future__ import annotations
 from data_types.utils import JsonMappedClass, MappedValue
 
 from dataclasses import dataclass
-from typing import Tuple, List
 from enum import Enum
 
 
@@ -69,7 +69,7 @@ class Region(Enum):
 @dataclass
 class Building(JsonMappedClass):
     health: int
-    harbour_coordinate: Tuple[int, int]
+    harbour_coordinate: tuple[int, int]
     upgrade_id: int
 
     mapping = {
@@ -94,8 +94,10 @@ def parse_buildings(value: list):
 
 
 @dataclass
-class DynamicProvince(JsonMappedClass):
+class Province(JsonMappedClass):
     id: int
+
+    # Data from GameServer
     province_state_id: ProvinceStateID
     name: str
     adjacent_to_water: bool
@@ -106,7 +108,12 @@ class DynamicProvince(JsonMappedClass):
     owner_id: int
     legal_owner: int
     morale: int
-    buildings: List[Building]
+    buildings: list[Building]
+
+    # Data from Static supplier
+    terrain_type: TerrainType = None
+    center_coordinate: tuple[int, int] = None
+    region: Region = Region.NONE
 
     mapping = {
         "id": "id",
@@ -124,12 +131,26 @@ class DynamicProvince(JsonMappedClass):
         "buildings": MappedValue("us", parse_buildings),
     }
 
+    updateable_keys = ["province_state_id", "adjacent_to_water",
+                       "resource_production", "money_production",
+                       "victory_points", "owner_id", "legal_owner",
+                       "moral", "buildings"]
+
+    def set_static_province(self, obj):
+        for static_field in StaticProvince.__annotations__.keys():
+            setattr(self, static_field, getattr(obj, static_field))
+
+    def update(self, new_province: Province):
+        for updateable_key in Province.updateable_keys:
+            setattr(self, updateable_key,
+                    getattr(new_province, updateable_key))
+
 
 @dataclass
 class StaticProvince(JsonMappedClass):
     id: int
     terrain_type: TerrainType
-    center_coordinate: Tuple[int, int]
+    center_coordinate: tuple[int, int]
     region: Region
 
     mapping = {
@@ -137,45 +158,4 @@ class StaticProvince(JsonMappedClass):
         "terrain_type": "tt",
         "center_coordinate": MappedValue("c", position_to_tuple),
         "region": MappedValue("rg", rg_to_region),
-    }
-
-
-@dataclass
-class Province:
-    # Static Data
-    id: int
-    name: str
-    terrain_type: TerrainType
-    resource_production_typ: ResourceProductionType
-    adjacent_to_water: bool
-    legal_owner: int
-    region: Region
-    center_coordinate: Tuple[int, int]
-
-    # Dynamic Data
-    province_state_id: ProvinceStateID
-    resource_production: int
-    money_production: int
-    victory_points: int
-    owner_id: int
-    morale: int
-    buildings: list[Building]
-
-    static_mapping = {
-        "id": "id",
-        "rg": MappedValue("region", rg_to_region),
-        "tt": "terrain_type",
-        "c": MappedValue("center_coordinate", position_to_tuple),
-    }
-
-    dynamic_mapping = {
-        "id": "id",
-        "n": "name",
-        "c": "adjacent_to_water",
-        "o": "owner_id",
-        "m": "morale",
-        "pst": "province_state_id",
-        "rp": "resource_production",
-        "tp": "money_production",
-        "lo": "legal_owner",
     }

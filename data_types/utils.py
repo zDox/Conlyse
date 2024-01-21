@@ -1,4 +1,14 @@
+from typing import get_type_hints
 from dataclasses import dataclass
+
+
+class UpdatableClass:
+    def update(self, new_class):
+        for field in self.__annotations__.keys():
+            if not callable(getattr(field, "update", None)):
+                continue
+
+            self[field].update(new_class[field])
 
 
 @dataclass
@@ -31,13 +41,15 @@ class JsonMappedClass:
     @classmethod
     def from_dict(cls, obj: dict):
         parsed_data = {}
+        resolved = get_type_hints(cls)
+
         for new_name, mapped_value in cls.mapping.items():
+            ftype = resolved[new_name]
             if not isinstance(mapped_value, MappedValue):
                 if obj.get(mapped_value) is None:
                     parsed_data[new_name] = None
                 else:
-                    parsed_data[new_name] = cls.__annotations__[new_name](
-                            obj.get(mapped_value))
+                    parsed_data[new_name] = ftype(obj.get(mapped_value))
                 continue
 
             if mapped_value.function:
@@ -48,6 +60,6 @@ class JsonMappedClass:
                     parsed_data[new_name] = mapped_value.function(
                             obj.get(mapped_value.original))
             else:
-                parsed_data[new_name] = cls.__annotations__[new_name](
+                parsed_data[new_name] = ftype(
                         obj.get(mapped_value.original))
         return cls(**parsed_data)

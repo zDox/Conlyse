@@ -10,6 +10,7 @@ import re
 from time import time
 from dataclasses import dataclass
 from json import loads, dumps
+from pprint import pprint
 
 
 @dataclass
@@ -176,6 +177,7 @@ class GameAPI:
             "selectedTeamID": -1,
             "randomTeamAndCountrySelection": False,
             }, None)
+        print(res)
         return GameActivationResult(res["result"])
 
     def request_selected_country(self, country_id=-1, team_id=-1,
@@ -249,4 +251,5 @@ class GameAPI:
 
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
+        pprint(res)
         return States.from_dict(res["result"]["states"])

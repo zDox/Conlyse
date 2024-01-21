@@ -1,12 +1,11 @@
 from data_types.province import StaticProvince
 
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
 class StaticMapData():
-    provinces: List[StaticProvince]
+    provinces: list[StaticProvince]
 
     @classmethod
     def from_dict(cls, obj):

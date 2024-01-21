@@ -1,6 +1,9 @@
+
 from data_types.team_profile import TeamProfile
 from data_types.player_profile import PlayerProfile
-from data_types.province import DynamicProvince
+from data_types.province import Province
+from data_types.utils import UpdatableClass
+from data_types.static_map_data import StaticMapData
 
 """
 from data_types.article import Article
@@ -13,7 +16,6 @@ from data_types.research_type import ResearchType
 from pprint import pprint
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List
 
 
 """
@@ -56,8 +58,8 @@ STATE_TYPE_MISSION_STATE: 29
 @dataclass
 class PlayerState:
     STATE_ID = 1
-    players: Dict[int, PlayerProfile]
-    teams: Dict[int, TeamProfile]
+    players: dict[int, PlayerProfile]
+    teams: dict[int, TeamProfile]
 
     @classmethod
     def from_dict(cls, obj):
@@ -74,6 +76,10 @@ class PlayerState:
             "teams": teams,
             })
 
+    def update(self, new_state):
+        self.players = new_state.players
+        self.teams = new_state.teams
+
 
 @dataclass
 class NewspaperState:
@@ -84,20 +90,29 @@ class NewspaperState:
 @dataclass
 class MapState:
     STATE_ID = 3
-    provinces: List[DynamicProvince]
+    provinces: dict[int, Province]
     # Provinces which are owned by the current player
     # province_properties: list(ProvinceProperty)
 
     @classmethod
     def from_dict(cls, obj):
-        provinces = []
+        provinces = {}
         for province in obj["map"]["locations"][1]:
             # pprint(province)
-            provinces.append(DynamicProvince.from_dict(province))
+            province = Province.from_dict(province)
+            provinces[province.id] = province
 
         return cls(**{
             "provinces": provinces
         })
+
+    def update(self, new_state):
+        for province in new_state.provinces:
+            self.provinces[province.id].update(province)
+
+    def set_static_map_data(self, static_map_data: StaticMapData):
+        for province in static_map_data.provinces:
+            self.provinces[province.id].set_static_province(province)
 
 
 @dataclass
@@ -246,7 +261,7 @@ class MissionState:
 
 
 @dataclass
-class States:
+class States(UpdatableClass):
     player_state: PlayerState
     newspaper_state: NewspaperState
     map_state: MapState
@@ -291,3 +306,10 @@ class States:
                         obj[str(i+1)])
 
         return cls(**parsed_data)
+
+    def update(self, new_class):
+        for field in self.__annotations__.keys():
+            if not callable(getattr(field, "update", None)):
+                continue
+
+            getattr(self, field).update(new_class[field])
