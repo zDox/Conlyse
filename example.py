@@ -16,5 +16,6 @@ if __name__ == "__main__":
         time1 = time()
         game.update()
         total = time() - time1
+        pprint(game.state.game_info_state.game_info)
         print(f"Updating took {total}s")
         sleep(5)

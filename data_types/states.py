@@ -4,6 +4,7 @@ from data_types.player_profile import PlayerProfile
 from data_types.province import Province
 from data_types.utils import UpdatableClass
 from data_types.static_map_data import StaticMapData
+from data_types.game_info import GameInfo
 
 """
 from data_types.article import Article
@@ -15,7 +16,6 @@ from data_types.research_type import ResearchType
 """
 from pprint import pprint
 from dataclasses import dataclass
-from datetime import date
 
 
 """
@@ -165,11 +165,13 @@ class ModState:
 @dataclass
 class GameInfoState:
     STATE_ID = 12
-    start_of_game: date
-    next_day_time: date
-    next_heal_time: date
-    gold_round: date
-    demo_game: date
+    game_info: GameInfo
+
+    @classmethod
+    def from_dict(cls, obj):
+        return cls(**{
+            "game_info": GameInfo.from_dict(obj)
+            })
 
 
 @dataclass

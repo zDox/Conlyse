@@ -251,5 +251,4 @@ class GameAPI:
 
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
-        pprint(res)
         return States.from_dict(res["result"]["states"])

@@ -32,7 +32,6 @@ class ConflictInterface():
 
     def login(self, username, password):
         params = {
-            'id': '322',
             'source': 'browser-desktop',
         }
 
