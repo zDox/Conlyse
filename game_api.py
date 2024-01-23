@@ -5,6 +5,7 @@ from data_types.states import States
 from data_types.static_map_data import StaticMapData
 
 from requests import Session
+from hashlib import sha1
 from lxml import html
 import re
 from time import time
@@ -134,51 +135,65 @@ class GameAPI:
         response.raise_for_status()
         return StaticMapData.from_dict(loads(response.text))
 
+    def sign(self, data):
+        return data
+
     def make_game_server_request(self, parameters, actions=None):
         headers = {
             'Accept': 'text/plain, */*; q=0.01',
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
         }
 
+        tstamp = str(int(time()*1000))
+        hash_prepare = "undefined" + tstamp
+
+        tstamp = str(self.auth.auth_tstamp)
+        hash_hex = sha1(hash_prepare.encode()).hexdigest()
+
         data = {
                 "requestID": self.request_id,
                 "language": "en",
-                "os": self.device_details.os,
-                "device": self.device_details.device,
-                "tstamp": int(time()),
-                "version": self.client_version,
-                "client": "con-client",
+                **parameters,
                 "lastCallDuration": 0,
+                "version": self.client_version,
+                "tstamp": tstamp,
+                "client": "con-client",
+                "hash": hash_hex,
                 "sessionTstamp": 0,
                 "gameID": str(self.game_id),
                 "playerID": self.player_id,
-                "siteUserID": self.auth.user_id,
+                "siteUserID": str(self.auth.user_id),
                 "adminLevel": None,
                 "rights": self.auth.rights,
-                "userAuth": self.auth.uber_auth_hash,
-                **parameters
+                "userAuth": self.auth.auth_hash,
         }
+
+        self.request_id += 1
 
         if actions:
             data["actions"] = ["java.util.LinkedList", [actions]]
 
-        self.request_id += 1
+
+        print(dumps(data))
 
         response = self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data))
         response.raise_for_status()
+        print(dumps(loads(response.text)))
         return loads(response.text)
 
-    def request_first_game_activation(self):
+    def request_first_game_activation(self, guest):
         res = self.make_game_server_request({
             "@c": "ultshared.action.UltActivateGameAction",
             "selectedPlayerID": -1,
             "selectedTeamID": -1,
             "randomTeamAndCountrySelection": False,
+            "os": self.device_details.os,
+            "device": self.device_details.device,
             }, None)
-        print(res)
-        return GameActivationResult(res["result"])
+        if not guest:
+            self.player_id = res["result"]
 
     def request_selected_country(self, country_id=-1, team_id=-1,
                                  random_team_country_selection=False):
@@ -187,8 +202,10 @@ class GameAPI:
             "selectedPlayerID": country_id,
             "selectedTeamID": team_id,
             "randomTeamAndCountrySelection": random_team_country_selection,
+            "device": self.device_details.device,
+            "os": self.device_details.os,
             }, None)
-        return GameActivationResult(res["result"])
+        self.player_id = res["result"]
 
     def request_login_action(self):
         res = self.make_game_server_request(
@@ -212,7 +229,7 @@ class GameAPI:
                         "accMem": "",
                         "javaVersion": "",
                         "osArch": "",
-                        "osName": self.device_details.os,
+                        "osName": "UNIX",
                         "osVersion": "",
                         "osPatchLevel": "",
                         "userCountry": "",

@@ -10,7 +10,8 @@ class AuthDetails:
     chat_auth_tstamp: int
     uber_auth_hash: str
     uber_auth_tstamp: int
-    rights: str
+    session_token: str = None
+    rights: str = None
 
     mapping = {
             "userID": "user_id",
@@ -27,12 +28,11 @@ class AuthDetails:
     def from_url_parameters(cls, url: str):
         parameters = url.split('&')
         parsed_data = {}
-        parsed_data["rights"] = "null"
 
         for parameter in parameters[1:]:
             key, value = parameter.split("=")
             if key not in cls.mapping.keys():
                 continue
-            parsed_data[cls.mapping[key]] = value
+            parsed_data[cls.mapping[key]] = cls.__annotations__[cls.mapping[key]](value)
 
         return cls(**parsed_data)

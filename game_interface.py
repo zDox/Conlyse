@@ -12,9 +12,9 @@ class GameInterface:
 
         self.join_game()
 
-    def join_game(self):
+    def join_game(self, guest=False):
         self.game_api.load_game_site()
-        activation_result = self.game_api.request_first_game_activation()
+        activation_result = self.game_api.request_first_game_activation(guest)
         if activation_result != GameActivationResult.SUCCESS:
             pass
             # raise GameActivationResult_to_exception(activation_result)

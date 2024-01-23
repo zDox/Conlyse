@@ -53,6 +53,9 @@ class ConflictInterface():
 
         self.auth = AuthDetails.from_url_parameters(url)
 
+        print(self.auth)
+        self.auth.session_token = self.get_session_token()
+
     @protected
     def send_api_request(self, params, action):
         headers = {
@@ -69,7 +72,7 @@ class ConflictInterface():
         param_list = []
         if params:
             for key, value in params.items():
-                param_list.append(key + "=" + value)
+                param_list.append(key + "=" + str(value))
             encoded_params = "&".join(param_list)
 
         encoded_params_b64 = base64.b64encode(encoded_params.encode()).decode()
@@ -134,3 +137,10 @@ class ConflictInterface():
                            self.auth,
                            game_id)
         return GameInterface(game_id, game_api)
+
+    def get_session_token(self):
+        res = self.send_api_request({
+            "userID": self.auth.user_id,
+        }, "getSessionToken")
+        print("token", res)
+        return res["sessionToken"]

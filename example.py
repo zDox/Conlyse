@@ -16,6 +16,5 @@ if __name__ == "__main__":
         time1 = time()
         game.update()
         total = time() - time1
-        pprint(game.state.map_state.province_properties)
         print(f"Updating took {total}s")
         sleep(5)
