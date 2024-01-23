@@ -1,5 +1,24 @@
 from typing import get_type_hints
 from dataclasses import dataclass
+from datetime import datetime
+
+
+# Helper functions for parsing a mapped value
+
+
+def timestamp_to_datetime(timestamp):
+    return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S") \
+            if timestamp else None
+
+
+def unixtimestamp_to_datetime(timestamp):
+    return datetime.utcfromtimestamp(int(timestamp)) \
+            if timestamp else None
+
+
+def unixtimestamp_milli_to_datetime(timestamp):
+    return datetime.utcfromtimestamp(int(timestamp)/1000) \
+            if timestamp else None
 
 
 class UpdatableClass:

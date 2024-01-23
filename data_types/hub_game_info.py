@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from enum import Enum
-from data_types.utils import JsonMappedClass, MappedValue
+from data_types.utils import JsonMappedClass, MappedValue, \
+        unixtimestamp_to_datetime, timestamp_to_datetime
 
 
 class HubGameState(Enum):
@@ -10,16 +11,6 @@ class HubGameState(Enum):
     READY_TO_JOIN = "readytojoin"
     RUNNING = "running"
     FINISHED = "finished"
-
-
-def timestamp_to_datetime(timestamp):
-    return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S") \
-            if timestamp else None
-
-
-def unixtimestamp_to_datetime(timestamp):
-    return datetime.utcfromtimestamp(int(timestamp)) \
-            if timestamp else None
 
 
 def openslots_to_currentplayers(obj, openslots):

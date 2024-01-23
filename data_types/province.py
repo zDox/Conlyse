@@ -159,3 +159,18 @@ class StaticProvince(JsonMappedClass):
         "center_coordinate": MappedValue("c", position_to_tuple),
         "region": MappedValue("rg", rg_to_region),
     }
+
+
+@dataclass
+class ProvinceProperty(JsonMappedClass):
+    id: int  # Province ID
+    possible_upgrades: list[Building]
+    queueable_upgrades: list[Building]
+
+    possible_productions: list[]
+    queueable_productions: list[]
+
+    revolt_chance: int
+    uprising_chance: int
+    target_morale: int
+

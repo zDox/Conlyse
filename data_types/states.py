@@ -1,13 +1,13 @@
 
 from data_types.team_profile import TeamProfile
 from data_types.player_profile import PlayerProfile
-from data_types.province import Province
+from data_types.province import Province, ProvinceProperty
 from data_types.utils import UpdatableClass
 from data_types.static_map_data import StaticMapData
 from data_types.game_info import GameInfo
+from data_types.article import Article
 
 """
-from data_types.article import Article
 from data_types.relationship import Relationship
 from data_types.army import Army
 from data_types.upgrade import Upgrade
@@ -63,18 +63,16 @@ class PlayerState:
 
     @classmethod
     def from_dict(cls, obj):
-        players = {}
-        for player in list(obj["players"].values())[1:]:
-            players[player["playerID"]] = PlayerProfile.from_dict(player)
+        players = {int(player_id): PlayerProfile.from_dict(player)
+                   for player_id, player in list(obj["players"].items())[1:]}
 
-        teams = {}
-        for team in list(obj["teams"].values())[1:]:
-            teams[team["teamID"]] = TeamProfile.from_dict(team)
+        teams = {int(team_id): TeamProfile.from_dict(team)
+                 for team_id, team in list(obj["teams"].items())[1:]}
 
         return cls(**{
             "players": players,
             "teams": teams,
-            })
+        })
 
     def update(self, new_state):
         self.players = new_state.players
@@ -84,7 +82,15 @@ class PlayerState:
 @dataclass
 class NewspaperState:
     STATE_ID = 2
-    # articles: list(Article)
+    articles: list[Article]
+
+    @classmethod
+    def from_dict(cls, obj):
+        articles = [Article.from_dict(article)
+                    for article in obj["articles"][1]]
+        return cls(**{
+            "articles": articles
+        })
 
 
 @dataclass
@@ -92,16 +98,12 @@ class MapState:
     STATE_ID = 3
     provinces: dict[int, Province]
     # Provinces which are owned by the current player
-    # province_properties: list(ProvinceProperty)
+    province_properties: dict[int, ProvinceProperty]
 
     @classmethod
     def from_dict(cls, obj):
-        provinces = {}
-        for province in obj["map"]["locations"][1]:
-            # pprint(province)
-            province = Province.from_dict(province)
-            provinces[province.id] = province
-
+        provinces = {province.id: Province.from_dict(province)
+                     for province in obj["map"]["locations"][1:]}
         return cls(**{
             "provinces": provinces
         })
