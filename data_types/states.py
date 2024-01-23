@@ -102,10 +102,18 @@ class MapState:
 
     @classmethod
     def from_dict(cls, obj):
-        provinces = {province.id: Province.from_dict(province)
-                     for province in obj["map"]["locations"][1:]}
+        provinces = {province["id"]: Province.from_dict(province)
+                     for province in obj["map"]["locations"][1]}
+
+        print(obj)
+
+        province_properties = {int(province_id): ProvinceProperty.
+                               from_dict(province_property)
+                               for province_id, province_property
+                               in list(obj["properties"].items())[1:]}
         return cls(**{
-            "provinces": provinces
+            "provinces": provinces,
+            "province_properties": province_properties,
         })
 
     def update(self, new_state):

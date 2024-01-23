@@ -14,6 +14,7 @@ class GameActivationResult(Enum):
     GAME_FULL = -9
     GAME_TOO_OLD = -10
     ANTI_CHEAT_IP_CONFLICT = -11
+    SEASON_API_FAILED = 87
 
 
 def GameActivationResult_to_exception(result):

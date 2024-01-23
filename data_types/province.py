@@ -1,5 +1,5 @@
-from __future__ import annotations
 from data_types.utils import JsonMappedClass, MappedValue
+from data_types.warfare_unit import SpecialUnit
 
 from dataclasses import dataclass
 from enum import Enum
@@ -71,11 +71,13 @@ class Building(JsonMappedClass):
     health: int
     harbour_coordinate: tuple[int, int]
     upgrade_id: int
+    constructing: bool
 
     mapping = {
             "health": "c",
             "harbour_coordinate": MappedValue("rp", position_to_tuple),
             "upgrade_id": "id",
+            "constructing": "cn",
     }
 
 
@@ -140,7 +142,7 @@ class Province(JsonMappedClass):
         for static_field in StaticProvince.__annotations__.keys():
             setattr(self, static_field, getattr(obj, static_field))
 
-    def update(self, new_province: Province):
+    def update(self, new_province):
         for updateable_key in Province.updateable_keys:
             setattr(self, updateable_key,
                     getattr(new_province, updateable_key))
@@ -161,16 +163,33 @@ class StaticProvince(JsonMappedClass):
     }
 
 
+def parse_productions(value: list):
+    if value is None:
+        return
+
+    return [SpecialUnit.from_dict(production) for production in value[1]]
+
+
 @dataclass
 class ProvinceProperty(JsonMappedClass):
     id: int  # Province ID
     possible_upgrades: list[Building]
     queueable_upgrades: list[Building]
 
-    possible_productions: list[]
-    queueable_productions: list[]
+    possible_productions: list[SpecialUnit]
+    queueable_productions: list[SpecialUnit]
 
     revolt_chance: int
     uprising_chance: int
     target_morale: int
 
+    mapping = {
+        "id": "id",
+        "possible_upgrades": MappedValue("possibleUpgrades", parse_buildings),
+        "queueable_upgrades": MappedValue("queueableUpgrades",
+                                          parse_buildings),
+        "possible_productions": MappedValue("possibleProductions",
+                                            parse_productions),
+        "queueable_productions": MappedValue("queueableProductions",
+                                             parse_productions),
+    }
