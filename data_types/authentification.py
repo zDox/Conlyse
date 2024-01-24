@@ -31,12 +31,11 @@ class AuthDetails:
         parameters = url.split('&')
         parsed_data = {}
 
-        print(parameters)
-
         for parameter in parameters[1:]:
             key, value = parameter.split("=")
             if key not in cls.mapping.keys():
                 continue
-            parsed_data[cls.mapping[key]] = cls.__annotations__[cls.mapping[key]](value)
+            parsed_data[cls.mapping[key]] = cls.__annotations__[
+                    cls.mapping[key]](value)
 
         return cls(**parsed_data)

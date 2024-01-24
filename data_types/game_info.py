@@ -2,7 +2,7 @@ from data_types.utils import JsonMappedClass, MappedValue, \
         unixtimestamp_to_datetime, unixtimestamp_milli_to_datetime
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
 
 
 def openslots_to_currentplayers(obj, openslots):
@@ -45,13 +45,13 @@ class GameFeature(JsonMappedClass):
 class GameInfo(JsonMappedClass):
     map_id: int
     scenario_id: int
-    start_of_game: date
+    start_of_game: datetime
     current_players: int
     max_players: int
     day_of_game: int
-    next_day_time: date
-    next_heal_time: date
-    end_of_game: date
+    next_day_time: datetime
+    next_heal_time: datetime
+    end_of_game: datetime
     game_ended: bool
     ranked: bool
     demo_game: bool

@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
 from enum import Enum
 from data_types.utils import JsonMappedClass, MappedValue, \
-        unixtimestamp_to_datetime, timestamp_to_datetime
+        unixtimestamp_to_datetime, timestamp_to_datetime, DefaultEnumMeta
 
 
-class HubGameState(Enum):
+class HubGameState(Enum, metaclass=DefaultEnumMeta):
     UNDEFINED = "undefined"
     NONE = "none"
     READY_TO_JOIN = "readytojoin"
@@ -33,12 +33,12 @@ class HubGameInfo(JsonMappedClass):
     scenario_id: int
     scenario_version_id: int
     season_id: int
-    start_of_game: date
+    start_of_game: datetime
     current_players: int
     max_players: int
     day_of_game: int
     end_of_game: bool
-    last_login: date
+    last_login: datetime
     creator_id: int
     title: str
     comment: str
@@ -47,7 +47,7 @@ class HubGameInfo(JsonMappedClass):
     demo_game: bool
     min_rank: int
     managed_game: bool
-    creation_date: date
+    creation_date: datetime
     ai_level: int
     victory_points: int
     victory_condition: int
@@ -67,11 +67,11 @@ class HubGameInfo(JsonMappedClass):
     deleted: bool
     gold_round: bool
     game_status: int
-    last_statistics_update: date
+    last_statistics_update: datetime
     unit_pack: int
     xp_boost_factor: int
     speed_factor: int
-    update_timestamp: date
+    update_timestamp: datetime
     max_rank: int
     max_join_day: int
     map_reference: str

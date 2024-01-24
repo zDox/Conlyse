@@ -3,7 +3,7 @@ from data_types.utils import JsonMappedClass, MappedValue, \
 
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
 
 
 @dataclass
@@ -11,7 +11,7 @@ class Article(JsonMappedClass):
     sender_id: int
     receiver_id: int
     message_id: int
-    time_stamp: date
+    time_stamp: datetime
 
     title: str
     author: str  # Theme of article

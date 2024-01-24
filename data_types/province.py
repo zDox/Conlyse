@@ -1,4 +1,4 @@
-from data_types.utils import JsonMappedClass, MappedValue
+from data_types.utils import JsonMappedClass, MappedValue, Position
 from data_types.warfare_unit import SpecialUnit
 
 from dataclasses import dataclass
@@ -33,7 +33,6 @@ class TerrainType(Enum):
 
 
 class ProvinceStateID(Enum):
-    NONE = -1
     OCCUPIED_PROVINCE = 51
     MAINLAND_PROVINCE = 52
     OCCUPIED_CITY = 53
@@ -114,7 +113,7 @@ class Province(JsonMappedClass):
 
     # Data from Static supplier
     terrain_type: TerrainType = None
-    center_coordinate: tuple[int, int] = None
+    center_coordinate: Position = None
     region: Region = Region.NONE
 
     mapping = {
@@ -152,13 +151,13 @@ class Province(JsonMappedClass):
 class StaticProvince(JsonMappedClass):
     id: int
     terrain_type: TerrainType
-    center_coordinate: tuple[int, int]
+    center_coordinate: Position
     region: Region
 
     mapping = {
         "id": "id",
         "terrain_type": "tt",
-        "center_coordinate": MappedValue("c", position_to_tuple),
+        "center_coordinate": "c",
         "region": MappedValue("rg", rg_to_region),
     }
 

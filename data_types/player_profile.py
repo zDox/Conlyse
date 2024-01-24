@@ -1,11 +1,11 @@
+from data_types.utils import JsonMappedClass, DefaultEnumMeta
+
 from dataclasses import dataclass
 from enum import Enum
-from data_types.utils import JsonMappedClass
 
 
-class Faction(Enum):
+class Faction(Enum, metaclass=DefaultEnumMeta):
     NONE = 0
-    NONE_2 = None
     WESTERN = 1
     EASTERN = 2
     EUROPEAN = 3

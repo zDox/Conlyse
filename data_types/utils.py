@@ -1,7 +1,7 @@
 from typing import get_type_hints
 from dataclasses import dataclass
 from datetime import datetime
-
+from enum import EnumMeta
 
 # Helper functions for parsing a mapped value
 
@@ -28,6 +28,30 @@ class UpdatableClass:
                 continue
 
             self[field].update(new_class[field])
+
+
+class DefaultEnumMeta(EnumMeta):
+    """
+    A Metaclass which makes the first entry of a Enum its
+    default value
+    """
+    default = object()
+
+    def __call__(cls, value=default, *args, **kwargs):
+        if value is DefaultEnumMeta.default:
+            # Assume the first enum is default
+            return next(iter(cls))
+        return super().__call__(value, *args, **kwargs)
+
+
+@dataclass
+class Position:
+    x: float
+    y: float
+
+    @classmethod
+    def from_dict(cls, obj):
+        return cls(x=obj["x"], y=obj["y"])
 
 
 @dataclass
@@ -65,13 +89,21 @@ class JsonMappedClass:
         for new_name, mapped_value in cls.mapping.items():
             ftype = resolved[new_name]
             if not isinstance(mapped_value, MappedValue):
-                if obj.get(mapped_value) is None:
+                # if type has metaclass DefaultEnumMeta use its default init
+                if obj.get(mapped_value) is None \
+                        and type(ftype) is DefaultEnumMeta:
+                    parsed_data[new_name] = ftype()
+                elif obj.get(mapped_value) is None:
                     parsed_data[new_name] = None
+
+                # If Type has from_dict implemented, use it
+                elif hasattr(ftype, "from_dict"):
+                    parsed_data[new_name] = ftype.from_dict(
+                            obj.get(mapped_value))
                 else:
                     parsed_data[new_name] = ftype(obj.get(mapped_value))
-                continue
 
-            if mapped_value.function:
+            elif mapped_value.function:
                 if mapped_value.needs_entire_obj:
                     parsed_data[new_name] = mapped_value.function(
                             obj, obj.get(mapped_value.original))

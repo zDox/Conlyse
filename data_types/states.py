@@ -6,10 +6,10 @@ from data_types.utils import UpdatableClass
 from data_types.static_map_data import StaticMapData
 from data_types.game_info import GameInfo
 from data_types.article import Article
+from data_types.army import Army
 
 """
 from data_types.relationship import Relationship
-from data_types.army import Army
 from data_types.upgrade import Upgrade
 from data_types.unit_type import UnitType
 from data_types.research_type import ResearchType
@@ -138,7 +138,15 @@ class ForeignAffairsState:
 @dataclass
 class ArmyState:
     STATE_ID = 6
-    # armies: list(Army)
+    armies: dict[int, Army]
+
+    @classmethod
+    def from_dict(cls, obj):
+        armies = {army["id"]: Army.from_dict(army)
+                  for army in list(obj["armies"].values())[1:]}
+        return cls(**{
+            "armies": armies,
+            })
 
 
 @dataclass
