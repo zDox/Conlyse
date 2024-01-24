@@ -2,9 +2,11 @@ from data_types.utils import JsonMappedClass, MappedValue, Position, \
         DefaultEnumMeta, unixtimestamp_to_datetime
 from data_types.warfare_unit import Unit
 from data_types.province import TerrainType
+from data_types.features import CarrierFeature, MissileCarrierFeature, \
+        RadarSignatureFeature, TokenFeature
 
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date
 from enum import Enum
 
 
@@ -68,78 +70,6 @@ class AntiAirParameters:
 
 
 @dataclass
-class CarrierFeature:
-    mapping = {}
-
-
-@dataclass
-class MissileSlotConfig(JsonMappedClass):
-    id: int
-    capacity: int
-    resupply_time: time
-    initial_inventory: int
-
-    mapping = {
-        "id": "id",
-        "capacity": "capacity",
-        "resupply_time": "resupplyTime",
-        "initial_inventory": "initialInventory",
-    }
-
-
-@dataclass
-class MissileCarrierConfig(JsonMappedClass):
-    missile_slot_config: dict[int, MissileSlotConfig]
-
-    @classmethod
-    def from_dict(cls, obj):
-        missile_slot_config = {slot_id: MissileSlotConfig.from_dict(slot)
-                               for slot_id, slot in
-                               list(obj["missileSlotConfig"].items())[1:]}
-        return cls(**{
-            "missile_slot_config": missile_slot_config,
-            })
-
-
-@dataclass
-class MissileCarrierFeature:
-    missile_carrier_config: MissileCarrierConfig
-    inventory: dict[int, int]
-    last_missile_spawns: dict[int, date]
-
-    @classmethod
-    def from_dict(cls, obj):
-        print(obj)
-
-        missile_carrier_config = MissileCarrierConfig.from_dict(
-                obj["missileCarrierConfig"])
-
-        inventory = {int(slot_id): amount
-                     for slot_id, amount in list(obj["inventory"].items())[1:]}
-
-        last_missile_spawns = {int(slot_id):
-                               unixtimestamp_to_datetime(spawn_time)
-                               for slot_id, spawn_time
-                               in list(obj["lastMissileSpawns"].items())[1:]}
-
-        return cls(**{
-            "missile_carrier_config": missile_carrier_config,
-            "inventory": inventory,
-            "last_missile_spawns": last_missile_spawns,
-        })
-
-
-@dataclass
-class RadarSignatureFeature:
-    mapping = {}
-
-
-@dataclass
-class TokenFeature:
-    mapping = {}
-
-
-@dataclass
 class Army(JsonMappedClass):
     id: int
     size: int
@@ -154,7 +84,9 @@ class Army(JsonMappedClass):
     at_airfield: bool
     units: list[Unit]
 
-    commands: list[Command]
+    commands: list[GotoCommand | RetreatCommand | AttackCommand |
+                   SiegeCommand | PatrolCommand | WaitCommand |
+                   SplitArmyCommand | FireMissileCommand]
     fight_status: FightStatus
     battle: Battle
     attack_unit_id: int
