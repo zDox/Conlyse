@@ -1,6 +1,6 @@
 # TO-DO of ConflictInterface
 
-# States
+## States
 
 - [x] PLAYER STATE
 - [ ] NEWSPAPER STATE: articles implemented
