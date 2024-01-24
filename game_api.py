@@ -1,6 +1,5 @@
 from data_types.authentification import AuthDetails
 from exceptions import ConflictJoinError
-from data_types.game_activation_result import GameActivationResult
 from data_types.states import States
 from data_types.static_map_data import StaticMapData
 
@@ -11,7 +10,6 @@ import re
 from time import time
 from dataclasses import dataclass
 from json import loads, dumps
-from pprint import pprint
 
 
 @dataclass
@@ -86,6 +84,10 @@ class GameAPI:
                     self.game_server_address = f"https://{value}"
                 case "mapID":
                     self.map_id = value
+                case "auth":
+                    self.auth.auth = value
+                case "authTstamp":
+                    self.auth.auth_tstamp = value
 
     def load_index_html(self):
         """
@@ -135,20 +137,14 @@ class GameAPI:
         response.raise_for_status()
         return StaticMapData.from_dict(loads(response.text))
 
-    def sign(self, data):
-        return data
-
     def make_game_server_request(self, parameters, actions=None):
         headers = {
             'Accept': 'text/plain, */*; q=0.01',
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
         }
 
-        tstamp = str(int(time()*1000))
-        hash_prepare = "undefined" + tstamp
-
-        tstamp = str(self.auth.auth_tstamp)
-        hash_hex = sha1(hash_prepare.encode()).hexdigest()
+        hash_hex = sha1(("undefined" + str(int(time()*1000)))
+                        .encode()).hexdigest()
 
         data = {
                 "requestID": self.request_id,
@@ -156,7 +152,7 @@ class GameAPI:
                 **parameters,
                 "lastCallDuration": 0,
                 "version": self.client_version,
-                "tstamp": tstamp,
+                "tstamp": str(self.auth.auth_tstamp),
                 "client": "con-client",
                 "hash": hash_hex,
                 "sessionTstamp": 0,
@@ -165,7 +161,7 @@ class GameAPI:
                 "siteUserID": str(self.auth.user_id),
                 "adminLevel": None,
                 "rights": self.auth.rights,
-                "userAuth": self.auth.auth_hash,
+                "userAuth": self.auth.auth,
         }
 
         self.request_id += 1
@@ -173,14 +169,10 @@ class GameAPI:
         if actions:
             data["actions"] = ["java.util.LinkedList", [actions]]
 
-
-        print(dumps(data))
-
         response = self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data))
         response.raise_for_status()
-        print(dumps(loads(response.text)))
         return loads(response.text)
 
     def request_first_game_activation(self, guest):

@@ -10,11 +10,13 @@ class AuthDetails:
     chat_auth_tstamp: int
     uber_auth_hash: str
     uber_auth_tstamp: int
+    auth: str = None
     session_token: str = None
     rights: str = None
 
     mapping = {
             "userID": "user_id",
+            "auth": "auth",
             "authHash": "auth_hash",
             "authTstamp": "auth_tstamp",
             "chatAuth": "chat_auth",
@@ -28,6 +30,8 @@ class AuthDetails:
     def from_url_parameters(cls, url: str):
         parameters = url.split('&')
         parsed_data = {}
+
+        print(parameters)
 
         for parameter in parameters[1:]:
             key, value = parameter.split("=")
