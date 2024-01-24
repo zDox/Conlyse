@@ -192,4 +192,7 @@ class ProvinceProperty(JsonMappedClass):
                                             parse_productions),
         "queueable_productions": MappedValue("queueableProductions",
                                              parse_productions),
+        "revolt_chance": "revoltChance",
+        "uprising_chance": "uprisingChance",
+        "target_morale": "targetMorale",
     }

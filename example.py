@@ -12,9 +12,5 @@ if __name__ == "__main__":
     game = interface.join_game(8141617)
 
     while True:
-        pprint("Updating Game State")
-        time1 = time()
         game.update()
-        total = time() - time1
-        print(f"Updating took {total}s")
         sleep(5)

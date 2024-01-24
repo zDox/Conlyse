@@ -10,6 +10,7 @@ import re
 from time import time
 from dataclasses import dataclass
 from json import loads, dumps
+from time import time
 
 
 @dataclass
@@ -45,8 +46,8 @@ class GameAPI:
         self.session.headers = headers
 
         # Get set from the auto GameUpdate request
-        self.time_stamps = None
-        self.state_ids = None
+        self.time_stamps = {"@c": "java.util.HashMap"}
+        self.state_ids = {"@c": "java.util.HashMap"}
 
     def load_game_php(self):
         """
@@ -233,10 +234,8 @@ class GameAPI:
         return States.from_dict(res["result"]["states"])
 
     def request_game_update(self, with_states=True) -> States:
-        time_stamps = {"@c": "java.util.HashMap"}
-        state_ids = {"@c": "java.util.HashMap"}
 
-        if with_states and self.time_stamps and self.state_ids:
+        if with_states:
             time_stamps = self.time_stamps
             state_ids = self.state_ids
 
@@ -251,13 +250,14 @@ class GameAPI:
                     "tstamps": time_stamps,
                 })
 
-        self.time_stamps = {"@c": "java.util.HashMap"}
-        self.state_ids = {"@c": "java.util.HashMap"}
-
         # Set stateIDs and tstamps from response
         for state in list(res["result"]["states"].values())[1:]:
             state_type = str(state["stateType"])
 
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
-        return States.from_dict(res["result"]["states"])
+
+        t1 = time()
+        states = States.from_dict(res["result"]["states"])
+        print(time() - t1)
+        return states

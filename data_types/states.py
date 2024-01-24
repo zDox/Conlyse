@@ -105,8 +105,6 @@ class MapState:
         provinces = {province["id"]: Province.from_dict(province)
                      for province in obj["map"]["locations"][1]}
 
-        print(obj)
-
         province_properties = {int(province_id): ProvinceProperty.
                                from_dict(province_property)
                                for province_id, province_property

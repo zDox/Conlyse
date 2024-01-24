@@ -30,8 +30,14 @@ class Unit(JsonMappedClass):
     }
 
 
+def parse_unit(obj):
+    if obj is None:
+        return
+    return Unit.from_dict(obj)
+
+
 @dataclass
-class SpecialUnit(Unit):
+class SpecialUnit(JsonMappedClass):
     enabled: bool
     constructing: bool
     unit: Unit
@@ -40,6 +46,6 @@ class SpecialUnit(Unit):
     mapping = {
         "enabled": "e",
         "constructing": "cn",
-        "unit": "unit",
-        "original_unit": "originalUnit",
+        "unit": MappedValue("unit", parse_unit),
+        "original_unit": MappedValue("originalUnit", parse_unit),
     }
