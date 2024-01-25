@@ -1,6 +1,6 @@
 from typing import get_type_hints
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import EnumMeta
 
 # Helper functions for parsing a mapped value
@@ -19,6 +19,13 @@ def unixtimestamp_to_datetime(timestamp):
         return datetime.utcfromtimestamp(int(timestamp))
     elif len(str(timestamp)) == 13:
         return datetime.utcfromtimestamp(int(timestamp)/1000)
+
+
+def seconds_to_timedelta(seconds):
+    if seconds is None:
+        return None
+    else:
+        return timedelta(seconds=seconds)
 
 
 class UpdatableClass:
@@ -89,8 +96,17 @@ class JsonMappedClass:
         for new_name, mapped_value in cls.mapping.items():
             ftype = resolved[new_name]
             if not isinstance(mapped_value, MappedValue):
+                # bool should be default False
+                if ftype is bool:
+                    parsed_data[new_name] = ftype(obj.get(mapped_value))
+                elif ftype is datetime:
+                    parsed_data[new_name] = unixtimestamp_to_datetime(
+                            obj.get(mapped_value))
+                elif ftype is timedelta:
+                    parsed_data[new_name] = seconds_to_timedelta(
+                            obj.get(mapped_value))
                 # if type has metaclass DefaultEnumMeta use its default init
-                if obj.get(mapped_value) is None \
+                elif obj.get(mapped_value) is None \
                         and type(ftype) is DefaultEnumMeta:
                     parsed_data[new_name] = ftype()
                 elif obj.get(mapped_value) is None:

@@ -7,13 +7,13 @@ from dataclasses import dataclass
 class Unit(JsonMappedClass):
     id: int
     unit_type: int
-    health: int
+    health: float
     size: int
     kills: int
     camoflage_replacement_unit: int
     on_sea: bool
     at_airfield: bool
-    hit_points: int
+    hit_points: float
     max_hit_points: int
 
     mapping = {

@@ -25,7 +25,8 @@ class MissileCarrierConfig(JsonMappedClass):
 
     @classmethod
     def from_dict(cls, obj):
-        missile_slot_config = {slot_id: MissileSlotConfig.from_dict(slot)
+        missile_slot_config = {int(slot_id): MissileSlotConfig.from_dict(
+                                {**slot, "id": slot_id})
                                for slot_id, slot in
                                list(obj["missileSlotConfig"].items())[1:]}
         return cls(**{
@@ -65,7 +66,7 @@ class RadarSignatureFeature:
 
     @classmethod
     def from_dict(cls, obj):
-        signature_size_map = {signature: size
+        signature_size_map = {int(signature): size
                               for signature, size
                               in list(obj["ssm"].items())[1:]}
         return cls(**{

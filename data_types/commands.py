@@ -4,6 +4,7 @@ from data_types.utils import JsonMappedClass, MappedValue, Position, \
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Union
+from enum import Enum
 
 
 @dataclass
@@ -48,9 +49,22 @@ class SiegeCommand(JsonMappedClass):
     pass
 
 
+class PatrolType(Enum):
+    air_mobile_relocation = "AirMobileRelocation"
+    guard = "Guard"
+
+
 @dataclass
 class PatrolCommand(JsonMappedClass):
-    pass
+    target_position: Position
+    approaching: bool
+    patrol_type: PatrolType
+
+    mapping = {
+        "target_position": "targetPos",
+        "approaching": "approaching",
+        "patrol_type": "type",
+    }
 
 
 @dataclass
@@ -89,4 +103,5 @@ COMMAND_IDENTIFIERS = {
 
 
 def parse_command(obj):
+    print(obj)
     return COMMAND_IDENTIFIERS[obj.get("@c")].from_dict(obj)

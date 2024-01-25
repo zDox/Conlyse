@@ -13,5 +13,6 @@ if __name__ == "__main__":
 
     while True:
         game.update()
-        print(game.state.army_state.armies)
+        for army in game.state.army_state.armies.values():
+            pprint(army)
         sleep(5)

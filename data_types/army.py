@@ -13,14 +13,14 @@ from enum import Enum
 
 def parse_units(value: list):
     if value is None:
-        return
+        return []
 
     return [Unit.from_dict(unit) for unit in value[1]]
 
 
 def parse_commands(value: list):
     if value is None:
-        return
+        return []
 
     return [parse_command(command) for command in value[1]]
 
@@ -62,7 +62,9 @@ class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
 
 
 def parse_air_field(obj):
-    if "x" in obj:
+    if obj is None:
+        return None
+    elif "x" in obj:
         return Position.from_dict(obj)
     else:
         return int(obj[1:])
@@ -104,7 +106,7 @@ class AntiAirParameters(JsonMappedClass):
 class Army(JsonMappedClass):
     id: int
     size: int
-    health: int
+    health: float
     kills: int
     owner_id: int
     army_number: int
@@ -151,7 +153,7 @@ class Army(JsonMappedClass):
     last_location_ids: list[int]
     end_of_unit_walk: bool
 
-    hit_points: int
+    hit_points: float
     max_hit_points: int
 
     missile_carrier_feature: MissileCarrierFeature
@@ -197,7 +199,7 @@ class Army(JsonMappedClass):
         "pre_fight_type": "pt",
         "range": "r",
         "base_speed": "bs",
-        "spy_reveal_time": MappedValue("st", unixtimestamp_to_datetime),
+        "spy_reveal_time": "st",
         "view_width": "vw",
         "detailed_view_width": "dvw",
         "aggressiveness": "ag",
@@ -214,11 +216,10 @@ class Army(JsonMappedClass):
         "max_hit_points": "mhp",
         "missile_carrier_feature": "mc",
         "entrenched": "en",
-        "next_anti_air_attack": MappedValue("naa", unixtimestamp_to_datetime),
-        "last_anti_air_attack": MappedValue("laa", unixtimestamp_to_datetime),
+        "next_anti_air_attack": "naa",
+        "last_anti_air_attack": "laa",
         "last_anti_air_attack_distance": "laadist",
-        "last_damage_taken_time": MappedValue("ldt",
-                                              unixtimestamp_to_datetime),
+        "last_damage_taken_time": "ldt",
         "strength": "str",
         "defence": "def",
         "army_moral": "m",
