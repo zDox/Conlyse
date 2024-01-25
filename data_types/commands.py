@@ -1,9 +1,11 @@
+
 from data_types.utils import JsonMappedClass, MappedValue, Position, \
         unixtimestamp_to_datetime
 
+
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Union
+from typing import Union, Any
 from enum import Enum
 
 
@@ -72,9 +74,18 @@ class WaitCommand(JsonMappedClass):
     pass
 
 
+# to circumvent circular imports
+def parse_army(obj):
+    from data_types.army import Army
+    return Army.from_dict(obj)
+
+
 @dataclass
 class SplitArmyCommand(JsonMappedClass):
-    pass
+    splitted_army: Any
+    mapping = {
+        "splitted_army": MappedValue("splittedArmy", parse_army),
+    }
 
 
 @dataclass
