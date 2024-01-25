@@ -1,5 +1,5 @@
 from data_types.utils import JsonMappedClass, MappedValue, \
-        unixtimestamp_to_datetime, unixtimestamp_milli_to_datetime
+        unixtimestamp_to_datetime
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -76,9 +76,9 @@ class GameInfo(JsonMappedClass):
                                        unixtimestamp_to_datetime),
             'game_ended': 'gameEnded',
             'next_day_time': MappedValue('nextDayTime',
-                                         unixtimestamp_milli_to_datetime),
+                                         unixtimestamp_to_datetime),
             'next_heal_time': MappedValue('nextHealTime',
-                                          unixtimestamp_milli_to_datetime),
+                                          unixtimestamp_to_datetime),
             'ranked': 'ranked',
             'demo_game': 'demoGame',
             'country_selection': 'countrySelection',

@@ -1,7 +1,11 @@
 # TO-DO of ConflictInterface
 
-## States
+## Static Data
+- [x] Basic static province
+- [ ] Connections
+- [ ] Borders
 
+## States
 - [x] PLAYER STATE
 - [ ] NEWSPAPER STATE: articles implemented
 - [ ] MAP STATE: province properties and provinces implemented

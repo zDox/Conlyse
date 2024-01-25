@@ -1,5 +1,5 @@
 from data_types.utils import JsonMappedClass, MappedValue, \
-        unixtimestamp_milli_to_datetime
+        unixtimestamp_to_datetime
 
 
 from dataclasses import dataclass
@@ -22,7 +22,7 @@ class Article(JsonMappedClass):
         "receiver_id": "receiverID",
         "message_id": "messageUID",
         "time_stamp": MappedValue("timeStamp",
-                                  unixtimestamp_milli_to_datetime),
+                                  unixtimestamp_to_datetime),
 
         "title": "title",
         "author": "author",

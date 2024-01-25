@@ -4,9 +4,10 @@ from data_types.warfare_unit import Unit
 from data_types.province import TerrainType
 from data_types.features import CarrierFeature, MissileCarrierFeature, \
         RadarSignatureFeature, TokenFeature
+from data_types.commands import Command, parse_command
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
 from enum import Enum
 
 
@@ -21,17 +22,18 @@ def parse_commands(value: list):
     if value is None:
         return
 
-    return [Command.from_dict(command) for command in value[1]]
-
-
-@dataclass
-class Command(JsonMappedClass):
-    mapping = {}
+    return [parse_command(command) for command in value[1]]
 
 
 @dataclass
 class Battle(JsonMappedClass):
-    mapping = {}
+    attacker_ids: list[int]
+
+    @classmethod
+    def from_dict(cls, obj):
+        return cls(**{
+            "attacker_ids": [attacker_id for attacker_id in obj["a"]],
+            })
 
 
 class FightStatus(Enum, metaclass=DefaultEnumMeta):
@@ -59,14 +61,43 @@ class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
     PREMIUM = 2
 
 
-@dataclass
-class AirParameters:
-    mapping = {}
+def parse_air_field(obj):
+    if "x" in obj:
+        return Position.from_dict(obj)
+    else:
+        return int(obj[1:])
 
 
 @dataclass
-class AntiAirParameters:
-    mapping = {}
+class AirParameters(JsonMappedClass):
+    last_air_action_time: datetime
+    last_air_position: Position
+    launch_target: Position
+    max_flight_time: datetime
+    air_field: Position | int  # Can be either a province_id or a Position
+
+    mapping = {
+        "last_air_action_time": MappedValue("lastAirActionTime",
+                                            unixtimestamp_to_datetime),
+        "last_air_position": "lastAirPosition",
+        "launch_target": "launchTarget",
+        "max_flight_time": MappedValue("maxFlightTime",
+                                       unixtimestamp_to_datetime),
+        "air_field": MappedValue("airField", parse_air_field),
+    }
+
+
+@dataclass
+class AntiAirParameters(JsonMappedClass):
+    next_anti_air_attack: datetime
+    last_anti_air_attack: datetime
+    last_anti_air_attack_distance: float
+
+    mapping = {
+        "next_anti_air_attack": MappedValue("naa", unixtimestamp_to_datetime),
+        "last_anti_air_attack": MappedValue("laa", unixtimestamp_to_datetime),
+        "last_anti_air_attack_distance": "laadist",
+    }
 
 
 @dataclass
@@ -84,15 +115,13 @@ class Army(JsonMappedClass):
     at_airfield: bool
     units: list[Unit]
 
-    commands: list[GotoCommand | RetreatCommand | AttackCommand |
-                   SiegeCommand | PatrolCommand | WaitCommand |
-                   SplitArmyCommand | FireMissileCommand]
+    commands: list[Command]
     fight_status: FightStatus
     battle: Battle
     attack_unit_id: int
     attack_position: Position
-    next_attack_time: date
-    estimated_arrival_time: date
+    next_attack_time: datetime
+    estimated_arrival_time: datetime
 
     needs_rail: bool  # I do not now any unit which needs rail but whatever
     needs_water: bool
@@ -104,7 +133,7 @@ class Army(JsonMappedClass):
 
     range: int
     base_speed: float
-    spy_reveal_time: date
+    spy_reveal_time: datetime
 
     view_width: int
     detailed_view_width: int
@@ -128,10 +157,10 @@ class Army(JsonMappedClass):
     missile_carrier_feature: MissileCarrierFeature
     entrenched: bool
 
-    next_anti_air_attack: date
-    last_anti_air_attack: date
+    next_anti_air_attack: datetime
+    last_anti_air_attack: datetime
     last_anti_air_attack_distance: float
-    last_damage_taken_time: date
+    last_damage_taken_time: datetime
     strength: float
 
     defence: float

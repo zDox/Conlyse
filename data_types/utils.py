@@ -12,13 +12,13 @@ def timestamp_to_datetime(timestamp):
 
 
 def unixtimestamp_to_datetime(timestamp):
-    return datetime.utcfromtimestamp(int(timestamp)) \
-            if timestamp else None
+    if timestamp is None:
+        return None
 
-
-def unixtimestamp_milli_to_datetime(timestamp):
-    return datetime.utcfromtimestamp(int(timestamp)/1000) \
-            if timestamp else None
+    if len(str(timestamp)) == 10:
+        return datetime.utcfromtimestamp(int(timestamp))
+    elif len(str(timestamp)) == 13:
+        return datetime.utcfromtimestamp(int(timestamp)/1000)
 
 
 class UpdatableClass:

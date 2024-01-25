@@ -13,4 +13,5 @@ if __name__ == "__main__":
 
     while True:
         game.update()
+        print(game.state.army_state.armies)
         sleep(5)
