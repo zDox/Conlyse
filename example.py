@@ -13,6 +13,6 @@ if __name__ == "__main__":
 
     while True:
         game.update()
-        for relation in game.state.foreign_affairs_state.relationships.items():
-            pprint(relation)
+        for profile in game.state.resource_state.resource_profiles.items():
+            pprint(profile)
         sleep(50000)

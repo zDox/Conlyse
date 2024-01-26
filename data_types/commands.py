@@ -49,7 +49,7 @@ class AttackCommand(JsonMappedClass):
 
     mapping = {
         "target_unit_id": "targetUnitID",
-        "target_pos": "targetPos",
+        "target_position": "targetPos",
         "user_given": "userGiven",
     }
 

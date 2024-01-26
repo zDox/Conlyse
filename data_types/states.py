@@ -8,6 +8,7 @@ from data_types.game_info import GameInfo
 from data_types.article import Article
 from data_types.army import Army
 from data_types.relationship import RelationType
+from data_types.resource_profile import ResourceProfile
 
 """
 from data_types.upgrade import Upgrade
@@ -126,7 +127,18 @@ class MapState:
 @dataclass
 class ResourceState:
     STATE_ID = 4
+    resource_profiles: dict[int, ResourceProfile]
+
     # Trading, Own Resources
+    @classmethod
+    def from_dict(cls, obj):
+        resource_profiles = {int(player_id):
+                             ResourceProfile.from_dict(resource_profile)
+                             for player_id, resource_profile
+                             in list(obj["resourceProfs"].items())[1:]}
+        return cls(**{
+            "resource_profiles": resource_profiles,
+            })
 
 
 @dataclass
