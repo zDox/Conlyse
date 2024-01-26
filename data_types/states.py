@@ -9,13 +9,12 @@ from data_types.article import Article
 from data_types.army import Army
 from data_types.relationship import RelationType
 from data_types.resource_profile import ResourceProfile
+from data_types.upgrade import UpgradeType
 
 """
-from data_types.upgrade import Upgrade
 from data_types.unit_type import UnitType
 from data_types.research_type import ResearchType
 """
-from pprint import pprint
 from dataclasses import dataclass
 
 
@@ -197,9 +196,18 @@ class StatisticState:
 @dataclass
 class ModState:
     STATE_ID = 11
-    # upgrades: list(Upgrade)
+    upgrades: dict[int, UpgradeType]
     # unit_types: list(UnitType)
     # research_types: list(ResearchType)
+
+    @classmethod
+    def from_dict(cls, obj):
+        upgrades = {int(upgrade_id): UpgradeType.from_dict(upgrade)
+                    for upgrade_id, upgrade
+                    in list(obj["upgrades"].items())[1:]}
+        return cls(**{
+            "upgrades": upgrades,
+            })
 
 
 @dataclass

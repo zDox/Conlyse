@@ -13,6 +13,6 @@ if __name__ == "__main__":
 
     while True:
         game.update()
-        for profile in game.state.resource_state.resource_profiles.items():
+        for profile in game.state.mod_state.upgrades.items():
             pprint(profile)
         sleep(50000)

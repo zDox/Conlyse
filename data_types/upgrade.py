@@ -21,6 +21,7 @@ class UpgradeType(JsonMappedClass):
     enable_able: bool
     article_prefix: str
     costs: dict[int, int]
+    unit_costs: dict[int, int]
     daily_costs: dict[int, int]
     daily_productions: dict[int, int]
     production_bonus: dict[int, float]
@@ -46,5 +47,16 @@ class UpgradeType(JsonMappedClass):
         "day_of_availability": "doa",
         "enable_able": "ie",
         "article_prefix": "ap",
-        # TO-DO
+        "costs": MappedValue("c", parse_dict),
+        "unit_costs": MappedValue("uc", parse_dict),
+        "daily_costs": MappedValue("dc", parse_dict),
+        "daily_productions": MappedValue("dp", parse_dict),
+        "production_bonus": MappedValue("pb", parse_dict),
+        "features": MappedValue("f", parse_dict),
+        "replaced_upgrade": "ru",
+        "required_upgrades": MappedValue("rqu", parse_dict),
+        "feature_icon_prefix": "fip",
+        "ranking_factor": "rnf",
+        "sorting_orders": "so",
+        "upgrade_identifier": "uid",
     }

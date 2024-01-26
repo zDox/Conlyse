@@ -53,7 +53,6 @@ class ConflictInterface():
 
         self.auth = AuthDetails.from_url_parameters(url)
 
-        print(self.auth)
         self.auth.session_token = self.get_session_token()
 
     @protected
