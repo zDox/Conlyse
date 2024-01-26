@@ -4,7 +4,7 @@ from data_types.utils import JsonMappedClass, MappedValue, Position, \
 
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Union, Any
 from enum import Enum
 
@@ -43,7 +43,15 @@ class RetreatCommand(JsonMappedClass):
 
 @dataclass
 class AttackCommand(JsonMappedClass):
-    pass
+    target_unit_id: int
+    target_position: Position
+    user_given: bool
+
+    mapping = {
+        "target_unit_id": "targetUnitID",
+        "target_pos": "targetPos",
+        "user_given": "userGiven",
+    }
 
 
 @dataclass
@@ -71,7 +79,19 @@ class PatrolCommand(JsonMappedClass):
 
 @dataclass
 class WaitCommand(JsonMappedClass):
-    pass
+    wait_time: timedelta
+    cancelable: bool
+    direction: int
+    location_id: int
+    execute_time: int
+
+    mapping = {
+        "wait_time": "waitSeconds",
+        "cancelable": "cancelable",
+        "direction": "direction",
+        "location_id": "locationID",
+        "execute_time": "execTime",
+    }
 
 
 # to circumvent circular imports

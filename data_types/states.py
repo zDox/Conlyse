@@ -7,9 +7,9 @@ from data_types.static_map_data import StaticMapData
 from data_types.game_info import GameInfo
 from data_types.article import Article
 from data_types.army import Army
+from data_types.relationship import RelationType
 
 """
-from data_types.relationship import Relationship
 from data_types.upgrade import Upgrade
 from data_types.unit_type import UnitType
 from data_types.research_type import ResearchType
@@ -132,7 +132,19 @@ class ResourceState:
 @dataclass
 class ForeignAffairsState:
     STATE_ID = 5
-    # relations: list(Relationship)
+    relationships: dict[int, dict[int, RelationType]]
+
+    @classmethod
+    def from_dict(cls, obj):
+        relationships = {int(sender_id)+1: {int(receiver_id)+1:
+                                            RelationType(relation)}
+                         for sender_id, sender
+                         in obj["relations"]["neighborRelations"].items()
+                         for receiver_id, relation in sender.items()}
+
+        return cls(**{
+            "relationships": relationships,
+            })
 
 
 @dataclass

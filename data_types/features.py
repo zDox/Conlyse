@@ -20,7 +20,7 @@ class MissileSlotConfig(JsonMappedClass):
 
 
 @dataclass
-class MissileCarrierConfig(JsonMappedClass):
+class MissileCarrierConfig():
     missile_slot_config: dict[int, MissileSlotConfig]
 
     @classmethod

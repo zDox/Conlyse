@@ -13,6 +13,6 @@ if __name__ == "__main__":
 
     while True:
         game.update()
-        for army in game.state.army_state.armies.values():
-            pprint(army)
-        sleep(5)
+        for relation in game.state.foreign_affairs_state.relationships.items():
+            pprint(relation)
+        sleep(50000)
