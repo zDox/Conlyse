@@ -1,6 +1,6 @@
-from data_types.team_profile import TeamProfile
-from data_types.player_profile import PlayerProfile
-from data_types.province import Province, ProvinceProperty
+from .team_profile import TeamProfile
+from .player_profile import PlayerProfile
+from .province import Province, ProvinceProperty
 from data_types.utils import UpdatableClass
 from data_types.static_map_data import StaticMapData
 from data_types.game_info import GameInfo
@@ -105,11 +105,13 @@ class MapState:
                      for province in obj["map"]["locations"][1]}
 
         province_properties = {int(province_id): ProvinceProperty.
-                               from_dict(province_property)
+                               from_dict({**province_property,
+                                          "id": int(province_id)})
                                for province_id, province_property
                                in list(obj["properties"].items())[1:]}
 
         for province_property in province_properties.values():
+            print(province_property)
             provinces[province_property.id].\
                     province_property = province_property
 

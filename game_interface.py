@@ -52,12 +52,14 @@ class GameInterface:
         return self.state.player_state.players.get(player_id)
 
     def list_playable_countries(self) -> dict[int, PlayerProfile]:
-        return dict(filter(lambda player: player.available,
-                           self.state.player_state.players))
+        return {player.id: player
+                for player in self.state.player_state.players.values()
+                if player.available}
 
     def get_human_players(self) -> dict[int, PlayerProfile]:
-        return dict(filter(lambda player: not player.native_computer,
-                           self.state.player_state.players))
+        return {player.id: player
+                for player in self.state.player_state.players.values()
+                if not player.native_computer}
 
     def get_teams(self) -> dict[int, TeamProfile]:
         return self.state.player_state.teams
