@@ -187,6 +187,8 @@ class GameAPI:
             }, None)
         if not guest:
             self.player_id = res["result"]
+            return self.player_id
+        return 0
 
     def request_selected_country(self, country_id=-1, team_id=-1,
                                  random_team_country_selection=False):
@@ -199,6 +201,7 @@ class GameAPI:
             "os": self.device_details.os,
             }, None)
         self.player_id = res["result"]
+        return self.player_id
 
     def request_login_action(self):
         res = self.make_game_server_request(

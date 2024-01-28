@@ -11,8 +11,5 @@ if __name__ == "__main__":
     print(interface.get_my_games())
     game = interface.join_game(8141617)
 
-    while True:
-        game.update()
-        for profile in game.state.mod_state.upgrades.items():
-            pprint(profile)
-        sleep(50000)
+    game.update()
+    pprint(game.get_human_players())

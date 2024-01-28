@@ -94,6 +94,41 @@ def parse_buildings(value: list):
     return [Building.from_dict(building) for building in value[1]]
 
 
+def parse_productions(value: list):
+    if value is None:
+        return
+
+    return [SpecialUnit.from_dict(production) for production in value[1]]
+
+
+@dataclass
+class ProvinceProperty(JsonMappedClass):
+    id: int  # Province ID
+    possible_upgrades: list[Building]
+    queueable_upgrades: list[Building]
+
+    possible_productions: list[SpecialUnit]
+    queueable_productions: list[SpecialUnit]
+
+    revolt_chance: int
+    uprising_chance: int
+    target_morale: int
+
+    mapping = {
+        "id": "id",
+        "possible_upgrades": MappedValue("possibleUpgrades", parse_buildings),
+        "queueable_upgrades": MappedValue("queueableUpgrades",
+                                          parse_buildings),
+        "possible_productions": MappedValue("possibleProductions",
+                                            parse_productions),
+        "queueable_productions": MappedValue("queueableProductions",
+                                             parse_productions),
+        "revolt_chance": "revoltChance",
+        "uprising_chance": "uprisingChance",
+        "target_morale": "targetMorale",
+    }
+
+
 @dataclass
 class Province(JsonMappedClass):
     id: int
@@ -115,6 +150,7 @@ class Province(JsonMappedClass):
     terrain_type: TerrainType = None
     center_coordinate: Position = None
     region: Region = Region.NONE
+    properties: ProvinceProperty = None  # If player owns the province
 
     mapping = {
         "id": "id",
@@ -159,39 +195,4 @@ class StaticProvince(JsonMappedClass):
         "terrain_type": "tt",
         "center_coordinate": "c",
         "region": MappedValue("rg", rg_to_region),
-    }
-
-
-def parse_productions(value: list):
-    if value is None:
-        return
-
-    return [SpecialUnit.from_dict(production) for production in value[1]]
-
-
-@dataclass
-class ProvinceProperty(JsonMappedClass):
-    id: int  # Province ID
-    possible_upgrades: list[Building]
-    queueable_upgrades: list[Building]
-
-    possible_productions: list[SpecialUnit]
-    queueable_productions: list[SpecialUnit]
-
-    revolt_chance: int
-    uprising_chance: int
-    target_morale: int
-
-    mapping = {
-        "id": "id",
-        "possible_upgrades": MappedValue("possibleUpgrades", parse_buildings),
-        "queueable_upgrades": MappedValue("queueableUpgrades",
-                                          parse_buildings),
-        "possible_productions": MappedValue("possibleProductions",
-                                            parse_productions),
-        "queueable_productions": MappedValue("queueableProductions",
-                                             parse_productions),
-        "revolt_chance": "revoltChance",
-        "uprising_chance": "uprisingChance",
-        "target_morale": "targetMorale",
     }

@@ -1,4 +1,3 @@
-
 from data_types.team_profile import TeamProfile
 from data_types.player_profile import PlayerProfile
 from data_types.province import Province, ProvinceProperty
@@ -61,6 +60,10 @@ class PlayerState:
     players: dict[int, PlayerProfile]
     teams: dict[int, TeamProfile]
 
+    def update(self, new_state):
+        self.players = new_state.players
+        self.teams = new_state.teams
+
     @classmethod
     def from_dict(cls, obj):
         players = {int(player_id): PlayerProfile.from_dict(player)
@@ -74,20 +77,16 @@ class PlayerState:
             "teams": teams,
         })
 
-    def update(self, new_state):
-        self.players = new_state.players
-        self.teams = new_state.teams
-
 
 @dataclass
 class NewspaperState:
     STATE_ID = 2
-    articles: list[Article]
+    articles: dict[int, Article]
 
     @classmethod
     def from_dict(cls, obj):
-        articles = [Article.from_dict(article)
-                    for article in obj["articles"][1]]
+        articles = {article["messageUID"]: Article.from_dict(article)
+                    for article in obj["articles"][1]}
         return cls(**{
             "articles": articles
         })
@@ -109,6 +108,11 @@ class MapState:
                                from_dict(province_property)
                                for province_id, province_property
                                in list(obj["properties"].items())[1:]}
+
+        for province_property in province_properties.values():
+            provinces[province_property.id].\
+                    province_property = province_property
+
         return cls(**{
             "provinces": provinces,
             "province_properties": province_properties,
