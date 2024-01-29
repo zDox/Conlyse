@@ -11,5 +11,6 @@ if __name__ == "__main__":
     print(interface.get_my_games())
     game = interface.join_game(8141617)
 
-    game.update()
-    pprint(game.get_human_players())
+    while True:
+        game.update()
+        sleep(3)

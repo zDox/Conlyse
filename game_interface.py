@@ -41,6 +41,7 @@ class GameInterface:
 
     def update(self) -> States:
         new_states = self.game_api.request_game_update()
+        print(new_states)
         self.state.update(new_states)
         return self.state
 
@@ -48,7 +49,7 @@ class GameInterface:
     PlayerState(1)
     """
 
-    def get_player(self, player_id) -> PlayerProfile:
+    def get_player(self, player_id) -> PlayerProfile | None:
         return self.state.player_state.players.get(player_id)
 
     def list_playable_countries(self) -> dict[int, PlayerProfile]:
@@ -64,7 +65,7 @@ class GameInterface:
     def get_teams(self) -> dict[int, TeamProfile]:
         return self.state.player_state.teams
 
-    def get_team(self, team_id) -> TeamProfile:
+    def get_team(self, team_id) -> TeamProfile | None:
         return self.state.player_state.teams.get(team_id)
 
     """
@@ -95,17 +96,19 @@ class GameInterface:
         return self.state.army_state.armies
 
     def get_my_armies(self) -> dict[int, Army]:
-        return dict(filter(lambda army: army.owner_id == self.player_id,
-                           self.state.army_state.armies))
+        return {army.id: army
+                for army in self.state.army_state.armies.values()
+                if army.owner_id == self.player_id}
 
     def get_army(self, army_id: int) -> Army:
-        return self.state.army_state.armies.get(army_id)
+        self.state.army_state.armies.get(army_id)
 
-    def find_path(self, army_id: int, position=Position) -> Command:
+    def find_path(self, army_id: int, position=Position) -> [Command]:
         # Find Path for a army in the current game to a position
         pass
 
-    def find_path_to_province(self, army_id: int, province_id: int) -> Command:
+    def find_path_to_province(self, army_id: int,
+                              province_id: int) -> [Command]:
         # Find path for a army in the current game to a province
         pass
 

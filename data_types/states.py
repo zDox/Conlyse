@@ -111,9 +111,8 @@ class MapState:
                                in list(obj["properties"].items())[1:]}
 
         for province_property in province_properties.values():
-            print(province_property)
             provinces[province_property.id].\
-                    province_property = province_property
+                province_property = province_property
 
         return cls(**{
             "provinces": provinces,
@@ -172,10 +171,21 @@ class ArmyState:
     @classmethod
     def from_dict(cls, obj):
         armies = {army["id"]: Army.from_dict(army)
-                  for army in list(obj["armies"].values())[1:]}
+                  for army in list(obj["armies"].values())[1:]
+                  if not army.get("rm")}
         return cls(**{
             "armies": armies,
             })
+
+    def update(self, new_state):
+        for new_army in new_state.armies:
+            if new_army.get("rm"):
+                self.armies.pop(new_army.id)
+                continue
+            if new_army.id in self.armies.keys():
+                self.armies[new_army.id].update(new_army)
+            else:
+                self.armies[new_army.id] = new_army
 
 
 @dataclass

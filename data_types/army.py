@@ -11,6 +11,9 @@ from datetime import datetime
 from enum import Enum
 
 
+ARMY_CLOSE_COMBAT_RANGE = 5
+
+
 def parse_units(value: list):
     if value is None:
         return []
@@ -66,6 +69,8 @@ def parse_air_field(obj):
         return None
     elif "x" in obj:
         return Position.from_dict(obj)
+    elif obj.get("@c") == "ultshared.warfare.UltTemporaryAirfield":
+        return Position.from_dict(obj["airfieldPosition"])
     else:
         return int(obj[1:])
 
@@ -104,72 +109,73 @@ class AntiAirParameters(JsonMappedClass):
 
 @dataclass
 class Army(JsonMappedClass):
-    id: int
-    size: int
-    health: float
-    kills: int
-    owner_id: int
-    army_number: int
-    location_id: int
-    position: Position
-    last_direction: Position
-    on_sea: bool
-    at_airfield: bool
-    units: list[Unit]
+    id: int = None
+    size: int = 1
+    health: float = 1.0
+    kills: int = 0
+    owner_id: int = None
+    army_number: int = None
+    location_id: int = None
+    position: Position = None
+    last_direction: Position = None
+    on_sea: bool = False
+    at_airfield: bool = False
+    units: list[Unit] = None
 
-    commands: list[Command]
-    fight_status: FightStatus
-    battle: Battle
-    attack_unit_id: int
-    attack_position: Position
-    next_attack_time: datetime
-    estimated_arrival_time: datetime
+    commands: list[Command] = None
+    fight_status: FightStatus = FightStatus.IDLE
+    battle: Battle = None
+    attack_unit_id: int = None
+    attack_position: Position = None
+    next_attack_time: datetime = None
+    estimated_arrival_time: datetime = None
 
-    needs_rail: bool  # I do not now any unit which needs rail but whatever
-    needs_water: bool
-    has_stealth: bool
-    airplane: bool
+    # I do not now any unit which needs rail but whatever
+    needs_rail: bool = False
+    needs_water: bool = False
+    has_stealth: bool = False
+    airplane: bool = False
 
-    pre_fight_size: int
-    pre_fight_type: int
+    pre_fight_size: int = None
+    pre_fight_type: int = None
 
-    range: int
-    base_speed: float
-    spy_reveal_time: datetime
+    range: int = ARMY_CLOSE_COMBAT_RANGE
+    base_speed: float = None
+    spy_reveal_time: datetime = None
 
-    view_width: int
-    detailed_view_width: int
-    aggressiveness: int
-    forced_march: ForcedMarch
-    removed: bool
-    terrain_type: TerrainType
+    view_width: int = None
+    detailed_view_width: int = None
+    aggressiveness: int = None
+    forced_march: ForcedMarch = ForcedMarch.DEACTIVE
+    removed: bool = False
+    terrain_type: TerrainType = None
 
-    air_parameters: AirParameters
-    anti_air_parameters: AntiAirParameters
+    air_parameters: AirParameters = None
+    anti_air_parameters: AntiAirParameters = None
 
-    carriable: bool
-    carrier_feature: CarrierFeature
+    carriable: bool = False
+    carrier_feature: CarrierFeature = None
 
-    last_location_ids: list[int]
-    end_of_unit_walk: bool
+    last_location_ids: list[int] = None
+    end_of_unit_walk: bool = False
 
-    hit_points: float
-    max_hit_points: int
+    hit_points: float = None
+    max_hit_points: int = None
 
-    missile_carrier_feature: MissileCarrierFeature
-    entrenched: bool
+    missile_carrier_feature: MissileCarrierFeature = None
+    entrenched: bool = False
 
-    next_anti_air_attack: datetime
-    last_anti_air_attack: datetime
-    last_anti_air_attack_distance: float
-    last_damage_taken_time: datetime
-    strength: float
+    next_anti_air_attack: datetime = None
+    last_anti_air_attack: datetime = None
+    last_anti_air_attack_distance: float = None
+    last_damage_taken_time: datetime = None
+    strength: float = None
 
-    defence: float
-    army_moral: float
+    defence: float = None
+    army_moral: float = None
 
-    radar_signature_feature: RadarSignatureFeature
-    token_feature: TokenFeature
+    radar_signature_feature: RadarSignatureFeature = None
+    token_feature: TokenFeature = None
 
     mapping = {
         "id": "id",
