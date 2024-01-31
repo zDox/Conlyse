@@ -1,0 +1,34 @@
+from dataclasses import dataclass
+
+from resource_category import ResourceCategory
+from ..utils import JsonMappedClass, MappedValue
+
+
+def parse_categories(obj):
+    if obj is None:
+        return {}
+
+    return {int(category_id): ResourceCategory.from_dict(category)
+            for category_id, category in list(obj.items())[1:]}
+
+
+@dataclass
+class ResourceProfile(JsonMappedClass):
+    player_id: int
+    # executed_orders
+    # premium_orders
+    # personal_orders
+    categories: ResourceCategory
+    mobilization_target: int
+    mobilization_value: int
+    corruption_value: float
+    damage_sensitive_morale_penalty: float
+
+    mapping = {
+        "player_id": "playerID",
+        "categories": MappedValue("categories", parse_categories),
+        "mobilization_target": "mobilizationTarget",
+        "mobilization_value": "mobilizationValue",
+        "corruption_value": "corruptionValue",
+        "damage_sensitive_morale_penalty": "damageSensitiveMoralePenalty",
+    }

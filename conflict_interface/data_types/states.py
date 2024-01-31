@@ -1,17 +1,16 @@
 from dataclasses import dataclass
 
-from .team_profile import TeamProfile
-from .player_profile import PlayerProfile
-from .province import Province, ProvinceProperty
-from data_types.utils import UpdatableClass
-from data_types.static_map_data import StaticMapData
-from data_types.game_info import GameInfo
-from data_types.article import Article
-from data_types.army import Army
-from data_types.relationship import RelationType
-from data_types.resource_profile import ResourceProfile
-from data_types.upgrade import UpgradeType
-
+from player_state import PlayerState
+from newspaper_state import NewspaperState
+from map_state import MapState
+from resource_state import ResourceState
+from foreign_affairs_state import ForeignAffairsState
+from army_state import ArmyState
+from spy_state import SpyState
+from mod_state import ModState
+from game_info_state import GameInfoState
+from research_state import ResearchState
+from configuration_state import ConfigurationState
 
 """
 The following are all states but not every state
@@ -51,146 +50,6 @@ STATE_TYPE_MISSION_STATE: 29
 
 
 @dataclass
-class PlayerState:
-    STATE_ID = 1
-    players: dict[int, PlayerProfile]
-    teams: dict[int, TeamProfile]
-
-    def update(self, new_state):
-        self.players = new_state.players
-        self.teams = new_state.teams
-
-    @classmethod
-    def from_dict(cls, obj):
-        players = {int(player_id): PlayerProfile.from_dict(player)
-                   for player_id, player in list(obj["players"].items())[1:]}
-
-        teams = {int(team_id): TeamProfile.from_dict(team)
-                 for team_id, team in list(obj["teams"].items())[1:]}
-
-        return cls(**{
-            "players": players,
-            "teams": teams,
-        })
-
-
-@dataclass
-class NewspaperState:
-    STATE_ID = 2
-    articles: dict[int, Article]
-
-    @classmethod
-    def from_dict(cls, obj):
-        articles = {article["messageUID"]: Article.from_dict(article)
-                    for article in obj["articles"][1]}
-        return cls(**{
-            "articles": articles
-        })
-
-
-@dataclass
-class MapState:
-    STATE_ID = 3
-    provinces: dict[int, Province]
-    # Provinces which are owned by the current player
-    province_properties: dict[int, ProvinceProperty]
-
-    @classmethod
-    def from_dict(cls, obj):
-        provinces = {province["id"]: Province.from_dict(province)
-                     for province in obj["map"]["locations"][1]}
-
-        province_properties = {int(province_id): ProvinceProperty.
-                               from_dict({**province_property,
-                                          "id": int(province_id)})
-                               for province_id, province_property
-                               in list(obj["properties"].items())[1:]}
-
-        for province_property in province_properties.values():
-            provinces[province_property.id].\
-                province_property = province_property
-
-        return cls(**{
-            "provinces": provinces,
-            "province_properties": province_properties,
-        })
-
-    def update(self, new_state):
-        for province in new_state.provinces:
-            self.provinces[province.id].update(province)
-
-    def set_static_map_data(self, static_map_data: StaticMapData):
-        for province in static_map_data.provinces:
-            self.provinces[province.id].set_static_province(province)
-
-
-@dataclass
-class ResourceState:
-    STATE_ID = 4
-    resource_profiles: dict[int, ResourceProfile]
-
-    # Trading, Own Resources
-    @classmethod
-    def from_dict(cls, obj):
-        resource_profiles = {int(player_id):
-                             ResourceProfile.from_dict(resource_profile)
-                             for player_id, resource_profile
-                             in list(obj["resourceProfs"].items())[1:]}
-        return cls(**{
-            "resource_profiles": resource_profiles,
-            })
-
-
-@dataclass
-class ForeignAffairsState:
-    STATE_ID = 5
-    relationships: dict[int, dict[int, RelationType]]
-
-    @classmethod
-    def from_dict(cls, obj):
-        relationships = {int(sender_id)+1: {int(receiver_id)+1:
-                                            RelationType(relation)}
-                         for sender_id, sender
-                         in obj["relations"]["neighborRelations"].items()
-                         for receiver_id, relation in sender.items()}
-
-        return cls(**{
-            "relationships": relationships,
-            })
-
-
-@dataclass
-class ArmyState:
-    STATE_ID = 6
-    armies: dict[int, Army]
-
-    @classmethod
-    def from_dict(cls, obj):
-        armies = {army["id"]: Army.from_dict(army)
-                  for army in list(obj["armies"].values())[1:]
-                  if not army.get("rm")}
-        return cls(**{
-            "armies": armies,
-            })
-
-    def update(self, new_state):
-        for new_army in new_state.armies:
-            if new_army.get("rm"):
-                self.armies.pop(new_army.id)
-                continue
-            if new_army.id in self.armies.keys():
-                self.armies[new_army.id].update(new_army)
-            else:
-                self.armies[new_army.id] = new_army
-
-
-@dataclass
-class SpyState:
-    STATE_ID = 7
-    # Spies, Nations, SpyReports
-
-
-@dataclass
 class MapInfoState:
     STATE_ID = 8
 
@@ -203,35 +62,6 @@ class AdminState:
 @dataclass
 class StatisticState:
     STATE_ID = 9
-
-
-@dataclass
-class ModState:
-    STATE_ID = 11
-    upgrades: dict[int, UpgradeType]
-    # unit_types: list(UnitType)
-    # research_types: list(ResearchType)
-
-    @classmethod
-    def from_dict(cls, obj):
-        upgrades = {int(upgrade_id): UpgradeType.from_dict(upgrade)
-                    for upgrade_id, upgrade
-                    in list(obj["upgrades"].items())[1:]}
-        return cls(**{
-            "upgrades": upgrades,
-            })
-
-
-@dataclass
-class GameInfoState:
-    STATE_ID = 12
-    game_info: GameInfo
-
-    @classmethod
-    def from_dict(cls, obj):
-        return cls(**{
-            "game_info": GameInfo.from_dict(obj)
-            })
 
 
 @dataclass
@@ -285,14 +115,6 @@ class WheelOfFortuneState:
 
 
 @dataclass
-class ResearchState:
-    STATE_ID = 23
-    # current_researches: list(Research)
-    # completed_researches: list(Research)
-    research_slots: int
-
-
-@dataclass
 class GameEventState:
     STATE_ID = 24
 
@@ -313,17 +135,12 @@ class QuestState:
 
 
 @dataclass
-class ConfigurationState:
-    STATE_ID = 28
-
-
-@dataclass
 class MissionState:
     STATE_ID = 29
 
 
 @dataclass
-class States(UpdatableClass):
+class States():
     player_state: PlayerState
     newspaper_state: NewspaperState
     map_state: MapState

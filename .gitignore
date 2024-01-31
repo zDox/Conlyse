@@ -5,6 +5,7 @@ conflict_interface.egg-info/
 *.pyc
 *.swp
 *.egg
+dist
 
 
 .env

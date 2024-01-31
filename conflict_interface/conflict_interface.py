@@ -8,11 +8,11 @@ import json
 import base64
 import hashlib
 
-from parser import parse_international_games
-from data_types.authentification import AuthDetails
-from exceptions import ConflictWebAPIError
-from game_interface import GameInterface
-from game_api import GameAPI
+from .parser import parse_international_games
+from .data_types import AuthDetails
+from .exceptions import ConflictWebAPIError
+from .game_interface import GameInterface
+from .game_api import GameAPI
 
 
 def protected(func):

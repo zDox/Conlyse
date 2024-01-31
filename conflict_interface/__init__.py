@@ -1,2 +1,1 @@
-print("test")
 from conflict_interface.conflict_interface import ConflictInterface

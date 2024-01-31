@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from data_types.utils import JsonMappedClass, MappedValue, Position
-from data_types.warfare_unit import SpecialUnit
+from .utils import JsonMappedClass, MappedValue, Position
+from .warfare import SpecialUnit
 
 
 def position_to_tuple(value):
