@@ -41,7 +41,6 @@ class GameInterface:
 
     def update(self) -> States:
         new_states = self.game_api.request_game_update()
-        print(new_states)
         self.state.update(new_states)
         return self.state
 
@@ -82,12 +81,45 @@ class GameInterface:
     MapState(3)
     """
 
-    def get_player_resource_production(self, player_id) -> dict[int, float]:
-        pass
+    def get_provinces(self, **filters) -> dict[int, Province]:
+        return {province.id: province
+                for province in self.state.map_state.provinces.values()
+                if all([getattr(province, key) == val
+                        for key, val in filters.items()])}
 
-    def get_provinces(self) -> dict[int, Province]:
-        return self.state.map_state.provinces
+    def get_my_provinces(self) -> dict[int, Province]:
+        return self.get_provinces(owner_id=self.player_id)
 
+    """
+    ResourceState(4)
+    """
+
+    def get_player_resource_profile(self, player_id) -> dict[int, float]:
+        return self.state.resource_state.resource_profiles.get(player_id)
+
+    def get_my_resource_profile(self):
+        return self.get_player_resource_profile(self.player_id)
+
+    """
+    ForeignAffairsState(5)
+    """
+
+    def get_relationships(self, **filters) -> dict[dict[int, RelationType]]:
+
+        return {sender_id: {receiver_id: relationship
+                            for receiver_id, relationship
+                            in sender.items()
+                            if (receiver_id == filters.get("receiver_id")
+                                if "receiver_id" in filters.keys() else True)
+                            if (relationship ==
+                                filters.get("relationship_type")
+                                if "relationship_type" in filters.keys()
+                                else True)
+                            }
+                for sender_id, sender
+                in self.state.foreign_affairs_state.relationships.items()
+                if (sender_id == filters.get("sender_id")
+                    if "sender_id" in filters.keys() else True)}
     """
     ArmyState(6)
     """

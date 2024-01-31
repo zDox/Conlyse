@@ -1,6 +1,7 @@
 from typing import get_type_hints
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from math import sqrt
 from enum import EnumMeta
 
 # Helper functions for parsing a mapped value
@@ -59,6 +60,9 @@ class Position:
     @classmethod
     def from_dict(cls, obj):
         return cls(x=obj["x"], y=obj["y"])
+
+    def distance(self, other):
+        return sqrt((other.x - self.y) ** 2 + (other.y - self.y) ** 2)
 
 
 @dataclass

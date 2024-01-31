@@ -7,7 +7,6 @@ from requests import Session
 from hashlib import sha1
 from lxml import html
 import re
-from time import time
 from dataclasses import dataclass
 from json import loads, dumps
 from time import time
@@ -260,7 +259,4 @@ class GameAPI:
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
 
-        t1 = time()
-        states = States.from_dict(res["result"]["states"])
-        print(time() - t1)
-        return states
+        return States.from_dict(res["result"]["states"])

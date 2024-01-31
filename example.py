@@ -1,4 +1,5 @@
 from conflict_interface import ConflictInterface
+from data_types.relationship import RelationType
 
 import creds
 from pprint import pprint
@@ -13,4 +14,7 @@ if __name__ == "__main__":
 
     while True:
         game.update()
+        t1 = time()
+        print(game.get_relationships(sender_id=9))
+        print(time()-t1)
         sleep(3)
