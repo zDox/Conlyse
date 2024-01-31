@@ -1,4 +1,13 @@
 __pycache__
-creds.py
+build/
+docs/_build
+conflict_interface.egg-info/
+*.pyc
+*.swp
+*.egg
+
+
 .env
 cloc.sh
+
+examples/creds.py
