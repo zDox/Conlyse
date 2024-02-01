@@ -1,7 +1,13 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
-from conflict_interface.data_types.utils import JsonMappedClass, MappedValue
+from conflict_interface.utils import JsonMappedClass
+from conflict_interface.data_types.modding.configuration import \
+        MissileConfig, SortingConfig, SoundConfig, AirplaneConfig, \
+        ControllableConfig, CarrierConfig, AntiAirConfig, ScoutConfig, \
+        TokenProducerConfig, TokenConsumerConfig
+
+from .unit_feature import UnitFeature
 
 
 @dataclass
@@ -45,7 +51,7 @@ class UnitType(JsonMappedClass):
     sorting_config: SortingConfig
     sound_config: SoundConfig
     airplane_config: AirplaneConfig
-    controllable_config: ContrallableConfig
+    controllable_config: ControllableConfig
     carrier_config: CarrierConfig
     type_size_name: str
     sort_value: int

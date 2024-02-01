@@ -23,3 +23,10 @@ def seconds_to_timedelta(seconds):
         return None
     else:
         return timedelta(seconds=seconds)
+
+
+def milliseconds_to_timedelta(milliseconds):
+    if milliseconds is None:
+        return None
+    else:
+        return timedelta(milliseconds=milliseconds)

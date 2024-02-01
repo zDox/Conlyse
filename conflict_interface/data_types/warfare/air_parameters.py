@@ -1,5 +1,19 @@
 from datetime import datetime
-from conflict_interface.utils import JsonMappedClass, 
+from dataclasses import dataclass
+
+from conflict_interface.utils import JsonMappedClass, Position, \
+        unixtimestamp_to_datetime, MappedValue
+
+
+def parse_air_field(obj):
+    if obj is None:
+        return None
+    elif "x" in obj:
+        return Position.from_dict(obj)
+    elif obj.get("@c") == "ultshared.warfare.UltTemporaryAirfield":
+        return Position.from_dict(obj["airfieldPosition"])
+    else:
+        return int(obj[1:])
 
 
 @dataclass
