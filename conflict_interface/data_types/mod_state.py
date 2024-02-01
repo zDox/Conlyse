@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from upgrades import UpgradeType
+from .upgrades import UpgradeType
 
 
 @dataclass

@@ -10,7 +10,7 @@ from conflict_interface.data_types.modding.configuration import \
 from .commands import Command, parse_command
 from .air_parameters import AirParameters
 from .anti_air_parameters import AntiAirParameters
-from .warfare_unit import Unit
+from .unit import Unit
 from .terrain_type import TerrainType
 
 ARMY_CLOSE_COMBAT_RANGE = 5

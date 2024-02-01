@@ -8,7 +8,7 @@ from json import loads, dumps
 from time import time
 
 from .data_types import AuthDetails, States, StaticMapData
-from .exceptions import ConflictJoinError
+from .utils.exceptions import ConflictJoinError
 
 
 @dataclass

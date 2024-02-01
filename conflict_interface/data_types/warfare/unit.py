@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.data_types.utils import JsonMappedClass, MappedValue
+from conflict_interface.utils import JsonMappedClass, MappedValue
 
 
 

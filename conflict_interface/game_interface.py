@@ -1,16 +1,10 @@
-from game_api import GameAPI
+from .game_api import GameAPI
 from .utils import Position
-from data_types import TeamProfile, PlayerProfile
-from data_types import 
-from data_types.province import Province, ProvinceProperty
-from data_types.game_info import GameInfo
-from data_types.article import Article
-from data_types.army import Army
-from data_types.commands import Command
-from data_types.relationship import RelationType
-from data_types.resource_profile import ResourceProfile
-from data_types.upgrade import UpgradeType
-from data_types.states import States
+from .data_types import TeamProfile, PlayerProfile, Province, \
+        ProvinceProperty, GameInfo, Article, States
+from .data_types.warfare import Army, Command
+from .data_types.resources import ResourceProfile
+from .data_types.upgrades import UpgradeType
 
 
 class GameInterface:
@@ -104,7 +98,7 @@ class GameInterface:
     ForeignAffairsState(5)
     """
 
-    def get_relationships(self, **filters) -> dict[dict[int, RelationType]]:
+    def get_relationships(self, **filters) -> dict[dict[int, int]]:
 
         return {sender_id: {receiver_id: relationship
                             for receiver_id, relationship

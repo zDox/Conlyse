@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from resources import ResourceProfile
+from .resources import ResourceProfile
 
 
 @dataclass
