@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from .utils import JsonMappedClass, MappedValue, Position
-from .warfare import SpecialUnit
+from conflict_interface.utils import JsonMappedClass, MappedValue, Position
+from .warfare import SpecialUnit, TerrainType
 
 
 def position_to_tuple(value):
@@ -15,21 +15,6 @@ def parse_resource_production_type(value):
         return ResourceProductionType(value-1)
     else:
         return ResourceProductionType.NONE
-
-
-class TerrainType(Enum):
-    PLAINS = 10
-    HILLS = 11
-    MOUNTIN = 12
-    FOREST = 13
-    URBAN = 14
-    JUNGLE = 15
-    TUNDRA = 16
-    DESERT = 17
-    SEA = 18
-    HIGHSEA = 19
-    COASTAL = 20
-    SUBURBAN = 21
 
 
 class ProvinceStateID(Enum):

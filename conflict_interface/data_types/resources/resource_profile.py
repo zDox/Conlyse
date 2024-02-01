@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from resource_category import ResourceCategory
-from ..utils import JsonMappedClass, MappedValue
+from .resource_category import ResourceCategory
+from conflict_interface.utils import JsonMappedClass, MappedValue
 
 
 def parse_categories(obj):

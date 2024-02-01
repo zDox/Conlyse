@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
-from data_types.utils import JsonMappedClass, MappedValue
+from conflict_interface.data_types.utils import JsonMappedClass, MappedValue
 
 
 @dataclass

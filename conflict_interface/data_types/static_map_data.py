@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from data_types.province import StaticProvince
+from .province import StaticProvince
 
 
 @dataclass

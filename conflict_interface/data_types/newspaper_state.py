@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-import Article
+from .article import Article
 
 
 @dataclass

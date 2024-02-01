@@ -1,16 +1,16 @@
 from dataclasses import dataclass
 
-from player_state import PlayerState
-from newspaper_state import NewspaperState
-from map_state import MapState
-from resource_state import ResourceState
-from foreign_affairs_state import ForeignAffairsState
-from army_state import ArmyState
-from spy_state import SpyState
-from mod_state import ModState
-from game_info_state import GameInfoState
-from research_state import ResearchState
-from configuration_state import ConfigurationState
+from .player_state import PlayerState
+from .newspaper_state import NewspaperState
+from .map_state import MapState
+from .resource_state import ResourceState
+from .foreign_affairs_state import ForeignAffairsState
+from .army_state import ArmyState
+from .spy_state import SpyState
+from .mod_state import ModState
+from .game_info_state import GameInfoState
+from .research_state import ResearchState
+from .configuration_state import ConfigurationState
 
 """
 The following are all states but not every state

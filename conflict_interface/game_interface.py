@@ -1,7 +1,7 @@
 from game_api import GameAPI
-from data_types.utils import Position
-from data_types.team_profile import TeamProfile
-from data_types.player_profile import PlayerProfile
+from .utils import Position
+from data_types import TeamProfile, PlayerProfile
+from data_types import 
 from data_types.province import Province, ProvinceProperty
 from data_types.game_info import GameInfo
 from data_types.article import Article

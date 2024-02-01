@@ -1,32 +1,8 @@
 from typing import get_type_hints
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from math import sqrt
 from enum import EnumMeta
-
-# Helper functions for parsing a mapped value
-
-
-def timestamp_to_datetime(timestamp):
-    return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S") \
-            if timestamp else None
-
-
-def unixtimestamp_to_datetime(timestamp):
-    if timestamp is None:
-        return None
-
-    if len(str(timestamp)) == 10:
-        return datetime.utcfromtimestamp(int(timestamp))
-    elif len(str(timestamp)) == 13:
-        return datetime.utcfromtimestamp(int(timestamp)/1000)
-
-
-def seconds_to_timedelta(seconds):
-    if seconds is None:
-        return None
-    else:
-        return timedelta(seconds=seconds)
+from .helper import unixtimestamp_to_datetime, seconds_to_timedelta
 
 
 class UpdatableClass:
@@ -50,19 +26,6 @@ class DefaultEnumMeta(EnumMeta):
             # Assume the first enum is default
             return next(iter(cls))
         return super().__call__(value, *args, **kwargs)
-
-
-@dataclass
-class Position:
-    x: float
-    y: float
-
-    @classmethod
-    def from_dict(cls, obj):
-        return cls(x=obj["x"], y=obj["y"])
-
-    def distance(self, other):
-        return sqrt((other.x - self.y) ** 2 + (other.y - self.y) ** 2)
 
 
 @dataclass

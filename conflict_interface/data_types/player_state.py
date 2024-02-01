@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-import PlayerProfile
-import TeamProfile
+from .player_profile import PlayerProfile
+from .team_profile import TeamProfile
 
 
 @dataclass

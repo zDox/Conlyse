@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-import Army
+from .warfare import Army
 
 
 @dataclass

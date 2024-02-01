@@ -4,7 +4,7 @@ from typing import Union, Any
 from enum import Enum
 
 
-from data_types.utils import JsonMappedClass, MappedValue, Position, \
+from conflict_interface.utils import JsonMappedClass, MappedValue, Position, \
         unixtimestamp_to_datetime
 
 

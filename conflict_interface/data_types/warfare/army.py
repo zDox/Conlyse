@@ -2,13 +2,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from data_types.utils import JsonMappedClass, MappedValue, Position, \
-        DefaultEnumMeta, unixtimestamp_to_datetime
-from data_types.warfare_unit import Unit
-from data_types.province import TerrainType
-from data_types.features import CarrierFeature, MissileCarrierFeature, \
-        RadarSignatureFeature, TokenFeature
-from data_types.commands import Command, parse_command
+from conflict_interface.utils import JsonMappedClass, MappedValue, Position, \
+        DefaultEnumMeta
+from conflict_interface.data_types.modding.configuration import \
+        CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
+        TokenFeature
+from .commands import Command, parse_command
+from .air_parameters import AirParameters
+from .anti_air_parameters import AntiAirParameters
+from .warfare_unit import Unit
+from .terrain_type import TerrainType
 
 ARMY_CLOSE_COMBAT_RANGE = 5
 
@@ -72,38 +75,6 @@ def parse_air_field(obj):
         return Position.from_dict(obj["airfieldPosition"])
     else:
         return int(obj[1:])
-
-
-@dataclass
-class AirParameters(JsonMappedClass):
-    last_air_action_time: datetime
-    last_air_position: Position
-    launch_target: Position
-    max_flight_time: datetime
-    air_field: Position | int  # Can be either a province_id or a Position
-
-    mapping = {
-        "last_air_action_time": MappedValue("lastAirActionTime",
-                                            unixtimestamp_to_datetime),
-        "last_air_position": "lastAirPosition",
-        "launch_target": "launchTarget",
-        "max_flight_time": MappedValue("maxFlightTime",
-                                       unixtimestamp_to_datetime),
-        "air_field": MappedValue("airField", parse_air_field),
-    }
-
-
-@dataclass
-class AntiAirParameters(JsonMappedClass):
-    next_anti_air_attack: datetime
-    last_anti_air_attack: datetime
-    last_anti_air_attack_distance: float
-
-    mapping = {
-        "next_anti_air_attack": MappedValue("naa", unixtimestamp_to_datetime),
-        "last_anti_air_attack": MappedValue("laa", unixtimestamp_to_datetime),
-        "last_anti_air_attack_distance": "laadist",
-    }
 
 
 @dataclass

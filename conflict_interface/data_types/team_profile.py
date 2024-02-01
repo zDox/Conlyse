@@ -1,4 +1,4 @@
-from data_types.utils import JsonMappedClass
+from conflict_interface.utils import JsonMappedClass
 
 from dataclasses import dataclass
 

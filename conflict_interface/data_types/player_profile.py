@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from data_types.utils import JsonMappedClass, DefaultEnumMeta
+from conflict_interface.utils import JsonMappedClass, DefaultEnumMeta
 
 
 class Faction(Enum, metaclass=DefaultEnumMeta):

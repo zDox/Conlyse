@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from data_types.utils import JsonMappedClass
+from conflict_interface.utils import JsonMappedClass
 
 
 @dataclass

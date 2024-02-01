@@ -1,15 +1,14 @@
-from data_types.authentification import AuthDetails
-from exceptions import ConflictJoinError
-from data_types.states import States
-from data_types.static_map_data import StaticMapData
-
 from requests import Session
-from hashlib import sha1
 from lxml import html
+
+from hashlib import sha1
 import re
 from dataclasses import dataclass
 from json import loads, dumps
 from time import time
+
+from .data_types import AuthDetails, States, StaticMapData
+from .exceptions import ConflictJoinError
 
 
 @dataclass

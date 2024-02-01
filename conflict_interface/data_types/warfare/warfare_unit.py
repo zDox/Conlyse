@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from data_types.utils import JsonMappedClass, MappedValue
+from conflict_interface.data_types.utils import JsonMappedClass, MappedValue
 
 
 class UnitFeature(Enum):
@@ -62,11 +62,6 @@ class UnitFeature(Enum):
 class MissileType(Enum):
     BALLISTIC = 1
     CRUISE = 2
-
-
-
-
-
 
 
 @dataclass

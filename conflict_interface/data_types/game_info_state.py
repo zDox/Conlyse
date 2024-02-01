@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-import GameInfo
+from .game_info import GameInfo
 
 
 @dataclass

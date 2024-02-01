@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from resource_entry import ResourceEntry
-from ..utils import JsonMappedClass, MappedValue
+from .resource_entry import ResourceEntry
+from conflict_interface.utils import JsonMappedClass, MappedValue
 
 
 def parse_resource_entries(obj):

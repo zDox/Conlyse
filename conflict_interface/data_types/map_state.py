@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
-import Province
-import ProvinceProperty
+from .province import Province, ProvinceProperty
 import StaticMapData
 
 

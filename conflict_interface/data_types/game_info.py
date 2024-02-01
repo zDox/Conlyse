@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from data_types.utils import JsonMappedClass, MappedValue, \
+from conflict_interface.utils import JsonMappedClass, MappedValue, \
         unixtimestamp_to_datetime
 
 
