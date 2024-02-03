@@ -22,6 +22,5 @@ if __name__ == "__main__":
     while True:
         game.update()
         t1 = time()
-        print(game.get_relationships(sender_id=9))
-        print(time()-t1)
+        print(type(list(game.get_teams().values())[0]))
         sleep(3)
