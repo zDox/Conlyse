@@ -10,10 +10,12 @@ def parse_air_field(obj):
         return None
     elif "x" in obj:
         return Position.from_dict(obj)
-    elif obj.get("@c") == "ultshared.warfare.UltTemporaryAirfield":
-        return Position.from_dict(obj["airfieldPosition"])
     else:
         return int(obj[1:])
+    """
+    elif obj.get("@c") == "ultshared.warfare.UltTemporaryAirfield":
+        return Position.from_dict(obj["airfieldPosition"])
+    """
 
 
 @dataclass

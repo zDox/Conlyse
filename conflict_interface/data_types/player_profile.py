@@ -16,7 +16,7 @@ class Faction(Enum, metaclass=DefaultEnumMeta):
 
 
 """
-Not implemented function
+Not implemented function (graphics)
 getPlayerImageID
 getPlayerImageURL
 getNameLinked
@@ -25,9 +25,7 @@ getFlagImageID
 getFlagImageURL
 getCoaFlagImageURL
 getBigFlagImageURL
-getTeam
 getUserNameLinked
-getUserName
 getUserNameBanned
 getCowHouseNameLinked
 getCowHouseName
@@ -35,14 +33,6 @@ getNationNameLinked
 getNationAdjective
 getPrimaryColor
 getAlphaFixedPrimaryColor
-getNoobBonus
-getNoobBonusFactor
-getIsGameCreator
-isPremiumUser
-getCoatOfArms
-getPremiumEndTime
-hasAdditionalConstructionSlot
-hasAdditionalProductionSlot
 getPlayerImage
 loadPlayerImage
 getPlayerImageTag
@@ -54,6 +44,10 @@ isBigAIPlayer
 isSmallAIPlayer
 getPlayerIconImageURL
 getPlayerIconImage
+getLastLoginAsFormattedDate
+isCurrentPlayer
+getNationLabelCoord
+getNationLabelSize
 """
 
 
@@ -157,6 +151,9 @@ class PlayerProfile(JsonMappedClass):
     def get_team_id(self):
         return self.team_id
 
+    def get_team(self):
+        raise NotImplementedError()
+
     def is_team_member(self):
         return 0 < self.team_id
 
@@ -178,14 +175,38 @@ class PlayerProfile(JsonMappedClass):
     def get_nation_adjective(self):
         return self.nation_adjective
 
+    def get_noob_bonus(self):
+        raise NotImplementedError()
+
+    def get_noob_bonus_factor(self):
+        raise NotImplementedError()
+
     def get_capital_id(self):
         return self.capital_id
+
+    def is_game_creator(self):
+        raise NotImplementedError()
 
     def is_defeated(self):
         return self.defeated
 
     def is_retired(self):
         return self.retired
+
+    def is_premium_user(self):
+        raise NotImplementedError()
+
+    def get_coat_of_arms(self):
+        raise NotImplementedError()
+
+    def get_premium_end_time(self):
+        raise NotImplementedError()
+
+    def has_additional_construction_slot(self):
+        raise NotImplementedError()
+
+    def has_additional_production_slot(self):
+        raise NotImplementedError()
 
     def is_playable_computer(self):
         return self.is_computer_player() or self.is_reopened_player() \
@@ -243,3 +264,6 @@ class PlayerProfile(JsonMappedClass):
 
     def get_last_login(self):
         return self.last_login or 0
+
+    def get_victory_points(self):
+        return self.victory_points
