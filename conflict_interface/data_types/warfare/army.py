@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from conflict_interface.utils import JsonMappedClass, MappedValue, Position, \
+from conflict_interface.utils import JsonMappedClass, MappedValue, Point, \
         DefaultEnumMeta
 from conflict_interface.data_types.modding.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
@@ -66,8 +66,6 @@ class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
     PREMIUM = 2
 
 
-
-
 @dataclass
 class Army(JsonMappedClass):
     id: int = None
@@ -77,8 +75,8 @@ class Army(JsonMappedClass):
     owner_id: int = None
     army_number: int = None
     location_id: int = None
-    position: Position = None
-    last_direction: Position = None
+    position: Point = None
+    last_direction: Point = None
     on_sea: bool = False
     at_airfield: bool = False
     units: list[Unit] = None
@@ -87,7 +85,7 @@ class Army(JsonMappedClass):
     fight_status: FightStatus = FightStatus.IDLE
     battle: Battle = None
     attack_unit_id: int = None
-    attack_position: Position = None
+    attack_position: Point = None
     next_attack_time: datetime = None
     estimated_arrival_time: datetime = None
 

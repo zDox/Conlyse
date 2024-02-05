@@ -1,5 +1,5 @@
 from .game_api import GameAPI
-from .utils import Position
+from .utils import Point
 from .data_types import TeamProfile, PlayerProfile, Province, \
         ProvinceProperty, GameInfo, Article, States
 from .data_types.warfare import Army, Command
@@ -129,7 +129,7 @@ class GameInterface:
     def get_army(self, army_id: int) -> Army:
         self.state.army_state.armies.get(army_id)
 
-    def find_path(self, army_id: int, position=Position) -> [Command]:
+    def find_path(self, army_id: int, position=Point) -> [Command]:
         # Find Path for a army in the current game to a position
         pass
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.utils import JsonMappedClass, MappedValue, Position
+from conflict_interface.utils import JsonMappedClass, MappedValue, Point
 from .warfare import SpecialUnit, TerrainType
 
 
@@ -133,7 +133,7 @@ class Province(JsonMappedClass):
 
     # Data from Static supplier
     terrain_type: TerrainType = None
-    center_coordinate: Position = None
+    center_coordinate: Point = None
     region: Region = Region.NONE
     properties: ProvinceProperty = None  # If player owns the province
 
@@ -172,7 +172,7 @@ class Province(JsonMappedClass):
 class StaticProvince(JsonMappedClass):
     id: int
     terrain_type: TerrainType
-    center_coordinate: Position
+    center_coordinate: Point
     region: Region
 
     mapping = {

@@ -4,7 +4,7 @@ from typing import Union, Any
 from enum import Enum
 
 
-from conflict_interface.utils import JsonMappedClass, MappedValue, Position, \
+from conflict_interface.utils import JsonMappedClass, MappedValue, Point, \
         unixtimestamp_to_datetime
 
 
@@ -13,8 +13,8 @@ class GotoCommand(JsonMappedClass):
     start_time: datetime
     arrival_time: datetime
 
-    start_position: Position
-    target_position: Position
+    start_position: Point
+    target_position: Point
     speed: float
 
     on_water: bool
@@ -43,7 +43,7 @@ class RetreatCommand(JsonMappedClass):
 @dataclass
 class AttackCommand(JsonMappedClass):
     target_unit_id: int
-    target_position: Position
+    target_position: Point
     user_given: bool
 
     mapping = {
@@ -65,7 +65,7 @@ class PatrolType(Enum):
 
 @dataclass
 class PatrolCommand(JsonMappedClass):
-    target_position: Position
+    target_position: Point
     approaching: bool
     patrol_type: PatrolType
 

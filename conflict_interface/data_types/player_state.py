@@ -1,7 +1,18 @@
 from dataclasses import dataclass
+from enum import Enum
 
 from .player_profile import PlayerProfile
 from .team_profile import TeamProfile
+
+"""
+Not implemented
+"""
+
+
+class VisibilityMode(Enum):
+    ALL = 1
+    ONLY_VISIBLE = 2
+    ALL_REDUCED_INFORMATION = 3
 
 
 @dataclass
@@ -26,3 +37,4 @@ class PlayerState:
             "players": players,
             "teams": teams,
         })
+

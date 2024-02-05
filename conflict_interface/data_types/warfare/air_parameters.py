@@ -1,7 +1,7 @@
 from datetime import datetime
 from dataclasses import dataclass
 
-from conflict_interface.utils import JsonMappedClass, Position, \
+from conflict_interface.utils import JsonMappedClass, Point, \
         unixtimestamp_to_datetime, MappedValue
 
 
@@ -9,7 +9,7 @@ def parse_air_field(obj):
     if obj is None:
         return None
     elif "x" in obj:
-        return Position.from_dict(obj)
+        return Point.from_dict(obj)
     else:
         return int(obj[1:])
     """
@@ -21,10 +21,10 @@ def parse_air_field(obj):
 @dataclass
 class AirParameters(JsonMappedClass):
     last_air_action_time: datetime
-    last_air_position: Position
-    launch_target: Position
+    last_air_position: Point
+    launch_target: Point
     max_flight_time: datetime
-    air_field: Position | int  # Can be either a province_id or a Position
+    air_field: Point | int  # Can be either a province_id or a Position
 
     mapping = {
         "last_air_action_time": MappedValue("lastAirActionTime",
