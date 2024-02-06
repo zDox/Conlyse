@@ -16,11 +16,10 @@ from time import sleep, time
 if __name__ == "__main__":
     interface = ConflictInterface()
     interface.login(creds.username, creds.password)
-    print(interface.get_my_games())
-    game = interface.join_game(8141617)
+    game = interface.join_game(8307605)
 
     while True:
         game.update()
         t1 = time()
-        print(type(list(game.get_teams().values())[0]))
+        pprint(game.state.army_state)
         sleep(3)
