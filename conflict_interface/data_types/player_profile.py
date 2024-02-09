@@ -219,7 +219,7 @@ class PlayerProfile(JsonMappedClass):
         return self.available
 
     def is_computer_player(self):
-        return not self.is_taken_country
+        return not self.is_taken_country()
 
     def is_reopened_player(self):
         return not self.computer_player and 0 > self.site_user_id
