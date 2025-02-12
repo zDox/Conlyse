@@ -1,7 +1,11 @@
+from datetime import datetime, timedelta
+from typing import Any
+
+from conflict_interface.data_types.resources import ResourceProfile
 from .game_api import GameAPI
 from .utils import Point
 from .data_types import TeamProfile, PlayerProfile, Province, \
-        ProvinceProperty, GameInfo, Article, States
+    ProvinceProperty, GameInfo, Article, States, article
 from .data_types.warfare import Army, Command
 from .data_types.resources import ResourceProfile
 from .data_types.upgrades import UpgradeType
@@ -12,9 +16,7 @@ class GameInterface:
         self.game_api = game_api
         self.game_id = game_id
         self.player_id = 0
-        self.state = None
 
-        self.join_game()
 
     def join_game(self, guest=False):
         self.game_api.load_game_site()
@@ -37,6 +39,19 @@ class GameInterface:
         new_states = self.game_api.request_game_update()
         self.state.update(new_states)
         return self.state
+
+    """
+    Utility functions
+    """
+
+    def relative_time_since_start(self, date) -> timedelta:
+        return date - self.state.game_info_state.game_info.start_of_game
+
+    def get_last_uptime(self) -> datetime:
+        update_times = [datetime.fromtimestamp(int(time_stamp_str)/1000)
+                        for time_stamp_str in self.game_api.time_stamps.values()
+                        if time_stamp_str != "java.util.HashMap"]
+        return max(update_times)
 
     """
     PlayerState(1)
@@ -66,7 +81,9 @@ class GameInterface:
     """
 
     def get_articles(self, day):
-        pass
+        return {article_id: article
+                for article_id, article in self.state.newspaper_state.articles.items()
+                if self.relative_time_since_start(article.time_stamp).days + 1 == day}
 
     def get_current_articles(self) -> dict[int, Article]:
         return self.state.newspaper_state.articles
@@ -88,17 +105,17 @@ class GameInterface:
     ResourceState(4)
     """
 
-    def get_player_resource_profile(self, player_id) -> dict[int, float]:
+    def get_player_resource_profile(self, player_id) -> ResourceProfile | None:
         return self.state.resource_state.resource_profiles.get(player_id)
 
-    def get_my_resource_profile(self):
+    def get_my_resource_profile(self) -> ResourceProfile | None:
         return self.get_player_resource_profile(self.player_id)
 
     """
     ForeignAffairsState(5)
     """
 
-    def get_relationships(self, **filters) -> dict[dict[int, int]]:
+    def get_relationships(self, **filters) -> dict[Any, dict[Any, Any]]:
 
         return {sender_id: {receiver_id: relationship
                             for receiver_id, relationship

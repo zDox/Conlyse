@@ -25,7 +25,6 @@ class PlayerState:
     STATE_ID = 1
     players: dict[int, PlayerProfile]
     teams: dict[int, TeamProfile]
-    visibile_players: list[PlayerProfile]
 
     @classmethod
     def from_dict(cls, obj):

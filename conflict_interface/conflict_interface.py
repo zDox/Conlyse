@@ -1,3 +1,4 @@
+import logging
 from fake_useragent import UserAgent
 from requests import Session
 from lxml import html
@@ -7,8 +8,8 @@ import base64
 import hashlib
 
 from .parser import parse_international_games
-from .data_types import AuthDetails
-from .utils.exceptions import ConflictWebAPIError
+from .data_types import AuthDetails, HubGameInfo
+from .utils.exceptions import ConflictWebAPIError, ConflictJoinError
 from .game_interface import GameInterface
 from .game_api import GameAPI
 
@@ -23,7 +24,7 @@ def protected(func):
 class ConflictInterface():
     def __init__(self):
         self.session = Session()
-        self.user_agent = UserAgent().random
+        self.user_agent = UserAgent(platforms='desktop').random
         self.session.headers = {
                 "User-Agent": self.user_agent,
                 "Accept-Language": 'en-US,en;q=0.9',
@@ -54,6 +55,7 @@ class ConflictInterface():
         self.auth = AuthDetails.from_url_parameters(url)
 
         self.auth.session_token = self.get_session_token()
+        logging.debug("Login successful with username %s", username)
 
     @protected
     def send_api_request(self, params, action):
@@ -106,7 +108,7 @@ class ConflictInterface():
 
         return result["result"]
 
-    def get_my_games(self, archived=False):
+    def get_my_games(self, archived=False) -> list[HubGameInfo]:
         params = {
                 "userID": self.auth.user_id,
         }
@@ -135,11 +137,12 @@ class ConflictInterface():
                            self.session.headers,
                            self.auth,
                            game_id)
-        return GameInterface(game_id, game_api)
+        game_interface = GameInterface(game_id, game_api)
+        game_interface.join_game()
+        return game_interface
 
     def get_session_token(self):
         res = self.send_api_request({
             "userID": self.auth.user_id,
         }, "getSessionToken")
-        print("token", res)
         return res["sessionToken"]

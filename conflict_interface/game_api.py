@@ -18,8 +18,11 @@ class DeviceDetails:
 
     @staticmethod
     def from_user_agent(user_agent):
-        os = re.findall(r"(?<=\()([A-Z])\w+(?=;| )", user_agent)[0]
-        return DeviceDetails(os, "")
+        os = re.findall(r"\(([^;]+);", user_agent)
+        if os:
+            return DeviceDetails(os[0], "")
+        else:
+            return DeviceDetails("Unknown", "")
 
 
 class GameAPI:
@@ -100,10 +103,10 @@ class GameAPI:
                     image/avif,image/webp,image/apng,*/*;q=0.8,application/\
                     signed-exchange;v=b3;q=0.7',
         }
-
         response = self.session.get(self.index_html_url, headers=headers)
 
         response.raise_for_status()
+
 
         match = re.search(r'clientVersion=(\d+)', response.text)
         if match:
@@ -201,7 +204,7 @@ class GameAPI:
         self.player_id = res["result"]
         return self.player_id
 
-    def request_login_action(self):
+    def request_login_action(self) -> States:
         res = self.make_game_server_request(
                 {
                     "@c": "ultshared.action.UltUpdateGameStateAction",
