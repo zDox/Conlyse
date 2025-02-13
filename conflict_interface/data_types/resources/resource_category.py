@@ -13,21 +13,21 @@ def parse_resource_entries(obj):
 
 @dataclass
 class ResourceCategory(JsonMappedClass):
-    catergory_id: int
+    category_id: int
     name: str
     daily_unit_consumption: float
     daily_upgrade_consumption: float
     daily_population_consumption: float
     min_consumption: float
-    resource_entries: dict[int, ResourceEntry]
+    resources: dict[int, ResourceEntry]
 
     mapping = {
-        "catergory_id": "categoryID",
+        "category_id": "categoryID",
         "name": "name",
         "daily_unit_consumption": "dailyUnitConsumption",
         "daily_upgrade_consumption": "dailyUpgradeConsumption",
         "daily_population_consumption": "dailyPopulationConsumption",
         "min_consumption": "minConsumption",
-        "resource_entries": MappedValue("resourceEntries",
+        "resources": MappedValue("resourceEntries",
                                         parse_resource_entries),
     }

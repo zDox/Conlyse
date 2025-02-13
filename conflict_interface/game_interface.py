@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
+from functools import wraps
 from typing import Any
 
-from conflict_interface.data_types.resources import ResourceProfile
+from conflict_interface.data_types.resources import ResourceProfile, ResourceEntry
 from .game_api import GameAPI
 from .utils import Point
 from .data_types import TeamProfile, PlayerProfile, Province, \
@@ -9,6 +10,7 @@ from .data_types import TeamProfile, PlayerProfile, Province, \
 from .data_types.warfare import Army, Command
 from .data_types.resources import ResourceProfile
 from .data_types.upgrades import UpgradeType
+from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 
 
 class GameInterface:
@@ -17,23 +19,45 @@ class GameInterface:
         self.game_id = game_id
         self.player_id = 0
 
+    @staticmethod
+    def country_selected(func):
+        """Decorator that checks if a country is selected. If not, raises CountryUnselectedError."""
+
+        @wraps(func)
+        def wrap(self, *args, **kwargs):
+            if self.is_country_selected():
+                return func(self, *args, **kwargs)
+            else:
+                raise CountryUnselectedException("Country not selected.")
+
+        return wrap
 
     def join_game(self, guest=False):
         self.game_api.load_game_site()
-        self.player_id = self.game_api.request_first_game_activation(guest)
-
+        if not guest:
+            try:
+                self.player_id = self.game_api.request_game_activation(
+                    selected_player_id=-1,
+                    selected_team_id=-1,
+                    random_team_country_selection=False,
+                )
+                self.state = self.game_api.request_login_action()
+            except GameActivationException as e:
+                if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
+                    raise e
+                self.state = self.game_api.request_game_update()
+        else:
+            self.state = self.game_api.request_game_update()
         static_map_data = self.game_api.get_static_map_data()
-        self.state = self.game_api.request_login_action()
+
         self.state.map_state.set_static_map_data(static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,
                        random_country_team=False):
-        self.player_id = self.game_api.\
-                request_selected_country(country_id, team_id,
-                                         random_country_team)
+        self.player_id = self.game_api.request_game_activation(country_id, team_id,
+                                              random_country_team)
 
-        self.game_api.get_static_map_data()
-        self.game_api.request_login_action()
+        self.state = self.game_api.request_login_action()
 
     def update(self) -> States:
         new_states = self.game_api.request_game_update()
@@ -48,7 +72,7 @@ class GameInterface:
         return date - self.state.game_info_state.game_info.start_of_game
 
     def get_last_uptime(self) -> datetime:
-        update_times = [datetime.fromtimestamp(int(time_stamp_str)/1000)
+        update_times = [datetime.fromtimestamp(int(time_stamp_str) / 1000)
                         for time_stamp_str in self.game_api.time_stamps.values()
                         if time_stamp_str != "java.util.HashMap"]
         return max(update_times)
@@ -56,6 +80,9 @@ class GameInterface:
     """
     PlayerState(1)
     """
+
+    def is_country_selected(self) -> bool:
+        return self.player_id != 0
 
     def get_player(self, player_id) -> PlayerProfile | None:
         return self.state.player_state.players.get(player_id)
@@ -98,8 +125,16 @@ class GameInterface:
                 if all([getattr(province, key) == val
                         for key, val in filters.items()])}
 
+    def get_province(self, province_id) -> Province:
+        return self.state.map_state.provinces.get(province_id)
+
+    @country_selected
     def get_my_provinces(self) -> dict[int, Province]:
         return self.get_provinces(owner_id=self.player_id)
+
+    @country_selected
+    def build_building(self, province_id, building_id):
+        pass
 
     """
     ResourceState(4)
@@ -108,8 +143,26 @@ class GameInterface:
     def get_player_resource_profile(self, player_id) -> ResourceProfile | None:
         return self.state.resource_state.resource_profiles.get(player_id)
 
+    @country_selected
     def get_my_resource_profile(self) -> ResourceProfile | None:
         return self.get_player_resource_profile(self.player_id)
+
+    @country_selected
+    def get_resource_entry(self, resource_id) -> ResourceEntry | None:
+        my_resource_profile = self.get_my_resource_profile()
+        if my_resource_profile:
+            for category in my_resource_profile.categories.values():
+                if resource_id in category.resources:
+                    return category.resources[resource_id]
+        return None
+
+    @country_selected
+    def get_resource_amount(self, resource_id) -> float | None:
+        resource = self.get_resource_entry(resource_id)
+        if resource is None:
+            return None
+        delta = int(self.get_last_uptime().timestamp()/ 1000)  - int(resource.time_zero.timestamp()/ 1000)
+        return resource.amount_zero + delta * 1000 * resource.rate
 
     """
     ForeignAffairsState(5)
@@ -131,18 +184,22 @@ class GameInterface:
                 in self.state.foreign_affairs_state.relationships.items()
                 if (sender_id == filters.get("sender_id")
                     if "sender_id" in filters.keys() else True)}
+
     """
     ArmyState(6)
     """
 
+    @country_selected
     def get_armies(self) -> dict[int, Army]:
         return self.state.army_state.armies
 
+    @country_selected
     def get_my_armies(self) -> dict[int, Army]:
         return {army.id: army
                 for army in self.state.army_state.armies.values()
                 if army.owner_id == self.player_id}
 
+    @country_selected
     def get_army(self, army_id: int) -> Army:
         self.state.army_state.armies.get(army_id)
 
@@ -155,5 +212,18 @@ class GameInterface:
         # Find path for a army in the current game to a province
         pass
 
+    @country_selected
     def command_army(army_id: int, command: list[Command]):
         pass
+
+    """
+    ModState(11)
+    """
+
+    def get_upgrade_types(self, **filters) -> dict[int, UpgradeType]:
+        return {upgrade_id: upgrade
+                for upgrade_id, upgrade in self.state.mod_state.upgrades.items()
+                if all(getattr(upgrade, key, None) == value for key, value in filters.items())}
+
+    def get_upgrade_type(self, upgrade_id) -> UpgradeType:
+        return self.state.mod_state.upgrades.get(upgrade_id)

@@ -2,7 +2,8 @@ from .data_types import HubGameInfo
 
 
 def parse_international_games(data):
-    res = []
+    res = {}
     for item in data:
-        res.append(HubGameInfo.from_dict(item["properties"]))
+        game = HubGameInfo.from_dict(item["properties"])
+        res[game.game_id] = game
     return res

@@ -108,7 +108,7 @@ class ConflictInterface():
 
         return result["result"]
 
-    def get_my_games(self, archived=False) -> list[HubGameInfo]:
+    def get_my_games(self, archived=False) -> dict[int, HubGameInfo]:
         params = {
                 "userID": self.auth.user_id,
         }
@@ -118,10 +118,10 @@ class ConflictInterface():
         res = self.send_api_request(params, "getInternationalGames")
         return parse_international_games(res)
 
-    def get_global_games(self):
+    def get_global_games(self, **filters) -> dict[int, HubGameInfo] :
         last_page = False
         page = 0
-        games = []
+        games = {}
         while not last_page:
             res = self.send_api_request({"userID": self.auth.user_id,
                                          "global": "1",
@@ -129,17 +129,33 @@ class ConflictInterface():
                                         "getInternationalGames")
             last_page = res["lastPage"]
             page += 1
-            games = games + parse_international_games(res["games"])
+            page_games = parse_international_games(res["games"])
+            for page_game_id, page_game in page_games.items():
+                if all([getattr(page_game, key) == val for key, val in filters.items()]):
+                    games[page_game_id] = page_game
         return games
 
-    def join_game(self, game_id: int):
+    def request_join_game(self, game_id: int):
+        res = self.send_api_request({
+            "userID": self.auth.user_id,
+            "gameID": game_id,
+            "password": ""
+        }, "joinGame")
+
+    def join_game(self, game_id: int, guest=False) -> GameInterface:
+        if not self.is_in_game(game_id) and not guest:
+            self.request_join_game(game_id)
+
         game_api = GameAPI(self.session.cookies.get_dict(),
                            self.session.headers,
                            self.auth,
                            game_id)
         game_interface = GameInterface(game_id, game_api)
-        game_interface.join_game()
+        game_interface.join_game(guest)
         return game_interface
+
+    def is_in_game(self, game_id: int) -> bool:
+        return self.get_my_games(archived=False).get(game_id) is not None
 
     def get_session_token(self):
         res = self.send_api_request({

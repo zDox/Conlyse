@@ -6,6 +6,20 @@ from conflict_interface.utils import JsonMappedClass
 
 @dataclass
 class ResourceEntry(JsonMappedClass):
+    SUPPLY_ID = 1
+    COMPONENTS_ID = 2
+    MAN_POWER_ID = 3
+    RARE_MATERIALS_ID = 4
+    FUEL_ID = 5
+    ELECTRONICS_ID = 6
+    CONVENTIONAL_WARHEAD_ID = 7
+    CHEMICAL_WARHEAD_ID = 8
+    NUCLEAR_WARHEAD_ID = 9
+    DEPLOYABLE_GEAR_ID = 10
+    MONEY_ID = 20
+    PHARMACEUTICALS_ID = 40
+
+
     resource_id: int
     name: str
 
@@ -22,7 +36,7 @@ class ResourceEntry(JsonMappedClass):
 
     amount_zero: float
     time_zero: datetime
-    rate: float
+    rate: float  # in unit per second
     lack_zero: float
     consumed_zero: float
     produced_zero: float
@@ -31,7 +45,7 @@ class ResourceEntry(JsonMappedClass):
     include_in_statistics: bool
     min_price: int
     max_price: int
-    tradable: bool
+    tradeable: bool
     manpower: bool
     currency: bool
 
@@ -57,7 +71,7 @@ class ResourceEntry(JsonMappedClass):
         "include_in_statistics": "includeInStatistics",
         "min_price": "minPrice",
         "max_price": "maxPrice",
-        "tradable": "tradable",
+        "tradeable": "tradeable",
         "manpower": "manpower",
         "currency": "currency",
     }

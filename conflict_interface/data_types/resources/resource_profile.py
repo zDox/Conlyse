@@ -18,7 +18,7 @@ class ResourceProfile(JsonMappedClass):
     # executed_orders
     # premium_orders
     # personal_orders
-    categories: ResourceCategory
+    categories: dict[int, ResourceCategory]
     mobilization_target: int
     mobilization_value: int
     corruption_value: float
