@@ -1,0 +1,30 @@
+import os
+import sys
+import inspect
+
+from conflict_interface.data_types.province import ProvinceStateID
+from conflict_interface.utils.exceptions import CountryUnselectedException
+
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir)
+
+from conflict_interface import ConflictInterface
+from conflict_interface.data_types.hub_game_info import HubGameState
+
+import creds
+from pprint import pprint
+from time import sleep, time
+
+
+if __name__ == "__main__":
+    interface = ConflictInterface()
+    interface.login(creds.username, creds.password)
+    print("Starting example")
+
+    pprint(f"Joining new game:  {9709963}")
+    game = interface.join_game(9709963)
+
+    Djibouti = next(iter(game.get_my_provinces(name="Djibouti").values()))
+    pprint(Djibouti)
+    pprint(game.get_upgrade_types(upgrade_identifier='Arms Industry'))

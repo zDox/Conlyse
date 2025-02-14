@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from requests import Session
 from lxml import html
 
@@ -34,7 +36,7 @@ class GameAPI:
         self.player_id = 0
         self.auth = auth_details
         self.device_details = DeviceDetails.from_user_agent(
-                headers["User-Agent"])
+            headers["User-Agent"])
         self.request_id = 1
         self.action_request_id = 1
 
@@ -109,7 +111,6 @@ class GameAPI:
 
         response.raise_for_status()
 
-
         match = re.search(r'clientVersion=(\d+)', response.text)
         if match:
             self.client_version = int(match.group(1))
@@ -147,24 +148,24 @@ class GameAPI:
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
         }
 
-        hash_hex = sha1(("undefined" + str(int(time()*1000)))
+        hash_hex = sha1(("undefined" + str(int(time() * 1000)))
                         .encode()).hexdigest()
 
         data = {
-                "requestID": self.request_id,
-                "language": "en",
-                **parameters,
-                "version": self.client_version,
-                "tstamp": str(self.auth.auth_tstamp),
-                "client": "con-client",
-                "hash": hash_hex,
-                "sessionTstamp": 0,
-                "gameID": str(self.game_id),
-                "playerID": str(self.player_id),
-                "siteUserID": str(self.auth.user_id),
-                "adminLevel": None,
-                "rights": self.auth.rights,
-                "userAuth": self.auth.auth,
+            "requestID": self.request_id,
+            "language": "en",
+            **parameters,
+            "version": self.client_version,
+            "tstamp": str(self.auth.auth_tstamp),
+            "client": "con-client",
+            "hash": hash_hex,
+            "sessionTstamp": 0,
+            "gameID": str(self.game_id),
+            "playerID": str(self.player_id),
+            "siteUserID": str(self.auth.user_id),
+            "adminLevel": None,
+            "rights": self.auth.rights,
+            "userAuth": self.auth.auth,
         }
 
         self.request_id += 1
@@ -178,7 +179,8 @@ class GameAPI:
         response.raise_for_status()
         return loads(response.text)
 
-    def request_game_activation(self, selected_player_id=0, selected_team_id=0, random_team_country_selection=False) -> int:
+    def request_game_activation(self, selected_player_id=0, selected_team_id=0,
+                                random_team_country_selection=False) -> int:
         res = self.make_game_server_request({
             "@c": "ultshared.action.UltActivateGameAction",
             "selectedPlayerID": selected_player_id,
@@ -186,7 +188,7 @@ class GameAPI:
             "randomTeamAndCountrySelection": random_team_country_selection,
             "os": self.device_details.os,
             "device": self.device_details.device,
-            }, None)
+        }, None)
 
         try:
             raise GameActivationException.from_error_code(res["result"])
@@ -194,7 +196,6 @@ class GameAPI:
             pass
         self.player_id = res["result"]
         return self.player_id
-
 
     def request_game_state_action(self, actions):
         return self.make_game_server_request({
@@ -205,7 +206,7 @@ class GameAPI:
             "option": None,
             "stateIDs": self.state_ids,
             "tstamps": self.time_stamps,
-            }, actions)
+        }, actions)
 
     def request_province_action(self, province_id, building_id):
         res = self.request_game_state_action([
@@ -214,50 +215,56 @@ class GameAPI:
              "@c": "ultshared.action.UltUpdateProvinceAction",
              "provinceIDs": [
                  "java.util.Vector", [province_id]], "slot": 0, "mode": 1,
-             "upgrade": {"@c": "mu", "c": 0, "cn": False, "e": False, "rp": None, "id": building_id, "pl": 0}}
+             "upgrade": {"@c": "mu", "c": 0, "cn": False, "e": False, "rp": None, "province_id": building_id, "pl": 0}}
         ])
-        self.action_request_id =+ 1
+        self.action_request_id = + 1
         return res
 
     def request_login_action(self) -> States:
-        res = self.request_game_state_action([
-                {
-                    "requestID": f"actionReq-{self.action_request_id}",
-                    "language": "en",
-                    "@c": "ultshared.action.UltLoginAction",
-                    "resolution": "1920x1080",
-                    "sysInfos": {
-                        "@c": "ultshared.action.UltSystemInfos",
-                        "verbose": False,
-                        "clientVersion": self.client_version,
-                        "processors": "",
-                        "accMem": "",
-                        "javaVersion": "",
-                        "osArch": "",
-                        "osName": "UNIX",
-                        "osVersion": "",
-                        "osPatchLevel": "",
-                        "userCountry": "",
-                        "screenWidth": 1920,
-                        "screenHeight": 1080
-                        }
-                }])
-        self.action_request_id =+ 1
+        res = self.make_game_server_request({
+            "@c": "ultshared.action.UltUpdateGameStateAction",
+            "stateType": 0,
+            "stateID": "0",
+            "addStateIDsOnSent": True,
+            "option": None,
+        }, [
+            {
+                "requestID": f"actionReq-{self.action_request_id}",
+                "language": "en",
+                "@c": "ultshared.action.UltLoginAction",
+                "resolution": "1920x1080",
+                "sysInfos": {
+                    "@c": "ultshared.action.UltSystemInfos",
+                    "verbose": False,
+                    "clientVersion": self.client_version,
+                    "processors": "",
+                    "accMem": "",
+                    "javaVersion": "",
+                    "osArch": "",
+                    "osName": "UNIX",
+                    "osVersion": "",
+                    "osPatchLevel": "",
+                    "userCountry": "",
+                    "screenWidth": 1920,
+                    "screenHeight": 1080
+                }
+            }])
+        self.action_request_id = + 1
         if "states" not in res["result"]:
             raise ConflictJoinError(f"Login failed with error code {res['result']}")
         return States.from_dict(res["result"]["states"])
 
     def request_game_update(self) -> States:
         res = self.make_game_server_request(
-                {
-                    "@c": "ultshared.action.UltUpdateGameStateAction",
-                    "stateType": 0,
-                    "stateID": "0",
-                    "addStateIDsOnSent": True,
-                    "option": None,
-                    "stateIDs": self.state_ids,
-                    "tstamps": self.time_stamps,
-                })
+            {
+                "@c": "ultshared.action.UltUpdateGameStateAction",
+                "stateType": 0,
+                "stateID": "0",
+                "addStateIDsOnSent": True,
+                "option": None,
+                "stateIDs": self.state_ids,
+                "tstamps": self.time_stamps,
+            })
         # Set stateIDs and tstamps from response
         for state in list(res["result"]["states"].values())[1:]:
             state_type = str(state["stateType"])

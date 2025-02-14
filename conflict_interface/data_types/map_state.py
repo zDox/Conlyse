@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pprint import pprint
 
 from .province import Province, ProvinceProperty
 from .static_map_data import StaticMapData
@@ -33,7 +34,7 @@ class MapState:
 
     def update(self, new_state):
         for province in new_state.provinces:
-            self.provinces[province.id].update(province)
+            self.provinces[province.province_id].update(province)
 
     def set_static_map_data(self, static_map_data: StaticMapData):
         for province in static_map_data.provinces:

@@ -87,18 +87,25 @@ class GameInterface:
     def get_player(self, player_id) -> PlayerProfile | None:
         return self.state.player_state.players.get(player_id)
 
-    def list_playable_countries(self) -> dict[int, PlayerProfile]:
-        return {player.id: player
+    def get_my_player(self):
+        return self.get_player(self.player_id)
+
+    def get_players(self, **filters) -> dict[int, PlayerProfile]:
+        return {player.player_id: player
                 for player in self.state.player_state.players.values()
-                if player.available}
+                if all([getattr(player, key) == val
+                        for key, val in filters.items()])}
+
+    def get_playable_countries(self) -> dict[int, PlayerProfile]:
+        return self.get_players(available=True)
 
     def get_human_players(self) -> dict[int, PlayerProfile]:
-        return {player.id: player
-                for player in self.state.player_state.players.values()
-                if not player.native_computer}
+        return self.get_players(computer_player=False)
 
-    def get_teams(self) -> dict[int, TeamProfile]:
-        return self.state.player_state.teams
+    def get_teams(self, **filters) -> dict[int, TeamProfile]:
+        return {team.team_id: team
+                for team in self.state.player_state.teams.values()
+                if all(getattr(team, key) == val for key, val in filters.items())}
 
     def get_team(self, team_id) -> TeamProfile | None:
         return self.state.player_state.teams.get(team_id)
@@ -120,7 +127,7 @@ class GameInterface:
     """
 
     def get_provinces(self, **filters) -> dict[int, Province]:
-        return {province.id: province
+        return {province.province_id: province
                 for province in self.state.map_state.provinces.values()
                 if all([getattr(province, key) == val
                         for key, val in filters.items()])}
@@ -129,8 +136,8 @@ class GameInterface:
         return self.state.map_state.provinces.get(province_id)
 
     @country_selected
-    def get_my_provinces(self) -> dict[int, Province]:
-        return self.get_provinces(owner_id=self.player_id)
+    def get_my_provinces(self, **filters) -> dict[int, Province]:
+        return self.get_provinces(**filters, owner_id=self.player_id)
 
     @country_selected
     def build_building(self, province_id, building_id):

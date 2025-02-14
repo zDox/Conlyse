@@ -113,7 +113,7 @@ class PlayerProfile(JsonMappedClass):
     }
 
     def get_player_id(self):
-        return self.id
+        return self.player_id
 
     def get_name(self):
         return self.name
@@ -239,7 +239,7 @@ class PlayerProfile(JsonMappedClass):
     def is_inactive_player(self):
         return not self.is_active_player()
 
-    def is_abndonend_player(self):
+    def is_abandoned_player(self):
         return self.is_taken_country() and not self.is_considered_playing()
 
     def is_kickable_from_coalition(self):
@@ -250,7 +250,7 @@ class PlayerProfile(JsonMappedClass):
 
     def is_playable(self):
         return self.is_available_for_taking() \
-            and not self.selectable_native_computer()
+            and not self.is_selectable_native_computer()
 
     def is_selectable_native_computer(self):
         # Not fully implemented

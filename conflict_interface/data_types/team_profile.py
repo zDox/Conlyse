@@ -16,7 +16,7 @@ getFlagImage
 
 @dataclass
 class TeamProfile(JsonMappedClass):
-    id: int
+    team_id: int
     name: str
     description: str
     leader_id: int
@@ -24,7 +24,7 @@ class TeamProfile(JsonMappedClass):
     victory_points: int
 
     mapping = {
-            "id": "id",
+            "team_id": "team_id",
             "name": "name",
             "description": "description",
             "leader_id": "leaderID",
@@ -33,7 +33,7 @@ class TeamProfile(JsonMappedClass):
     }
 
     def get_team_id(self):
-        return self.id
+        return self.team_id
 
     def get_team_name(self):
         return self.name

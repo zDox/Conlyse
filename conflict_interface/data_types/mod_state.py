@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pprint import pprint
 
 from .upgrades import UpgradeType
 
@@ -12,6 +13,7 @@ class ModState:
 
     @classmethod
     def from_dict(cls, obj):
+        pprint(obj["upgrades"])
         upgrades = {int(upgrade_id): UpgradeType.from_dict(upgrade)
                     for upgrade_id, upgrade
                     in list(obj["upgrades"].items())[1:]}

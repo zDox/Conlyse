@@ -139,7 +139,7 @@ class MissileSlotConfig(JsonMappedClass):
     initial_inventory: int
 
     mapping = {
-        "id": "id",
+        "province_id": "province_id",
         "capacity": "capacity",
         "resupply_time": "resupplyTime",
         "initial_inventory": "initialInventory",
@@ -153,7 +153,7 @@ class MissileCarrierConfig():
     @classmethod
     def from_dict(cls, obj):
         missile_slot_config = {int(slot_id): MissileSlotConfig.from_dict(
-                                {**slot, "id": slot_id})
+                                {**slot, "province_id": slot_id})
                                for slot_id, slot in
                                list(obj["missileSlotConfig"].items())[1:]}
         return cls(**{

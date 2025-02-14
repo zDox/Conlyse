@@ -60,7 +60,7 @@ class Building(JsonMappedClass):
     mapping = {
             "health": "c",
             "harbour_coordinate": MappedValue("rp", position_to_tuple),
-            "upgrade_id": "id",
+            "upgrade_id": "province_id",
             "constructing": "cn",
     }
 
@@ -116,7 +116,7 @@ class ProvinceProperty(JsonMappedClass):
 
 @dataclass
 class Province(JsonMappedClass):
-    id: int
+    province_id: int
 
     # Data from GameServer
     province_state_id: ProvinceStateID
@@ -138,7 +138,7 @@ class Province(JsonMappedClass):
     properties: ProvinceProperty = None  # If player owns the province
 
     mapping = {
-        "id": "id",
+        "province_id": "id",
         "name": "n",
         "adjacent_to_water": "c",
         "owner_id": "o",
