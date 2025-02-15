@@ -183,3 +183,24 @@ class StaticProvince(GameObject):
         "center_coordinate": "c",
         "region": MappedValue("rg", rg_to_region),
     }
+
+class ProvinceUpdateActionModes(Enum):
+    PROVINCE = 0
+    UPGRADE = 1
+    SPECIAL_UNIT = 2
+    CANCEL_PRODUCING = 3
+    CANCEL_BUILDING = 4
+    DEPLOYMENT_TARGET = 5
+    DEMOLISH_UPGRADE = 6
+
+class UpdateProvinceAction(GameObject):
+    province_ids: list[int]
+    mode: ProvinceUpdateActionModes
+    slot: int = 0
+
+    C = "ultshared.action.UltUpdateProvinceAction"
+    MAPPING = {
+        "province_ids": MappedValue("p", ),
+        "mode": "mode",
+        "slot": "slot",
+    }

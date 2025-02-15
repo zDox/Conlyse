@@ -7,9 +7,12 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any
 
+from .data_types.upgrades.upgrade import ModableUpgrade
 from .game_api import GameAPI
 from .utils import Point
-from .data_types import States
+from .data_types.states import States
+from .data_types.static_map_data import  StaticMapData
+
 if TYPE_CHECKING:
     from .data_types import TeamProfile, PlayerProfile, Province, \
         ProvinceProperty, GameInfo, Article, article
@@ -55,7 +58,7 @@ class GameInterface:
                 self.state = States.from_dict(self.game_api.request_game_update(), self)
         else:
             self.state = States.from_dict(self.game_api.request_game_update(), self)
-        static_map_data = self.game_api.get_static_map_data()
+        static_map_data = StaticMapData.from_dict(self.game_api.get_static_map_data(), self)
 
         self.state.map_state.set_static_map_data(static_map_data)
 
@@ -148,7 +151,16 @@ class GameInterface:
 
     @country_selected
     def build_building(self, province_id, building_id):
-        pass
+        res = self.game_api.request_province_action(province_id, ModableUpgrade(
+            id=building_id,
+            condition=0,
+            constructing=False,
+            enabled=False,
+            relative_position=None,
+            premium_level=0,
+            game=self
+        ).to_dict())
+        pprint(res)
 
     """
     ResourceState(4)
@@ -241,3 +253,6 @@ class GameInterface:
 
     def get_upgrade_type(self, upgrade_id) -> UpgradeType:
         return self.state.mod_state.upgrades.get(upgrade_id)
+
+    def get_upgrade_type_by_name_and_tier(self, name, tier) -> UpgradeType | None:
+        return next(iter(self.get_upgrade_types(upgrade_identifier=name, tier=tier).values()), None)

@@ -1,3 +1,4 @@
+from pprint import pprint
 
 from requests import Session
 from lxml import html
@@ -11,7 +12,6 @@ from json import loads, dumps
 from time import time
 
 from .data_types import AuthDetails
-from .data_types import StaticMapData
 from .utils.exceptions import ConflictJoinError, GameActivationException, GameActivationErrorCodes
 
 
@@ -141,7 +141,7 @@ class GameAPI:
         )
 
         response.raise_for_status()
-        return StaticMapData.from_dict(loads(response.text))
+        return loads(response.text)
 
     def make_game_server_request(self, parameters, actions=None):
         headers = {
@@ -209,15 +209,19 @@ class GameAPI:
             "tstamps": self.time_stamps,
         }, actions)
 
-    def request_province_action(self, province_id, building_id):
-        res = self.request_game_state_action([
-            {"requestID": f"actionReq-{self.action_request_id}",
-             "language": "en",
-             "@c": "ultshared.action.UltUpdateProvinceAction",
-             "provinceIDs": [
-                 "java.util.Vector", [province_id]], "slot": 0, "mode": 1,
-             "upgrade": {"@c": "mu", "c": 0, "cn": False, "e": False, "rp": None, "province_id": building_id, "pl": 0}}
-        ])
+    def request_province_action(self, province_id, upgrade):
+        data = {"requestID": f"actionReq-{self.action_request_id}",
+                "language": "en",
+                "@c": "ultshared.action.UltUpdateProvinceAction",
+                "provinceIDs": [
+                    "java.util.Vector", [province_id]],
+                "slot": 0,
+                "mode": 1
+                }
+        if upgrade:
+            data["upgrade"] = upgrade
+        pprint(data)
+        res = self.request_game_state_action([data])
         self.action_request_id = + 1
         return res
 

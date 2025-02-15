@@ -73,3 +73,21 @@ class GameObject(JsonMappedClass):
         instance = cls(**parsed_data)
         instance.game = game
         return instance
+
+    def to_dict(self):
+        parsed_data = {}
+        resolved = get_type_hints(self.__class__)
+        for name, conflict_name in self.MAPPING.items():
+            ftype = resolved[name]
+            value = getattr(self, name)
+            if isinstance(conflict_name, MappedValue):
+                parsed_data[conflict_name.original] = conflict_name.to_dict()
+            elif issubclass(ftype, GameObject):
+                parsed_data[conflict_name] = value.to_dict()
+            else:
+                parsed_data[conflict_name] = value
+        if hasattr(self, "C"):
+            parsed_data["@c"] = getattr(self, "C")
+        else:
+            raise ValueError(self.__class__.__name__ + " has no C attribute")
+        return parsed_data

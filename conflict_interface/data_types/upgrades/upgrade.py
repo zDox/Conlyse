@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
-
+from math import floor
+from typing import List
 
 from conflict_interface.utils import GameObject
 from conflict_interface.utils import MappedValue
@@ -99,6 +100,8 @@ class UpgradeType(GameObject):
     sorting_orders: int
 
     upgrade_identifier: str
+    _tier: int | None = None
+    _replacing_upgrade_id: int | None = None
 
     MAPPING = {
         "id": "id",
@@ -125,3 +128,112 @@ class UpgradeType(GameObject):
 
     def has_feature(self, feature: UpgradeFeature):
         return feature in self.features.keys()
+
+    def get_build_condition(self) -> int:
+        return self.build_condition
+
+    def get_max_condition(self) -> int:
+        return self.max_condition
+
+    def get_max_level(self) -> int:
+        """
+        Get the maximum level of the upgrade based on its conditions.
+        """
+        return self.max_condition // self.build_condition
+
+    def get_level(self, condition: int) -> int:
+        """
+        Calculate the level of the upgrade using the condition.
+        """
+        return 1 + floor((condition - 1) / self.build_condition) if condition > 0 else 1
+
+    def get_condition_for_level(self, level: int) -> int:
+        """
+        Get the condition value needed for a specific level.
+        """
+        return min(level * self.build_condition, self.get_max_condition())
+
+    def get_min_condition(self) -> int:
+        return self.min_condition
+
+    def get_replaced_upgrade(self) -> int:
+        return self.replaced_upgrade
+
+    def get_removed_upgrades(self) -> List[int]:
+        """
+        Get a list of upgrades that this upgrade removes.
+        """
+        return list(self.removed_upgrades)
+
+    @property
+    def tier(self) -> int:
+        """
+        Calculate and return the tier of the upgrade.
+        """
+        if self._tier is None:
+            replaced_upgrade_id = self.get_replaced_upgrade()
+            if replaced_upgrade_id is not None:
+                replaced_upgrade = self.game.get_upgrade_type(replaced_upgrade_id)  # Retrieve the replaced upgrade object
+                self._tier = replaced_upgrade.tier + self.get_max_level()
+            else:
+                self._tier = self.get_max_level()
+        return self._tier
+
+    def get_max_tier(self) -> int:
+        """
+        Get the maximum tier of this or related upgrades iteratively.
+        """
+        last_replacing_upgrade_id = self.get_last_replacing_upgrade()
+        if last_replacing_upgrade_id:
+            last_replacing_upgrade = self.game.get_upgrade_type(last_replacing_upgrade_id)
+            return last_replacing_upgrade.tier
+        return self.tier
+
+    def get_last_replacing_upgrade(self) -> int:
+        """
+        Get the last replacing upgrade of this upgrade, if any.
+        """
+        replacing_upgrade = None
+        replacing_id = self._replacing_upgrade_id or 0
+        while replacing_id > 0:
+            replacing_upgrade = self.game.get_upgrade_type(replacing_id)
+            replacing_id = replacing_upgrade.get_replacing_upgrade()
+        return replacing_upgrade.id if replacing_upgrade else 0
+
+    def get_replacing_upgrade(self) -> int:
+        """
+        Find an upgrade that replaces this one.
+        """
+        if not self._replacing_upgrade_id:
+            upgrades = self.game.get_upgrade_types()
+            self._replacing_upgrade_id = 0
+            for upgrade_id, upgrade in upgrades.items():
+                if upgrade.get_replaced_upgrade() == self.id:
+                    self._replacing_upgrade_id = upgrade_id
+                    break
+        return self._replacing_upgrade_id
+
+class ModableUpgrade(GameObject):
+    id: int
+    condition: int
+    constructing: bool
+    enabled: bool
+    relative_position: int
+    premium_level: int
+    C = "mu"
+    MAPPING = {
+        "id": "id",
+        "condition": "c",
+        "constructing": "cn",
+        "enabled": "e",
+        "relative_position": "rp",
+        "premium_level": "pl",
+    }
+    def __init__(self, id, condition, constructing, enabled, relative_position, premium_level, game):
+        super().__init__(game)
+        self.id = id
+        self.condition = condition
+        self.constructing = constructing
+        self.enabled = enabled
+        self.relative_position = relative_position
+        self.premium_level = premium_level

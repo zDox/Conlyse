@@ -24,4 +24,8 @@ if __name__ == "__main__":
 
     Djibouti = next(iter(game.get_my_provinces(name="Djibouti").values()))
     pprint(Djibouti)
-    pprint(game.get_upgrade_types(upgrade_identifier='Arms Industry'))
+    for upgrade_id, upgrade in game.get_upgrade_types(upgrade_identifier='Arms Industry').items():
+        pprint(f"{upgrade.id} {upgrade.tier} {upgrade.upgrade_identifier}")
+    arms_lvl_1 = game.get_upgrade_type_by_name_and_tier('Arms Industry', 1)
+    game.build_building(Djibouti.province_id, arms_lvl_1.id)
+    game.update()

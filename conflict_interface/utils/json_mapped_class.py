@@ -1,7 +1,7 @@
 from typing import get_type_hints
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import EnumMeta
+from enum import EnumMeta, Enum
 from .helper import unixtimestamp_to_datetime, seconds_to_timedelta
 
 
@@ -27,6 +27,12 @@ class DefaultEnumMeta(EnumMeta):
             return next(iter(cls))
         return super().__call__(value, *args, **kwargs)
 
+class JavaTypes(Enum):
+    LinkedList = "java.util.LinkedList"
+    HashMap = "java.util.HashMap"
+    TreeMap = "java.util.TreeMap"
+    Vector = "java.util.Vector"
+
 
 @dataclass
 class MappedValue:
@@ -43,6 +49,7 @@ class MappedValue:
     """
 
     original: str
+    type: JavaTypes = None
     function: callable = None
     needs_entire_obj: bool = False
 
