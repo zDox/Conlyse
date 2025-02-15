@@ -1,4 +1,4 @@
-from conflict_interface.utils import GameObject
+from conflict_interface.utils import GameObject, MappedValue
 
 from dataclasses import dataclass
 
@@ -6,18 +6,15 @@ from .warfare import Army
 
 
 @dataclass
-class ArmyState:
+class ArmyState(GameObject):
     STATE_ID = 6
     armies: dict[int, Army]
 
-    @classmethod
-    def from_dict(cls, obj):
-        armies = {army["id"]: Army.from_dict(army)
-                  for army in list(obj["armies"].values())[1:]
-                  if not army.get("rm")}
-        return cls(**{
-            "armies": armies,
-            })
+    MAPPING = {
+        "armies": MappedValue("armies", lambda obj: {army["id"]: Army.from_dict(army)
+                                                     for army in list(obj.values())[1:]
+                                                     if not army.get("rm")})
+    }
 
     def update(self, new_state):
         for new_army in new_state.armies:

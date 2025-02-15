@@ -8,3 +8,4 @@ class ResearchState(GameObject):
     # current_researches: list(Research)
     # completed_researches: list(Research)
     research_slots: int
+    MAPPING = {"research_slots": "researchSlots"}

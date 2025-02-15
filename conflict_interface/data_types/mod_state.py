@@ -1,4 +1,4 @@
-from conflict_interface.utils import GameObject
+from conflict_interface.utils import GameObject, MappedValue
 from dataclasses import dataclass
 from pprint import pprint
 
@@ -11,13 +11,8 @@ class ModState(GameObject):
     upgrades: dict[int, UpgradeType]
     # unit_types: list(UnitType)
     # research_types: list(ResearchType)
-
-    @classmethod
-    def from_dict(cls, obj, game):
-        upgrades = {int(upgrade_id): UpgradeType.from_dict(upgrade)
-                    for upgrade_id, upgrade
-                    in list(obj["upgrades"].items())[1:]}
-        return cls(**{
-            "upgrades": upgrades,
-            "game": game
-            })
+    MAPPING = {
+        "upgrades": MappedValue("upgrades", function=lambda obj: {int(upgrade_id): UpgradeType.from_dict(upgrade)
+                                                                  for upgrade_id, upgrade
+                                                                  in list(obj.items())[1:]})
+    }

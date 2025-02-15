@@ -2,9 +2,11 @@ from dataclasses import dataclass
 from math import sqrt, atan2
 from copy import deepcopy
 
+from conflict_interface.utils import JsonMappedClass
+
 
 @dataclass
-class Point:
+class Point(JsonMappedClass):
     x: float
     y: float
 

@@ -19,7 +19,8 @@ class StaticMapData(GameObject):
         for province in obj["locations"][1]:
             provinces.append(StaticProvince.from_dict(province))
 
-        return cls(**{
+        instance = cls(**{
             "provinces": provinces,
-            "game": game
             })
+        instance.game = game
+        return instance
