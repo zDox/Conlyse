@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from .resource_entry import ResourceEntry
-from conflict_interface.utils import JsonMappedClass, MappedValue
-
+from conflict_interface.utils import MappedValue
+from conflict_interface.utils import GameObject
 
 def parse_resource_entries(obj):
     if obj is None:
@@ -12,7 +12,7 @@ def parse_resource_entries(obj):
 
 
 @dataclass
-class ResourceCategory(JsonMappedClass):
+class ResourceCategory(GameObject):
     category_id: int
     name: str
     daily_unit_consumption: float
@@ -21,7 +21,7 @@ class ResourceCategory(JsonMappedClass):
     min_consumption: float
     resources: dict[int, ResourceEntry]
 
-    mapping = {
+    MAPPING = {
         "category_id": "categoryID",
         "name": "name",
         "daily_unit_consumption": "dailyUnitConsumption",

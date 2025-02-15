@@ -78,7 +78,7 @@ class HubGameInfo(JsonMappedClass):
     map_reference: str
     state: HubGameState
 
-    mapping = {
+    MAPPING = {
             'game_id': 'gameID',
             'mod_id': 'modID',
             'mod_version': 'modVersionID',

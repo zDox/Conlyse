@@ -1,4 +1,4 @@
-from conflict_interface.utils import JsonMappedClass
+from conflict_interface.utils import GameObject
 
 from dataclasses import dataclass
 
@@ -15,7 +15,7 @@ getFlagImage
 
 
 @dataclass
-class TeamProfile(JsonMappedClass):
+class TeamProfile(GameObject):
     team_id: int
     name: str
     description: str
@@ -23,7 +23,7 @@ class TeamProfile(JsonMappedClass):
     disbanded: bool
     victory_points: int
 
-    mapping = {
+    MAPPING = {
             "team_id": "team_id",
             "name": "name",
             "description": "description",

@@ -1,15 +1,21 @@
+from __future__ import annotations
+
+from pprint import pprint
+from typing import TYPE_CHECKING
+
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any
 
-from conflict_interface.data_types.resources import ResourceProfile, ResourceEntry
 from .game_api import GameAPI
 from .utils import Point
-from .data_types import TeamProfile, PlayerProfile, Province, \
-    ProvinceProperty, GameInfo, Article, States, article
-from .data_types.warfare import Army, Command
-from .data_types.resources import ResourceProfile
-from .data_types.upgrades import UpgradeType
+from .data_types import States
+if TYPE_CHECKING:
+    from .data_types import TeamProfile, PlayerProfile, Province, \
+        ProvinceProperty, GameInfo, Article, article
+    from .data_types.resources import ResourceProfile, ResourceEntry
+    from .data_types.warfare import Army, Command
+    from .data_types.upgrades import UpgradeType
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 
 
@@ -18,6 +24,7 @@ class GameInterface:
         self.game_api = game_api
         self.game_id = game_id
         self.player_id = 0
+        self.state: States | None = None
 
     @staticmethod
     def country_selected(func):
@@ -41,13 +48,13 @@ class GameInterface:
                     selected_team_id=-1,
                     random_team_country_selection=False,
                 )
-                self.state = self.game_api.request_login_action()
+                self.state = States.from_dict(self.game_api.request_login_action(), self)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
-                self.state = self.game_api.request_game_update()
+                self.state = States.from_dict(self.game_api.request_game_update(), self)
         else:
-            self.state = self.game_api.request_game_update()
+            self.state = States.from_dict(self.game_api.request_game_update(), self)
         static_map_data = self.game_api.get_static_map_data()
 
         self.state.map_state.set_static_map_data(static_map_data)
@@ -57,7 +64,7 @@ class GameInterface:
         self.player_id = self.game_api.request_game_activation(country_id, team_id,
                                               random_country_team)
 
-        self.state = self.game_api.request_login_action()
+        self.state = States.from_dict(self.game_api.request_login_action(), self)
 
     def update(self) -> States:
         new_states = self.game_api.request_game_update()

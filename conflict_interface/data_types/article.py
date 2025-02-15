@@ -1,13 +1,15 @@
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 from datetime import datetime
 
 
-from conflict_interface.utils import JsonMappedClass, MappedValue, \
+from conflict_interface.utils import MappedValue, \
         unixtimestamp_to_datetime
 
 
 @dataclass
-class Article(JsonMappedClass):
+class Article(GameObject):
     sender_id: int
     receiver_id: int
     message_id: int
@@ -17,7 +19,7 @@ class Article(JsonMappedClass):
     author: str  # Theme of article
     message_body: str
 
-    mapping = {
+    MAPPING = {
         "sender_id": "senderID",
         "receiver_id": "receiverID",
         "message_id": "messageUID",

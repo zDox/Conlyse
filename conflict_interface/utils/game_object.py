@@ -1,3 +1,7 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from conflict_interface.game_interface import GameInterface
 from conflict_interface.utils import JsonMappedClass
 
 
@@ -8,7 +12,7 @@ class GameObject(JsonMappedClass):
     interact with game-wide data.
     """
 
-    def __init__(self, game=None):
+    def __init__(self, game: GameInterface):
         """
         Initializes the GameObject with an optional reference
         to the game instance.
@@ -19,7 +23,7 @@ class GameObject(JsonMappedClass):
         self.game = game  # Reference to the central game instance
 
     @classmethod
-    def from_dict(cls, obj: dict, game=None):
+    def from_dict(cls, obj: dict, game: GameInterface = None):
         """
         Create a GameObject (or subclass) from a dictionary,
         and include the game reference.

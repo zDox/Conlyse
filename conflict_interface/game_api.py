@@ -1,8 +1,8 @@
-from pprint import pprint
 
 from requests import Session
 from lxml import html
 
+from typing import Any
 from collections.abc import MutableMapping
 from hashlib import sha1
 import re
@@ -10,7 +10,8 @@ from dataclasses import dataclass
 from json import loads, dumps
 from time import time
 
-from .data_types import AuthDetails, States, StaticMapData
+from .data_types import AuthDetails
+from .data_types import StaticMapData
 from .utils.exceptions import ConflictJoinError, GameActivationException, GameActivationErrorCodes
 
 
@@ -220,7 +221,7 @@ class GameAPI:
         self.action_request_id = + 1
         return res
 
-    def request_login_action(self) -> States:
+    def request_login_action(self) -> dict[str, Any]:
         res = self.make_game_server_request({
             "@c": "ultshared.action.UltUpdateGameStateAction",
             "stateType": 0,
@@ -252,9 +253,9 @@ class GameAPI:
         self.action_request_id = + 1
         if "states" not in res["result"]:
             raise ConflictJoinError(f"Login failed with error code {res['result']}")
-        return States.from_dict(res["result"]["states"])
+        return res["result"]["states"]
 
-    def request_game_update(self) -> States:
+    def request_game_update(self) -> dict[str, Any]:
         res = self.make_game_server_request(
             {
                 "@c": "ultshared.action.UltUpdateGameStateAction",
@@ -272,4 +273,4 @@ class GameAPI:
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
 
-        return States.from_dict(res["result"]["states"])
+        return res["result"]["states"]

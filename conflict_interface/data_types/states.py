@@ -11,6 +11,7 @@ from .mod_state import ModState
 from .game_info_state import GameInfoState
 from .research_state import ResearchState
 from .configuration_state import ConfigurationState
+from ..utils import GameObject
 
 """
 The following are all states but not every state
@@ -50,97 +51,97 @@ STATE_TYPE_MISSION_STATE: 29
 
 
 @dataclass
-class MapInfoState:
+class MapInfoState(GameObject):
     STATE_ID = 8
 
 
 @dataclass
-class AdminState:
-    STATE_ID = 8
-
-
-@dataclass
-class StatisticState:
+class AdminState(GameObject):
     STATE_ID = 9
 
 
 @dataclass
-class AIState:
+class StatisticState(GameObject):
+    STATE_ID = 10
+
+
+@dataclass
+class AIState(GameObject):
     STATE_ID = 13
 
 
 @dataclass
-class PremiumState:
+class PremiumState(GameObject):
     STATE_ID = 14
 
 
 @dataclass
-class UserOptionsState:
+class UserOptionsState(GameObject):
     STATE_ID = 15
 
 
 @dataclass
-class UserInventoryState:
+class UserInventoryState(GameObject):
     STATE_ID = 16
 
 
 @dataclass
-class UserSMSState:
+class UserSMSState(GameObject):
     STATE_ID = 17
 
 
 @dataclass
-class TutorialState:
+class TutorialState(GameObject):
     STATE_ID = 18
 
 
 @dataclass
-class BuildQueueState:
+class BuildQueueState(GameObject):
     STATE_ID = 19
 
 
 @dataclass
-class LocationState:
+class LocationState(GameObject):
     STATE_ID = 20
 
 
 @dataclass
-class TriggeredTutorialState:
+class TriggeredTutorialState(GameObject):
     STATE_ID = 21
 
 
 @dataclass
-class WheelOfFortuneState:
+class WheelOfFortuneState(GameObject):
     STATE_ID = 22
 
 
 @dataclass
-class GameEventState:
+class GameEventState(GameObject):
     STATE_ID = 24
 
 
 @dataclass
-class InGameAllianceState:
+class InGameAllianceState(GameObject):
     STATE_ID = 25
 
 
 @dataclass
-class ExplorationState:
+class ExplorationState(GameObject):
     STATE_ID = 26
 
 
 @dataclass
-class QuestState:
+class QuestState(GameObject):
     STATE_ID = 27
 
 
 @dataclass
-class MissionState:
+class MissionState(GameObject):
     STATE_ID = 29
 
 
 @dataclass
-class States():
+class States(GameObject):
     player_state: PlayerState
     newspaper_state: NewspaperState
     map_state: MapState
@@ -171,20 +172,38 @@ class States():
     configuration_state: ConfigurationState
     mission_state: MissionState
 
-    @classmethod
-    def from_dict(cls, obj):
-        parsed_data = {}
-        for i, (field_name, field_type) \
-                in enumerate(cls.__annotations__.items()):
-            parsed_data[field_name] = None
+    MAPPING = {
+        "player_state": "1",
+        "newspaper_state": "2",
+        "map_state": "3",
+        "resource_state": "4",
+        "foreign_affairs_state": "5",
+        "army_state": "6",
+        "spy_state": "7",
+        "map_info_state": "8",
+        "admin_state": "9",
+        "statistic_state": "10",
+        "mod_state": "11",
+        "game_info_state": "12",
+        "ai_state": "13",
+        "premium_state": "14",
+        "user_options_state": "15",
+        "user_inventory_state": "16",
+        "user_sms_state": "17",
+        "tutorial_state": "18",
+        "build_queue_state": "19",
+        "location_state": "20",
+        "triggered_tutorial_state": "21",
+        "wheel_of_fortune_state": "22",
+        "research_state": "23",
+        "game_event_state": "24",
+        "in_game_alliance_state": "25",
+        "exploration_state": "26",
+        "quest_state": "27",
+        "configuration_state": "28",
+        "mission_state": "29",
+    }
 
-            # if state is in object and state is implemented
-            if str(i+1) in obj \
-                    and callable(getattr(field_type, "from_dict", None)):
-                parsed_data[field_name] = field_type.from_dict(
-                        obj[str(i+1)])
-
-        return cls(**parsed_data)
 
     def update(self, new_class):
         for field in self.__annotations__.keys():

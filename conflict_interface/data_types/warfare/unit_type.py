@@ -1,7 +1,9 @@
+
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 from datetime import timedelta
 
-from conflict_interface.utils import JsonMappedClass
 from conflict_interface.data_types.modding.configuration import \
         MissileConfig, SortingConfig, SoundConfig, AirplaneConfig, \
         ControllableConfig, CarrierConfig, AntiAirConfig, ScoutConfig, \
@@ -11,7 +13,7 @@ from .unit_feature import UnitFeature
 
 
 @dataclass
-class UnitType(JsonMappedClass):
+class UnitType(GameObject):
     id: int
     stats_column_id: int
     unit_pack: int

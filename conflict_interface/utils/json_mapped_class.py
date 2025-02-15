@@ -55,12 +55,14 @@ class JsonMappedClass:
     python representation. A mapping is a dict where the keys
     are the field name and the value is a MappedValue.
     """
+    MAPPING = {}
+
     @classmethod
     def from_dict(cls, obj: dict):
         parsed_data = {}
         resolved = get_type_hints(cls)
 
-        for new_name, mapped_value in cls.mapping.items():
+        for new_name, mapped_value in cls.MAPPING.items():
             ftype = resolved[new_name]
             if not isinstance(mapped_value, MappedValue):
                 # bool should be default False

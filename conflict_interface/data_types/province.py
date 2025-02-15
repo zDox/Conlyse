@@ -1,7 +1,9 @@
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.utils import JsonMappedClass, MappedValue, Point
+from conflict_interface.utils import MappedValue, Point
 from .warfare import SpecialUnit, TerrainType
 
 
@@ -51,13 +53,13 @@ class Region(Enum):
 
 
 @dataclass
-class Building(JsonMappedClass):
+class Building(GameObject):
     health: int
     harbour_coordinate: tuple[int, int]
     upgrade_id: int
     constructing: bool
 
-    mapping = {
+    MAPPING = {
             "health": "c",
             "harbour_coordinate": MappedValue("rp", position_to_tuple),
             "upgrade_id": "province_id",
@@ -87,7 +89,7 @@ def parse_productions(value: list):
 
 
 @dataclass
-class ProvinceProperty(JsonMappedClass):
+class ProvinceProperty(GameObject):
     id: int  # Province ID
     possible_upgrades: list[Building]
     queueable_upgrades: list[Building]
@@ -99,7 +101,7 @@ class ProvinceProperty(JsonMappedClass):
     uprising_chance: int
     target_morale: int
 
-    mapping = {
+    MAPPING = {
         "id": "id",
         "possible_upgrades": MappedValue("possibleUpgrades", parse_buildings),
         "queueable_upgrades": MappedValue("queueableUpgrades",
@@ -115,7 +117,7 @@ class ProvinceProperty(JsonMappedClass):
 
 
 @dataclass
-class Province(JsonMappedClass):
+class Province(GameObject):
     province_id: int
 
     # Data from GameServer
@@ -137,7 +139,7 @@ class Province(JsonMappedClass):
     region: Region = Region.NONE
     properties: ProvinceProperty = None  # If player owns the province
 
-    mapping = {
+    MAPPING = {
         "province_id": "id",
         "name": "n",
         "adjacent_to_water": "c",
@@ -169,13 +171,13 @@ class Province(JsonMappedClass):
 
 
 @dataclass
-class StaticProvince(JsonMappedClass):
+class StaticProvince(GameObject):
     id: int
     terrain_type: TerrainType
     center_coordinate: Point
     region: Region
 
-    mapping = {
+    MAPPING = {
         "id": "id",
         "terrain_type": "tt",
         "center_coordinate": "c",

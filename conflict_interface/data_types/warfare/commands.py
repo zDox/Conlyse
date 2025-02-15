@@ -1,15 +1,17 @@
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Union, Any
 from enum import Enum
 
 
-from conflict_interface.utils import JsonMappedClass, MappedValue, Point, \
+from conflict_interface.utils import MappedValue, Point, \
         unixtimestamp_to_datetime
 
 
 @dataclass
-class GotoCommand(JsonMappedClass):
+class GotoCommand(GameObject):
     start_time: datetime
     arrival_time: datetime
 
@@ -22,7 +24,7 @@ class GotoCommand(JsonMappedClass):
     location_id: int
     speed_factor: float
 
-    mapping = {
+    MAPPING = {
         "start_time": MappedValue("st", unixtimestamp_to_datetime),
         "arrival_time": MappedValue("at", unixtimestamp_to_datetime),
         "start_position": "sp",
@@ -36,17 +38,17 @@ class GotoCommand(JsonMappedClass):
 
 
 @dataclass
-class RetreatCommand(JsonMappedClass):
+class RetreatCommand(GameObject):
     pass
 
 
 @dataclass
-class AttackCommand(JsonMappedClass):
+class AttackCommand(GameObject):
     target_unit_id: int
     target_position: Point
     user_given: bool
 
-    mapping = {
+    MAPPING = {
         "target_unit_id": "targetUnitID",
         "target_position": "targetPos",
         "user_given": "userGiven",
@@ -54,7 +56,7 @@ class AttackCommand(JsonMappedClass):
 
 
 @dataclass
-class SiegeCommand(JsonMappedClass):
+class SiegeCommand(GameObject):
     pass
 
 
@@ -64,12 +66,12 @@ class PatrolType(Enum):
 
 
 @dataclass
-class PatrolCommand(JsonMappedClass):
+class PatrolCommand(GameObject):
     target_position: Point
     approaching: bool
     patrol_type: PatrolType
 
-    mapping = {
+    MAPPING = {
         "target_position": "targetPos",
         "approaching": "approaching",
         "patrol_type": "type",
@@ -77,14 +79,14 @@ class PatrolCommand(JsonMappedClass):
 
 
 @dataclass
-class WaitCommand(JsonMappedClass):
+class WaitCommand(GameObject):
     wait_time: timedelta
     cancelable: bool
     direction: int
     location_id: int
     execute_time: int
 
-    mapping = {
+    MAPPING = {
         "wait_time": "waitSeconds",
         "cancelable": "cancelable",
         "direction": "direction",
@@ -100,15 +102,15 @@ def parse_army(obj):
 
 
 @dataclass
-class SplitArmyCommand(JsonMappedClass):
+class SplitArmyCommand(GameObject):
     splitted_army: Any
-    mapping = {
+    MAPPING = {
         "splitted_army": MappedValue("splittedArmy", parse_army),
     }
 
 
 @dataclass
-class FireMissileCommand(JsonMappedClass):
+class FireMissileCommand(GameObject):
     pass
 
 

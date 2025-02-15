@@ -1,7 +1,9 @@
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.utils import JsonMappedClass, DefaultEnumMeta
+from conflict_interface.utils import DefaultEnumMeta
 
 
 LAST_LOGIN_INACTIVE = 0
@@ -52,7 +54,7 @@ getNationLabelSize
 
 
 @dataclass
-class PlayerProfile(JsonMappedClass):
+class PlayerProfile(GameObject):
     player_id: int
     team_id: int
     name: str
@@ -83,7 +85,7 @@ class PlayerProfile(JsonMappedClass):
     mail: str = ""
     full_title: str = ""
 
-    mapping = {
+    MAPPING = {
         "player_id": "playerID",
         "team_id": "teamID",
         "name": "name",

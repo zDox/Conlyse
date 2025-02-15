@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from conflict_interface.utils import JsonMappedClass
+from conflict_interface.utils import GameObject
 
 
 @dataclass
-class ResourceEntry(JsonMappedClass):
+class ResourceEntry(GameObject):
     SUPPLY_ID = 1
     COMPONENTS_ID = 2
     MAN_POWER_ID = 3
@@ -49,7 +49,7 @@ class ResourceEntry(JsonMappedClass):
     manpower: bool
     currency: bool
 
-    mapping = {
+    MAPPING = {
         "resource_id": "resourceID",
         "name": "name",
         "daily_unit_consumption": "dailyUnitConsumption",

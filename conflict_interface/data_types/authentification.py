@@ -14,7 +14,7 @@ class AuthDetails:
     session_token: str = None
     rights: str = None
 
-    mapping = {
+    MAPPING = {
             "userID": "user_id",
             "auth": "auth",
             "authHash": "auth_hash",
@@ -33,9 +33,9 @@ class AuthDetails:
 
         for parameter in parameters[1:]:
             key, value = parameter.split("=")
-            if key not in cls.mapping.keys():
+            if key not in cls.MAPPING.keys():
                 continue
-            parsed_data[cls.mapping[key]] = cls.__annotations__[
-                    cls.mapping[key]](value)
+            parsed_data[cls.MAPPING[key]] = cls.__annotations__[
+                    cls.MAPPING[key]](value)
 
         return cls(**parsed_data)

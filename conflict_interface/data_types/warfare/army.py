@@ -1,8 +1,9 @@
+from conflict_interface.utils import GameObject
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from conflict_interface.utils import JsonMappedClass, MappedValue, Point, \
+from conflict_interface.utils import MappedValue, Point, \
         DefaultEnumMeta
 from conflict_interface.data_types.modding.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
@@ -31,14 +32,12 @@ def parse_commands(value: list):
 
 
 @dataclass
-class Battle(JsonMappedClass):
+class Battle(GameObject):
     attacker_ids: list[int]
 
-    @classmethod
-    def from_dict(cls, obj):
-        return cls(**{
-            "attacker_ids": [attacker_id for attacker_id in obj["a"]],
-            })
+    MAPPING = {
+        "attacker_ids": "a"
+    }
 
 
 class FightStatus(Enum, metaclass=DefaultEnumMeta):
@@ -67,7 +66,7 @@ class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
 
 
 @dataclass
-class Army(JsonMappedClass):
+class Army(GameObject):
     id: int = None
     size: int = 1
     health: float = 1.0
@@ -136,7 +135,7 @@ class Army(JsonMappedClass):
     radar_signature_feature: RadarSignatureFeature = None
     token_feature: TokenFeature = None
 
-    mapping = {
+    MAPPING = {
         "id": "id",
         "size": "s",
         "health": "h",

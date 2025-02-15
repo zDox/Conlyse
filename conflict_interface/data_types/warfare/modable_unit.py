@@ -1,6 +1,9 @@
+
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 
-from conflict_interface.utils import JsonMappedClass, MappedValue
+from conflict_interface.utils import MappedValue
 
 from .unit import Unit
 
@@ -12,13 +15,13 @@ def parse_unit(obj):
 
 
 @dataclass
-class SpecialUnit(JsonMappedClass):
+class SpecialUnit(GameObject):
     enabled: bool
     constructing: bool
     unit: Unit
     original_unit: Unit
 
-    mapping = {
+    MAPPING = {
         "enabled": "e",
         "constructing": "cn",
         "unit": MappedValue("unit", parse_unit),

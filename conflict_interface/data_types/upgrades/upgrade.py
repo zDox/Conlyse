@@ -2,14 +2,18 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 
-from conflict_interface.utils import JsonMappedClass, MappedValue
+
+from conflict_interface.utils import GameObject
+from conflict_interface.utils import MappedValue
 
 
 def parse_dict(obj):
     obj.pop("@c")
     return {int(key): value
             for key, value in obj.items()}
-
+def parse_dict_as_keyset(obj):
+    obj.pop("@c")
+    return set([int(key) for key in obj.keys()])
 
 class UpgradeFeature(Enum):
     FORTRESS = 0
@@ -69,7 +73,7 @@ class ValueFunction(Enum):
 
 
 @dataclass
-class UpgradeType(JsonMappedClass):
+class UpgradeType(GameObject):
     id: int
     build_time: timedelta
     build_condition: int
@@ -96,7 +100,7 @@ class UpgradeType(JsonMappedClass):
 
     upgrade_identifier: str
 
-    mapping = {
+    MAPPING = {
         "id": "id",
         "build_time": "bt",
         "build_condition": "bc",
@@ -112,7 +116,7 @@ class UpgradeType(JsonMappedClass):
         "production_bonus": MappedValue("pb", parse_dict),
         "features": MappedValue("f", parse_features),
         "replaced_upgrade": "ru",
-        "required_upgrades": MappedValue("rqu", parse_dict),
+        "required_upgrades": MappedValue("rqu", parse_dict_as_keyset),
         "feature_icon_prefix": "fip",
         "ranking_factor": "rnf",
         "sorting_orders": "so",

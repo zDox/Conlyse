@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from .resource_category import ResourceCategory
-from conflict_interface.utils import JsonMappedClass, MappedValue
+from conflict_interface.utils import GameObject
+from conflict_interface.utils import MappedValue
 
 
 def parse_categories(obj):
@@ -13,7 +14,7 @@ def parse_categories(obj):
 
 
 @dataclass
-class ResourceProfile(JsonMappedClass):
+class ResourceProfile(GameObject):
     player_id: int
     # executed_orders
     # premium_orders
@@ -24,7 +25,7 @@ class ResourceProfile(JsonMappedClass):
     corruption_value: float
     damage_sensitive_morale_penalty: float
 
-    mapping = {
+    MAPPING = {
         "player_id": "playerID",
         "categories": MappedValue("categories", parse_categories),
         "mobilization_target": "mobilizationTarget",

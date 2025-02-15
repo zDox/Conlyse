@@ -1,3 +1,5 @@
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 
 from .warfare import Army

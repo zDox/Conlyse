@@ -1,7 +1,9 @@
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 from datetime import datetime
 
-from conflict_interface.utils import JsonMappedClass, MappedValue, \
+from conflict_interface.utils import MappedValue, \
         unixtimestamp_to_datetime
 
 
@@ -21,7 +23,7 @@ def parse_game_features(game_features):
 
 
 @dataclass
-class GameFeature(JsonMappedClass):
+class GameFeature(GameObject):
     feature_id: int
     value: int
     value_name: str
@@ -30,7 +32,7 @@ class GameFeature(JsonMappedClass):
     name: str
     description: str
 
-    mapping = {
+    MAPPING = {
         "feature_id": "featureID",
         "value": "value",
         "value_name": "valueName",
@@ -42,7 +44,7 @@ class GameFeature(JsonMappedClass):
 
 
 @dataclass
-class GameInfo(JsonMappedClass):
+class GameInfo(GameObject):
     map_id: int
     scenario_id: int
     start_of_game: datetime
@@ -61,7 +63,7 @@ class GameInfo(JsonMappedClass):
     speed_factor: int
     game_features: list[GameFeature]
 
-    mapping = {
+    MAPPING = {
             'map_id': 'mapID',
             'scenario_id': 'scenarioID',
             'start_of_game': MappedValue('startOfGame',

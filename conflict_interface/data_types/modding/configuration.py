@@ -8,7 +8,7 @@ from conflict_interface.utils import JsonMappedClass, \
 @dataclass
 class SortingConfig(JsonMappedClass):
     sorting_order: int
-    mapping = {"sorting_order": "sortOrder"}
+    MAPPING = {"sorting_order": "sortOrder"}
 
 
 @dataclass
@@ -30,7 +30,7 @@ class AirplaneConfig(JsonMappedClass):
     refuel_time: timedelta
     max_flight_time: timedelta
 
-    mapping = {
+    MAPPING = {
             "spy": "spy",
             "patrol_radius": "patrolRadius",
             "patrol_target_damage_types": MappedValue(
@@ -45,7 +45,7 @@ class AirplaneConfig(JsonMappedClass):
 @dataclass
 class ControllableConfig(JsonMappedClass):
     controllable: bool
-    mapping = {"controllable": "controllable"}
+    MAPPING = {"controllable": "controllable"}
 
 
 def parse_dict_of_ints(obj):
@@ -58,7 +58,7 @@ class CarrierConfig(JsonMappedClass):
     slot_config: dict[int, int]
     max_capacity: int
 
-    mapping = {
+    MAPPING = {
             "slot_config": MappedValue("slotConfig", parse_dict_of_ints),
             "max_capacity": "maxCapacity"
     }
@@ -67,7 +67,7 @@ class CarrierConfig(JsonMappedClass):
 @dataclass
 class AntiAirConfig(JsonMappedClass):
     range: int
-    mapping = {"range": "range"}
+    MAPPING = {"range": "range"}
 
 
 @dataclass
@@ -75,7 +75,7 @@ class ScoutConfig(JsonMappedClass):
     stealth_classes: list[int]
     camoflage_classes: list[int]
 
-    mapping = {
+    MAPPING = {
             "stealth_classes": MappedValue("stealthClasses",
                                            parse_list_of_ints),
             "camoflage_classes": MappedValue("camouflageClasses",
@@ -88,7 +88,7 @@ class TokenProducerConfigProduction(JsonMappedClass):
     type: str
     amount: int
     duration: timedelta
-    mapping = {
+    MAPPING = {
             "type": "type",
             "amount": "amount",
             "duration": MappedValue("duration", milliseconds_to_timedelta),
@@ -105,7 +105,7 @@ class TokenProducerConfig(JsonMappedClass):
     tokens_on_spawn: list[TokenProducerConfigProduction]
     tokens_provided: list[TokenProducerConfigProduction]
 
-    mapping = {
+    MAPPING = {
             "tokens_on_spawn": MappedValue("tokensOnSpawn",
                                            parse_list_of_production),
             "tokens_provided": MappedValue("tokensProvided",
@@ -124,7 +124,7 @@ class MissileConfig(JsonMappedClass):
     missile_slot: int
     stacking_limit: int
 
-    mapping = {
+    MAPPING = {
         "launch_behaviour": "launchBehaviour",
         "missile_slot": "missileSlot",
         "stacking_limit": "stackingLimit",
@@ -138,7 +138,7 @@ class MissileSlotConfig(JsonMappedClass):
     resupply_time: timedelta
     initial_inventory: int
 
-    mapping = {
+    MAPPING = {
         "province_id": "province_id",
         "capacity": "capacity",
         "resupply_time": "resupplyTime",
@@ -207,7 +207,7 @@ class TokenFeature(JsonMappedClass):
     Not implemented. There exists no knowledge
     about how they work.
     """
-    mapping = {}
+    MAPPING = {}
 
 
 @dataclass
@@ -216,4 +216,4 @@ class CarrierFeature(JsonMappedClass):
     Not implemented. There exists no knowledge
     about how they work.
     """
-    mapping = {}
+    MAPPING = {}

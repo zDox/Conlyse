@@ -1,3 +1,5 @@
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 from enum import Enum
 
@@ -21,13 +23,13 @@ class VisibilityMode(Enum, metaclass=DefaultEnumMeta):
 
 
 @dataclass
-class PlayerState:
+class PlayerState(GameObject):
     STATE_ID = 1
     players: dict[int, PlayerProfile]
     teams: dict[int, TeamProfile]
 
     @classmethod
-    def from_dict(cls, obj):
+    def from_dict(cls, obj: dict, game = None):
         players = {int(player_id): PlayerProfile.from_dict(player)
                    for player_id, player in list(obj["players"].items())[1:]}
 

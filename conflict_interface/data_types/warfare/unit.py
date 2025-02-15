@@ -1,7 +1,7 @@
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 from enum import Enum
-
-from conflict_interface.utils import JsonMappedClass, MappedValue
 
 
 class MissileType(Enum):
@@ -10,7 +10,7 @@ class MissileType(Enum):
 
 
 @dataclass
-class Unit(JsonMappedClass):
+class Unit(GameObject):
     id: int
     unit_type_id: int
     health: float
@@ -22,7 +22,7 @@ class Unit(JsonMappedClass):
     hit_points: float
     max_hit_points: int
 
-    mapping = {
+    MAPPING = {
         "id": "id",
         "unit_type_id": "t",
         "health": "h",

@@ -1,3 +1,9 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from conflict_interface.game_interface import GameInterface
+from conflict_interface.utils import GameObject
+
 from dataclasses import dataclass
 from pprint import pprint
 
@@ -6,14 +12,14 @@ from .static_map_data import StaticMapData
 
 
 @dataclass
-class MapState:
+class MapState(GameObject):
     STATE_ID = 3
     provinces: dict[int, Province]
     # Provinces which are owned by the current player
     province_properties: dict[int, ProvinceProperty]
 
     @classmethod
-    def from_dict(cls, obj):
+    def from_dict(cls, obj, game: GameInterface = None):
         provinces = {province["id"]: Province.from_dict(province)
                      for province in obj["map"]["locations"][1]}
 
@@ -27,10 +33,12 @@ class MapState:
             provinces[province_property.id].\
                 province_property = province_property
 
-        return cls(**{
+        instance = cls(**{
             "provinces": provinces,
             "province_properties": province_properties,
         })
+        instance.game = game
+        return instance
 
     def update(self, new_state):
         for province in new_state.provinces:
