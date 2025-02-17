@@ -30,8 +30,7 @@ class MapState(GameObject):
                                in list(obj["properties"].items())[1:]}
 
         for province_property in province_properties.values():
-            provinces[province_property.id].\
-                province_property = province_property
+            provinces[province_property.id].properties = province_property
 
         instance = cls(**{
             "provinces": provinces,

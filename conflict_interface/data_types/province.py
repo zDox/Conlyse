@@ -1,10 +1,14 @@
+from pprint import pprint
+
 from conflict_interface.utils import GameObject
 
 from dataclasses import dataclass
 from enum import Enum
 
 from conflict_interface.utils import MappedValue, Point
+from .upgrades.upgrade import ModableUpgrade
 from .warfare import SpecialUnit, TerrainType
+from ..utils.json_mapped_class import JavaTypes
 
 
 def position_to_tuple(value):
@@ -52,21 +56,6 @@ class Region(Enum):
     OCEANIA = 5
 
 
-@dataclass
-class Building(GameObject):
-    health: int
-    harbour_coordinate: tuple[int, int]
-    upgrade_id: int
-    constructing: bool
-
-    MAPPING = {
-            "health": "c",
-            "harbour_coordinate": MappedValue("rp", position_to_tuple),
-            "upgrade_id": "province_id",
-            "constructing": "cn",
-    }
-
-
 def rg_to_region(value: list):
     if value is not None and len(value) != 0:
         return Region(value[0])
@@ -74,11 +63,10 @@ def rg_to_region(value: list):
         Region.NONE
 
 
-def parse_buildings(value: list):
+def parse_upgrades(value: list):
     if value is None:
         return
-
-    return [Building.from_dict(building) for building in value[1]]
+    return [ModableUpgrade.from_dict(upgrade) for upgrade in value[1]]
 
 
 def parse_productions(value: list):
@@ -91,8 +79,8 @@ def parse_productions(value: list):
 @dataclass
 class ProvinceProperty(GameObject):
     id: int  # Province ID
-    possible_upgrades: list[Building]
-    queueable_upgrades: list[Building]
+    possible_upgrades: list[ModableUpgrade]
+    queueable_upgrades: list[ModableUpgrade]
 
     possible_productions: list[SpecialUnit]
     queueable_productions: list[SpecialUnit]
@@ -103,9 +91,9 @@ class ProvinceProperty(GameObject):
 
     MAPPING = {
         "id": "id",
-        "possible_upgrades": MappedValue("possibleUpgrades", parse_buildings),
+        "possible_upgrades": MappedValue("possibleUpgrades", parse_upgrades),
         "queueable_upgrades": MappedValue("queueableUpgrades",
-                                          parse_buildings),
+                                          parse_upgrades),
         "possible_productions": MappedValue("possibleProductions",
                                             parse_productions),
         "queueable_productions": MappedValue("queueableProductions",
@@ -131,7 +119,7 @@ class Province(GameObject):
     owner_id: int
     legal_owner: int
     morale: int
-    buildings: list[Building]
+    buildings: list[ModableUpgrade]
 
     # Data from Static supplier
     terrain_type: TerrainType = None
@@ -152,7 +140,7 @@ class Province(GameObject):
         "money_production": "tp",
         "legal_owner": "lo",
         "victory_points": "plv",
-        "buildings": MappedValue("us", parse_buildings),
+        "buildings": MappedValue("us", parse_upgrades),
     }
 
     updateable_keys = ["province_state_id", "adjacent_to_water",
@@ -196,11 +184,20 @@ class ProvinceUpdateActionModes(Enum):
 class UpdateProvinceAction(GameObject):
     province_ids: list[int]
     mode: ProvinceUpdateActionModes
+    upgrade: ModableUpgrade
     slot: int = 0
 
     C = "ultshared.action.UltUpdateProvinceAction"
     MAPPING = {
-        "province_ids": MappedValue("p", ),
+        "province_ids": MappedValue("provinceIDs", type=JavaTypes.Vector),
         "mode": "mode",
         "slot": "slot",
+        "upgrade": "upgrade",
     }
+
+    def __init__(self, province_ids, mode, slot, upgrade=None, game=None):
+        super().__init__(game)
+        self.province_ids = province_ids
+        self.mode = mode
+        self.slot = slot
+        self.upgrade = upgrade

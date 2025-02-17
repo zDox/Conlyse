@@ -8,11 +8,9 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 from conflict_interface import ConflictInterface
-from conflict_interface.data_types.resources import ResourceEntry
 
 import creds
 from pprint import pprint
-from time import sleep, time
 
 
 if __name__ == "__main__":

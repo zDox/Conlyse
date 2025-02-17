@@ -2,6 +2,7 @@ import os
 import sys
 import inspect
 
+from conflict_interface.data_types.upgrades.upgrade import ModableUpgrade
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -22,10 +23,17 @@ if __name__ == "__main__":
     pprint(f"Joining new game:  {9709963}")
     game = interface.join_game(9709963)
 
-    Djibouti = next(iter(game.get_my_provinces(name="Djibouti").values()))
-    pprint(Djibouti)
+    city = next(iter(game.get_my_provinces(name="Djibouti").values()))
+    pprint(city)
     for upgrade_id, upgrade in game.get_upgrade_types(upgrade_identifier='Arms Industry').items():
         pprint(f"{upgrade.id} {upgrade.tier} {upgrade.upgrade_identifier}")
     arms_lvl_1 = game.get_upgrade_type_by_name_and_tier('Arms Industry', 1)
-    game.build_building(Djibouti.province_id, arms_lvl_1.id)
+    game.build_upgrade(city.province_id, ModableUpgrade(
+        id=arms_lvl_1.id,
+        condition=0,
+        constructing=False,
+        enabled=False,
+        relative_position=None,
+        premium_level=0,
+    ))
     game.update()

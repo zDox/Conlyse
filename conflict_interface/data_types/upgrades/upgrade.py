@@ -4,7 +4,7 @@ from enum import Enum
 from math import floor
 from typing import List
 
-from conflict_interface.utils import GameObject
+from conflict_interface.utils import GameObject, Point
 from conflict_interface.utils import MappedValue
 
 
@@ -218,7 +218,7 @@ class ModableUpgrade(GameObject):
     condition: int
     constructing: bool
     enabled: bool
-    relative_position: int
+    relative_position: Point
     premium_level: int
     C = "mu"
     MAPPING = {
@@ -229,7 +229,7 @@ class ModableUpgrade(GameObject):
         "relative_position": "rp",
         "premium_level": "pl",
     }
-    def __init__(self, id, condition, constructing, enabled, relative_position, premium_level, game):
+    def __init__(self, id, condition, constructing, enabled, relative_position, premium_level, game=None):
         super().__init__(game)
         self.id = id
         self.condition = condition

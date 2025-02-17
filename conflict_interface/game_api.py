@@ -209,17 +209,11 @@ class GameAPI:
             "tstamps": self.time_stamps,
         }, actions)
 
-    def request_province_action(self, province_id, upgrade):
+    def request_province_action(self, province_id, action):
         data = {"requestID": f"actionReq-{self.action_request_id}",
                 "language": "en",
-                "@c": "ultshared.action.UltUpdateProvinceAction",
-                "provinceIDs": [
-                    "java.util.Vector", [province_id]],
-                "slot": 0,
-                "mode": 1
+                **action,
                 }
-        if upgrade:
-            data["upgrade"] = upgrade
         pprint(data)
         res = self.request_game_state_action([data])
         self.action_request_id = + 1

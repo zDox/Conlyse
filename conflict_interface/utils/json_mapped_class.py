@@ -49,9 +49,9 @@ class MappedValue:
     """
 
     original: str
-    type: JavaTypes = None
     function: callable = None
     needs_entire_obj: bool = False
+    type: JavaTypes = None
 
 
 class JsonMappedClass:

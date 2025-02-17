@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any
 
+from .data_types.province import UpdateProvinceAction, ProvinceUpdateActionModes, ProvinceStateID
 from .data_types.upgrades.upgrade import ModableUpgrade
 from .game_api import GameAPI
 from .utils import Point
@@ -149,18 +150,39 @@ class GameInterface:
     def get_my_provinces(self, **filters) -> dict[int, Province]:
         return self.get_provinces(**filters, owner_id=self.player_id)
 
+    def get_my_cities(self, **filters) -> dict[int, Province]:
+        return {**self.get_my_provinces(**filters, province_state_id=ProvinceStateID.ANNEXED_CITY),
+                **self.get_my_provinces(**filters, province_state_id=ProvinceStateID.MAINLAND_CITY),
+                **self.get_my_provinces(**filters, province_state_id=ProvinceStateID.OCCUPIED_CITY)}
+
     @country_selected
-    def build_building(self, province_id, building_id):
-        res = self.game_api.request_province_action(province_id, ModableUpgrade(
-            id=building_id,
-            condition=0,
-            constructing=False,
-            enabled=False,
-            relative_position=None,
-            premium_level=0,
+    def build_upgrade(self, province_id, upgrade):
+
+        res = self.game_api.request_province_action(province_id, UpdateProvinceAction(
+            province_ids=[province_id],
+            mode=ProvinceUpdateActionModes.UPGRADE,
+            slot=0,
+            upgrade=upgrade,
             game=self
         ).to_dict())
-        pprint(res)
+
+    @country_selected
+    def cancel_construction(self, province_id):
+        self.game_api.request_province_action(province_id, UpdateProvinceAction(
+            province_ids=[province_id],
+            mode=ProvinceUpdateActionModes.CANCEL_BUILDING,
+            slot=0,
+            game=self
+        ).to_dict())
+
+    @country_selected
+    def cancel_mobilization(self, province_id):
+        self.game_api.request_province_action(province_id, UpdateProvinceAction(
+            province_ids=[province_id],
+            mode=ProvinceUpdateActionModes.CANCEL_PRODUCING,
+            slot=0,
+            game=self
+        ).to_dict())
 
     """
     ResourceState(4)
@@ -251,7 +273,7 @@ class GameInterface:
                 for upgrade_id, upgrade in self.state.mod_state.upgrades.items()
                 if all(getattr(upgrade, key, None) == value for key, value in filters.items())}
 
-    def get_upgrade_type(self, upgrade_id) -> UpgradeType:
+    def get_upgrade_type(self, upgrade_id) -> UpgradeType | None:
         return self.state.mod_state.upgrades.get(upgrade_id)
 
     def get_upgrade_type_by_name_and_tier(self, name, tier) -> UpgradeType | None:

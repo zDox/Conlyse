@@ -1,13 +1,24 @@
 from __future__ import annotations
 
+from enum import Enum
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from conflict_interface.game_interface import GameInterface
 from typing import get_type_hints
 from datetime import datetime, timedelta
-from .json_mapped_class import JsonMappedClass, DefaultEnumMeta, MappedValue
+from .json_mapped_class import JsonMappedClass, DefaultEnumMeta, MappedValue, JavaTypes
 from .helper import unixtimestamp_to_datetime, seconds_to_timedelta
 
+def to_list(name, value):
+    res = []
+    res.append(name)
+    arr = []
+    for v in value:
+        if isinstance(v, GameObject):
+            arr.append(v.to_dict())
+        arr.append(v)
+    res.append(arr)
+    return res
 
 class GameObject(JsonMappedClass):
     """
@@ -81,9 +92,20 @@ class GameObject(JsonMappedClass):
             ftype = resolved[name]
             value = getattr(self, name)
             if isinstance(conflict_name, MappedValue):
-                parsed_data[conflict_name.original] = conflict_name.to_dict()
+                if isinstance(conflict_name.type, JavaTypes):
+                    if conflict_name.type == JavaTypes.Vector:
+                        parsed_data[conflict_name.original] = to_list("java.util.Vector", value)
+                    elif conflict_name.type == JavaTypes.LinkedList:
+                        parsed_data[conflict_name.original] = to_list("java.util.LinkedList", value)
+                else:
+                    parsed_data[conflict_name.original] = conflict_name.function()
             elif issubclass(ftype, GameObject):
-                parsed_data[conflict_name] = value.to_dict()
+                if value is None:
+                    parsed_data[conflict_name] = None
+                else:
+                    parsed_data[conflict_name] = value.to_dict()
+            elif issubclass(ftype, Enum):
+                parsed_data[conflict_name] = value.value
             else:
                 parsed_data[conflict_name] = value
         if hasattr(self, "C"):
