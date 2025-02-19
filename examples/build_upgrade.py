@@ -23,10 +23,8 @@ if __name__ == "__main__":
     pprint(f"Joining new game:  {9709963}")
     game = interface.join_game(9709963)
 
-    city = next(iter(game.get_my_provinces(name="Djibouti").values()))
+    city = next(iter(game.get_my_provinces(name="Hargeisa").values()))
     pprint(city)
-    for upgrade_id, upgrade in game.get_upgrade_types(upgrade_identifier='Arms Industry').items():
-        pprint(f"{upgrade.id} {upgrade.tier} {upgrade.upgrade_identifier}")
     arms_lvl_1 = game.get_upgrade_type_by_name_and_tier('Arms Industry', 1)
     game.build_upgrade(city.province_id, ModableUpgrade(
         id=arms_lvl_1.id,

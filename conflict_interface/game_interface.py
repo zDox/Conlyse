@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from .data_types import TeamProfile, PlayerProfile, Province, \
         ProvinceProperty, GameInfo, Article, article
     from .data_types.resources import ResourceProfile, ResourceEntry
-    from .data_types.warfare import Army, Command
+    from .data_types.warfare import Army, Command, UnitType, unit_type
     from .data_types.upgrades import UpgradeType
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 
@@ -184,6 +184,22 @@ class GameInterface:
             game=self
         ).to_dict())
 
+    @country_selected
+    def mobilize_unit(self, province_id, unit_type_id):
+        province = self.get_province(province_id)
+        targets = [special_unit for special_unit in province.properties.possible_productions
+                    if special_unit.unit.unit_type_id == unit_type_id]
+        if len(targets) == 0:
+            return
+        target = targets[0]
+        self.game_api.request_province_action(province_id, UpdateProvinceAction(
+            province_ids=[province_id],
+            mode=ProvinceUpdateActionModes.DEPLOYMENT_TARGET,
+            slot=0,
+            upgrade=target,
+            game=self
+        ).to_dict())
+
     """
     ResourceState(4)
     """
@@ -278,3 +294,8 @@ class GameInterface:
 
     def get_upgrade_type_by_name_and_tier(self, name, tier) -> UpgradeType | None:
         return next(iter(self.get_upgrade_types(upgrade_identifier=name, tier=tier).values()), None)
+
+    def get_unit_types(self, **filters) -> dict[int, UnitType]:
+        return {unit_type_id: unit_type
+                for unit_type_id, unit_type in self.state.mod_state.unit_types.items()
+                if all(getattr(unit_type, key, None) == value for key, value in filters.items())}
