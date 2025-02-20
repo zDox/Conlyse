@@ -27,6 +27,19 @@ class DefaultEnumMeta(EnumMeta):
             return next(iter(cls))
         return super().__call__(value, *args, **kwargs)
 
+class LinkedList(list):
+    pass
+
+class Vector(list):
+    pass
+
+class HashMap(dict):
+    pass
+
+class TreeMap(dict):
+    pass
+
+
 class JavaTypes(Enum):
     LinkedList = "java.util.LinkedList"
     HashMap = "java.util.HashMap"
@@ -35,23 +48,14 @@ class JavaTypes(Enum):
 
 
 @dataclass
-class MappedValue:
+class ConMapping:
     """
     Attributes
     ----------
-    original : str
-        the sound that the animal makes
-    function : callable
-        a function which needs to be called to convert
-        between the conflict of nations value and python representation
-    needs_entire_obj : bool
-        the function needs the entire json object
     """
 
-    original: str
-    function: callable = None
-    needs_entire_obj: bool = False
-    type: JavaTypes = None
+    con_key: str
+    con_type: type
 
 
 class JsonMappedClass:
@@ -71,7 +75,7 @@ class JsonMappedClass:
 
         for new_name, mapped_value in cls.MAPPING.items():
             ftype = resolved[new_name]
-            if not isinstance(mapped_value, MappedValue):
+            if not isinstance(mapped_value, ConMapping):
                 # bool should be default False
                 if ftype is bool:
                     parsed_data[new_name] = ftype(obj.get(mapped_value))

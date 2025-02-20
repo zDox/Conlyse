@@ -1,4 +1,4 @@
-from conflict_interface.utils import GameObject, MappedValue
+from conflict_interface.utils import GameObject, ConMapping
 from dataclasses import dataclass
 from pprint import pprint
 

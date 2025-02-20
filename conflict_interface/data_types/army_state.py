@@ -1,4 +1,4 @@
-from conflict_interface.utils import GameObject, MappedValue
+from conflict_interface.utils import GameObject, HashMap
 
 from dataclasses import dataclass
 
@@ -8,12 +8,10 @@ from .warfare import Army
 @dataclass
 class ArmyState(GameObject):
     STATE_ID = 6
-    armies: dict[int, Army]
+    armies: HashMap[int, Army]
 
     MAPPING = {
-        "armies": MappedValue("armies", lambda obj: {army["id"]: Army.from_dict(army)
-                                                     for army in list(obj.values())[1:]
-                                                     if not army.get("rm")})
+        "armies": "armies"
     }
 
     def update(self, new_state):

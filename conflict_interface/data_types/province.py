@@ -5,7 +5,7 @@ from conflict_interface.utils import GameObject
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.utils import MappedValue, Point
+from conflict_interface.utils import ConMapping, Point
 from .upgrades.upgrade import ModableUpgrade
 from .warfare import SpecialUnit, TerrainType
 from ..utils.json_mapped_class import JavaTypes
@@ -91,13 +91,13 @@ class ProvinceProperty(GameObject):
 
     MAPPING = {
         "id": "id",
-        "possible_upgrades": MappedValue("possibleUpgrades", parse_upgrades),
-        "queueable_upgrades": MappedValue("queueableUpgrades",
-                                          parse_upgrades),
-        "possible_productions": MappedValue("possibleProductions",
+        "possible_upgrades": ConMapping("possibleUpgrades", parse_upgrades),
+        "queueable_upgrades": ConMapping("queueableUpgrades",
+                                         parse_upgrades),
+        "possible_productions": ConMapping("possibleProductions",
+                                           parse_productions),
+        "queueable_productions": ConMapping("queueableProductions",
                                             parse_productions),
-        "queueable_productions": MappedValue("queueableProductions",
-                                             parse_productions),
         "revolt_chance": "revoltChance",
         "uprising_chance": "uprisingChance",
         "target_morale": "targetMorale",
@@ -135,12 +135,12 @@ class Province(GameObject):
         "morale": "m",
         "province_state_id": "pst",
         "resource_production": "rp",
-        "resource_production_type": MappedValue(
+        "resource_production_type": ConMapping(
             "r", parse_resource_production_type),
         "money_production": "tp",
         "legal_owner": "lo",
         "victory_points": "plv",
-        "buildings": MappedValue("us", parse_upgrades),
+        "buildings": ConMapping("us", parse_upgrades),
     }
 
     updateable_keys = ["province_state_id", "adjacent_to_water",
@@ -169,7 +169,7 @@ class StaticProvince(GameObject):
         "id": "id",
         "terrain_type": "tt",
         "center_coordinate": "c",
-        "region": MappedValue("rg", rg_to_region),
+        "region": ConMapping("rg", rg_to_region),
     }
 
 class ProvinceUpdateActionModes(Enum):
@@ -189,7 +189,7 @@ class UpdateProvinceAction(GameObject):
 
     C = "ultshared.action.UltUpdateProvinceAction"
     MAPPING = {
-        "province_ids": MappedValue("provinceIDs", type=JavaTypes.Vector),
+        "province_ids": ConMapping("provinceIDs", type=JavaTypes.Vector),
         "mode": "mode",
         "slot": "slot",
         "upgrade": "upgrade",

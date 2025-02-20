@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from .resource_category import ResourceCategory
 from conflict_interface.utils import GameObject
-from conflict_interface.utils import MappedValue
+from conflict_interface.utils import ConMapping
 
 
 def parse_categories(obj):
@@ -27,7 +27,7 @@ class ResourceProfile(GameObject):
 
     MAPPING = {
         "player_id": "playerID",
-        "categories": MappedValue("categories", parse_categories),
+        "categories": ConMapping("categories", parse_categories),
         "mobilization_target": "mobilizationTarget",
         "mobilization_value": "mobilizationValue",
         "corruption_value": "corruptionValue",

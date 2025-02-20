@@ -2,7 +2,7 @@ from datetime import datetime
 from dataclasses import dataclass
 
 from conflict_interface.utils import Point, \
-        unixtimestamp_to_datetime, MappedValue
+        unixtimestamp_to_datetime, ConMapping
 from conflict_interface.utils import GameObject
 
 def parse_air_field(obj):
@@ -27,11 +27,11 @@ class AirParameters(GameObject):
     air_field: Point | int  # Can be either a province_id or a Position
 
     MAPPING = {
-        "last_air_action_time": MappedValue("lastAirActionTime",
-                                            unixtimestamp_to_datetime),
+        "last_air_action_time": ConMapping("lastAirActionTime",
+                                           unixtimestamp_to_datetime),
         "last_air_position": "lastAirPosition",
         "launch_target": "launchTarget",
-        "max_flight_time": MappedValue("maxFlightTime",
-                                       unixtimestamp_to_datetime),
-        "air_field": MappedValue("airField", parse_air_field),
+        "max_flight_time": ConMapping("maxFlightTime",
+                                      unixtimestamp_to_datetime),
+        "air_field": ConMapping("airField", parse_air_field),
     }

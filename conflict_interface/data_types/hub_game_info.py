@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from conflict_interface.utils import JsonMappedClass, MappedValue, \
+from conflict_interface.utils import JsonMappedClass, ConMapping, \
         unixtimestamp_to_datetime, timestamp_to_datetime, DefaultEnumMeta
 
 
@@ -85,16 +85,16 @@ class HubGameInfo(JsonMappedClass):
             'scenario_id': 'scenarioID',
             'scenario_version_id': 'scenarioVersionID',
             'season_id': 'seasonID',
-            'start_of_game': MappedValue('startofgame2',
-                                         unixtimestamp_to_datetime),
-            'current_players': MappedValue('openSlots',
-                                           openslots_to_currentplayers,
-                                           needs_entire_obj=True),
+            'start_of_game': ConMapping('startofgame2',
+                                        unixtimestamp_to_datetime),
+            'current_players': ConMapping('openSlots',
+                                          openslots_to_currentplayers,
+                                          needs_entire_obj=True),
             'max_players': 'nrofplayers',
             'day_of_game': 'dayofgame',
             'end_of_game': 'endofgame2',
-            'last_login': MappedValue('lastlogintime',
-                                      unixtimestamp_to_datetime),
+            'last_login': ConMapping('lastlogintime',
+                                     unixtimestamp_to_datetime),
             'creator_id': 'creatorID',
             'title': 'title',
             'comment': 'comment',
@@ -103,7 +103,7 @@ class HubGameInfo(JsonMappedClass):
             'demo_game': 'demoGame',
             'min_rank': 'minRank',
             'managed_game': 'managedGame',
-            'creation_date': MappedValue('crdate', unixtimestamp_to_datetime),
+            'creation_date': ConMapping('crdate', unixtimestamp_to_datetime),
             'ai_level': 'aiLevel',
             'victory_points': 'victoryPoints',
             'victory_condition': 'victoryCondition',
@@ -123,13 +123,13 @@ class HubGameInfo(JsonMappedClass):
             'deleted': 'deleted',
             'gold_round': 'goldRound',
             'game_status': 'gameStatus',
-            'last_statistics_update': MappedValue('lastStatisticsUpdate',
-                                                  unixtimestamp_to_datetime),
+            'last_statistics_update': ConMapping('lastStatisticsUpdate',
+                                                 unixtimestamp_to_datetime),
             'unit_pack': 'unitPack',
             'xp_boost_factor': 'xpBoostFactor',
-            'speed_factor': MappedValue('timeScale', timescale_to_speedfactor),
-            'update_timestamp': MappedValue('updateTstamp',
-                                            timestamp_to_datetime),
+            'speed_factor': ConMapping('timeScale', timescale_to_speedfactor),
+            'update_timestamp': ConMapping('updateTstamp',
+                                           timestamp_to_datetime),
             'max_rank': 'maxRank',
             'max_join_day': 'maxJoinDay',
             'map_reference': 'mapReference',

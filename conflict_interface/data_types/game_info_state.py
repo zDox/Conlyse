@@ -1,11 +1,106 @@
-from conflict_interface.utils import GameObject
+from datetime import datetime
+
+from conflict_interface.utils import GameObject, HashMap
 
 from dataclasses import dataclass
 
-from .game_info import GameInfo
+# TODO GameFeature should only be a abstract class. There exist multiple gameFeatures
+
+@dataclass
+class GameFeature(GameObject):
+    feature_id: int
+    value: int
+    value_name: str
+    enabled: bool
+    published: bool
+    name: str
+    description: str
+
+    MAPPING = {
+        "feature_id": "featureID",
+        "value": "value",
+        "value_name": "valueName",
+        "enabled": "enabled",
+        "published": "published",
+        "name": "name",
+        "description": "description",
+    }
+
+@dataclass
+class GameFeatures(GameObject):
+    id_features: HashMap[int, GameFeature]
+
+    MAPPING = {
+        "id_features": "idFeatures",
+    }
 
 @dataclass
 class GameInfoState(GameObject):
     STATE_ID = 12
-    game_info: GameInfo
-    MAPPING = {"game_info": "gameInfo"}
+    day_of_game: int
+    start_of_game: datetime
+    next_day_time: datetime
+    next_heal_time: datetime
+    gold_round: bool
+    demo_game: bool
+    password: str
+    open_slots: int
+    team_settings: int
+    country_selection: int
+    number_of_teams: int
+    number_of_players: int
+    number_of_logins: int
+    scenario_id: int
+    map_id: int
+    alliance_game: int
+    alliance_a: int
+    alliance_b: int
+    ai_level: int
+    ranked: int
+    game_features: GameFeatures
+    time_scale: int
+    economy_score: int
+    economy_boost_score: int
+    military_score: int
+    military_boost_score: int
+    game_image_path: str
+    end_of_game: datetime
+    game_ended: bool
+    victory_points_modifier: int
+    coalition_victory_points_modifier: int
+    admin_time_fwd_allowed: bool
+
+    MAPPING = {
+        "day_of_game": "dayOfGame",
+        "start_of_game": "startOfGame",
+        "next_day_time": "nextDayTime",
+        "next_heal_time": "nextHealTime",
+        "gold_round": "goldRound",
+        "demo_game": "demoGame",
+        "password": "password",
+        "open_slots": "openSlots",
+        "team_settings": "teamSettings",
+        "country_selection": "countrySelection",
+        "number_of_teams": "numberOfTeams",
+        "number_of_players": "numberOfPlayers",
+        "number_of_logins": "numberOfLogins",
+        "scenario_id": "scenarioId",
+        "map_id": "mapId",
+        "alliance_game": "allianceGame",
+        "alliance_a": "allianceA",
+        "alliance_b": "allianceB",
+        "ai_level": "aiLevel",
+        "ranked": "ranked",
+        "game_features": "gameFeatures",
+        "time_scale": "timeScale",
+        "economy_score": "ecoScore",
+        "economy_boost_score": "ecoBoostScore",
+        "military_score": "milScore",
+        "military_boost_score": "milBoostScore",
+        "game_image_path": "gameImagePath",
+        "end_of_game": "endOfGame",
+        "game_ended": "gameEnded",
+        "victory_points_modifier": "victoryPointsMod",
+        "coalition_victory_points_modifier": "coalitionVictoryPointsMod",
+        "admin_time_fwd_allowed": "adminTimeFwdAllowed",
+    }

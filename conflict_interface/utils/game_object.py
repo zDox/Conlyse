@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from conflict_interface.game_interface import GameInterface
 from typing import get_type_hints
 from datetime import datetime, timedelta
-from .json_mapped_class import JsonMappedClass, DefaultEnumMeta, MappedValue, JavaTypes
+from .json_mapped_class import JsonMappedClass, DefaultEnumMeta, ConMapping, JavaTypes
 from .helper import unixtimestamp_to_datetime, seconds_to_timedelta
 
 def to_list(name, value):
@@ -44,7 +44,7 @@ class GameObject(JsonMappedClass):
 
         for new_name, mapped_value in cls.MAPPING.items():
             ftype = resolved[new_name]
-            if not isinstance(mapped_value, MappedValue):
+            if not isinstance(mapped_value, ConMapping):
                 # bool should be default False
                 if ftype is bool:
                     parsed_data[new_name] = ftype(obj.get(mapped_value))
@@ -78,6 +78,10 @@ class GameObject(JsonMappedClass):
                 else:
                     parsed_data[new_name] = mapped_value.function(
                         obj.get(mapped_value.original))
+            elif mapped_value.type:
+                if mapped_value.type == JavaTypes.HashMap:
+                    parsed_data[new_name] = from_hash_map(
+                        obj.get(mapped_value.original))
             else:
                 parsed_data[new_name] = ftype(
                     obj.get(mapped_value.original))
@@ -91,7 +95,7 @@ class GameObject(JsonMappedClass):
         for name, conflict_name in self.MAPPING.items():
             ftype = resolved[name]
             value = getattr(self, name)
-            if isinstance(conflict_name, MappedValue):
+            if isinstance(conflict_name, ConMapping):
                 if isinstance(conflict_name.type, JavaTypes):
                     if conflict_name.type == JavaTypes.Vector:
                         parsed_data[conflict_name.original] = to_list("java.util.Vector", value)

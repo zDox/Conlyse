@@ -5,7 +5,7 @@ from math import floor
 from typing import List
 
 from conflict_interface.utils import GameObject, Point
-from conflict_interface.utils import MappedValue
+from conflict_interface.utils import ConMapping
 
 
 def parse_dict(obj):
@@ -112,14 +112,14 @@ class UpgradeType(GameObject):
         "day_of_availability": "doa",
         "enable_able": "ie",
         "article_prefix": "ap",
-        "costs": MappedValue("c", parse_dict),
-        "unit_costs": MappedValue("uc", parse_dict),
-        "daily_costs": MappedValue("dc", parse_dict),
-        "daily_productions": MappedValue("dp", parse_dict),
-        "production_bonus": MappedValue("pb", parse_dict),
-        "features": MappedValue("f", parse_features),
+        "costs": ConMapping("c", parse_dict),
+        "unit_costs": ConMapping("uc", parse_dict),
+        "daily_costs": ConMapping("dc", parse_dict),
+        "daily_productions": ConMapping("dp", parse_dict),
+        "production_bonus": ConMapping("pb", parse_dict),
+        "features": ConMapping("f", parse_features),
         "replaced_upgrade": "ru",
-        "required_upgrades": MappedValue("rqu", parse_dict_as_keyset),
+        "required_upgrades": ConMapping("rqu", parse_dict_as_keyset),
         "feature_icon_prefix": "fip",
         "ranking_factor": "rnf",
         "sorting_orders": "so",

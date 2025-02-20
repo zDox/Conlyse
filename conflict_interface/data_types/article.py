@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 
-from conflict_interface.utils import MappedValue, \
+from conflict_interface.utils import ConMapping, \
         unixtimestamp_to_datetime
 
 
@@ -23,9 +23,7 @@ class Article(GameObject):
         "sender_id": "senderID",
         "receiver_id": "receiverID",
         "message_id": "messageUID",
-        "time_stamp": MappedValue("timeStamp",
-                                  unixtimestamp_to_datetime),
-
+        "time_stamp": "timeStamp",
         "title": "title",
         "author": "author",
         "message_body": "messageBody",

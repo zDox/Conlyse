@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from dataclasses import dataclass
 
 from conflict_interface.utils import JsonMappedClass, \
-        unixtimestamp_to_datetime, MappedValue, milliseconds_to_timedelta
+        unixtimestamp_to_datetime, ConMapping, milliseconds_to_timedelta
 
 
 @dataclass
@@ -33,7 +33,7 @@ class AirplaneConfig(JsonMappedClass):
     MAPPING = {
             "spy": "spy",
             "patrol_radius": "patrolRadius",
-            "patrol_target_damage_types": MappedValue(
+            "patrol_target_damage_types": ConMapping(
                 "patrolTargetDamageTypes", parse_list_of_ints),
             "embarkation_time": "embarkationTime",
             "disembarkation_time": "disembarkationTime",
@@ -59,7 +59,7 @@ class CarrierConfig(JsonMappedClass):
     max_capacity: int
 
     MAPPING = {
-            "slot_config": MappedValue("slotConfig", parse_dict_of_ints),
+            "slot_config": ConMapping("slotConfig", parse_dict_of_ints),
             "max_capacity": "maxCapacity"
     }
 
@@ -76,10 +76,10 @@ class ScoutConfig(JsonMappedClass):
     camoflage_classes: list[int]
 
     MAPPING = {
-            "stealth_classes": MappedValue("stealthClasses",
-                                           parse_list_of_ints),
-            "camoflage_classes": MappedValue("camouflageClasses",
-                                             parse_list_of_ints),
+            "stealth_classes": ConMapping("stealthClasses",
+                                          parse_list_of_ints),
+            "camoflage_classes": ConMapping("camouflageClasses",
+                                            parse_list_of_ints),
     }
 
 
@@ -91,7 +91,7 @@ class TokenProducerConfigProduction(JsonMappedClass):
     MAPPING = {
             "type": "type",
             "amount": "amount",
-            "duration": MappedValue("duration", milliseconds_to_timedelta),
+            "duration": ConMapping("duration", milliseconds_to_timedelta),
     }
 
 
@@ -106,10 +106,10 @@ class TokenProducerConfig(JsonMappedClass):
     tokens_provided: list[TokenProducerConfigProduction]
 
     MAPPING = {
-            "tokens_on_spawn": MappedValue("tokensOnSpawn",
-                                           parse_list_of_production),
-            "tokens_provided": MappedValue("tokensProvided",
-                                           parse_list_of_production),
+            "tokens_on_spawn": ConMapping("tokensOnSpawn",
+                                          parse_list_of_production),
+            "tokens_provided": ConMapping("tokensProvided",
+                                          parse_list_of_production),
     }
 
 

@@ -6,7 +6,7 @@ from typing import Union, Any
 from enum import Enum
 
 
-from conflict_interface.utils import MappedValue, Point, \
+from conflict_interface.utils import ConMapping, Point, \
         unixtimestamp_to_datetime
 
 
@@ -25,8 +25,8 @@ class GotoCommand(GameObject):
     speed_factor: float
 
     MAPPING = {
-        "start_time": MappedValue("st", unixtimestamp_to_datetime),
-        "arrival_time": MappedValue("at", unixtimestamp_to_datetime),
+        "start_time": ConMapping("st", unixtimestamp_to_datetime),
+        "arrival_time": ConMapping("at", unixtimestamp_to_datetime),
         "start_position": "sp",
         "target_position": "tp",
         "speed": "s",
@@ -105,7 +105,7 @@ def parse_army(obj):
 class SplitArmyCommand(GameObject):
     splitted_army: Any
     MAPPING = {
-        "splitted_army": MappedValue("splittedArmy", parse_army),
+        "splitted_army": ConMapping("splittedArmy", parse_army),
     }
 
 

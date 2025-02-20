@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from conflict_interface.utils import MappedValue, Point, \
+from conflict_interface.utils import ConMapping, Point, \
         DefaultEnumMeta
 from conflict_interface.data_types.modding.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
@@ -147,8 +147,8 @@ class Army(GameObject):
         "last_direction": "ld",
         "on_sea": "os",
         "at_airfield": "aa",
-        "units": MappedValue("u", parse_units),
-        "commands": MappedValue("c", parse_commands),
+        "units": ConMapping("u", parse_units),
+        "commands": ConMapping("c", parse_commands),
         "fight_status": "fs",
         "battle": "b",
         "attack_unit_id": "au",

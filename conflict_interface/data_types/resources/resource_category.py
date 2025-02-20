@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from .resource_entry import ResourceEntry
-from conflict_interface.utils import MappedValue
+from conflict_interface.utils import ConMapping
 from conflict_interface.utils import GameObject
 
 def parse_resource_entries(obj):
@@ -28,6 +28,6 @@ class ResourceCategory(GameObject):
         "daily_upgrade_consumption": "dailyUpgradeConsumption",
         "daily_population_consumption": "dailyPopulationConsumption",
         "min_consumption": "minConsumption",
-        "resources": MappedValue("resourceEntries",
-                                        parse_resource_entries),
+        "resources": ConMapping("resourceEntries",
+                                parse_resource_entries),
     }

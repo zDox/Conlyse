@@ -3,7 +3,7 @@ from conflict_interface.utils import GameObject
 
 from dataclasses import dataclass
 
-from conflict_interface.utils import MappedValue
+from conflict_interface.utils import ConMapping
 
 from .unit import Unit
 
@@ -24,6 +24,6 @@ class SpecialUnit(GameObject):
     MAPPING = {
         "enabled": "e",
         "constructing": "cn",
-        "unit": MappedValue("unit", parse_unit),
-        "original_unit": MappedValue("originalUnit", parse_unit),
+        "unit": ConMapping("unit", parse_unit),
+        "original_unit": ConMapping("originalUnit", parse_unit),
     }
