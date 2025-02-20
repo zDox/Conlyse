@@ -2,42 +2,35 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from conflict_interface.game_interface import GameInterface
-from conflict_interface.utils import GameObject
+from conflict_interface.utils import GameObject, HashMap
 
 from dataclasses import dataclass
-from pprint import pprint
 
 from .province import Province, ProvinceProperty
 from .static_map_data import StaticMapData
 
+@dataclass
+class Map(GameObject):
+    is_reduced: bool
+    version: int
+    map_id: int
+    day_of_game: int
+    width: int
+    height: int
+    use_population: bool
+    use_minimal_localization: bool
+    localized_player_profiles: bool
+    regions: HashMap[RegionType, Region]
+    overlap_x: int
+    locations: HashSet[Province]
+    population_factor: int
 
 @dataclass
 class MapState(GameObject):
     STATE_ID = 3
-    provinces: dict[int, Province]
+    map: Map
     # Provinces which are owned by the current player
-    province_properties: dict[int, ProvinceProperty]
-
-    @classmethod
-    def from_dict(cls, obj, game: GameInterface = None):
-        provinces = {province["id"]: Province.from_dict(province)
-                     for province in obj["map"]["locations"][1]}
-
-        province_properties = {int(province_id): ProvinceProperty.
-                               from_dict({**province_property,
-                                          "id": int(province_id)})
-                               for province_id, province_property
-                               in list(obj["properties"].items())[1:]}
-
-        for province_property in province_properties.values():
-            provinces[province_property.id].properties = province_property
-
-        instance = cls(**{
-            "provinces": provinces,
-            "province_properties": province_properties,
-        })
-        instance.game = game
-        return instance
+    properties: HashMap[int, ProvinceProperty]
 
     def update(self, new_state):
         for province in new_state.provinces:

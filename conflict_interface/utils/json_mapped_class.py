@@ -33,6 +33,12 @@ class LinkedList(list):
 class Vector(list):
     pass
 
+class ArrayList(list):
+    pass
+
+class HashSet(set):
+    pass
+
 class HashMap(dict):
     pass
 
