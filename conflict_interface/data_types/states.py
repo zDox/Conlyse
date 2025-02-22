@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from .player_state import PlayerState
 from .newspaper_state import NewspaperState
@@ -149,26 +150,26 @@ class States(GameObject):
     foreign_affairs_state: ForeignAffairsState
     army_state: ArmyState
     spy_state: SpyState
-    map_info_state: MapInfoState
-    admin_state: AdminState
-    statistic_state: StatisticState
+    map_info_state: Optional[MapInfoState]
+    admin_state: Optional[AdminState]
+    statistic_state: Optional[StatisticState]
     mod_state: ModState
     game_info_state: GameInfoState
-    ai_state: AIState
-    premium_state: PremiumState
-    user_options_state: UserOptionsState
-    user_inventory_state: UserInventoryState
-    user_sms_state: UserSMSState
-    tutorial_state: TutorialState
+    ai_state: Optional[AIState]
+    premium_state: Optional[PremiumState]
+    user_options_state: Optional[UserOptionsState]
+    user_inventory_state: Optional[UserInventoryState]
+    user_sms_state: Optional[UserSMSState]
+    tutorial_state: Optional[TutorialState]
     build_queue_state: BuildQueueState
-    location_state: LocationState
-    triggered_tutorial_state: TriggeredTutorialState
-    wheel_of_fortune_state: WheelOfFortuneState
+    location_state: Optional[LocationState]
+    triggered_tutorial_state: Optional[TriggeredTutorialState]
+    wheel_of_fortune_state: Optional[WheelOfFortuneState]
     research_state: ResearchState
     game_event_state: GameEventState
-    in_game_alliance_state: InGameAllianceState
-    exploration_state: ExplorationState
-    quest_state: QuestState
+    in_game_alliance_state: Optional[InGameAllianceState]
+    exploration_state: Optional[ExplorationState]
+    quest_state: Optional[QuestState]
     configuration_state: ConfigurationState
     mission_state: MissionState
 

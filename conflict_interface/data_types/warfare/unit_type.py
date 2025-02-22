@@ -11,7 +11,8 @@ from conflict_interface.data_types.modding.configuration import \
 
 from .unit_feature import UnitFeature
 from ...utils.json_mapped_class import JavaTypes, HashMap
-from typing import List
+from typing import List, Optional
+
 
 class RenderConfig:
     pass
@@ -24,25 +25,25 @@ class UnitType(GameObject):
     unit_pack: int
     ranking_factor: int
     build_time: timedelta
-    costs: HashMap[int, float]
-    daily_costs: HashMap[int, float]
-    speeds: HashMap[int, float]
-    hit_points: HashMap[int, float]
-    damage_types: HashMap[int, float]
-    damage_area: HashMap[int, float]
-    strength: HashMap[int, float]
-    defense: HashMap[int, float]
-    ranges: HashMap[int, float]
-    view_widths: HashMap[int, float]
-    required_upgrades: HashMap[int, int]
-    required_researches: HashMap[int, int]
-    unit_cap_research_items: HashMap[int, int]
+    costs: Optional[HashMap[int, float]]
+    daily_costs: Optional[HashMap[int, float]]
+    speeds: Optional[HashMap[int, float]]
+    hit_points: Optional[HashMap[int, float]]
+    damage_types: Optional[HashMap[int, float]]
+    damage_area: Optional[HashMap[int, float]]
+    strength: Optional[HashMap[int, float]]
+    defense: Optional[HashMap[int, float]]
+    ranges: Optional[HashMap[int, float]]
+    view_widths: Optional[HashMap[int, float]]
+    required_upgrades: Optional[HashMap[int, int]]
+    required_researches: Optional[HashMap[int, int]]
+    unit_cap_research_items: Optional[HashMap[int, int]]
     friendly_speed_factor: float
     foreign_speed_factor: float
     identifier: str
     minimum_tech_level: int
-    unit_features: HashMap[UnitFeature, float]
-    size_factors: HashMap[int, float]
+    unit_features: Optional[HashMap[int, float]] # TODO Key should be UnitFeature
+    size_factors: Optional[HashMap[int, float]]
     attack_painter: str
     pin_painter: str
     unit_class: int
@@ -68,6 +69,7 @@ class UnitType(GameObject):
     scout_config: ScoutConfig
     token_producer_config: TokenProducerConfig
     token_consumer_config: TokenConsumerConfig
+    unit_moral_impact_factor: float
 
     MAPPING = {
         "id": "itemID",
@@ -94,20 +96,30 @@ class UnitType(GameObject):
         "minimum_tech_level": "minimumTechLevel",
         "unit_features": "unitFeatures",
         "size_factors": "sizeFactors",
-        "images": "images",
         "attack_painter": "attackPainter",
         "pin_painter": "pinPainter",
         "unit_class": "unitClass",
         "set": "set",
         "type_size_name": "typeSizeName",
         "controllable_config": "controllableConfig",
-        "format_name_small": "formatNameSmall",
-        "format_name_big": "formatNameBig",
+        "formation_name_small": "formationNameSmall",
+        "formation_name_big": "formationNameBig",
         "unit_description": "unitDesc",
         "name_faction1": "nameFaction1",
         "name_faction2": "nameFaction2",
         "name_faction3": "nameFaction3",
         "name_faction4": "nameFaction4",
         "type_name": "typeName",
-        "unit_moral_impact_factor": "unitMoralImpactFactor",
+        "unit_moral_impact_factor": "unitMoraleImpactFactor",
+        "sort_value": "sortValue",
+        "producible": "producible",
+        "sorting_config": "sortingConfig",
+        "sound_config": "soundConfig",
+        "airplane_config": "airplaneConfig",
+        "carrier_config": "carrierConfig",
+        "missile_config": "missileConfig",
+        "anti_air_config": "antiAirConfig",
+        "scout_config": "scoutConfig",
+        "token_producer_config": "tokenProducerConfig",
+        "token_consumer_config": "tokenConsumerConfig",
     }

@@ -1,9 +1,10 @@
+from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.utils import GameObject
+from conflict_interface.utils import GameObject, DefaultEnumMeta
 
 
-class RegionType(Enum):
+class RegionType(Enum, metaclass=DefaultEnumMeta):
     NONE = -1
     EUROPA = 0
     ASIA = 1
@@ -12,6 +13,7 @@ class RegionType(Enum):
     SOUTH_AMERICA = 4
     OCEANIA = 5
 
+@dataclass
 class Region(GameObject):
     index: int
     name: str

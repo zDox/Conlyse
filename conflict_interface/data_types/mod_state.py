@@ -12,3 +12,7 @@ class ModState(GameObject):
     upgrades: HashMap[int, UpgradeType]
     unit_types: HashMap[int, UnitType]
     # research_types: list(ResearchType)
+    MAPPING = {
+        "upgrades": "upgrades",
+        "unit_types": "unitTypes"
+    }

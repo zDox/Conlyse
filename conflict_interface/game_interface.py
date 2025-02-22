@@ -59,7 +59,7 @@ class GameInterface:
             self.state = States.from_dict(self.game_api.request_game_update(), self)
         static_map_data = StaticMapData.from_dict(self.game_api.get_static_map_data(), self)
 
-        self.state.map_state.set_static_map_data(static_map_data)
+        self.state.map_state.map.set_static_map_data(static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,
                        random_country_team=False):
@@ -85,6 +85,9 @@ class GameInterface:
                         for time_stamp_str in self.game_api.time_stamps.values()
                         if time_stamp_str != "java.util.HashMap"]
         return max(update_times)
+
+    def client_time(self):
+        datetime.now()
 
     """
     PlayerState(1)
@@ -136,13 +139,15 @@ class GameInterface:
     """
 
     def get_provinces(self, **filters) -> dict[int, Province]:
-        return {province.province_id: province
-                for province in self.state.map_state.provinces.values()
-                if all([getattr(province, key) == val
-                        for key, val in filters.items()])}
+        res = {}
+        for province in self.state.map_state.map.locations:
+            if all([hasattr(province, key) and getattr(province, key) == val
+                   for key, val in filters.items()]):
+                res[province.province_id] = province
+        return res
 
     def get_province(self, province_id) -> Province:
-        return self.state.map_state.provinces.get(province_id)
+        return self.state.map_state.map.locations.get(province_id)
 
     @country_selected
     def get_my_provinces(self, **filters) -> dict[int, Province]:

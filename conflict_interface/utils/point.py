@@ -157,7 +157,10 @@ class Point(JsonMappedClass):
 
     def equals(self, other):
         return other and isinstance(other, Point) \
-                and self.x == other.x and self.y == other.y
+            and self.x == other.x and self.y == other.y
+
+    def __hash__(self):
+        return hash((self.x, self.y))
 
     def set_location(self, other):
         self.x = other.x

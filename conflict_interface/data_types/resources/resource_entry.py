@@ -1,26 +1,13 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from conflict_interface.data_types.resources.resource_types import ResourceType
 from conflict_interface.utils import GameObject
 
 
 @dataclass
 class ResourceEntry(GameObject):
-    SUPPLY_ID = 1
-    COMPONENTS_ID = 2
-    MAN_POWER_ID = 3
-    RARE_MATERIALS_ID = 4
-    FUEL_ID = 5
-    ELECTRONICS_ID = 6
-    CONVENTIONAL_WARHEAD_ID = 7
-    CHEMICAL_WARHEAD_ID = 8
-    NUCLEAR_WARHEAD_ID = 9
-    DEPLOYABLE_GEAR_ID = 10
-    MONEY_ID = 20
-    PHARMACEUTICALS_ID = 40
-
-
-    resource_id: int
+    resource_id: ResourceType
     name: str
 
     daily_unit_consumption: float
@@ -31,8 +18,7 @@ class ResourceEntry(GameObject):
     updating: bool
     priority: float
     production: float
-    min_amount: float
-    max_amount: float
+
 
     amount_zero: float
     time_zero: datetime
@@ -45,9 +31,13 @@ class ResourceEntry(GameObject):
     include_in_statistics: bool
     min_price: int
     max_price: int
-    tradeable: bool
+
     manpower: bool
     currency: bool
+
+    min_amount: float = 0
+    max_amount: float = 0
+    tradeable: bool = False
 
     MAPPING = {
         "resource_id": "resourceID",

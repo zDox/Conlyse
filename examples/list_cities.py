@@ -20,8 +20,8 @@ if __name__ == "__main__":
     interface.login(creds.username, creds.password)
     print("Starting example")
 
-    pprint(f"Joining new game:  {9709963}")
-    game = interface.join_game(9709963)
+    pprint(f"Joining new game:  {9748894}")
+    game = interface.join_game(9748894)
     print("Loaded Game")
 
     pprint(game.get_my_cities())

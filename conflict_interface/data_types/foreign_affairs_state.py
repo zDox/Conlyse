@@ -24,10 +24,14 @@ class ForeignAffairRelationTypes(Enum):
 
 @dataclass
 class ForeignAffairRelations(GameObject):
-    neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]]
+    # TODO Implement
+    # neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]]
+    pass
+    """
     MAPPING = {
         "neighbor_relations": ConMapping("neighborRelations", dict[str, dict[str, int]])
     }
+    """
 
 
 @dataclass

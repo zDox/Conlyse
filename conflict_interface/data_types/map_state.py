@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
+from .province.province import SeaProvince
 
 if TYPE_CHECKING:
     pass
@@ -26,7 +27,7 @@ class Map(GameObject):
     localized_player_profiles: bool
     regions: HashMap[RegionType, Region]
     overlap_x: int
-    locations: HashSet[Province]
+    locations: HashSet[Union[Province, SeaProvince]]
     population_factor: int
     MAPPING = {
         "is_reduced": "isReduced",
@@ -43,6 +44,20 @@ class Map(GameObject):
         "locations": "locations",
         "population_factor": "populationFactor"
     }
+    # TODO Precompute dictionary
+    def get_province(self, province_id):
+        for location in self.locations:
+            if location.province_id == province_id:
+                return location
+
+    def set_static_map_data(self, static_map_data: StaticMapData):
+        for province in static_map_data.provinces:
+            self.get_province(province.id).set_static_province(province)
+
+    def update(self, new_state):
+        for province in new_state.provinces:
+            self.get_province(province.province_id).update(province)
+
 @dataclass
 class MapState(GameObject):
     STATE_ID = 3
@@ -54,11 +69,3 @@ class MapState(GameObject):
         "map": "map",
         "properties": "properties"
     }
-
-    def update(self, new_state):
-        for province in new_state.provinces:
-            self.provinces[province.province_id].update(province)
-
-    def set_static_map_data(self, static_map_data: StaticMapData):
-        for province in static_map_data.provinces:
-            self.provinces[province.id].set_static_province(province)

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from conflict_interface.utils import JsonMappedClass, \
     unixtimestamp_to_datetime, ConMapping, milliseconds_to_timedelta, HashSet, HashMap, UnmodifiableCollection, \
-    LinkedHashMap
+    LinkedHashMap, GameObject
 
 
 @dataclass
@@ -21,7 +21,7 @@ class SoundConfig(JsonMappedClass):
 class AirplaneConfig(JsonMappedClass):
     spy: bool
     patrol_radius: int
-    patrol_target_damage_types: HashSet[int]
+    patrol_target_damage_types: UnmodifiableCollection[int]
     embarkation_time: timedelta
     disembarkation_time: timedelta
     refuel_time: timedelta
@@ -68,8 +68,8 @@ class AntiAirConfig(JsonMappedClass):
 
 @dataclass
 class ScoutConfig(JsonMappedClass):
-    stealth_classes: HashSet[int]
-    camoflage_classes: HashSet[int]
+    stealth_classes: UnmodifiableCollection[int]
+    camoflage_classes: UnmodifiableCollection[int]
 
     MAPPING = {
             "stealth_classes": "stealthClasses",
@@ -156,8 +156,8 @@ class MissileCarrierFeature:
 
 
 @dataclass
-class RadarSignatureFeature:
-    signature_size_map: dict[int, int]
+class RadarSignatureFeature(GameObject):
+    signature_size_map: HashMap[int, int]
     MAPPING = {
         "signature_size_map": "ssm",
     }

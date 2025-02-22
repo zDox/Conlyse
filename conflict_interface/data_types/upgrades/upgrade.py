@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from math import floor
-from typing import List
+from typing import List, Optional
 
 from conflict_interface.utils import GameObject, Point, HashMap
 
@@ -71,8 +71,7 @@ class UpgradeType(GameObject):
     build_condition: int
     max_condition: int
     min_condition: int
-    day_of_availability: int
-    enable_able: bool
+
     article_prefix: str
     costs: HashMap[int, int]
     unit_costs: HashMap[int, int]
@@ -82,15 +81,20 @@ class UpgradeType(GameObject):
     features: HashMap[UpgradeFeature, float]
     # feature_functions -> Dont know how to implement
     # build_time_functions -> Dont know how to implement
-    replaced_upgrade: int
+    replaced_upgrade: Optional[int]
     # removed_upgrades -> Dont know how to implement
     required_upgrades: HashMap[int, int]
     # required_researches -> Dont know how to implement
-    feature_icon_prefix: str
-    ranking_factor: int
-    sorting_orders: int
 
+
+    sorting_orders: int
     upgrade_identifier: str
+
+    ranking_factor: int = 1
+    feature_icon_prefix: str = ""
+    enable_able: bool = False
+    day_of_availability: int = 0
+
     _tier: int | None = None
     _replacing_upgrade_id: int | None = None
 
@@ -204,13 +208,16 @@ class UpgradeType(GameObject):
                     break
         return self._replacing_upgrade_id
 
+
+@dataclass
 class ModableUpgrade(GameObject):
     id: int
-    condition: int
-    constructing: bool
-    enabled: bool
-    relative_position: Point
-    premium_level: int
+    condition: Optional[int]
+
+    relative_position: Optional[Point]
+    enabled: bool = True
+    premium_level: int = 0
+    constructing: bool = False
     C = "mu"
     MAPPING = {
         "id": "id",
@@ -220,11 +227,6 @@ class ModableUpgrade(GameObject):
         "relative_position": "rp",
         "premium_level": "pl",
     }
-    def __init__(self, id, condition, constructing, enabled, relative_position, premium_level, game=None):
-        super().__init__(game)
-        self.id = id
-        self.condition = condition
-        self.constructing = constructing
-        self.enabled = enabled
-        self.relative_position = relative_position
-        self.premium_level = premium_level
+
+    def __hash__(self):
+        return hash((self.id, self.condition, self.relative_position, self.enabled, self.premium_level, self.constructing))

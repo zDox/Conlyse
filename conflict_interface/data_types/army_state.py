@@ -8,11 +8,13 @@ from .warfare import Army
 @dataclass
 class ArmyState(GameObject):
     STATE_ID = 6
+    # TODO Implement
+    """
     armies: HashMap[int, Army]
-
     MAPPING = {
         "armies": "armies"
     }
+    """
 
     def update(self, new_state):
         for new_army in new_state.armies:

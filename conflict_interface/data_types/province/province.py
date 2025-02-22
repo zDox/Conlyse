@@ -1,7 +1,10 @@
 from pprint import pprint
+from typing import Optional
 
 from conflict_interface.data_types.province import RegionType
-from conflict_interface.utils import GameObject, ArrayList, LinkedList, ConMapping, Point, HashSet, Vector
+from conflict_interface.data_types.resources.resource_types import ResourceType
+from conflict_interface.utils import GameObject, ArrayList, LinkedList, ConMapping, Point, HashSet, Vector, \
+    DefaultEnumMeta
 
 from dataclasses import dataclass
 from enum import Enum
@@ -31,20 +34,28 @@ class ProvinceStateID(Enum):
     MAINLAND_CITY = 55
 
 
-class ResourceProductionType(Enum):
-    NONE = 0
-    SUPPLIES = 1
-    COMPONENTS = 2
-    MANPOWER = 3
-    RARE_MATERIALS = 4
-    FUEL = 5
-    ELECTRONICS = 6
-    CONVENTIONAL_WARHEAD = 8
-    CHEMICAL_WARHEAD = 8
-    NUCLEAR_WARHEAD = 9
-    DEPLOYABLE_GEAR = 10
-    MONEY = 20
+class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
+    NONE = ResourceType.NONE.value + 1
+    SUPPLY = ResourceType.SUPPLY.value + 1
+    COMPONENT = ResourceType.COMPONENT.value + 1
+    MANPOWER = ResourceType.MANPOWER.value + 1
+    RARE_MATERIAL = ResourceType.RARE_MATERIAL.value + 1
+    FUEL = ResourceType.FUEL.value + 1
+    ELECTRONIC = ResourceType.ELECTRONIC.value + 1
+    CONVENTIONAL_WARHEAD = ResourceType.CONVENTIONAL_WARHEAD.value + 1
+    CHEMICAL_WARHEAD = ResourceType.CHEMICAL_WARHEAD.value + 1
+    NUCLEAR_WARHEAD = ResourceType.NUCLEAR_WARHEAD.value + 1
+    DEPLOYABLE_GEAR = ResourceType.DEPLOYABLE_GEAR.value + 1
+    MONEY = ResourceType.MONEY.value + 1
+    CITY_CLAIM = ResourceType.CITY_CLAIM.value + 1
+    PHARMACEUTICAL = ResourceType.PHARMACEUTICAL.value + 1
 
+    def to_py(self, type):
+        if type != ResourceType:
+            raise ValueError(f"type ({type}) must be ResourceType")
+        if self.value == 0:
+            return ResourceType(0)
+        return ResourceType(self.value-1)
 
 
 
@@ -63,7 +74,6 @@ def parse_productions(value: list):
 
 @dataclass
 class ProvinceProperty(GameObject):
-    id: int  # Province ID
     possible_upgrades: LinkedList[ModableUpgrade]
     queueable_upgrades: LinkedList[ModableUpgrade]
 
@@ -75,7 +85,6 @@ class ProvinceProperty(GameObject):
     target_morale: int
 
     MAPPING = {
-        "id": "id",
         "possible_upgrades": "possibleUpgrades",
         "queueable_upgrades": "queueableUpgrades",
         "possible_productions": "possibleProductions",
@@ -85,23 +94,45 @@ class ProvinceProperty(GameObject):
         "target_morale": "targetMorale",
     }
 
+@dataclass
+class SeaProvince(GameObject):
+    C = "ultshared.UltSeaProvince"
+    province_id: int
+    name: str
+    center_coordinate: Point
+    terrain_type: TerrainType
+
+    def __hash__(self):
+        return hash(self.province_id)
+
+    MAPPING = {
+        "province_id": "id",
+        "name": "n",
+        "center_coordinate": "c",
+        "terrain_type": "tt",
+    }
+
+    def set_static_province(self, obj):
+        pass
+
 
 @dataclass
 class Province(GameObject):
+    C = "p"
     province_id: int
 
     # Data from GameServer
     province_state_id: ProvinceStateID
     name: str
     adjacent_to_water: bool
-    resource_production: int
-    resource_production_type: ResourceProductionType
+    resource_production: Optional[int]
+    resource_production_type: ResourceType
     money_production: int
     victory_points: int
     owner_id: int
-    legal_owner: int
-    morale: int
     upgrades: HashSet[ModableUpgrade]
+    morale: int = 70
+    legal_owner: int = -1
 
     # Data from Static supplier
     terrain_type: TerrainType = None
@@ -117,7 +148,7 @@ class Province(GameObject):
         "morale": "m",
         "province_state_id": "pst",
         "resource_production": "rp",
-        "resource_production_type": "r",
+        "resource_production_type": ConMapping("r", ResourceProductionType),
         "money_production": "tp",
         "legal_owner": "lo",
         "victory_points": "plv",
@@ -138,13 +169,16 @@ class Province(GameObject):
             setattr(self, updateable_key,
                     getattr(new_province, updateable_key))
 
+    def __hash__(self):
+        return hash(self.province_id)
+
 
 @dataclass
 class StaticProvince(GameObject):
     id: int
     terrain_type: TerrainType
     center_coordinate: Point
-    region: RegionType
+    region: list[RegionType] = None
 
     MAPPING = {
         "id": "id",
