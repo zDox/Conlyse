@@ -9,3 +9,6 @@ class ResearchState(GameObject):
     # completed_researches: list(Research)
     research_slots: int
     MAPPING = {"research_slots": "researchSlots"}
+
+
+    print("HI")
