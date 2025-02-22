@@ -13,3 +13,5 @@ cloc.sh
 
 examples/creds.py
 examples/__pycache__
+
+.idea
