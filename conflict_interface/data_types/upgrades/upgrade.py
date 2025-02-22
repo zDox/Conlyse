@@ -4,17 +4,8 @@ from enum import Enum
 from math import floor
 from typing import List
 
-from conflict_interface.utils import GameObject, Point
-from conflict_interface.utils import ConMapping
+from conflict_interface.utils import GameObject, Point, HashMap
 
-
-def parse_dict(obj):
-    obj.pop("@c")
-    return {int(key): value
-            for key, value in obj.items()}
-def parse_dict_as_keyset(obj):
-    obj.pop("@c")
-    return set([int(key) for key in obj.keys()])
 
 class UpgradeFeature(Enum):
     FORTRESS = 0
@@ -83,17 +74,17 @@ class UpgradeType(GameObject):
     day_of_availability: int
     enable_able: bool
     article_prefix: str
-    costs: dict[int, int]
-    unit_costs: dict[int, int]
-    daily_costs: dict[int, int]
-    daily_productions: dict[int, int]
-    production_bonus: dict[int, float]
-    features: dict[UpgradeFeature, float]
+    costs: HashMap[int, int]
+    unit_costs: HashMap[int, int]
+    daily_costs: HashMap[int, int]
+    daily_productions: HashMap[int, int]
+    production_bonus: HashMap[int, float]
+    features: HashMap[UpgradeFeature, float]
     # feature_functions -> Dont know how to implement
     # build_time_functions -> Dont know how to implement
     replaced_upgrade: int
     # removed_upgrades -> Dont know how to implement
-    required_upgrades: dict[int, int]
+    required_upgrades: HashMap[int, int]
     # required_researches -> Dont know how to implement
     feature_icon_prefix: str
     ranking_factor: int
@@ -112,14 +103,14 @@ class UpgradeType(GameObject):
         "day_of_availability": "doa",
         "enable_able": "ie",
         "article_prefix": "ap",
-        "costs": ConMapping("c", parse_dict),
-        "unit_costs": ConMapping("uc", parse_dict),
-        "daily_costs": ConMapping("dc", parse_dict),
-        "daily_productions": ConMapping("dp", parse_dict),
-        "production_bonus": ConMapping("pb", parse_dict),
-        "features": ConMapping("f", parse_features),
+        "costs": "c",
+        "unit_costs": "uc",
+        "daily_costs": "dc",
+        "daily_productions": "dp",
+        "production_bonus": "pb",
+        "features": "f",
         "replaced_upgrade": "ru",
-        "required_upgrades": ConMapping("rqu", parse_dict_as_keyset),
+        "required_upgrades": "rqu",
         "feature_icon_prefix": "fip",
         "ranking_factor": "rnf",
         "sorting_orders": "so",

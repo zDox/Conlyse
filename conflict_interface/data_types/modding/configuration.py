@@ -2,7 +2,8 @@ from datetime import date, timedelta
 from dataclasses import dataclass
 
 from conflict_interface.utils import JsonMappedClass, \
-        unixtimestamp_to_datetime, ConMapping, milliseconds_to_timedelta
+    unixtimestamp_to_datetime, ConMapping, milliseconds_to_timedelta, HashSet, HashMap, UnmodifiableCollection, \
+    LinkedHashMap
 
 
 @dataclass
@@ -16,15 +17,11 @@ class SoundConfig(JsonMappedClass):
     pass
 
 
-def parse_list_of_ints(obj):
-    return obj[1]
-
-
 @dataclass
 class AirplaneConfig(JsonMappedClass):
     spy: bool
     patrol_radius: int
-    patrol_target_damage_types: list[int]
+    patrol_target_damage_types: HashSet[int]
     embarkation_time: timedelta
     disembarkation_time: timedelta
     refuel_time: timedelta
@@ -33,8 +30,7 @@ class AirplaneConfig(JsonMappedClass):
     MAPPING = {
             "spy": "spy",
             "patrol_radius": "patrolRadius",
-            "patrol_target_damage_types": ConMapping(
-                "patrolTargetDamageTypes", parse_list_of_ints),
+            "patrol_target_damage_types": "patrolTargetDamageTypes",
             "embarkation_time": "embarkationTime",
             "disembarkation_time": "disembarkationTime",
             "refuel_time": "refuelTime",
@@ -55,11 +51,11 @@ def parse_dict_of_ints(obj):
 
 @dataclass
 class CarrierConfig(JsonMappedClass):
-    slot_config: dict[int, int]
+    slot_config: HashMap[int, int]
     max_capacity: int
 
     MAPPING = {
-            "slot_config": ConMapping("slotConfig", parse_dict_of_ints),
+            "slot_config": "slotConfig",
             "max_capacity": "maxCapacity"
     }
 
@@ -72,14 +68,12 @@ class AntiAirConfig(JsonMappedClass):
 
 @dataclass
 class ScoutConfig(JsonMappedClass):
-    stealth_classes: list[int]
-    camoflage_classes: list[int]
+    stealth_classes: HashSet[int]
+    camoflage_classes: HashSet[int]
 
     MAPPING = {
-            "stealth_classes": ConMapping("stealthClasses",
-                                          parse_list_of_ints),
-            "camoflage_classes": ConMapping("camouflageClasses",
-                                            parse_list_of_ints),
+            "stealth_classes": "stealthClasses",
+            "camoflage_classes": "camouflageClasses",
     }
 
 
@@ -91,7 +85,7 @@ class TokenProducerConfigProduction(JsonMappedClass):
     MAPPING = {
             "type": "type",
             "amount": "amount",
-            "duration": ConMapping("duration", milliseconds_to_timedelta),
+            "duration": "duration",
     }
 
 
@@ -102,14 +96,12 @@ def parse_list_of_production(obj):
 
 @dataclass
 class TokenProducerConfig(JsonMappedClass):
-    tokens_on_spawn: list[TokenProducerConfigProduction]
-    tokens_provided: list[TokenProducerConfigProduction]
+    tokens_on_spawn: UnmodifiableCollection[TokenProducerConfigProduction]
+    tokens_provided: UnmodifiableCollection[TokenProducerConfigProduction]
 
     MAPPING = {
-            "tokens_on_spawn": ConMapping("tokensOnSpawn",
-                                          parse_list_of_production),
-            "tokens_provided": ConMapping("tokensProvided",
-                                          parse_list_of_production),
+            "tokens_on_spawn": "tokensOnSpawn",
+            "tokens_provided": "tokensProvided",
     }
 
 
@@ -148,18 +140,7 @@ class MissileSlotConfig(JsonMappedClass):
 
 @dataclass
 class MissileCarrierConfig():
-    missile_slot_config: dict[int, MissileSlotConfig]
-
-    @classmethod
-    def from_dict(cls, obj):
-        missile_slot_config = {int(slot_id): MissileSlotConfig.from_dict(
-                                {**slot, "province_id": slot_id})
-                               for slot_id, slot in
-                               list(obj["missileSlotConfig"].items())[1:]}
-        return cls(**{
-            "missile_slot_config": missile_slot_config,
-            })
-
+    missile_slot_config: LinkedHashMap[int, MissileSlotConfig]
 
 @dataclass
 class MissileCarrierFeature:
@@ -167,38 +148,19 @@ class MissileCarrierFeature:
     inventory: dict[int, int]
     last_missile_spawns: dict[int, date]
 
-    @classmethod
-    def from_dict(cls, obj):
-        missile_carrier_config = MissileCarrierConfig.from_dict(
-                obj["missileCarrierConfig"])
-
-        inventory = {int(slot_id): amount
-                     for slot_id, amount in list(obj["inventory"].items())[1:]}
-
-        last_missile_spawns = {int(slot_id):
-                               unixtimestamp_to_datetime(spawn_time)
-                               for slot_id, spawn_time
-                               in list(obj["lastMissileSpawns"].items())[1:]}
-
-        return cls(**{
-            "missile_carrier_config": missile_carrier_config,
-            "inventory": inventory,
-            "last_missile_spawns": last_missile_spawns,
-        })
+    MAPPING = {
+        "missileCarrierConfig": "missileCarrierConfig",
+        "inventory": "inventory",
+        "lastMissileSpawns": "lastMissileSpawns",
+    }
 
 
 @dataclass
 class RadarSignatureFeature:
     signature_size_map: dict[int, int]
-
-    @classmethod
-    def from_dict(cls, obj):
-        signature_size_map = {int(signature): size
-                              for signature, size
-                              in list(obj["ssm"].items())[1:]}
-        return cls(**{
-            "signature_size_map": signature_size_map,
-            })
+    MAPPING = {
+        "signature_size_map": "ssm",
+    }
 
 
 @dataclass

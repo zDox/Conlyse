@@ -1,4 +1,4 @@
-from conflict_interface.utils import GameObject
+from conflict_interface.utils import GameObject, LinkedList
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -78,9 +78,9 @@ class Army(GameObject):
     last_direction: Point = None
     on_sea: bool = False
     at_airfield: bool = False
-    units: list[Unit] = None
+    units: LinkedList[Unit] = None
 
-    commands: list[Command] = None
+    commands: LinkedList[Command] = None
     fight_status: FightStatus = FightStatus.IDLE
     battle: Battle = None
     attack_unit_id: int = None
@@ -147,8 +147,8 @@ class Army(GameObject):
         "last_direction": "ld",
         "on_sea": "os",
         "at_airfield": "aa",
-        "units": ConMapping("u", parse_units),
-        "commands": ConMapping("c", parse_commands),
+        "units": "u",
+        "commands": "c",
         "fight_status": "fs",
         "battle": "b",
         "attack_unit_id": "au",

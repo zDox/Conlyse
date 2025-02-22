@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING
+from pprint import pprint
+from typing import TYPE_CHECKING, get_origin, Union, get_args, Optional
+
 if TYPE_CHECKING:
     from conflict_interface.game_interface import GameInterface
 from typing import get_type_hints
@@ -19,6 +21,66 @@ def to_list(name, value):
         arr.append(v)
     res.append(arr)
     return res
+
+
+def parse_list(obj, py_type: type, game):
+    return [handle_normal(v, py_type.__args__[0], game) for v in obj[1]]
+
+def parse_dict(obj, py_type: type, game):
+    return {
+        handle_normal(key, py_type.__args__[0], game) : handle_normal(value, py_type.__args__[1], game)
+        for key, value in obj.items()
+        if key != "@c"
+    }
+
+def handle_con_mapping(value, py_type, mapped_type):
+    raise NotImplementedError
+
+
+def handle_normal(value, py_type: type, game):
+    print(value, py_type)
+    if py_type == datetime:
+        return unixtimestamp_to_datetime(value)
+    elif py_type == timedelta:
+        return seconds_to_timedelta(value)
+    elif py_type in (bool, int, float, str):
+        return py_type(value)
+    elif issubclass(py_type, Enum):
+        return py_type(int(value))
+    elif issubclass(py_type, JsonMappedClass):
+        return py_type.from_dict(value)
+    elif issubclass(py_type, GameObject):
+        return py_type.from_dict(value, game)
+    elif py_type == list:
+        raise NotImplementedError
+    elif py_type == dict:
+        raise NotImplementedError
+    elif issubclass(py_type, list):
+        return parse_list(value, py_type, game)
+    elif issubclass(py_type, dict):
+        return parse_dict(value, py_type, game)
+    print(py_type == int)
+    raise ValueError(f"Unknown type {py_type}")
+
+def is_optional(tp):
+    """Returns the underlying type if tp is typing.Optional, otherwise returns None."""
+    if get_origin(tp) is Union:  # Check if it's a Union
+        args = get_args(tp)  # Get the types inside the Union
+        non_none_types = tuple(t for t in args if t is not type(None))  # Exclude NoneType
+        if len(non_none_types) == 1:  # If it's exactly one type left, it's Optional
+            return non_none_types[0]
+    return None
+
+def get_underlying_type(tp):
+    """Returns the underlying type if tp is typing.Optional, otherwise returns None."""
+    if get_origin(tp) is Union:  # Check if it's a Union
+        args = get_args(tp)  # Get the types inside the Union
+        non_none_types = tuple(t for t in args if t is not type(None))  # Exclude NoneType
+        if len(non_none_types) == 1:  # If it's exactly one type left, it's Optional
+            return non_none_types[0]
+        else:
+            return Union[[t for t in args if t is not type(None)]]
+    return None
 
 class GameObject(JsonMappedClass):
     """
@@ -39,52 +101,31 @@ class GameObject(JsonMappedClass):
 
     @classmethod
     def from_dict(cls, obj: dict, game: GameInterface = None):
+        if not hasattr(cls, "MAPPING"):
+            raise ValueError(f"{cls.__name__} has no MAPPING attribute")
+
         parsed_data = {}
         resolved = get_type_hints(cls)
 
-        for new_name, mapped_value in cls.MAPPING.items():
-            ftype = resolved[new_name]
-            if not isinstance(mapped_value, ConMapping):
-                # bool should be default False
-                if ftype is bool:
-                    parsed_data[new_name] = ftype(obj.get(mapped_value))
-                elif ftype is datetime:
-                    parsed_data[new_name] = unixtimestamp_to_datetime(
-                        obj.get(mapped_value))
-                elif ftype is timedelta:
-                    parsed_data[new_name] = seconds_to_timedelta(
-                        obj.get(mapped_value))
-                # if type has metaclass DefaultEnumMeta use its default init
-                elif obj.get(mapped_value) is None \
-                        and type(ftype) is DefaultEnumMeta:
-                    parsed_data[new_name] = ftype()
-                elif obj.get(mapped_value) is None:
-                    parsed_data[new_name] = None
-
-                # If Type has from_dict implemented, use it
-                elif issubclass(ftype, GameObject) and hasattr(ftype, "from_dict"):
-                    parsed_data[new_name] = ftype.from_dict(
-                        obj.get(mapped_value), game=game)
-                elif issubclass(ftype, JsonMappedClass) and hasattr(ftype, "from_dict"):
-                    parsed_data[new_name] = ftype.from_dict(
-                        obj.get(mapped_value))
+        for py_name, mapped_value in cls.MAPPING.items():
+            py_type = resolved[py_name]
+            if mapped_value not in obj:
+                if type(None) in get_args(py_type):
+                    parsed_data[py_name] = None
+                elif isinstance(py_type, DefaultEnumMeta):
+                    parsed_data[py_name] = py_type()
                 else:
-                    parsed_data[new_name] = ftype(obj.get(mapped_value))
-
-            elif mapped_value.function:
-                if mapped_value.needs_entire_obj:
-                    parsed_data[new_name] = mapped_value.function(
-                        obj, obj.get(mapped_value.original))
-                else:
-                    parsed_data[new_name] = mapped_value.function(
-                        obj.get(mapped_value.original))
-            elif mapped_value.type:
-                if mapped_value.type == JavaTypes.HashMap:
-                    parsed_data[new_name] = from_hash_map(
-                        obj.get(mapped_value.original))
+                    raise ValueError(
+                        f"Entry of type {py_type} cannot be parsed as object of type {cls} contains no key {mapped_value}")
             else:
-                parsed_data[new_name] = ftype(
-                    obj.get(mapped_value.original))
+                if is_optional(py_type):
+                    py_type = get_underlying_type(py_type)
+                if mapped_value is ConMapping and mapped_value.type != py_type:
+                    parsed_data[py_name] = handle_con_mapping(obj[mapped_value.original], py_type, mapped_value.type)
+                else:
+                    parsed_data[py_name] = handle_normal(obj[mapped_value], py_type, game)
+        pprint(cls)
+        pprint(parsed_data)
         instance = cls(**parsed_data)
         instance.game = game
         return instance

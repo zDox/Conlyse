@@ -24,7 +24,7 @@ class TeamProfile(GameObject):
     victory_points: int
 
     MAPPING = {
-            "team_id": "team_id",
+            "team_id": "teamID",
             "name": "name",
             "description": "description",
             "leader_id": "leaderID",

@@ -25,8 +25,8 @@ class GotoCommand(GameObject):
     speed_factor: float
 
     MAPPING = {
-        "start_time": ConMapping("st", unixtimestamp_to_datetime),
-        "arrival_time": ConMapping("at", unixtimestamp_to_datetime),
+        "start_time": "st",
+        "arrival_time": "at",
         "start_position": "sp",
         "target_position": "tp",
         "speed": "s",

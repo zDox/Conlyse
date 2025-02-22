@@ -1,4 +1,4 @@
-from conflict_interface.utils import GameObject
+from conflict_interface.utils import GameObject, HashMap
 
 from dataclasses import dataclass
 from enum import Enum
@@ -25,27 +25,14 @@ class VisibilityMode(Enum, metaclass=DefaultEnumMeta):
 @dataclass
 class PlayerState(GameObject):
     STATE_ID = 1
-    players: dict[int, PlayerProfile]
-    teams: dict[int, TeamProfile]
+    players: HashMap[int, PlayerProfile]
+    teams: HashMap[int, TeamProfile]
 
-    @classmethod
-    def from_dict(cls, obj: dict, game = None):
-        players = {int(player_id): PlayerProfile.from_dict(player)
-                   for player_id, player in list(obj["players"].items())[1:]}
+    MAPPING = {
+        "players": "players",
+        "teams": "teams"
+    }
 
-        teams = {int(team_id): TeamProfile.from_dict(team)
-                 for team_id, team in list(obj["teams"].items())[1:]}
-
-        return cls(**{
-            "players": players,
-            "teams": teams,
-        })
-
-    """
-    def update(self, new_state):
-        self.players = new_state.players
-        self.teams = new_state.teams
-    """
 
     def get_players(self, terra_incognita_feature: bool,
                     visibility_mode=VisibilityMode.ALL):

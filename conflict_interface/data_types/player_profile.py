@@ -1,3 +1,5 @@
+from typing import Optional
+
 from conflict_interface.utils import GameObject
 
 from dataclasses import dataclass
@@ -69,7 +71,7 @@ class PlayerProfile(GameObject):
     computer_player: bool
     native_computer: bool
     site_user_id: int
-    user_name: str
+    user_name: Optional[str]
     defeated: bool
     retired: bool
     achievement_title_id: int

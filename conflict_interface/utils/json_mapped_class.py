@@ -36,10 +36,15 @@ class Vector(list):
 class ArrayList(list):
     pass
 
+class UnmodifiableCollection(list):
+    pass
+
 class HashSet(set):
     pass
 
 class HashMap(dict):
+    pass
+class LinkedHashMap(dict):
     pass
 
 class TreeMap(dict):

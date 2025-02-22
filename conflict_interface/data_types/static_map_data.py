@@ -6,7 +6,7 @@ from conflict_interface.utils.game_object import GameObject
 
 from dataclasses import dataclass
 
-from .province import StaticProvince
+from conflict_interface.data_types.province.province import StaticProvince
 
 
 @dataclass

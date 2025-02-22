@@ -35,7 +35,7 @@ class HubGameInfo(JsonMappedClass):
     scenario_version_id: int
     season_id: int
     start_of_game: datetime
-    current_players: int
+    open_slots: int
     max_players: int
     day_of_game: int
     end_of_game: bool
@@ -71,7 +71,7 @@ class HubGameInfo(JsonMappedClass):
     last_statistics_update: datetime
     unit_pack: int
     xp_boost_factor: int
-    speed_factor: int
+    time_scale: float
     update_timestamp: datetime
     max_rank: int
     max_join_day: int
@@ -85,16 +85,12 @@ class HubGameInfo(JsonMappedClass):
             'scenario_id': 'scenarioID',
             'scenario_version_id': 'scenarioVersionID',
             'season_id': 'seasonID',
-            'start_of_game': ConMapping('startofgame2',
-                                        unixtimestamp_to_datetime),
-            'current_players': ConMapping('openSlots',
-                                          openslots_to_currentplayers,
-                                          needs_entire_obj=True),
+            'start_of_game': 'startofgame2',
+            'open_slots': 'openSlots',
             'max_players': 'nrofplayers',
             'day_of_game': 'dayofgame',
             'end_of_game': 'endofgame2',
-            'last_login': ConMapping('lastlogintime',
-                                     unixtimestamp_to_datetime),
+            'last_login': 'lastlogintime',
             'creator_id': 'creatorID',
             'title': 'title',
             'comment': 'comment',
@@ -103,7 +99,7 @@ class HubGameInfo(JsonMappedClass):
             'demo_game': 'demoGame',
             'min_rank': 'minRank',
             'managed_game': 'managedGame',
-            'creation_date': ConMapping('crdate', unixtimestamp_to_datetime),
+            'creation_date': 'crdate',
             'ai_level': 'aiLevel',
             'victory_points': 'victoryPoints',
             'victory_condition': 'victoryCondition',
@@ -123,13 +119,11 @@ class HubGameInfo(JsonMappedClass):
             'deleted': 'deleted',
             'gold_round': 'goldRound',
             'game_status': 'gameStatus',
-            'last_statistics_update': ConMapping('lastStatisticsUpdate',
-                                                 unixtimestamp_to_datetime),
+            'last_statistics_update': 'lastStatisticsUpdate',
             'unit_pack': 'unitPack',
             'xp_boost_factor': 'xpBoostFactor',
-            'speed_factor': ConMapping('timeScale', timescale_to_speedfactor),
-            'update_timestamp': ConMapping('updateTstamp',
-                                           timestamp_to_datetime),
+            'time_scale': 'timeScale',
+            'update_timestamp': 'updateTstamp',
             'max_rank': 'maxRank',
             'max_join_day': 'maxJoinDay',
             'map_reference': 'mapReference',

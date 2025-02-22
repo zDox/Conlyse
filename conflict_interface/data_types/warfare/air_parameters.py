@@ -27,11 +27,9 @@ class AirParameters(GameObject):
     air_field: Point | int  # Can be either a province_id or a Position
 
     MAPPING = {
-        "last_air_action_time": ConMapping("lastAirActionTime",
-                                           unixtimestamp_to_datetime),
+        "last_air_action_time": "lastAirActionTime",
         "last_air_position": "lastAirPosition",
         "launch_target": "launchTarget",
-        "max_flight_time": ConMapping("maxFlightTime",
-                                      unixtimestamp_to_datetime),
-        "air_field": ConMapping("airField", parse_air_field),
+        "max_flight_time": "maxFlightTime",
+        "air_field": "airField",
     }

@@ -10,7 +10,7 @@ from conflict_interface.data_types.modding.configuration import \
         TokenProducerConfig, TokenConsumerConfig
 
 from .unit_feature import UnitFeature
-from ...utils.json_mapped_class import JavaTypes
+from ...utils.json_mapped_class import JavaTypes, HashMap
 from typing import List
 
 class RenderConfig:
@@ -24,25 +24,25 @@ class UnitType(GameObject):
     unit_pack: int
     ranking_factor: int
     build_time: timedelta
-    costs: dict[int, float]
-    daily_costs: dict[int, float]
-    speeds: dict[int, float]
-    hit_points: dict[int, float]
-    damage_types: dict[int, float]
-    damage_area: dict[int, float]
-    strength: dict[int, float]
-    defense: dict[int, float]
-    ranges: dict[int, float]
-    view_widths: dict[int, float]
-    required_upgrades: dict[int, int]
-    required_researches: dict[int, int]
-    unit_cap_research_items: dict[int, int]
+    costs: HashMap[int, float]
+    daily_costs: HashMap[int, float]
+    speeds: HashMap[int, float]
+    hit_points: HashMap[int, float]
+    damage_types: HashMap[int, float]
+    damage_area: HashMap[int, float]
+    strength: HashMap[int, float]
+    defense: HashMap[int, float]
+    ranges: HashMap[int, float]
+    view_widths: HashMap[int, float]
+    required_upgrades: HashMap[int, int]
+    required_researches: HashMap[int, int]
+    unit_cap_research_items: HashMap[int, int]
     friendly_speed_factor: float
     foreign_speed_factor: float
     identifier: str
     minimum_tech_level: int
-    unit_features: dict[UnitFeature, float]
-    size_factors: dict[int, float]
+    unit_features: HashMap[UnitFeature, float]
+    size_factors: HashMap[int, float]
     attack_painter: str
     pin_painter: str
     unit_class: int
@@ -75,32 +75,32 @@ class UnitType(GameObject):
         "unit_pack": "unitPack",
         "ranking_factor": "rankingFactor",
         "build_time": "buildTime",
-        "costs": ConMapping("costs", type=JavaTypes.HashMap),
-        "daily_costs": ConMapping("dailyCosts", type=JavaTypes.HashMap),
-        "speeds": ConMapping("speeds", type=JavaTypes.HashMap),
-        "hit_points": ConMapping("hitPoints", type=JavaTypes.HashMap),
-        "damage_types": ConMapping("damageTypes", type=JavaTypes.HashMap),
-        "damage_area": ConMapping("damageArea", type=JavaTypes.HashMap),
-        "strength": ConMapping("strength", type=JavaTypes.HashMap),
-        "defense": ConMapping("defense", type=JavaTypes.HashMap),
-        "ranges": ConMapping("ranges", type=JavaTypes.HashMap),
-        "view_widths": ConMapping("viewWidths", type=JavaTypes.HashMap),
-        "required_upgrades": ConMapping("requiredUpgrades", type=JavaTypes.HashMap),
-        "required_researches": ConMapping("requiredResearches", type=JavaTypes.HashMap),
-        "unit_cap_research_items": ConMapping("unitCapResearchItems", type=JavaTypes.HashMap),
+        "costs": "costs",
+        "daily_costs": "dailyCosts",
+        "speeds": "speeds",
+        "hit_points": "hitPoints",
+        "damage_types": "damageTypes",
+        "damage_area": "damageArea",
+        "strength": "strength",
+        "defense": "defense",
+        "ranges": "ranges",
+        "view_widths": "viewWidths",
+        "required_upgrades": "requiredUpgrades",
+        "required_researches": "requiredResearches",
+        "unit_cap_research_items": "unitCapResearchItems",
         "friendly_speed_factor": "friendlySpeedFactor",
         "foreign_speed_factor": "foreignSpeedFactor",
         "identifier": "identifier",
         "minimum_tech_level": "minimumTechLevel",
-        "unit_features": ConMapping("unitFeatures", type=JavaTypes.HashMap),
-        "size_factors": ConMapping("sizeFactors", type=JavaTypes.HashMap),
-        "images": ConMapping("images", type=JavaTypes.HashMap),
+        "unit_features": "unitFeatures",
+        "size_factors": "sizeFactors",
+        "images": "images",
         "attack_painter": "attackPainter",
         "pin_painter": "pinPainter",
         "unit_class": "unitClass",
         "set": "set",
         "type_size_name": "typeSizeName",
-        "controllable_config": ConMapping("controllableConfig", type=ControllableConfig),
+        "controllable_config": "controllableConfig",
         "format_name_small": "formatNameSmall",
         "format_name_big": "formatNameBig",
         "unit_description": "unitDesc",
@@ -110,7 +110,4 @@ class UnitType(GameObject):
         "name_faction4": "nameFaction4",
         "type_name": "typeName",
         "unit_moral_impact_factor": "unitMoralImpactFactor",
-
-
-
     }

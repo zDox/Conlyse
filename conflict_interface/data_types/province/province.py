@@ -1,14 +1,14 @@
 from pprint import pprint
 
-from conflict_interface.utils import GameObject
+from conflict_interface.data_types.province import RegionType
+from conflict_interface.utils import GameObject, ArrayList, LinkedList, ConMapping, Point, HashSet, Vector
 
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.utils import ConMapping, Point
-from .upgrades.upgrade import ModableUpgrade
-from .warfare import SpecialUnit, TerrainType
-from ..utils.json_mapped_class import JavaTypes
+
+from conflict_interface.data_types.upgrades.upgrade import ModableUpgrade
+from conflict_interface.data_types.warfare import SpecialUnit, TerrainType
 
 
 def position_to_tuple(value):
@@ -46,21 +46,6 @@ class ResourceProductionType(Enum):
     MONEY = 20
 
 
-class Region(Enum):
-    NONE = -1
-    EUROPA = 0
-    ASIA = 1
-    AFRICA = 2
-    NORTH_AMERICA = 3
-    SOUTH_AMERICA = 4
-    OCEANIA = 5
-
-
-def rg_to_region(value: list):
-    if value is not None and len(value) != 0:
-        return Region(value[0])
-    else:
-        Region.NONE
 
 
 def parse_upgrades(value: list):
@@ -79,11 +64,11 @@ def parse_productions(value: list):
 @dataclass
 class ProvinceProperty(GameObject):
     id: int  # Province ID
-    possible_upgrades: list[ModableUpgrade]
-    queueable_upgrades: list[ModableUpgrade]
+    possible_upgrades: LinkedList[ModableUpgrade]
+    queueable_upgrades: LinkedList[ModableUpgrade]
 
-    possible_productions: list[SpecialUnit]
-    queueable_productions: list[SpecialUnit]
+    possible_productions: ArrayList[SpecialUnit]
+    queueable_productions: ArrayList[SpecialUnit]
 
     revolt_chance: int
     uprising_chance: int
@@ -91,13 +76,10 @@ class ProvinceProperty(GameObject):
 
     MAPPING = {
         "id": "id",
-        "possible_upgrades": ConMapping("possibleUpgrades", parse_upgrades),
-        "queueable_upgrades": ConMapping("queueableUpgrades",
-                                         parse_upgrades),
-        "possible_productions": ConMapping("possibleProductions",
-                                           parse_productions),
-        "queueable_productions": ConMapping("queueableProductions",
-                                            parse_productions),
+        "possible_upgrades": "possibleUpgrades",
+        "queueable_upgrades": "queueableUpgrades",
+        "possible_productions": "possibleProductions",
+        "queueable_productions": "queueableProductions",
         "revolt_chance": "revoltChance",
         "uprising_chance": "uprisingChance",
         "target_morale": "targetMorale",
@@ -119,12 +101,12 @@ class Province(GameObject):
     owner_id: int
     legal_owner: int
     morale: int
-    buildings: list[ModableUpgrade]
+    upgrades: HashSet[ModableUpgrade]
 
     # Data from Static supplier
     terrain_type: TerrainType = None
     center_coordinate: Point = None
-    region: Region = Region.NONE
+    region: RegionType = RegionType.NONE
     properties: ProvinceProperty = None  # If player owns the province
 
     MAPPING = {
@@ -135,12 +117,11 @@ class Province(GameObject):
         "morale": "m",
         "province_state_id": "pst",
         "resource_production": "rp",
-        "resource_production_type": ConMapping(
-            "r", parse_resource_production_type),
+        "resource_production_type": "r",
         "money_production": "tp",
         "legal_owner": "lo",
         "victory_points": "plv",
-        "buildings": ConMapping("us", parse_upgrades),
+        "upgrades": "us",
     }
 
     updateable_keys = ["province_state_id", "adjacent_to_water",
@@ -163,13 +144,13 @@ class StaticProvince(GameObject):
     id: int
     terrain_type: TerrainType
     center_coordinate: Point
-    region: Region
+    region: RegionType
 
     MAPPING = {
         "id": "id",
         "terrain_type": "tt",
         "center_coordinate": "c",
-        "region": ConMapping("rg", rg_to_region),
+        "region": "rg",
     }
 
 class ProvinceUpdateActionModes(Enum):
@@ -182,14 +163,14 @@ class ProvinceUpdateActionModes(Enum):
     DEMOLISH_UPGRADE = 6
 
 class UpdateProvinceAction(GameObject):
-    province_ids: list[int]
+    province_ids: Vector[int]
     mode: ProvinceUpdateActionModes
     upgrade: ModableUpgrade
     slot: int = 0
 
     C = "ultshared.action.UltUpdateProvinceAction"
     MAPPING = {
-        "province_ids": ConMapping("provinceIDs", type=JavaTypes.Vector),
+        "province_ids": "provinceIDs",
         "mode": "mode",
         "slot": "slot",
         "upgrade": "upgrade",

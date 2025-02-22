@@ -1,5 +1,5 @@
 from .json_mapped_class import JsonMappedClass, ConMapping, UpdatableClass, \
-        DefaultEnumMeta, Vector, HashMap, TreeMap, LinkedList
+        DefaultEnumMeta, Vector, HashMap, TreeMap, LinkedList, ArrayList, HashSet, UnmodifiableCollection, LinkedHashMap
 
 from .game_object import GameObject
 from .point import Point

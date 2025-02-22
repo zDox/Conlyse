@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from pprint import pprint
 from typing import TYPE_CHECKING
 
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any
 
-from .data_types.province import UpdateProvinceAction, ProvinceUpdateActionModes, ProvinceStateID
-from .data_types.upgrades.upgrade import ModableUpgrade
+from conflict_interface.data_types.province.province import UpdateProvinceAction, ProvinceUpdateActionModes, ProvinceStateID
 from .game_api import GameAPI
 from .utils import Point
 from .data_types.states import States
@@ -16,9 +14,9 @@ from .data_types.static_map_data import  StaticMapData
 
 if TYPE_CHECKING:
     from .data_types import TeamProfile, PlayerProfile, Province, \
-        ProvinceProperty, GameInfo, Article, article
+        GameInfo, Article
     from .data_types.resources import ResourceProfile, ResourceEntry
-    from .data_types.warfare import Army, Command, UnitType, unit_type
+    from .data_types.warfare import Army, Command, UnitType
     from .data_types.upgrades import UpgradeType
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 

@@ -3,14 +3,12 @@ import sys
 import inspect
 from pprint import pprint
 
-from conflict_interface.data_types.province import UpdateProvinceAction, ProvinceUpdateActionModes
+from conflict_interface.data_types.province.province import UpdateProvinceAction, ProvinceUpdateActionModes
 from conflict_interface.data_types.upgrades.upgrade import ModableUpgrade
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
-
-from conflict_interface import ConflictInterface
 
 if __name__ == "__main__":
     mod_upgrade = ModableUpgrade(

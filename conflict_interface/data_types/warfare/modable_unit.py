@@ -24,6 +24,6 @@ class SpecialUnit(GameObject):
     MAPPING = {
         "enabled": "e",
         "constructing": "cn",
-        "unit": ConMapping("unit", parse_unit),
-        "original_unit": ConMapping("originalUnit", parse_unit),
+        "unit": "unit",
+        "original_unit": "originalUnit",
     }

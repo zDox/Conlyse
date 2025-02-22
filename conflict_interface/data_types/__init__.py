@@ -3,11 +3,10 @@ from .hub_game_info import HubGameInfo
 
 # Game Classes
 from .article import Article
-from .province import Province
+from conflict_interface.data_types.province.province import Province
 from .player_profile import PlayerProfile
 from .team_profile import TeamProfile
-from .province import Province, ProvinceProperty
-from .game_info import GameInfo
+from conflict_interface.data_types.province.province import Province, ProvinceProperty
 
 # States
 from .player_state import PlayerState

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from .resource_category import ResourceCategory
-from conflict_interface.utils import GameObject
+from conflict_interface.utils import GameObject, HashMap
 from conflict_interface.utils import ConMapping
 
 
@@ -19,7 +19,7 @@ class ResourceProfile(GameObject):
     # executed_orders
     # premium_orders
     # personal_orders
-    categories: dict[int, ResourceCategory]
+    categories: HashMap[int, ResourceCategory]
     mobilization_target: int
     mobilization_value: int
     corruption_value: float
@@ -27,7 +27,7 @@ class ResourceProfile(GameObject):
 
     MAPPING = {
         "player_id": "playerID",
-        "categories": ConMapping("categories", parse_categories),
+        "categories": "categories",
         "mobilization_target": "mobilizationTarget",
         "mobilization_value": "mobilizationValue",
         "corruption_value": "corruptionValue",
