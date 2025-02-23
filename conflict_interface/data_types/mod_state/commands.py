@@ -95,17 +95,11 @@ class WaitCommand(GameObject):
     }
 
 
-# to circumvent circular imports
-def parse_army(obj):
-    from data_types.army import Army
-    return Army.from_dict(obj)
-
-
 @dataclass
 class SplitArmyCommand(GameObject):
     splitted_army: Any
     MAPPING = {
-        "splitted_army": ConMapping("splittedArmy", parse_army),
+        "splitted_army": "splittedArmy",
     }
 
 

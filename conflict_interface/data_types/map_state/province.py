@@ -1,7 +1,9 @@
 from typing import Optional
 
 from conflict_interface.data_types.common import RegionType
-from conflict_interface.data_types.resource_state.resource_types import ResourceType
+from .province_property import ProvinceProperty
+from .terrain_type import TerrainType
+from conflict_interface.data_types.resource_state import ResourceType
 from conflict_interface.utils import GameObject, ArrayList, LinkedList, ConMapping, Point, HashSet, Vector, \
     DefaultEnumMeta
 
@@ -9,19 +11,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-from conflict_interface.data_types.mod_state import ModableUpgrade, TerrainType, SpecialUnit
-
-
-def position_to_tuple(value):
-    if value:
-        return (value["x"], value["y"])
-
-
-def parse_resource_production_type(value):
-    if value:
-        return ResourceProductionType(value-1)
-    else:
-        return ResourceProductionType.NONE
+from conflict_interface.data_types.mod_state import ModableUpgrade, SpecialUnit
 
 
 class ProvinceStateID(Enum):
@@ -54,64 +44,6 @@ class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
         if self.value == 0:
             return ResourceType(0)
         return ResourceType(self.value-1)
-
-
-
-def parse_upgrades(value: list):
-    if value is None:
-        return
-    return [ModableUpgrade.from_dict(upgrade) for upgrade in value[1]]
-
-
-def parse_productions(value: list):
-    if value is None:
-        return
-
-    return [SpecialUnit.from_dict(production) for production in value[1]]
-
-
-@dataclass
-class ProvinceProperty(GameObject):
-    possible_upgrades: LinkedList[ModableUpgrade]
-    queueable_upgrades: LinkedList[ModableUpgrade]
-
-    possible_productions: ArrayList[SpecialUnit]
-    queueable_productions: ArrayList[SpecialUnit]
-
-    revolt_chance: int
-    uprising_chance: int
-    target_morale: int
-
-    MAPPING = {
-        "possible_upgrades": "possibleUpgrades",
-        "queueable_upgrades": "queueableUpgrades",
-        "possible_productions": "possibleProductions",
-        "queueable_productions": "queueableProductions",
-        "revolt_chance": "revoltChance",
-        "uprising_chance": "uprisingChance",
-        "target_morale": "targetMorale",
-    }
-
-@dataclass
-class SeaProvince(GameObject):
-    C = "ultshared.UltSeaProvince"
-    province_id: int
-    name: str
-    center_coordinate: Point
-    terrain_type: TerrainType
-
-    def __hash__(self):
-        return hash(self.province_id)
-
-    MAPPING = {
-        "province_id": "id",
-        "name": "n",
-        "center_coordinate": "c",
-        "terrain_type": "tt",
-    }
-
-    def set_static_province(self, obj):
-        pass
 
 
 @dataclass
@@ -184,33 +116,3 @@ class StaticProvince(GameObject):
         "center_coordinate": "c",
         "region": "rg",
     }
-
-class ProvinceUpdateActionModes(Enum):
-    PROVINCE = 0
-    UPGRADE = 1
-    SPECIAL_UNIT = 2
-    CANCEL_PRODUCING = 3
-    CANCEL_BUILDING = 4
-    DEPLOYMENT_TARGET = 5
-    DEMOLISH_UPGRADE = 6
-
-class UpdateProvinceAction(GameObject):
-    province_ids: Vector[int]
-    mode: ProvinceUpdateActionModes
-    upgrade: ModableUpgrade
-    slot: int = 0
-
-    C = "ultshared.action.UltUpdateProvinceAction"
-    MAPPING = {
-        "province_ids": "provinceIDs",
-        "mode": "mode",
-        "slot": "slot",
-        "upgrade": "upgrade",
-    }
-
-    def __init__(self, province_ids, mode, slot, upgrade=None, game=None):
-        super().__init__(game)
-        self.province_ids = province_ids
-        self.mode = mode
-        self.slot = slot
-        self.upgrade = upgrade

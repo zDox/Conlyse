@@ -1,12 +1,4 @@
-import os
-import sys
-import inspect
-
 from conflict_interface.utils.exceptions import CountryUnselectedException
-
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir)
 
 from conflict_interface import ConflictInterface
 from conflict_interface.data_types.hub_game_info import HubGameState

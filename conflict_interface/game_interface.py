@@ -6,18 +6,17 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any
 
-from conflict_interface.data_types.map_state.province import UpdateProvinceAction, ProvinceUpdateActionModes, ProvinceStateID
+from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes, ProvinceStateID
 from .game_api import GameAPI
 from .utils import Point
-from .data_types.states import States
-from .data_types.static_map_data import  StaticMapData
+from .data_types import States
+from .data_types import  StaticMapData
 
 if TYPE_CHECKING:
-    from .data_types import TeamProfile, PlayerProfile, Province, \
-        GameInfo, Article
-    from .data_types.resources import ResourceProfile, ResourceEntry
-    from .data_types.warfare import Army, Command, UnitType
-    from .data_types.upgrades import UpgradeType
+    from .data_types import TeamProfile, PlayerProfile, Province, Article
+    from .data_types import ResourceProfile, ResourceEntry
+    from .data_types import Army, Command, UnitType
+    from .data_types import UpgradeType
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 
 
@@ -78,7 +77,7 @@ class GameInterface:
     """
 
     def relative_time_since_start(self, date) -> timedelta:
-        return date - self.state.game_info_state.game_info.start_of_game
+        return date - self.state.game_info_state.start_of_game
 
     def get_last_uptime(self) -> datetime:
         update_times = [datetime.fromtimestamp(int(time_stamp_str) / 1000)
@@ -128,7 +127,7 @@ class GameInterface:
 
     def get_articles(self, day):
         return {article_id: article
-                for article_id, article in self.state.newspaper_state.articles.items()
+                for article_id, article in self.state.newspaper_state.articles
                 if self.relative_time_since_start(article.time_stamp).days + 1 == day}
 
     def get_current_articles(self) -> dict[int, Article]:
@@ -163,7 +162,7 @@ class GameInterface:
 
         res = self.game_api.request_province_action(province_id, UpdateProvinceAction(
             province_ids=[province_id],
-            mode=ProvinceUpdateActionModes.UPGRADE,
+            mode=UpdateProvinceActionModes.UPGRADE,
             slot=0,
             upgrade=upgrade,
             game=self
@@ -173,7 +172,7 @@ class GameInterface:
     def cancel_construction(self, province_id):
         self.game_api.request_province_action(province_id, UpdateProvinceAction(
             province_ids=[province_id],
-            mode=ProvinceUpdateActionModes.CANCEL_BUILDING,
+            mode=UpdateProvinceActionModes.CANCEL_BUILDING,
             slot=0,
             game=self
         ).to_dict())
@@ -182,7 +181,7 @@ class GameInterface:
     def cancel_mobilization(self, province_id):
         self.game_api.request_province_action(province_id, UpdateProvinceAction(
             province_ids=[province_id],
-            mode=ProvinceUpdateActionModes.CANCEL_PRODUCING,
+            mode=UpdateProvinceActionModes.CANCEL_PRODUCING,
             slot=0,
             game=self
         ).to_dict())
@@ -197,7 +196,7 @@ class GameInterface:
         target = targets[0]
         self.game_api.request_province_action(province_id, UpdateProvinceAction(
             province_ids=[province_id],
-            mode=ProvinceUpdateActionModes.DEPLOYMENT_TARGET,
+            mode=UpdateProvinceActionModes.DEPLOYMENT_TARGET,
             slot=0,
             upgrade=target,
             game=self
@@ -271,17 +270,17 @@ class GameInterface:
         self.state.army_state.armies.get(army_id)
 
     def find_path(self, army_id: int, position=Point) -> [Command]:
-        # Find Path for a army in the current game to a position
-        pass
+        # Find Path for an army in the current game to a position
+        raise NotImplementedError
 
     def find_path_to_province(self, army_id: int,
                               province_id: int) -> [Command]:
-        # Find path for a army in the current game to a province
-        pass
+        # Find path for an army in the current game to a province
+        raise NotImplementedError
 
     @country_selected
-    def command_army(army_id: int, command: list[Command]):
-        pass
+    def command_army(self, army_id: int, command: list[Command]):
+        raise NotImplementedError
 
     """
     ModState(11)
