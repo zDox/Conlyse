@@ -21,6 +21,10 @@ jobs:
         run: python -c "import sys; print(sys.path)"
       - name: Check Installed Packages
         run: pip list
+      - name: Install your package
+        run: pip install --no-cache-dir .
+      - name: List Installed Packages
+        run: pip list | grep conflict_interface
       - name: Sphinx build
         run: |
           sphinx-build -E -b html docs/source docs/build -D autodoc_debug=1
