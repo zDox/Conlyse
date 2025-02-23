@@ -19,7 +19,7 @@ jobs:
         run: python -c "from setuptools import find_packages; print(find_packages())"
       - name: Sphinx build
         run: |
-          sphinx-build -E -b html docs/source docs/build -D autodoc_debug=1
+          sphinx-build -E -b html docs/source docs/build
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
