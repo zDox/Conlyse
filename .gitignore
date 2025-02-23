@@ -16,5 +16,5 @@ examples/__pycache__
 
 .idea
 
-make.bat
 Makefile
+make.bat
