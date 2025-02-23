@@ -3,8 +3,8 @@ import sys
 import inspect
 from pprint import pprint
 
-from conflict_interface.data_types.province.province import UpdateProvinceAction, ProvinceUpdateActionModes
-from conflict_interface.data_types.upgrades.upgrade import ModableUpgrade
+from conflict_interface.data_types.map_state.province import UpdateProvinceAction, ProvinceUpdateActionModes
+from conflict_interface.data_types.mod_state.upgrade import ModableUpgrade
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)

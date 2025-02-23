@@ -1,9 +1,20 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from .admin_state import AdminState
+from .ai_state import AIState
+from .build_queue_state import BuildQueueState
+from .exploration_state import ExplorationState
+from .game_event_state import GameEventState
+from .in_game_alliance_state import InGameAllianceState
+from .location_state import LocationState
+from .map_info_state import MapInfoState
+from .mission_state import MissionState
 from .player_state import PlayerState
 from .newspaper_state import NewspaperState
 from .map_state import MapState
+from .premium_state import PremiumState
+from .quest_state import QuestState
 from .resource_state import ResourceState
 from .foreign_affairs_state import ForeignAffairsState
 from .army_state import ArmyState
@@ -12,6 +23,13 @@ from .mod_state import ModState
 from .game_info_state import GameInfoState
 from .research_state import ResearchState
 from .configuration_state import ConfigurationState
+from .statistic_state import StatisticState
+from .triggered_tutorial_state.triggered_tutorial_state import TriggeredTutorialState
+from .tutorial_state import TutorialState
+from .user_inventory_state import UserInventoryState
+from .user_options_state import UserOptionsState
+from .user_sms_state import UserSMSState
+from .wheel_of_fortune_state import WheelOfFortuneState
 from ..utils import GameObject
 
 """
@@ -49,97 +67,6 @@ STATE_TYPE_QUEST_STATE: 27,
 STATE_TYPE_CONFIGURATION_STATE: 28
 STATE_TYPE_MISSION_STATE: 29
 """
-
-
-@dataclass
-class MapInfoState(GameObject):
-    STATE_ID = 8
-
-
-@dataclass
-class AdminState(GameObject):
-    STATE_ID = 9
-
-
-@dataclass
-class StatisticState(GameObject):
-    STATE_ID = 10
-
-
-@dataclass
-class AIState(GameObject):
-    STATE_ID = 13
-
-
-@dataclass
-class PremiumState(GameObject):
-    STATE_ID = 14
-
-
-@dataclass
-class UserOptionsState(GameObject):
-    STATE_ID = 15
-
-
-@dataclass
-class UserInventoryState(GameObject):
-    STATE_ID = 16
-
-
-@dataclass
-class UserSMSState(GameObject):
-    STATE_ID = 17
-
-
-@dataclass
-class TutorialState(GameObject):
-    STATE_ID = 18
-
-
-@dataclass
-class BuildQueueState(GameObject):
-    STATE_ID = 19
-
-
-@dataclass
-class LocationState(GameObject):
-    STATE_ID = 20
-
-
-@dataclass
-class TriggeredTutorialState(GameObject):
-    STATE_ID = 21
-
-
-@dataclass
-class WheelOfFortuneState(GameObject):
-    STATE_ID = 22
-
-
-@dataclass
-class GameEventState(GameObject):
-    STATE_ID = 24
-
-
-@dataclass
-class InGameAllianceState(GameObject):
-    STATE_ID = 25
-
-
-@dataclass
-class ExplorationState(GameObject):
-    STATE_ID = 26
-
-
-@dataclass
-class QuestState(GameObject):
-    STATE_ID = 27
-
-
-@dataclass
-class MissionState(GameObject):
-    STATE_ID = 29
-
 
 @dataclass
 class States(GameObject):
