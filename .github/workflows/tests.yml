@@ -22,4 +22,4 @@ jobs:
 
       - name: Run tests with unittest
         run: |
-          pytest tests/gameobject_conversion_test.py
+          python -m unittest discover -s tests
