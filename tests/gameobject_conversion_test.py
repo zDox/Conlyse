@@ -11,7 +11,7 @@ class TestJsonDataclassConversion(unittest.TestCase):
             condition=0,
             constructing=False,
             premium_level=0,
-            relative_position= None,
+            relative_position=None,
         )
 
         update_action = UpdateProvinceAction(province_ids=[2],
@@ -19,19 +19,23 @@ class TestJsonDataclassConversion(unittest.TestCase):
                                              slot=0,
                                              upgrade=mod_upgrade)
 
-        self.assertEqual(update_action.to_dict(), {
-            "province_ids": [2],
-            "mode": 1,
-            "slot": 0,
-            "upgrade": {
-                "id": 1,
-                "enabled": True,
-                "condition": 0,
-                "constructing": False,
-                "premium_level": 0,
-                "relative_position": 0,
+        from_js = update_action.from_dict(
+            {
+                "@c": "UpdateProvinceAction",
+                "provinceIDs": ["Vector", [2]],
+                "mode": 1,
+                "slot": 0,
+                "upgrade": {
+                    "id": 1,
+                    "e": True,
+                    "c": 0,
+                    "cn": False,
+                    "pl": 0,
+                }
             }
-        })
+        )
+
+        self.assertEqual(from_js, update_action)
 
 
 if __name__ == "__main__":
