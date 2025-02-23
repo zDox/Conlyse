@@ -17,6 +17,8 @@ jobs:
           pip install .[docs]
       - name: Test conflict_interface
         run: python -c "import conflict_interface.data_types"
+      - name: Check Installed Packages
+        run: pip list
       - name: Sphinx build
         run: |
           sphinx-build -E -b html docs/source docs/build -D autodoc_debug=1
