@@ -19,6 +19,7 @@ class Research(GameObject):
     def remaining_time(self):
         return self.end_time - self.game.client_time()
 
+
 @dataclass
 class ResearchState(GameObject):
     STATE_ID = 23

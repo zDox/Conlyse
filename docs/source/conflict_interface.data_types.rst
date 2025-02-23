@@ -1,11 +1,13 @@
-conflict\_interface.data\_types package
+Data Types
 =======================================
 
-Subpackages
------------
+This module contains the data types used by the conflict interface.
+It is divided into several submodules, each containing the data types for a specific part of the game.
+The data types are used to represent the state of an element of the game and are used to communicate with the game server.
+
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 1
 
    conflict_interface.data_types.admin_state
    conflict_interface.data_types.ai_state
@@ -40,43 +42,14 @@ Subpackages
 
 Submodules
 ----------
+.. toctree::
+   :maxdepth: 1
 
-conflict\_interface.data\_types.authentification module
--------------------------------------------------------
+   conflict_interface.data_types.modules.authentification
+   conflict_interface.data_types.modules.hub_game_info
+   conflict_interface.data_types.modules.states
+   conflict_interface.data_types.modules.static_map_data
 
-.. automodule:: conflict_interface.data_types.authentification
-   :members:
-   :show-inheritance:
-   :undoc-members:
 
-conflict\_interface.data\_types.hub\_game\_info module
-------------------------------------------------------
 
-.. automodule:: conflict_interface.data_types.hub_game_info
-   :members:
-   :show-inheritance:
-   :undoc-members:
 
-conflict\_interface.data\_types.states module
----------------------------------------------
-
-.. automodule:: conflict_interface.data_types.states
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-conflict\_interface.data\_types.static\_map\_data module
---------------------------------------------------------
-
-.. automodule:: conflict_interface.data_types.static_map_data
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-Module contents
----------------
-
-.. automodule:: conflict_interface.data_types
-   :members:
-   :show-inheritance:
-   :undoc-members:

@@ -1,4 +1,4 @@
-conflict\_interface.data\_types.common package
+Common
 ==============================================
 
 Subpackages
@@ -9,10 +9,3 @@ Subpackages
 
    conflict_interface.data_types.common.enums
 
-Module contents
----------------
-
-.. automodule:: conflict_interface.data_types.common
-   :members:
-   :show-inheritance:
-   :undoc-members:

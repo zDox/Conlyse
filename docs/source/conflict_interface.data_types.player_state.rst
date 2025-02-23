@@ -1,10 +1,7 @@
-conflict\_interface.data\_types.player\_state package
+Player State
 =====================================================
 
-Submodules
-----------
-
-conflict\_interface.data\_types.player\_state.player\_profile module
+Player Profile
 --------------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.player_state.player_profile
@@ -12,7 +9,7 @@ conflict\_interface.data\_types.player\_state.player\_profile module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.player\_state.player\_state module
+Player State
 ------------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.player_state.player_state
@@ -20,18 +17,10 @@ conflict\_interface.data\_types.player\_state.player\_state module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.player\_state.team\_profile module
+Team profile
 ------------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.player_state.team_profile
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-Module contents
----------------
-
-.. automodule:: conflict_interface.data_types.player_state
    :members:
    :show-inheritance:
    :undoc-members:
