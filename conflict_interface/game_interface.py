@@ -29,7 +29,18 @@ class GameInterface:
 
     @staticmethod
     def country_selected(func):
-        """Decorator that checks if a country is selected. If not, raises CountryUnselectedError."""
+        """
+        Decorator function to ensure a country is selected before executing the wrapped function.
+
+        Only allows the execution of the wrapped function if `is_country_selected` returns True.
+        If no country is selected, raises a CountryUnselectedException.
+
+        Parameters:
+            func (Callable): The function to be wrapped by the decorator.
+
+        Returns:
+            Callable: The wrapped function that enforces the country selection check.
+        """
 
         @wraps(func)
         def wrap(self, *args, **kwargs):
@@ -41,6 +52,23 @@ class GameInterface:
         return wrap
 
     def join_game(self, guest=False):
+        """
+        Join a game session as a player or a guest and set up the game state and map data.
+
+        If the user is not joining as a guest, an attempt is made to activate the game session
+        with the player's ID and team ID. If game activation fails with an error due to country
+        selection, the function proceeds to update the game state. Otherwise, the game state
+        is updated directly for guest users. Additionally, static map data for the game is
+        retrieved and set for the current map.
+
+        Args:
+            guest (bool): Optional; True if the user is joining as a guest, False otherwise.
+                Defaults to False.
+
+        Raises:
+            GameActivationException: If the game activation fails due to reasons other than
+                requested country selection and the user is not a guest.
+        """
         self.game_api.load_game_site()
         if not guest:
             try:
@@ -62,12 +90,39 @@ class GameInterface:
 
     def select_country(self, country_id=-1, team_id=-1,
                        random_country_team=False):
+        """
+        Selects a country for the player based on the provided parameters or randomly
+        if specified. Assigns the player ID from the game API, activates the game,
+        and sets the current state based on the API response.
+
+        Args:
+            country_id (int, optional): Identifier for the desired country. Defaults
+                to -1, indicating no specific country has been selected.
+            team_id (int, optional): Identifier for the desired team. Defaults
+                to -1, indicating no specific team has been selected.
+            random_country_team (bool, optional): Flag indicating whether to select
+                a country and team randomly. Defaults to False.
+
+        Raises:
+            None
+
+        Returns:
+            None
+        """
         self.player_id = self.game_api.request_game_activation(country_id, team_id,
                                               random_country_team)
 
         self.state = States.from_dict(self.game_api.request_login_action(), self)
 
     def update(self) -> States:
+        """
+        Updates the current state of the game by requesting the latest information
+        from the game API. Integrates new data into the existing state and returns
+        the updated state.
+
+        Returns:
+            States: The updated current state of the game.
+        """
         new_states = self.game_api.request_game_update()
         self.state.update(new_states)
         return self.state
@@ -77,9 +132,35 @@ class GameInterface:
     """
 
     def relative_time_since_start(self, date) -> timedelta:
+        """
+        Computes the relative time difference between a given date and the start of the game.
+
+        This function calculates the difference in time (as a timedelta) between the provided
+        date and the start of the game stored in the game_info_state attribute. It is useful
+        for determining elapsed time in relation to the game's start.
+
+        Parameters:
+            date (datetime): The date for which the calculation of relative time is
+            required.
+
+        Returns:
+            timedelta: The time difference between the given date and the start of the
+            game.
+        """
         return date - self.state.game_info_state.start_of_game
 
-    def get_last_uptime(self) -> datetime:
+    def get_latest_uptime(self) -> datetime:
+        """
+        Retrieves the most recent uptime as a datetime object. This method converts
+        timestamps stored as strings in the game API's timestamp data structure to
+        datetime objects and determines the most recent one. Non-relevant entries,
+        such as "java.util.HashMap", are excluded during processing.
+
+        Returns
+        -------
+        datetime
+            The latest datetime object created from the provided timestamps.
+        """
         update_times = [datetime.fromtimestamp(int(time_stamp_str) / 1000)
                         for time_stamp_str in self.game_api.time_stamps.values()
                         if time_stamp_str != "java.util.HashMap"]
@@ -227,7 +308,7 @@ class GameInterface:
         resource = self.get_resource_entry(resource_id)
         if resource is None:
             return None
-        delta = int(self.get_last_uptime().timestamp()/ 1000)  - int(resource.time_zero.timestamp()/ 1000)
+        delta = int(self.get_latest_uptime().timestamp() / 1000) - int(resource.time_zero.timestamp() / 1000)
         return resource.amount_zero + delta * 1000 * resource.rate
 
     """

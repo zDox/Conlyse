@@ -18,7 +18,7 @@ if __name__ == "__main__":
     game = interface.join_game(selected_game.game_id)
 
     game.update()
-    print(game.get_last_uptime())
+    print(game.get_latest_uptime())
     for category_id, category in game.get_my_resource_profile().categories.items():
         for resource_id, resource in category.resources.items():
             pprint(f"{resource.name}: {game.get_resource_amount(resource_id)}")
