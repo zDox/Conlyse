@@ -40,7 +40,8 @@ class GameAPI:
             headers["User-Agent"])
         self.request_id = 1
         self.action_request_id = 1
-
+        self.index_html_url = None
+        self.client_version = None
         self.game_server_address = None
         self.map_id = None
 

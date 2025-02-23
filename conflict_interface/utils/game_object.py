@@ -56,7 +56,6 @@ def handle_con_mapping(value, py_type, mapped_type, game):
         raise ValueError(f"Type {mapped_type} has no to_py method")
 
 def handle_normal(value, py_type, game):
-    print(value, py_type)
     if py_type == datetime:
         return unixtimestamp_to_datetime(value)
     elif py_type == timedelta:

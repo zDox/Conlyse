@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Union
 
-from conflict_interface.data_types.map_state.province import SeaProvince
+from .sea_province import SeaProvince
 
 from conflict_interface.utils import GameObject, HashMap, HashSet
 
