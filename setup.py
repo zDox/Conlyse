@@ -13,6 +13,7 @@ with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 # This call to setup() does all the work
+# noinspection PyPackageRequirements
 setup(
     name="conflict-interface",
     version="0.1.0",
@@ -36,4 +37,11 @@ setup(
     packages=["conflict_interface"],
     include_package_data=True,
     install_requires=["requests", "fake_useragent", "lxml"],
+    extras_require =
+    {
+        "dev": [
+            "sphinx",
+            "setuptools",
+        ]
+    },
 )
