@@ -20,16 +20,20 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",  # If you use Google-style or NumPy-style docstrings
     "sphinx.ext.viewcode",  # Adds links to source code
-    "sphinx.ext.todo",       # Supports TODOs in docs
+    "sphinx.ext.todo", # Supports TODOs in docs
+    "recommonmark",
 ]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
-
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
