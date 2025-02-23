@@ -1,54 +1,22 @@
-conflict\_interface package
+Conflict Interface
 ===========================
 
 Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 1
 
    conflict_interface.data_types
    conflict_interface.utils
 
 Submodules
 ----------
+.. toctree::
+   :maxdepth: 1
 
-conflict\_interface.conflict\_interface module
-----------------------------------------------
+   conflict_interface.modules
 
-.. automodule:: conflict_interface.conflict_interface
-   :members:
-   :show-inheritance:
-   :undoc-members:
 
-conflict\_interface.game\_api module
-------------------------------------
 
-.. automodule:: conflict_interface.game_api
-   :members:
-   :show-inheritance:
-   :undoc-members:
 
-conflict\_interface.game\_interface module
-------------------------------------------
-
-.. automodule:: conflict_interface.game_interface
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-conflict\_interface.parser module
----------------------------------
-
-.. automodule:: conflict_interface.parser
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-Module contents
----------------
-
-.. automodule:: conflict_interface
-   :members:
-   :show-inheritance:
-   :undoc-members:

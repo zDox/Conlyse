@@ -1,10 +1,7 @@
-conflict\_interface.data\_types.resource\_state package
+Resource State
 =======================================================
 
-Submodules
-----------
-
-conflict\_interface.data\_types.resource\_state.resource\_category module
+Resource Category
 -------------------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.resource_state.resource_category
@@ -12,7 +9,7 @@ conflict\_interface.data\_types.resource\_state.resource\_category module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.resource\_state.resource\_entry module
+Resource Entry
 ----------------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.resource_state.resource_entry
@@ -20,7 +17,7 @@ conflict\_interface.data\_types.resource\_state.resource\_entry module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.resource\_state.resource\_profile module
+Resource Profile
 ------------------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.resource_state.resource_profile
@@ -28,7 +25,7 @@ conflict\_interface.data\_types.resource\_state.resource\_profile module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.resource\_state.resource\_state module
+Resource State
 ----------------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.resource_state.resource_state
@@ -36,18 +33,10 @@ conflict\_interface.data\_types.resource\_state.resource\_state module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.resource\_state.resource\_types module
+Resource Types
 ----------------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.resource_state.resource_types
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-Module contents
----------------
-
-.. automodule:: conflict_interface.data_types.resource_state
    :members:
    :show-inheritance:
    :undoc-members:

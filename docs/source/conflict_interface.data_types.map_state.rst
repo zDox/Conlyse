@@ -1,10 +1,7 @@
-conflict\_interface.data\_types.map\_state package
+Map State
 ==================================================
 
-Submodules
-----------
-
-conflict\_interface.data\_types.map\_state.map\_state module
+Map State
 ------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.map_state.map_state
@@ -12,7 +9,7 @@ conflict\_interface.data\_types.map\_state.map\_state module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.map\_state.province module
+Province
 ----------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.map_state.province
@@ -20,7 +17,15 @@ conflict\_interface.data\_types.map\_state.province module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.map\_state.region module
+Province Property
+--------------------------------------------------------------------
+
+.. automodule:: conflict_interface.data_types.map_state.province_property
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Region
 --------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.map_state.region
@@ -28,10 +33,27 @@ conflict\_interface.data\_types.map\_state.region module
    :show-inheritance:
    :undoc-members:
 
-Module contents
----------------
+Sea Province
+---------------------------------------------------------------
 
-.. automodule:: conflict_interface.data_types.map_state
+.. automodule:: conflict_interface.data_types.map_state.sea_province
    :members:
    :show-inheritance:
    :undoc-members:
+
+Terrain Type
+---------------------------------------------------------------
+
+.. automodule:: conflict_interface.data_types.map_state.terrain_type
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Province Action
+--------------------------------------------------------------------------
+
+.. automodule:: conflict_interface.data_types.map_state.update_province_action
+   :members:
+   :show-inheritance:
+   :undoc-members:
+

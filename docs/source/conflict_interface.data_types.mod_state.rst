@@ -1,10 +1,7 @@
-conflict\_interface.data\_types.mod\_state package
+Mod State
 ==================================================
 
-Submodules
-----------
-
-conflict\_interface.data\_types.mod\_state.air\_parameters module
+Air Parameters
 -----------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.air_parameters
@@ -12,7 +9,7 @@ conflict\_interface.data\_types.mod\_state.air\_parameters module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.anti\_air\_parameters module
+Anti Air Parameters
 -----------------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.anti_air_parameters
@@ -20,7 +17,7 @@ conflict\_interface.data\_types.mod\_state.anti\_air\_parameters module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.army module
+Army
 ------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.army
@@ -28,7 +25,7 @@ conflict\_interface.data\_types.mod\_state.army module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.commands module
+Commands
 ----------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.commands
@@ -36,7 +33,7 @@ conflict\_interface.data\_types.mod\_state.commands module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.configuration module
+Configuration
 ---------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.configuration
@@ -44,7 +41,7 @@ conflict\_interface.data\_types.mod\_state.configuration module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.mod\_state module
+Mod State
 ------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.mod_state
@@ -52,7 +49,7 @@ conflict\_interface.data\_types.mod\_state.mod\_state module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.modable\_unit module
+Modable Unit
 ---------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.modable_unit
@@ -60,15 +57,7 @@ conflict\_interface.data\_types.mod\_state.modable\_unit module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.terrain\_type module
----------------------------------------------------------------
-
-.. automodule:: conflict_interface.data_types.mod_state.terrain_type
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-conflict\_interface.data\_types.mod\_state.unit module
+Unit
 ------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.unit
@@ -76,7 +65,7 @@ conflict\_interface.data\_types.mod\_state.unit module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.unit\_feature module
+Unit Feature
 ---------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.unit_feature
@@ -84,7 +73,7 @@ conflict\_interface.data\_types.mod\_state.unit\_feature module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.unit\_type module
+Unit Type
 ------------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.unit_type
@@ -92,18 +81,10 @@ conflict\_interface.data\_types.mod\_state.unit\_type module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.mod\_state.upgrade module
+Upgrade
 ---------------------------------------------------------
 
 .. automodule:: conflict_interface.data_types.mod_state.upgrade
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
-Module contents
----------------
-
-.. automodule:: conflict_interface.data_types.mod_state
    :members:
    :show-inheritance:
    :undoc-members:

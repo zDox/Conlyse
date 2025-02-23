@@ -12,4 +12,4 @@ Welcome to ConflictInterface's documentation!
    :caption: Contents:
 
    roadmap
-   modules
+   conflict_interface
