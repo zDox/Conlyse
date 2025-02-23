@@ -2,6 +2,8 @@ import unittest
 
 from conflict_interface.data_types import ModableUpgrade
 from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes
+from conflict_interface.utils import Vector
+
 
 class TestJsonDataclassConversion(unittest.TestCase):
     def test_upgrade(self):
@@ -14,7 +16,7 @@ class TestJsonDataclassConversion(unittest.TestCase):
             relative_position=None,
         )
 
-        update_action = UpdateProvinceAction(province_ids=[2],
+        update_action = UpdateProvinceAction(province_ids=Vector([2]),
                                              mode=UpdateProvinceActionModes.UPGRADE,
                                              slot=0,
                                              upgrade=mod_upgrade)
@@ -22,7 +24,7 @@ class TestJsonDataclassConversion(unittest.TestCase):
         from_js = update_action.from_dict(
             {
                 "@c": "UpdateProvinceAction",
-                "provinceIDs": ["Vector", [2]],
+                "provinceIDs": ["java.util.Vector", [2]],
                 "mode": 1,
                 "slot": 0,
                 "upgrade": {
@@ -34,7 +36,6 @@ class TestJsonDataclassConversion(unittest.TestCase):
                 }
             }
         )
-
         self.assertEqual(from_js, update_action)
 
 
