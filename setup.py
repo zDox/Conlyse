@@ -34,7 +34,7 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Operating System :: OS Independent"
     ],
-    packages=["conflict_interface", "conflict_interface.*"],
+    packages=["conflict_interface"],
     include_package_data=True,
     install_requires=["requests", "fake_useragent", "lxml"],
     extras_require =
