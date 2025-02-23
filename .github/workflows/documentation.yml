@@ -16,7 +16,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[docs]
       - name: Test conflict_interface
-        run: python -c "import conflict_interface.data_ty"
+        run: python -c "import conflict_interface.data_types"
       - name: Check Installed Packages
         run: pip list
       - name: Sphinx build
