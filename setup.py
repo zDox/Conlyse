@@ -42,6 +42,8 @@ setup(
         "dev": [
             "sphinx",
             "setuptools",
+            "recommonmark",
+            "sphinx_rtd_theme",
         ]
     },
 )

@@ -11,4 +11,5 @@ Welcome to ConflictInterface's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   roadmap
    modules

@@ -57,14 +57,6 @@ conflict\_interface.data\_types.hub\_game\_info module
    :show-inheritance:
    :undoc-members:
 
-conflict\_interface.data\_types.research\_state module
-------------------------------------------------------
-
-.. automodule:: conflict_interface.data_types.research_state
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 conflict\_interface.data\_types.states module
 ---------------------------------------------
 

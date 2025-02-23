@@ -1,5 +1,5 @@
 __pycache__
-build/
+docs/build/
 docs/_build
 conflict_interface.egg-info/
 *.pyc
