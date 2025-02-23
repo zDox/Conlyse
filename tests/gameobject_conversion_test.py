@@ -36,8 +36,6 @@ class TestJsonDataclassConversion(unittest.TestCase):
                 }
             }
         )
-        print(from_js)
-        print(update_action)
         self.assertEqual(from_js, update_action)
 
 

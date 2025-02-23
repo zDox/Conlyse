@@ -59,7 +59,6 @@ def handle_con_mapping(value, py_type, mapped_type, game):
         raise ValueError(f"Type {mapped_type} has no to_py method")
 
 def handle_normal(value, py_type, game):
-    print(f"Parsing {value} as {py_type} with origin {get_origin(py_type)}")
     if py_type == datetime:
         return unixtimestamp_to_datetime(value)
     elif py_type == timedelta:
@@ -77,7 +76,6 @@ def handle_normal(value, py_type, game):
     elif issubclass(py_type, GameObject):
         return py_type.from_dict(value, game)
     elif get_origin(py_type) in (Vector, ArrayList, LinkedList):
-        print("WOWH")
         return parse_conflict_list(value, py_type, game)
     elif get_origin(py_type) in (HashMap, TreeMap):
         return parse_conflict_dict(value, py_type, game)
