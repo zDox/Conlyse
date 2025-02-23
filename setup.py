@@ -47,7 +47,7 @@ setup(
         ],
         "docs": [
             "sphinx",
-            "setuptools"
+            "setuptools",
             "recommonmark",
             "sphinx_rtd_theme",
         ]

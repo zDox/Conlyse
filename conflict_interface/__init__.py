@@ -1,1 +1,1 @@
-from conflict_interface.conflict_interface import ConflictInterface
+from .conflict_interface import ConflictInterface
