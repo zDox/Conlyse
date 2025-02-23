@@ -1,7 +1,7 @@
 import unittest
 
 from conflict_interface.data_types import ModableUpgrade
-from conflict_interface.data_types import UpdateProvinceAction, ProvinceUpdateActionModes
+from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes
 
 class TestJsonDataclassConversion(unittest.TestCase):
     def test_upgrade(self):
@@ -16,7 +16,7 @@ class TestJsonDataclassConversion(unittest.TestCase):
         )
 
         update_action = UpdateProvinceAction(province_ids=[2],
-                                             mode=ProvinceUpdateActionModes.UPGRADE,
+                                             mode=UpdateProvinceActionModes.UPGRADE,
                                              slot=0,
                                              upgrade=mod_upgrade,
                                              game=None)
