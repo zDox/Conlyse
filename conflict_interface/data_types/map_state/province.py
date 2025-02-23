@@ -4,17 +4,26 @@ from conflict_interface.data_types.common import RegionType
 from .province_property import ProvinceProperty
 from .terrain_type import TerrainType
 from conflict_interface.data_types.resource_state import ResourceType
-from conflict_interface.utils import GameObject, ArrayList, LinkedList, ConMapping, Point, HashSet, Vector, \
-    DefaultEnumMeta
+from conflict_interface.utils import GameObject, ConMapping, Point, HashSet, DefaultEnumMeta
 
 from dataclasses import dataclass
 from enum import Enum
 
 
-from conflict_interface.data_types.mod_state import ModableUpgrade, SpecialUnit
+from conflict_interface.data_types.mod_state import ModableUpgrade
 
 
 class ProvinceStateID(Enum):
+    """
+    Enumeration for representing different types of administrative areas.
+
+    Attributes:
+        OCCUPIED_PROVINCE: Represents a province under occupation.
+        MAINLAND_PROVINCE: Represents a province within the mainland.
+        OCCUPIED_CITY: Represents a city under occupation.
+        ANNEXED_CITY: Represents a city annexed to a different territory.
+        MAINLAND_CITY: Represents a city within the mainland.
+    """
     OCCUPIED_PROVINCE = 51
     MAINLAND_PROVINCE = 52
     OCCUPIED_CITY = 53
@@ -48,6 +57,31 @@ class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
 
 @dataclass
 class Province(GameObject):
+    """
+    Represents a Province which is a part of a game structure.
+
+    It includes detailed state and configuration data for the province derived from both the game server
+    and static data sources. It also provides mechanisms to update or modify
+    its state dynamically during gameplay.
+
+    Attributes:
+        province_id: Identifier for the province.
+        province_state_id: State ID representing the current status of the province. E.x. if the province is occupied
+        name: Name of the province.
+        adjacent_to_water: Indicates whether the province is situated adjacent to a water body.
+        resource_production: Amount of resources produced by the province, if applicable.
+        resource_production_type: Type of resource produced by the province.
+        money_production: Amount of money produced by the province.
+        victory_points: The number of victory points attributed to the province.
+        owner_id: ID of the player who currently owns the province.
+        upgrades: Upgrades applied to the province.
+        morale: Morale of the province, with a default value of 70.
+        legal_owner: ID of the legal owner of the province or -1 if no legal owner.
+        terrain_type: Type of terrain in the province. Defaults to None until set.
+        center_coordinate: Coordinates representing the central location of the province. Defaults to None until set.
+        region: Region to which the province belongs. Defaults to RegionType.NONE.
+        properties: Properties associated with the province, need to be owned by the current player. Defaults to None.
+    """
     C = "p"
     province_id: int
 
@@ -105,6 +139,15 @@ class Province(GameObject):
 
 @dataclass
 class StaticProvince(GameObject):
+    """
+    Represents a static province within a game context.
+
+    Attributes:
+        id: Unique identifier for the province within the game system.
+        terrain_type: Type of terrain associated with the province.
+        center_coordinate: Geographic center of the province as a point.
+        region: List of regions related to the province.
+    """
     id: int
     terrain_type: TerrainType
     center_coordinate: Point

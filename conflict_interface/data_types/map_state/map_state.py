@@ -15,6 +15,29 @@ from conflict_interface.data_types.static_map_data import StaticMapData
 
 @dataclass
 class Map(GameObject):
+    """
+    Represents a map for a game, including information about its properties, configuration, regions,
+    and locations.
+
+    This class is responsible for managing various aspects of the game's map, such as its dimensions,
+    localization settings, associated regions, and locations. It provides functionality to retrieve
+    specific provinces, set static map data, and update map state with new information.
+
+    Attributes:
+        is_reduced: Indicates if the map is in a reduced or simplified form.
+        version: Represents the version of the map.
+        map_id: The unique identifier for the map.
+        day_of_game: The current day of the game associated with the map.
+        width: Width of the map in game units.
+        height: Height of the map in game units.
+        use_population: Whether population data is being used in the map.
+        use_minimal_localization: Indicates whether minimal localization is applied to the map.
+        localized_player_profiles: Determines if player profiles are localized for this map.
+        regions: A collection of regions present in the map, categorized by their types.
+        overlap_x: Represents horizontal overlap value for certain map representations.
+        locations: A set of locations, including both land and sea provinces on the map.
+        population_factor: A scaling factor related to population data in the map.
+    """
     is_reduced: bool
     version: int
     map_id: int
@@ -59,6 +82,12 @@ class Map(GameObject):
 
 @dataclass
 class MapState(GameObject):
+    """
+    Represents the state of a map within a game.
+
+    This class is used to store and manage the state of the map and player-owned
+    provinces within the context of the game.
+    """
     STATE_ID = 3
     map: Map
     # Provinces which are owned by the current player
