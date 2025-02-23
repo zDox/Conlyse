@@ -17,6 +17,8 @@ jobs:
           pip install .[docs]
       - name: Test conflict_interface
         run: python -c "import conflict_interface.data_types"
+      - name: Print Python Path
+        run: python -c "import sys; print(sys.path)"
       - name: Check Installed Packages
         run: pip list
       - name: Sphinx build
