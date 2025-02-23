@@ -12,7 +12,7 @@ from .commands import Command, parse_command
 from .air_parameters import AirParameters
 from .anti_air_parameters import AntiAirParameters
 from .unit import Unit
-from .terrain_type import TerrainType
+from conflict_interface.data_types.map_state.terrain_type import TerrainType
 
 ARMY_CLOSE_COMBAT_RANGE = 5
 
@@ -44,7 +44,7 @@ class FightStatus(Enum, metaclass=DefaultEnumMeta):
     IDLE = 0
     FIGHTING = 1
     BOMBARDING = 2
-    PATROLING = 3
+    PATROLLING = 3
     APPROACH_PATROL = 4
     SIEGING = 5
     ANTI_AIR = 6
@@ -56,7 +56,7 @@ class Aggressiveness(Enum, metaclass=DefaultEnumMeta):
     HOLD_FIRE = 1
     RETURN_FIRE = 2
     NORMAL = 3
-    AGGRESIVE = 4
+    AGGRESSIVE = 4
 
 
 class ForcedMarch(Enum, metaclass=DefaultEnumMeta):

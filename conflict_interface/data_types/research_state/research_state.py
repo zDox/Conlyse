@@ -11,13 +11,13 @@ class Research(GameObject):
     end_time: datetime
     speed_up: int
 
-    MAPPING = {"research_type_id": "researchTypeId",
+    MAPPING = {"research_type_id": "researchTypeID",
                 "start_time": "startTime",
                 "end_time": "endTime",
                 "speed_up": "speedUp"}
 
     def remaining_time(self):
-        return self.end_time - self.game.client_time();
+        return self.end_time - self.game.client_time()
 
 @dataclass
 class ResearchState(GameObject):

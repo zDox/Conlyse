@@ -1,0 +1,35 @@
+from enum import Enum
+
+from conflict_interface.data_types.mod_state import ModableUpgrade
+from conflict_interface.utils import GameObject, Vector
+
+
+class UpdateProvinceActionModes(Enum):
+    PROVINCE = 0
+    UPGRADE = 1 # Building an upgrade in Province
+    SPECIAL_UNIT = 2
+    CANCEL_PRODUCING = 3
+    CANCEL_BUILDING = 4
+    DEPLOYMENT_TARGET = 5
+    DEMOLISH_UPGRADE = 6
+
+class UpdateProvinceAction(GameObject):
+    province_ids: Vector[int]
+    mode: UpdateProvinceActionModes
+    upgrade: ModableUpgrade
+    slot: int = 0
+
+    C = "ultshared.action.UltUpdateProvinceAction"
+    MAPPING = {
+        "province_ids": "provinceIDs",
+        "mode": "mode",
+        "slot": "slot",
+        "upgrade": "upgrade",
+    }
+
+    def __init__(self, province_ids, mode, slot, upgrade=None, game=None):
+        super().__init__(game)
+        self.province_ids = province_ids
+        self.mode = mode
+        self.slot = slot
+        self.upgrade = upgrade
