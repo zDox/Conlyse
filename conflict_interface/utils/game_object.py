@@ -5,6 +5,8 @@ from enum import Enum
 from pprint import pprint
 from typing import TYPE_CHECKING, get_origin, Union, get_args
 
+from .json_mapped_class import ArrayList, HashMap, TreeMap, Vector, HashSet, LinkedList
+
 if TYPE_CHECKING:
     from conflict_interface.game_interface import GameInterface
 from typing import get_type_hints
@@ -26,7 +28,8 @@ def to_list(name, value):
 
 
 def parse_conflict_list(obj, py_type, game):
-    return [handle_normal(v, py_type.__args__[0], game) for v in obj[1]]
+    res = py_type([handle_normal(v, py_type.__args__[0], game) for v in obj[1]])#
+    return res
 
 def parse_list(obj, py_type, game):
     return [handle_normal(v, py_type.__args__[0], game) for v in obj]
@@ -41,11 +44,11 @@ def parse_dict(obj, py_type, game):
     }
 
 def parse_conflict_dict(obj, py_type, game):
-    return {
+    return py_type({
         handle_normal(key, py_type.__args__[0], game): handle_normal(value, py_type.__args__[1], game)
         for key, value in obj.items()
         if key != "@c"
-    }
+    })
 
 
 def handle_con_mapping(value, py_type, mapped_type, game):
@@ -72,16 +75,17 @@ def handle_normal(value, py_type, game):
         return py_type.from_dict(value)
     elif issubclass(py_type, GameObject):
         return py_type.from_dict(value, game)
+    elif get_origin(py_type) in (Vector, ArrayList, LinkedList):
+        return parse_conflict_list(value, py_type, game)
+    elif get_origin(py_type) in (HashMap, TreeMap):
+        return parse_conflict_dict(value, py_type, game)
+    elif get_origin(py_type) in [HashSet]:
+        return parse_set(value, py_type, game)
     elif get_origin(py_type) == list:
         return parse_list(value, py_type, game)
     elif get_origin(py_type) == dict:
         return parse_dict(value, py_type, game)
-    elif issubclass(py_type, list):
-        return parse_conflict_list(value, py_type, game)
-    elif issubclass(py_type, dict):
-        return parse_conflict_dict(value, py_type, game)
-    elif issubclass(py_type, set):
-        return parse_set(value, py_type, game)
+
     raise ValueError(f"Unknown type {py_type}")
 
 

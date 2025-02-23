@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 
 from conflict_interface.data_types.mod_state import ModableUpgrade
@@ -13,6 +14,7 @@ class UpdateProvinceActionModes(Enum):
     DEPLOYMENT_TARGET = 5
     DEMOLISH_UPGRADE = 6
 
+@dataclass
 class UpdateProvinceAction(GameObject):
     province_ids: Vector[int]
     mode: UpdateProvinceActionModes
