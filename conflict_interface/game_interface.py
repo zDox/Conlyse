@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any
 
-from conflict_interface.data_types.province.province import UpdateProvinceAction, ProvinceUpdateActionModes, ProvinceStateID
+from conflict_interface.data_types.map_state.province import UpdateProvinceAction, ProvinceUpdateActionModes, ProvinceStateID
 from .game_api import GameAPI
 from .utils import Point
 from .data_types.states import States

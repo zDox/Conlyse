@@ -2,7 +2,7 @@ import os
 import sys
 import inspect
 
-from conflict_interface.data_types.upgrades.upgrade import ModableUpgrade
+from conflict_interface.data_types.mod_state.upgrade import ModableUpgrade
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -12,8 +12,6 @@ from conflict_interface import ConflictInterface
 
 import creds
 from pprint import pprint
-from time import sleep, time
-
 
 if __name__ == "__main__":
     interface = ConflictInterface()
