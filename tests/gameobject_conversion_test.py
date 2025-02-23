@@ -11,17 +11,15 @@ class TestJsonDataclassConversion(unittest.TestCase):
             condition=0,
             constructing=False,
             premium_level=0,
-            relative_position=0,
-            game=None,
+            relative_position= None,
         )
 
         update_action = UpdateProvinceAction(province_ids=[2],
                                              mode=UpdateProvinceActionModes.UPGRADE,
                                              slot=0,
-                                             upgrade=mod_upgrade,
-                                             game=None)
+                                             upgrade=mod_upgrade)
 
-        self.assertEquals(update_action.to_dict(), {
+        self.assertEqual(update_action.to_dict(), {
             "province_ids": [2],
             "mode": 1,
             "slot": 0,
@@ -34,3 +32,7 @@ class TestJsonDataclassConversion(unittest.TestCase):
                 "relative_position": 0,
             }
         })
+
+
+if __name__ == "__main__":
+    unittest.main()
