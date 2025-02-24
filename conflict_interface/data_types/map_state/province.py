@@ -11,6 +11,7 @@ from enum import Enum
 
 
 from conflict_interface.data_types.mod_state import ModableUpgrade
+from .update_province_action import UpdateProvinceActionModes, UpdateProvinceAction
 
 
 class ProvinceStateID(Enum):
@@ -124,6 +125,44 @@ class Province(GameObject):
                        "resource_production", "money_production",
                        "victory_points", "owner_id", "legal_owner",
                        "moral", "buildings"]
+
+    def build_upgrade(self, upgrade):
+        self.game.get_api().request_province_action(self.province_id, UpdateProvinceAction(
+            province_ids=[self.province_id],
+            mode=UpdateProvinceActionModes.UPGRADE,
+            slot=0,
+            upgrade=upgrade
+        ).to_dict())
+
+    def cancel_construction(self):
+        self.game.get_api().request_province_action(self.province_id, UpdateProvinceAction(
+            province_ids=[self.province_id],
+            mode=UpdateProvinceActionModes.CANCEL_BUILDING,
+            slot=0
+        ).to_dict())
+
+    def cancel_mobilization(self, province_id):
+        self.game.get_api().request_province_action(province_id, UpdateProvinceAction(
+            province_ids=[province_id],
+            mode=UpdateProvinceActionModes.CANCEL_PRODUCING,
+            slot=0,
+        ).to_dict())
+
+
+    def mobilize_unit(self, unit_type_id):
+        if not self.properties:
+            return
+        targets = [special_unit for special_unit in self.properties.possible_productions
+                    if special_unit.unit.unit_type_id == unit_type_id]
+        if len(targets) == 0:
+            return
+        target = targets[0]
+        self.game.get_api().request_province_action(self.province_id, UpdateProvinceAction(
+            province_ids=[self.province_id],
+            mode=UpdateProvinceActionModes.DEPLOYMENT_TARGET,
+            slot=0,
+            upgrade=target,
+        ).to_dict())
 
     def set_static_province(self, obj):
         for static_field in StaticProvince.__annotations__.keys():

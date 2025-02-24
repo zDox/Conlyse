@@ -130,6 +130,8 @@ class GameInterface:
     """
     Utility functions
     """
+    def get_api(self) -> GameAPI:
+        return self.game_api
 
     def relative_time_since_start(self, date) -> timedelta:
         """
@@ -238,50 +240,6 @@ class GameInterface:
                 **self.get_my_provinces(**filters, province_state_id=ProvinceStateID.MAINLAND_CITY),
                 **self.get_my_provinces(**filters, province_state_id=ProvinceStateID.OCCUPIED_CITY)}
 
-    @country_selected
-    def build_upgrade(self, province_id, upgrade):
-        self.game_api.request_province_action(province_id, UpdateProvinceAction(
-            province_ids=[province_id],
-            mode=UpdateProvinceActionModes.UPGRADE,
-            slot=0,
-            upgrade=upgrade,
-            game=self
-        ).to_dict())
-
-    @country_selected
-    def cancel_construction(self, province_id):
-        self.game_api.request_province_action(province_id, UpdateProvinceAction(
-            province_ids=[province_id],
-            mode=UpdateProvinceActionModes.CANCEL_BUILDING,
-            slot=0,
-            game=self
-        ).to_dict())
-
-    @country_selected
-    def cancel_mobilization(self, province_id):
-        self.game_api.request_province_action(province_id, UpdateProvinceAction(
-            province_ids=[province_id],
-            mode=UpdateProvinceActionModes.CANCEL_PRODUCING,
-            slot=0,
-            game=self
-        ).to_dict())
-
-    @country_selected
-    def mobilize_unit(self, province_id, unit_type_id):
-        province = self.get_province(province_id)
-        targets = [special_unit for special_unit in province.properties.possible_productions
-                    if special_unit.unit.unit_type_id == unit_type_id]
-        if len(targets) == 0:
-            return
-        target = targets[0]
-        self.game_api.request_province_action(province_id, UpdateProvinceAction(
-            province_ids=[province_id],
-            mode=UpdateProvinceActionModes.DEPLOYMENT_TARGET,
-            slot=0,
-            upgrade=target,
-            game=self
-        ).to_dict())
-
     """
     ResourceState(4)
     """
@@ -301,14 +259,6 @@ class GameInterface:
                 if resource_id in category.resources:
                     return category.resources[resource_id]
         return None
-
-    @country_selected
-    def get_resource_amount(self, resource_id) -> float | None:
-        resource = self.get_resource_entry(resource_id)
-        if resource is None:
-            return None
-        delta = int(self.get_latest_uptime().timestamp() / 1000) - int(resource.time_zero.timestamp() / 1000)
-        return resource.amount_zero + delta * 1000 * resource.rate
 
     """
     ForeignAffairsState(5)
@@ -348,19 +298,6 @@ class GameInterface:
     @country_selected
     def get_army(self, army_id: int) -> Army:
         self.state.army_state.armies.get(army_id)
-
-    def find_path(self, army_id: int, position=Point) -> [Command]:
-        # Find Path for an army in the current game to a position
-        raise NotImplementedError
-
-    def find_path_to_province(self, army_id: int,
-                              province_id: int) -> [Command]:
-        # Find path for an army in the current game to a province
-        raise NotImplementedError
-
-    @country_selected
-    def command_army(self, army_id: int, command: list[Command]):
-        raise NotImplementedError
 
     """
     ModState(11)

@@ -1,3 +1,4 @@
+from functools import wraps
 from pprint import pprint
 
 from requests import Session
@@ -12,7 +13,8 @@ from json import loads, dumps
 from time import time
 
 from .data_types import AuthDetails
-from .utils.exceptions import ConflictJoinError, GameActivationException, GameActivationErrorCodes
+from .utils.exceptions import ConflictJoinError, GameActivationException, GameActivationErrorCodes, \
+    CountryUnselectedException
 
 
 @dataclass
@@ -30,6 +32,30 @@ class DeviceDetails:
 
 
 class GameAPI:
+    @staticmethod
+    def country_selected(func):
+        """
+        Decorator function to ensure a country is selected before executing the wrapped function.
+
+        Only allows the execution of the wrapped function if `is_country_selected` returns True.
+        If no country is selected, raises a CountryUnselectedException.
+
+        Parameters:
+            func (Callable): The function to be wrapped by the decorator.
+
+        Returns:
+            Callable: The wrapped function that enforces the country selection check.
+        """
+
+        @wraps(func)
+        def wrap(self, *args, **kwargs):
+            if self.is_country_selected():
+                return func(self, *args, **kwargs)
+            else:
+                raise CountryUnselectedException("Country not selected.")
+
+        return wrap
+
     def __init__(self, cookies: dict, headers: MutableMapping, auth_details: AuthDetails,
                  game_id: int):
         self.session = Session()
@@ -210,6 +236,7 @@ class GameAPI:
             "tstamps": self.time_stamps,
         }, actions)
 
+    @country_selected
     def request_province_action(self, province_id, action):
         data = {"requestID": f"actionReq-{self.action_request_id}",
                 "language": "en",

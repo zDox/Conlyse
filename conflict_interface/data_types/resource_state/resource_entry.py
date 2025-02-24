@@ -65,3 +65,7 @@ class ResourceEntry(GameObject):
         "manpower": "manpower",
         "currency": "currency",
     }
+
+    def get_resource_amount(self) -> float:
+        delta = int(self.game.get_latest_uptime().timestamp() / 1000) - int(self.time_zero.timestamp() / 1000)
+        return self.amount_zero + delta * 1000 * self.rate
