@@ -87,7 +87,7 @@ class Province(GameObject):
 
     # Data from GameServer
     province_state_id: ProvinceStateID
-    name: str
+
     adjacent_to_water: bool
     resource_production: Optional[int]
     resource_production_type: ResourceType
@@ -99,6 +99,7 @@ class Province(GameObject):
     legal_owner: int = -1
 
     # Data from Static supplier
+    name: str = ""
     terrain_type: TerrainType = None
     center_coordinate: Point = None
     region: RegionType = RegionType.NONE

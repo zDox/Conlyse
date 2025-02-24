@@ -28,29 +28,30 @@ class DefaultEnumMeta(EnumMeta):
         return super().__call__(value, *args, **kwargs)
 
 class LinkedList(list):
-    pass
+    C = "java.util.LinkedList"
 
 class Vector(list):
-    pass
+    C = "java.util.Vector"
 
 class ArrayList(list):
-    pass
+    C = "java.util.ArrayList"
 
 class UnmodifiableCollection(list):
-    pass
+    C = "java.util.Collections$UnmodifiableCollection"
 
 class HashSet(set):
-    pass
+    C = "java.util.HashSet"
 
 class HashMap(dict):
-    pass
+    C = "java.util.HashMap"
+
 class LinkedHashMap(dict):
-    pass
+    C = "LinkedHashMap"
 
 class TreeMap(dict):
-    pass
+    C = "TreeMap"
 
-
+# TODO redundant
 class JavaTypes(Enum):
     LinkedList = "java.util.LinkedList"
     HashMap = "java.util.HashMap"

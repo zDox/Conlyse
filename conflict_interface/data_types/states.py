@@ -70,35 +70,35 @@ STATE_TYPE_MISSION_STATE: 29
 
 @dataclass
 class States(GameObject):
-    player_state: PlayerState
-    newspaper_state: NewspaperState
-    map_state: MapState
-    resource_state: ResourceState
-    foreign_affairs_state: ForeignAffairsState
-    army_state: ArmyState
-    spy_state: SpyState
+    player_state: Optional[PlayerState]
+    newspaper_state: Optional[NewspaperState]
+    map_state: Optional[MapState]
+    resource_state: Optional[ResourceState]
+    foreign_affairs_state: Optional[ForeignAffairsState]
+    army_state: Optional[ArmyState]
+    spy_state: Optional[SpyState]
     map_info_state: Optional[MapInfoState]
     admin_state: Optional[AdminState]
     statistic_state: Optional[StatisticState]
-    mod_state: ModState
-    game_info_state: GameInfoState
+    mod_state: Optional[ModState]
+    game_info_state: Optional[GameInfoState]
     ai_state: Optional[AIState]
     premium_state: Optional[PremiumState]
     user_options_state: Optional[UserOptionsState]
     user_inventory_state: Optional[UserInventoryState]
     user_sms_state: Optional[UserSMSState]
     tutorial_state: Optional[TutorialState]
-    build_queue_state: BuildQueueState
+    build_queue_state: Optional[BuildQueueState]
     location_state: Optional[LocationState]
     triggered_tutorial_state: Optional[TriggeredTutorialState]
     wheel_of_fortune_state: Optional[WheelOfFortuneState]
-    research_state: ResearchState
-    game_event_state: GameEventState
+    research_state: Optional[ResearchState]
+    game_event_state: Optional[GameEventState]
     in_game_alliance_state: Optional[InGameAllianceState]
     exploration_state: Optional[ExplorationState]
     quest_state: Optional[QuestState]
-    configuration_state: ConfigurationState
-    mission_state: MissionState
+    configuration_state: Optional[ConfigurationState]
+    mission_state: Optional[MissionState]
 
     MAPPING = {
         "player_state": "1",
@@ -133,9 +133,15 @@ class States(GameObject):
     }
 
 
-    def update(self, new_class):
-        for field in self.__annotations__.keys():
-            if not callable(getattr(field, "update", None)):
-                continue
+    def update(self, new_fields):
+        """
+        Call the update method of each state that has a update and hand of the state as dict
 
-            getattr(self, field).update(new_class[field])
+        :param new_fields: The new fields to update with (dict)
+        :return: None
+        """
+        for field in self.__annotations__.keys():
+            attr = getattr(self, field)
+            if not callable(getattr(attr, "update", None)):
+                continue
+            getattr(self, field).update(new_fields[self.MAPPING[field]])

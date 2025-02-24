@@ -44,6 +44,8 @@ def parse_dict(obj, py_type, game):
     }
 
 def parse_conflict_dict(obj, py_type, game):
+    if len(py_type.__args__) <= 1:
+        raise ValueError(f"HashMap of type {py_type} must have two arguments")
     return py_type({
         handle_normal(key, py_type.__args__[0], game): handle_normal(value, py_type.__args__[1], game)
         for key, value in obj.items()
@@ -59,16 +61,16 @@ def handle_con_mapping(value, py_type, mapped_type, game):
         raise ValueError(f"Type {mapped_type} has no to_py method")
 
 def handle_normal(value, py_type, game):
+    if get_origin(py_type) is Union:
+        py_type = get_type_of_union(value, py_type)
+
     if py_type == datetime:
         return unixtimestamp_to_datetime(value)
     elif py_type == timedelta:
         return seconds_to_timedelta(value)
     elif py_type in (bool, int, float, str):
         return py_type(value)
-    elif get_origin(py_type) is Union:
-        for v in py_type.__args__:
-            if v.C == value["@c"]:
-                return handle_normal(value, v, game)
+
     elif issubclass(py_type, Enum):
         return py_type(int(value))
     elif issubclass(py_type, JsonMappedClass):
@@ -88,6 +90,24 @@ def handle_normal(value, py_type, game):
 
     raise ValueError(f"Unknown type {py_type}")
 
+def get_type_of_union(obj, py_type):
+    for v in py_type.__args__:
+        if type(obj) is v:
+            return v
+        elif type(obj) is dict and "@c" in obj:
+            if not hasattr(v, "C"):
+                raise ValueError(f"{v} has no C attribute. Every GameObject should have one.")
+            if obj["@c"] == v.C:
+                return v
+        elif type(obj) is list:
+            if not hasattr(v, "C"):
+                raise ValueError(f"{v} has no C attribute. Every GameObject should have one.")
+            if obj[0] == v.C:
+                return v
+        elif type(obj) is dict:
+            return v
+
+    raise ValueError(f"Could not find type for {obj} in {py_type}")
 
 def is_optional(tp):
     """Returns the underlying type if tp is typing.Optional, otherwise returns None."""
@@ -156,7 +176,7 @@ class GameObject(JsonMappedClass):
                     parsed_data[py_name] = field_info.default_factory()
                 else:
                     raise ValueError(
-                        f"Entry of type {py_type} cannot be parsed as object of type {cls} contains no conflict key {mapped_value} (pyname {py_name}) ")
+                        f"Entry of type {py_type} cannot be parsed as object of type {cls} contains no conflict key {mapped_value} (pyname {py_name})")
             else:
                 if is_optional(py_type):
                     py_type = get_underlying_type(py_type)
