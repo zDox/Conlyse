@@ -12,6 +12,9 @@ from conflict_interface.utils import ConMapping, Point, \
 
 @dataclass
 class GotoCommand(GameObject):
+    """
+    Command that tells a army to move
+    """
     start_time: datetime
     arrival_time: datetime
 

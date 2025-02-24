@@ -2,9 +2,12 @@ from enum import Enum
 
 
 class TerrainType(Enum):
+    """
+    The type of terrain a province is.
+    """
     PLAINS = 10
     HILLS = 11
-    MOUNTIN = 12
+    MOUNTAIN = 12
     FOREST = 13
     URBAN = 14
     JUNGLE = 15
