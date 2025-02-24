@@ -5,6 +5,9 @@ from conflict_interface.utils import GameObject, DefaultEnumMeta
 
 @dataclass
 class Region(GameObject):
+    """
+    Represents a region on the map. For example Africa and Europe are regions.
+    """
     index: int
     name: str
 

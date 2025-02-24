@@ -6,6 +6,22 @@ from conflict_interface.utils import GameObject, LinkedList, ArrayList
 
 @dataclass
 class ProvinceProperty(GameObject):
+    """
+    Represents the additional properties of a province in the game.
+
+    This class is only given for a province that is owned by the current player.
+
+    Attributes:
+        possible_upgrades: A linked list representing all upgrades that are possible for the province.
+        queueable_upgrades: A linked list representing upgrades that can currently be queued for the
+                            province.
+        possible_productions: An array list of special units that can be potentially produced in the province.
+        queueable_productions: An array list of special units that can currently be queued for production in the
+                            province.
+        revolt_chance: The chance of a revolt happening in the province expressed as a percentage.
+        uprising_chance: The chance of an uprising occurring in the province expressed as a percentage.
+        target_morale: The morale that will be reached over time.
+    """
     possible_upgrades: LinkedList[ModableUpgrade]
     queueable_upgrades: LinkedList[ModableUpgrade]
 

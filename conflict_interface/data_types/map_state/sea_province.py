@@ -6,6 +6,9 @@ from conflict_interface.utils import GameObject, Point
 
 @dataclass
 class SeaProvince(GameObject):
+    """
+    Rivers, CostalRegions and HighSea provinces are SeaProvinces.
+    """
     C = "ultshared.UltSeaProvince"
     province_id: int
     name: str

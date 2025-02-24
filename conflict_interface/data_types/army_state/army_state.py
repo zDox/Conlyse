@@ -2,7 +2,7 @@ from conflict_interface.utils import GameObject, HashMap
 
 from dataclasses import dataclass
 
-from conflict_interface.data_types.mod_state import Army
+from .army import Army
 
 
 @dataclass

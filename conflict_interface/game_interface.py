@@ -240,8 +240,7 @@ class GameInterface:
 
     @country_selected
     def build_upgrade(self, province_id, upgrade):
-
-        res = self.game_api.request_province_action(province_id, UpdateProvinceAction(
+        self.game_api.request_province_action(province_id, UpdateProvinceAction(
             province_ids=[province_id],
             mode=UpdateProvinceActionModes.UPGRADE,
             slot=0,

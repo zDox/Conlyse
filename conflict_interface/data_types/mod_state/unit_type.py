@@ -19,6 +19,9 @@ class RenderConfig:
 
 @dataclass
 class UnitType(GameObject):
+    """
+
+    """
     id: int
     stats_column_id: int
     unit_pack: int

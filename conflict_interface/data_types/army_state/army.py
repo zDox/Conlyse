@@ -8,10 +8,10 @@ from conflict_interface.utils import Point, \
 from conflict_interface.data_types.mod_state.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
         TokenFeature
-from .commands import Command, parse_command
-from .air_parameters import AirParameters
-from .anti_air_parameters import AntiAirParameters
-from .unit import Unit
+from conflict_interface.data_types.mod_state.commands import Command, parse_command
+from conflict_interface.data_types.mod_state.air_parameters import AirParameters
+from conflict_interface.data_types.mod_state.anti_air_parameters import AntiAirParameters
+from conflict_interface.data_types.army_state.unit import Unit
 from conflict_interface.data_types.map_state.terrain_type import TerrainType
 
 ARMY_CLOSE_COMBAT_RANGE = 5
@@ -41,6 +41,9 @@ class Battle(GameObject):
 
 
 class FightStatus(Enum, metaclass=DefaultEnumMeta):
+    """
+    Status of an army.
+    """
     IDLE = 0
     FIGHTING = 1
     BOMBARDING = 2
@@ -52,6 +55,9 @@ class FightStatus(Enum, metaclass=DefaultEnumMeta):
 
 
 class Aggressiveness(Enum, metaclass=DefaultEnumMeta):
+    """
+    Represents under which situations a unit would engage an enemy.
+    """
     DEFAULT = 0
     HOLD_FIRE = 1
     RETURN_FIRE = 2
@@ -60,6 +66,10 @@ class Aggressiveness(Enum, metaclass=DefaultEnumMeta):
 
 
 class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
+    """
+    ForcedMarch is the march where a unit gets a bit of damage
+    but in turn is a little bit faster.
+    """
     DEACTIVE = 0
     ACTIVE = 1
     PREMIUM = 2
@@ -67,6 +77,66 @@ class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
 
 @dataclass
 class Army(GameObject):
+    """
+    Represents an army.
+
+    ATTRIBUTES:
+        id: Identifier for the army.
+        size: Number of units in the army.
+        health: Health of the army in percent of the maximum.
+        kills: How many units were killed by the army
+        owner_id: Identifier for the owner of the army. Contains a player_id
+        army_number:
+        location_id: The identifier for the province the army is located in.
+        position: Position of the army.
+        last_direction: Direction of where the army is heading.
+        on_sea: If the army is on sea.
+        at_airfield: If the army is on airfield.
+        units: LinkedList of the units that the army is made of.
+        commands: LinkedList of the commands that the army has to follow.
+        fight_status: Status of the army.
+        battle: The battle that the army is currently in.
+        attack_unit_id: The unit_id of the attacker.
+        attack_position: The position of the attacker.
+        next_attack_time: The time when the army will perform the next attack.
+        estimated_arrival_time: The estimated arrival time of the army.
+        needs_rail: If the army needs rail.
+        needs_water: If the army needs water e.g if it is a ship.
+        has_stealth: If the army is stealth.
+        airplane: If the army is an airplane.
+        pre_fight_size: The size of the before the fight.
+        pre_fight_type: The type of before the fight.
+        range: The range from which it can attack other armies.
+        base_speed: The base speed of the army.
+        spy_reveal_time: The time when the spy revealed the army.
+        view_width: How far away the unit can view other armies.
+        detailed_view_width: How far away the unit can view other armies.
+        aggressiveness: The aggressiveness of the army.
+        forced_march: If the army is in forced march or premium forced march.
+        removed: If the army should be removed from the game state.
+                removed is true if the game server thinks the client
+                should not display the army anymore.
+        terrain_type: The terrain type of the province that the army is in.
+        air_parameters: The air parameters the army.
+        anti_air_parameters: The anti air parameters the army.
+        carriable: If the army can be stationed on a Aircraft/Helicopter carrier.
+        carrier_feature: Further information about the Aircraft/Helicopter carrier.
+        last_location_ids: Unknown
+        end_of_unit_walk: Unknown
+        hit_points: Number of hit points the army has.
+        max_hit_points: Maximum number of hit_points the army has.
+        missile_carrier_feature: Which types of missiles and how many missiles the army has loaded.
+        entrenched: If the army is entrenched.
+        next_anti_air_attack: Next time the army can perform a anti-air attack.
+        last_anti_air_attack: Last time the army performed a anti-air attack.
+        last_anti_air_attack_distance: Distance to the target of the last anti-air attack.
+        last_damage_taken_time: The last time damage was taken.
+        strength: Strength of the army.
+        defence: Defence value of the army
+        army_moral: The moral of the army.
+        radar_signature_feature: How the army shows up on radar.
+        token_feature: How the army consumes tokens on mobilization.
+    """
     id: int = None
     size: int = 1
     health: float = 1.0
@@ -103,7 +173,7 @@ class Army(GameObject):
 
     view_width: int = None
     detailed_view_width: int = None
-    aggressiveness: int = None
+    aggressiveness: Aggressiveness = Aggressiveness.DEFAULT
     forced_march: ForcedMarch = ForcedMarch.DEACTIVE
     removed: bool = False
     terrain_type: TerrainType = None
