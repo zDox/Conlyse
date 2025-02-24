@@ -13,14 +13,16 @@ class ArmyState(GameObject):
 
     MAPPING = {"armies": "armies"}
     
-    """
+
     def update(self, new_state):
         for new_army in new_state.armies:
-            if new_army.get("rm"):
-                self.armies.pop(new_army.province_id)
+            if new_army.removed:
+                self.armies.pop(new_army.id)
                 continue
-            if new_army.province_id in self.armies.keys():
-                self.armies[new_army.province_id].update(new_army)
-            else:
-                self.armies[new_army.province_id] = new_army
-    """
+            self.armies[new_army.id] = new_army
+
+
+
+
+
+
