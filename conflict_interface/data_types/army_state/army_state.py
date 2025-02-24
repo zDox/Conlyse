@@ -2,14 +2,18 @@ from conflict_interface.utils import GameObject, HashMap
 
 from dataclasses import dataclass
 
-from conflict_interface.data_types.mod_state import Army
+from army import Army
 
 
 @dataclass
 class ArmyState(GameObject):
     STATE_ID = 6
-    # TODO Implement
 
+    armies: HashMap[Army]
+
+    MAPPING = {"armies": "armies"}
+    
+    """
     def update(self, new_state):
         for new_army in new_state.armies:
             if new_army.get("rm"):
@@ -19,3 +23,4 @@ class ArmyState(GameObject):
                 self.armies[new_army.province_id].update(new_army)
             else:
                 self.armies[new_army.province_id] = new_army
+    """
