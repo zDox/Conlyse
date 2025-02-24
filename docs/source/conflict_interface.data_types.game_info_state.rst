@@ -6,3 +6,4 @@ Game Info State
    :members:
    :show-inheritance:
    :undoc-members:
+   :noindex:

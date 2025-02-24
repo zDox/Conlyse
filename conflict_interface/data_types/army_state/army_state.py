@@ -6,6 +6,14 @@ from dataclasses import dataclass
 
 @dataclass
 class ArmyState(GameObject):
+    """
+    The Game State retrieved from the server.
+    Holds information about the armies in the game.
+
+    Attributes:
+        STATE_ID (int): The unique identifier for the Army state.
+        armies (HashMap[int, Army]): A mapping of army id to army object.
+    """
     STATE_ID = 6
 
     armies: HashMap[int,Army]
