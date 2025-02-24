@@ -22,10 +22,10 @@ def parse_air_field(obj):
 @dataclass
 class AirParameters(GameObject):
     last_air_action_time: datetime
-    last_air_position: Point
+    last_air_position: Optional[Point]
     launch_target: Optional[Point]
     max_flight_time: datetime
-    air_field: Optional[Point | int]  # Can be either a province_id or a Position
+    air_field: Optional[Point | str]  # Can be either a province_id or a Position
 
     MAPPING = {
         "last_air_action_time": "lastAirActionTime",
