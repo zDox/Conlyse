@@ -28,7 +28,7 @@ class UpdateProvinceAction(GameObject):
         "slot": "slot",
         "upgrade": "upgrade",
     }
-
+# TODO Remove
     def __init__(self, province_ids, mode, slot, upgrade=None, game=None):
         super().__init__(game)
         self.province_ids = province_ids

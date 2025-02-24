@@ -1,3 +1,4 @@
+from datetime import datetime, UTC, timedelta
 from functools import wraps
 from pprint import pprint
 
@@ -70,6 +71,9 @@ class GameAPI:
         self.client_version = None
         self.game_server_address = None
         self.map_id = None
+
+        self.last_update_time = None
+        self.server_time_offset = None
 
         # Set cookies from previous ConflictInterface Session
         for key, value in cookies.items():
@@ -300,3 +304,22 @@ class GameAPI:
             self.state_ids[state_type] = state["stateID"]
 
         return res["result"]["states"]
+
+
+    def client_time(self, time_scale, last_update_time, server_time_offset) -> datetime:
+        """
+        Calculates the client time
+
+        :param time_scale: The time scale of the game
+        :param last_update_time: The last update time (datetime)
+        :param server_time_offset: The server time offset (timedelta)
+        """
+        current_time = datetime.now(UTC)
+        if time_scale != 1:
+            time_elapsed = timedelta(seconds = (current_time -last_update_time).total_seconds() / time_scale)
+            return last_update_time + server_time_offset + time_elapsed
+        return current_time + server_time_offset
+
+    def update_server_time(self, last_update):
+        self.last_update_time = datetime.now(UTC)
+        self.server_time_offset = last_update - self.last_update_time

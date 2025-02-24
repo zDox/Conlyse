@@ -70,6 +70,7 @@ STATE_TYPE_MISSION_STATE: 29
 
 @dataclass
 class States(GameObject):
+    timestamp: str
     player_state: Optional[PlayerState]
     newspaper_state: Optional[NewspaperState]
     map_state: Optional[MapState]
@@ -101,6 +102,7 @@ class States(GameObject):
     mission_state: Optional[MissionState]
 
     MAPPING = {
+        "timestamp": "timeStamp",
         "player_state": "1",
         "newspaper_state": "2",
         "map_state": "3",
@@ -140,7 +142,6 @@ class States(GameObject):
         :param new_fields: The new fields to update with (dict)
         :return: None
         """
-
         for field in self.__annotations__.keys():
             attr = getattr(self, field)
             if not callable(getattr(attr, "update", None)):

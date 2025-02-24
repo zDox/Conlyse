@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from functools import wraps
 from typing import Any
 
@@ -168,8 +169,7 @@ class GameInterface:
                         if time_stamp_str != "java.util.HashMap"]
         return max(update_times)
 
-    def client_time(self):
-        datetime.now()
+
 
     """
     PlayerState(1)
