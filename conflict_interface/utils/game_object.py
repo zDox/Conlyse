@@ -44,7 +44,7 @@ def parse_dict(obj, py_type, game):
     }
 
 def parse_conflict_dict(obj, py_type, game):
-    if len(py_type.__args__) <= 1:
+    if len(py_type.__args__) != 2:
         raise ValueError(f"HashMap of type {py_type} must have two arguments")
     return py_type({
         handle_normal(key, py_type.__args__[0], game): handle_normal(value, py_type.__args__[1], game)

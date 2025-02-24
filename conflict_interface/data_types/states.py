@@ -140,7 +140,7 @@ class States(GameObject):
         :param new_fields: The new fields to update with (dict)
         :return: None
         """
-        
+
         for field in self.__annotations__.keys():
             attr = getattr(self, field)
             if not callable(getattr(attr, "update", None)):
