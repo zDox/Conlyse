@@ -4,8 +4,6 @@ from conflict_interface.utils import GameObject, HashMap
 from dataclasses import dataclass
 
 
-
-
 @dataclass
 class ArmyState(GameObject):
     STATE_ID = 6

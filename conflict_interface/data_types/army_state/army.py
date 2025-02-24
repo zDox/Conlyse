@@ -11,7 +11,9 @@ from conflict_interface.data_types.mod_state.configuration import \
 from conflict_interface.data_types.mod_state.commands import Command, parse_command
 from conflict_interface.data_types.mod_state.air_parameters import AirParameters
 from conflict_interface.data_types.mod_state.anti_air_parameters import AntiAirParameters
-from conflict_interface.data_types.mod_state.unit import Unit
+
+from conflict_interface.data_types.army_state.unit import Unit
+
 from conflict_interface.data_types.map_state.terrain_type import TerrainType
 
 ARMY_CLOSE_COMBAT_RANGE = 5
