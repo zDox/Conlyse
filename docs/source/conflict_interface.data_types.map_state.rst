@@ -8,6 +8,7 @@ Map State
    :members:
    :show-inheritance:
    :undoc-members:
+   :noindex:
 
 Province
 ----------------------------------------------------------
@@ -16,6 +17,7 @@ Province
    :members:
    :show-inheritance:
    :undoc-members:
+   :noindex:
 
 Province Property
 --------------------------------------------------------------------
@@ -24,6 +26,7 @@ Province Property
    :members:
    :show-inheritance:
    :undoc-members:
+   :noindex:
 
 Region
 --------------------------------------------------------
@@ -32,6 +35,7 @@ Region
    :members:
    :show-inheritance:
    :undoc-members:
+   :noindex:
 
 Sea Province
 ---------------------------------------------------------------
@@ -40,6 +44,7 @@ Sea Province
    :members:
    :show-inheritance:
    :undoc-members:
+   :noindex:
 
 Terrain Type
 ---------------------------------------------------------------
@@ -48,6 +53,7 @@ Terrain Type
    :members:
    :show-inheritance:
    :undoc-members:
+   :noindex:
 
 Province Action
 --------------------------------------------------------------------------
@@ -56,4 +62,5 @@ Province Action
    :members:
    :show-inheritance:
    :undoc-members:
+   :noindex:
 

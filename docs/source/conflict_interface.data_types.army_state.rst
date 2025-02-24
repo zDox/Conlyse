@@ -5,11 +5,23 @@ Army State
    :members:
    :show-inheritance:
    :undoc-members:
+   :noindex:
 
 Army
 ------------------------------------------------------
 
-.. automodule:: conflict_interface.data_types.mod_state.army
+.. automodule:: conflict_interface.data_types.army_state.army
    :members:
    :show-inheritance:
    :undoc-members:
+   :no-index:
+
+Unit
+------------------------------------------------------
+
+.. automodule:: conflict_interface.data_types.army_state.unit
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+

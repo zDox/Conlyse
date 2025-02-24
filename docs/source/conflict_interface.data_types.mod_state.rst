@@ -50,14 +50,6 @@ Modable Unit
    :show-inheritance:
    :undoc-members:
 
-Unit
-------------------------------------------------------
-
-.. automodule:: conflict_interface.data_types.mod_state.unit
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 Unit Feature
 ---------------------------------------------------------------
 
