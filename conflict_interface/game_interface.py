@@ -1,21 +1,19 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any
+from typing import TYPE_CHECKING
 
-from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes, ProvinceStateID
+from conflict_interface.data_types import ProvinceStateID, GameState
+from .data_types import StaticMapData
 from .game_api import GameAPI
-from .utils import Point
-from .data_types import States
-from .data_types import  StaticMapData
+from .utils import ArrayList
 
 if TYPE_CHECKING:
     from .data_types import TeamProfile, PlayerProfile, Province, Article
     from .data_types import ResourceProfile, ResourceEntry
-    from .data_types import Army, Command, UnitType
+    from .data_types import Army, UnitType
     from .data_types import UpgradeType
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 
@@ -25,7 +23,7 @@ class GameInterface:
         self.game_api = game_api
         self.game_id = game_id
         self.player_id = 0
-        self.state: States | None = None
+        self.game_state: GameState | None = None
 
     @staticmethod
     def country_selected(func):
@@ -77,16 +75,16 @@ class GameInterface:
                     selected_team_id=-1,
                     random_team_country_selection=False,
                 )
-                self.state = States.from_dict(self.game_api.request_login_action(), self)
+                self.game_state = GameState.from_dict(self.game_api.request_login_action(), self)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
-                self.state = States.from_dict(self.game_api.request_game_update(), self)
+                self.game_state = GameState.from_dict(self.game_api.request_game_update(), self)
         else:
-            self.state = States.from_dict(self.game_api.request_game_update(), self)
+            self.game_state = GameState.from_dict(self.game_api.request_game_update(), self)
         static_map_data = StaticMapData.from_dict(self.game_api.get_static_map_data(), self)
 
-        self.state.map_state.map.set_static_map_data(static_map_data)
+        self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,
                        random_country_team=False):
@@ -112,9 +110,9 @@ class GameInterface:
         self.player_id = self.game_api.request_game_activation(country_id, team_id,
                                               random_country_team)
 
-        self.state = States.from_dict(self.game_api.request_login_action(), self)
+        self.game_state = GameState.from_dict(self.game_api.request_login_action(), self)
 
-    def update(self) -> States:
+    def update(self) -> GameState:
         """
         Updates the current state of the game by requesting the latest information
         from the game API. Integrates new data into the existing state and returns
@@ -124,8 +122,8 @@ class GameInterface:
             States: The updated current state of the game.
         """
         new_states = self.game_api.request_game_update()
-        self.state.update(new_states)
-        return self.state
+        self.game_state.states.update(new_states)
+        return self.game_state
 
     """
     Utility functions
@@ -133,23 +131,17 @@ class GameInterface:
     def get_api(self) -> GameAPI:
         return self.game_api
 
-    def relative_time_since_start(self, date) -> timedelta:
+    def client_time(self) -> datetime:
         """
-        Computes the relative time difference between a given date and the start of the game.
+        Retrieves the current client time adjusted for the game's time scale.
 
-        This function calculates the difference in time (as a timedelta) between the provided
-        date and the start of the game stored in the game_info_state attribute. It is useful
-        for determining elapsed time in relation to the game's start.
-
-        Parameters:
-            date (datetime): The date for which the calculation of relative time is
-            required.
-
-        Returns:
-            timedelta: The time difference between the given date and the start of the
-            game.
+        Returns
+        -------
+        datetime
+            The adjusted client time as a datetime object.
         """
-        return date - self.state.game_info_state.start_of_game
+        return self.game_api.client_time(self.game_state.states.game_info_state.time_scale)
+
 
     def get_latest_uptime(self) -> datetime:
         """
@@ -168,8 +160,7 @@ class GameInterface:
                         if time_stamp_str != "java.util.HashMap"]
         return max(update_times)
 
-    def client_time(self):
-        datetime.now()
+
 
     """
     PlayerState(1)
@@ -179,14 +170,14 @@ class GameInterface:
         return self.player_id != 0
 
     def get_player(self, player_id) -> PlayerProfile | None:
-        return self.state.player_state.players.get(player_id)
+        return self.game_state.states.player_state.players.get(player_id)
 
     def get_my_player(self):
         return self.get_player(self.player_id)
 
     def get_players(self, **filters) -> dict[int, PlayerProfile]:
         return {player.player_id: player
-                for player in self.state.player_state.players.values()
+                for player in self.game_state.states.player_state.players.values()
                 if all([getattr(player, key) == val
                         for key, val in filters.items()])}
 
@@ -198,11 +189,11 @@ class GameInterface:
 
     def get_teams(self, **filters) -> dict[int, TeamProfile]:
         return {team.team_id: team
-                for team in self.state.player_state.teams.values()
+                for team in self.game_state.states.player_state.teams.values()
                 if all(getattr(team, key) == val for key, val in filters.items())}
 
     def get_team(self, team_id) -> TeamProfile | None:
-        return self.state.player_state.teams.get(team_id)
+        return self.game_state.states.player_state.teams.get(team_id)
 
     """
     NewspaperState(2)
@@ -210,11 +201,11 @@ class GameInterface:
 
     def get_articles(self, day):
         return {article_id: article
-                for article_id, article in self.state.newspaper_state.articles
+                for article_id, article in self.game_state.states.newspaper_state.articles
                 if self.relative_time_since_start(article.time_stamp).days + 1 == day}
 
-    def get_current_articles(self) -> dict[int, Article]:
-        return self.state.newspaper_state.articles
+    def get_current_articles(self) -> ArrayList[Article]:
+        return self.game_state.states.newspaper_state.articles
 
     """
     MapState(3)
@@ -222,14 +213,15 @@ class GameInterface:
 
     def get_provinces(self, **filters) -> dict[int, Province]:
         res = {}
-        for province in self.state.map_state.map.locations:
+        for province in self.game_state.states.map_state.map.locations:
             if all([hasattr(province, key) and getattr(province, key) == val
                    for key, val in filters.items()]):
                 res[province.province_id] = province
         return res
 
+    # TODO fix (changed to HashSet)
     def get_province(self, province_id) -> Province:
-        return self.state.map_state.map.locations.get(province_id)
+        return self.game_state.states.map_state.map.locations.get(province_id)
 
     @country_selected
     def get_my_provinces(self, **filters) -> dict[int, Province]:
@@ -245,7 +237,7 @@ class GameInterface:
     """
 
     def get_player_resource_profile(self, player_id) -> ResourceProfile | None:
-        return self.state.resource_state.resource_profiles.get(player_id)
+        return self.game_state.states.resource_state.resource_profiles.get(player_id)
 
     @country_selected
     def get_my_resource_profile(self) -> ResourceProfile | None:
@@ -277,7 +269,7 @@ class GameInterface:
                                 else True)
                             }
                 for sender_id, sender
-                in self.state.foreign_affairs_state.relationships.items()
+                in self.game_state.states.foreign_affairs_state.relationships.items()
                 if (sender_id == filters.get("sender_id")
                     if "sender_id" in filters.keys() else True)}
 
@@ -287,17 +279,17 @@ class GameInterface:
 
     @country_selected
     def get_armies(self) -> dict[int, Army]:
-        return self.state.army_state.armies
+        return self.game_state.states.army_state.armies
 
     @country_selected
     def get_my_armies(self) -> dict[int, Army]:
         return {army.id: army
-                for army in self.state.army_state.armies.values()
+                for army in self.game_state.states.army_state.armies.values()
                 if army.owner_id == self.player_id}
 
     @country_selected
     def get_army(self, army_id: int) -> Army:
-        self.state.army_state.armies.get(army_id)
+        return self.game_state.states.army_state.armies.get(army_id)
 
     """
     ModState(11)
@@ -305,16 +297,16 @@ class GameInterface:
 
     def get_upgrade_types(self, **filters) -> dict[int, UpgradeType]:
         return {upgrade_id: upgrade
-                for upgrade_id, upgrade in self.state.mod_state.upgrades.items()
+                for upgrade_id, upgrade in self.game_state.states.mod_state.upgrades.items()
                 if all(getattr(upgrade, key, None) == value for key, value in filters.items())}
 
     def get_upgrade_type(self, upgrade_id) -> UpgradeType | None:
-        return self.state.mod_state.upgrades.get(upgrade_id)
+        return self.game_state.states.mod_state.upgrades.get(upgrade_id)
 
     def get_upgrade_type_by_name_and_tier(self, name, tier) -> UpgradeType | None:
         return next(iter(self.get_upgrade_types(upgrade_identifier=name, tier=tier).values()), None)
 
     def get_unit_types(self, **filters) -> dict[int, UnitType]:
         return {unit_type_id: unit_type
-                for unit_type_id, unit_type in self.state.mod_state.unit_types.items()
+                for unit_type_id, unit_type in self.game_state.states.mod_state.unit_types.items()
                 if all(getattr(unit_type, key, None) == value for key, value in filters.items())}

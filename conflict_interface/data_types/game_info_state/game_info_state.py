@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+from math import floor
 
 from conflict_interface.utils import GameObject, HashMap
 
@@ -117,7 +118,7 @@ class GameInfoState(GameObject):
     ai_level: int
     ranked: int
     game_features: GameFeatures
-    time_scale: int
+    time_scale: float
     economy_score: int
     economy_boost_score: int
     military_score: int
@@ -163,3 +164,37 @@ class GameInfoState(GameObject):
         "coalition_victory_points_modifier": "coalitionVictoryPointsMod",
         "admin_time_forward_allowed": "adminTimeFwdAllowed",
     }
+
+    def get_remaining_timedelta(self) -> timedelta:
+        """
+        Calculate the remaining time until the next day.
+
+        Returns:
+            timedelta: The duration representing the remaining time until the next day.
+        """
+        return self.next_day_time - self.game.client_time()
+
+    def get_display_time(self) -> timedelta:
+        """
+        Calculates the hour, minutes and seconds that are displayed in the game.
+
+        Returns:
+            timedelta: Display time in the format of hours, minutes and seconds.
+        """
+        remaining_timedelta = self.get_remaining_timedelta()
+        hours = 23 - remaining_timedelta.seconds // 3600
+        minutes = 59 - (remaining_timedelta.seconds % 3600) // 60
+        seconds = 59 - remaining_timedelta.seconds % 60
+        return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+
+    def get_day_of_timestamp(self, timestamp):
+        b = 86400 * (self.day_of_game+ 1)
+        b = self.game.client_time() - timedelta(seconds=b)
+        return (c.timestamp() - b.timestamp()) / 86400
+
+    """
+    # Mock methods for `format_timer` and `format_timer_tiny`
+    def format_timer(self, time, is_formatted, precision):
+        # Placeholder for formatting function
+        return str(time)  # Implement actual formatting logic as needed
+    """

@@ -1,0 +1,14 @@
+from conflict_interface import ConflictInterface
+from examples import creds
+
+if __name__ == "__main__":
+    print("Starting game join example with specific country")
+    interface = ConflictInterface()
+    interface.login(creds.username, creds.password)
+    game_id = list(interface.get_my_games().values())[1].game_id
+    game = interface.join_game(game_id)
+    print("Country is selected: ", game.is_country_selected())
+    print("Selected country:", game.get_player(game.player_id).nation_name)
+
+    print(game.game_api.client_time(1)-game.game_state.states.game_info_state.start_of_game)
+    print(game.game_api.client_time(4))

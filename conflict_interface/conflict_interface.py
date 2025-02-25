@@ -1,4 +1,7 @@
 import logging
+from copy import deepcopy
+from pprint import pprint
+
 from fake_useragent import UserAgent
 from requests import Session
 from lxml import html
@@ -148,7 +151,7 @@ class ConflictInterface():
 
         game_api = GameAPI(self.session.cookies.get_dict(),
                            self.session.headers,
-                           self.auth,
+                           deepcopy(self.auth),
                            game_id)
         game_interface = GameInterface(game_id, game_api)
         game_interface.join_game(guest)

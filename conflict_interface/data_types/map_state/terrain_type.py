@@ -1,10 +1,13 @@
 from enum import Enum
 
+from conflict_interface.utils import DefaultEnumMeta
 
-class TerrainType(Enum):
+
+class TerrainType(Enum, metaclass=DefaultEnumMeta):
     """
     The type of terrain a province is.
     """
+    NONE = 0
     PLAINS = 10
     HILLS = 11
     MOUNTAIN = 12

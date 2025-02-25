@@ -5,6 +5,7 @@ from enum import Enum
 from pprint import pprint
 from typing import TYPE_CHECKING, get_origin, Union, get_args
 
+from . import LinkedHashMap
 from .json_mapped_class import ArrayList, HashMap, TreeMap, Vector, HashSet, LinkedList
 
 if TYPE_CHECKING:
@@ -46,11 +47,13 @@ def parse_dict(obj, py_type, game):
 def parse_conflict_dict(obj, py_type, game):
     if len(py_type.__args__) != 2:
         raise ValueError(f"HashMap of type {py_type} must have two arguments")
-    return py_type({
-        handle_normal(key, py_type.__args__[0], game): handle_normal(value, py_type.__args__[1], game)
-        for key, value in obj.items()
-        if key != "@c"
-    })
+
+    type_dict = {}
+    for key,value in obj.items():
+        if key == "@c":
+            continue
+        type_dict[handle_normal(key, py_type.__args__[0], game)] = handle_normal(value, py_type.__args__[1], game)
+    return py_type(type_dict)
 
 
 def handle_con_mapping(value, py_type, mapped_type, game):
@@ -61,6 +64,8 @@ def handle_con_mapping(value, py_type, mapped_type, game):
         raise ValueError(f"Type {mapped_type} has no to_py method")
 
 def handle_normal(value, py_type, game):
+    # print(f"Handling {value} of type {py_type}")
+
     if get_origin(py_type) is Union:
         py_type = get_type_of_union(value, py_type)
 
@@ -69,17 +74,25 @@ def handle_normal(value, py_type, game):
     elif py_type == timedelta:
         return seconds_to_timedelta(value)
     elif py_type in (bool, int, float, str):
+        if value is None:
+            return None
         return py_type(value)
 
     elif issubclass(py_type, Enum):
-        return py_type(int(value))
-    elif issubclass(py_type, JsonMappedClass):
-        return py_type.from_dict(value)
+        if isinstance(py_type, DefaultEnumMeta): # Check for DefaultEnumMeta as metaclass
+            entry_type = py_type.get_value_type()
+            if value is None:
+                return py_type()  # Provide default instance
+            return py_type(entry_type(value))
+        else:
+            raise ValueError(f"Enum {py_type} has not DefaultEnumMeta metaclass")
     elif issubclass(py_type, GameObject):
         return py_type.from_dict(value, game)
+    elif issubclass(py_type, JsonMappedClass):
+        return py_type.from_dict(value)
     elif get_origin(py_type) in (Vector, ArrayList, LinkedList):
         return parse_conflict_list(value, py_type, game)
-    elif get_origin(py_type) in (HashMap, TreeMap):
+    elif get_origin(py_type) in (HashMap, TreeMap, LinkedHashMap):
         return parse_conflict_dict(value, py_type, game)
     elif get_origin(py_type) in [HashSet]:
         return parse_set(value, py_type, game)
@@ -155,7 +168,6 @@ class GameObject(JsonMappedClass):
             raise TypeError(f"{cls.__name__} must be a dataclass")
         parsed_data = {}
         resolved = get_type_hints(cls)
-
         for py_name, mapped_value in cls.MAPPING.items():
             py_type = resolved[py_name]
             field_info = cls.__dataclass_fields__[py_name]
@@ -164,7 +176,6 @@ class GameObject(JsonMappedClass):
                 obj_contains = mapped_value.con_key in obj
             else:
                 obj_contains = mapped_value in obj
-
             if not obj_contains:
                 if type(None) in get_args(py_type):  # Check if py_type is typing.Optional
                     parsed_data[py_name] = None
@@ -176,7 +187,8 @@ class GameObject(JsonMappedClass):
                     parsed_data[py_name] = field_info.default_factory()
                 else:
                     raise ValueError(
-                        f"Entry of type {py_type} cannot be parsed as object of type {cls} contains no conflict key {mapped_value} (pyname {py_name})")
+                        f"Entry of type {py_type} cannot be parsed as object of type {cls} contains no conflict key {mapped_value} (pyname {py_name})"
+                        f"\n {obj}")
             else:
                 if is_optional(py_type):
                     py_type = get_underlying_type(py_type)

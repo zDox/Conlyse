@@ -30,7 +30,7 @@ from .user_inventory_state import UserInventoryState
 from .user_options_state import UserOptionsState
 from .user_sms_state import UserSMSState
 from .wheel_of_fortune_state import WheelOfFortuneState
-from ..utils import GameObject
+from ..utils import GameObject, HashMap
 
 """
 The following are all states but not every state
@@ -140,9 +140,26 @@ class States(GameObject):
         :param new_fields: The new fields to update with (dict)
         :return: None
         """
-
         for field in self.__annotations__.keys():
             attr = getattr(self, field)
             if not callable(getattr(attr, "update", None)):
                 continue
             getattr(self, field).update(new_fields[self.MAPPING[field]])
+
+
+@dataclass
+class GameState(GameObject):
+    state_type: int
+    state_id: str
+    time_stamp: str
+    states: States
+    action_results: Optional[HashMap[str, int]]
+
+    MAPPING = {
+        "state_type": "stateType",
+        "state_id": "stateID",
+        "time_stamp": "timeStamp",
+        "states": "states",
+        "action_results": "actionResults"
+    }
+

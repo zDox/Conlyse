@@ -1,5 +1,5 @@
+from datetime import datetime, UTC, timedelta
 from functools import wraps
-from pprint import pprint
 
 from requests import Session
 from lxml import html
@@ -13,6 +13,7 @@ from json import loads, dumps
 from time import time
 
 from .data_types import AuthDetails
+from .utils import unixtimestamp_to_datetime
 from .utils.exceptions import ConflictJoinError, GameActivationException, GameActivationErrorCodes, \
     CountryUnselectedException
 
@@ -70,6 +71,9 @@ class GameAPI:
         self.client_version = None
         self.game_server_address = None
         self.map_id = None
+
+        self.last_update_time = None
+        self.server_time_offset = None
 
         # Set cookies from previous ConflictInterface Session
         for key, value in cookies.items():
@@ -205,6 +209,12 @@ class GameAPI:
                                      headers=headers,
                                      data=dumps(data))
         response.raise_for_status()
+
+        if not type(response.json()["result"]) is int:
+            self.update_server_time(response.json()["result"]["timeStamp"])
+        else:
+            self.update_server_time(0)
+
         return loads(response.text)
 
     def request_game_activation(self, selected_player_id=0, selected_team_id=0,
@@ -237,13 +247,15 @@ class GameAPI:
         }, actions)
 
     @country_selected
-    def request_province_action(self, province_id, action):
+    def request_province_action(self, province_id, action): # TODO revise (province_id)
         data = {"requestID": f"actionReq-{self.action_request_id}",
                 "language": "en",
                 **action,
                 }
-        pprint(data)
+
         res = self.request_game_state_action([data])
+
+
         self.action_request_id = + 1
         return res
 
@@ -279,7 +291,10 @@ class GameAPI:
         self.action_request_id = + 1
         if "states" not in res["result"]:
             raise ConflictJoinError(f"Login failed with error code {res['result']}")
-        return res["result"]["states"]
+
+
+
+        return res["result"]
 
     def request_game_update(self) -> dict[str, Any]:
         res = self.make_game_server_request(
@@ -299,4 +314,33 @@ class GameAPI:
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
 
-        return res["result"]["states"]
+        return res["result"]
+
+
+    def client_time(self, time_scale) -> datetime:
+        """
+        Calculates the client time
+
+        :param time_scale: The time scale of the game
+        :param last_update_time: The last update time (datetime)
+        :param server_time_offset: The server time offset (timedelta)
+        """
+        current_time = datetime.now(UTC)
+        if not time_scale in (0.25, 1, 0.1):
+            raise ValueError(f"Time scale cannot be {time_scale}. Must be 0.1, 0.25 or 1")
+        if time_scale != 1:
+            time_elapsed = timedelta(seconds = (current_time -self.last_update_time).total_seconds() / time_scale)
+            return self.last_update_time + self.server_time_offset + time_elapsed
+        return current_time + self.server_time_offset
+
+    def update_server_time(self, t_stamp_now):
+        self.last_update_time = datetime.now(UTC)
+
+        t_stamp_now = int(t_stamp_now)
+        if t_stamp_now == 0:
+            seconds_since_epoch = (self.last_update_time - datetime(1970, 1, 1, tzinfo=UTC)).total_seconds()
+            self.server_time_offset = timedelta(seconds = -seconds_since_epoch)
+            return
+
+        t_stamp_now = unixtimestamp_to_datetime(t_stamp_now)
+        self.server_time_offset = t_stamp_now - self.last_update_time

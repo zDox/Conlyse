@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from enum import Enum
 
 from conflict_interface.data_types.mod_state import ModableUpgrade
-from conflict_interface.utils import GameObject, Vector
+from conflict_interface.utils import GameObject, Vector, DefaultEnumMeta
 
 
-class UpdateProvinceActionModes(Enum):
+class UpdateProvinceActionModes(Enum, metaclass=DefaultEnumMeta):
     PROVINCE = 0
     UPGRADE = 1 # Building an upgrade in Province
     SPECIAL_UNIT = 2
@@ -28,7 +28,7 @@ class UpdateProvinceAction(GameObject):
         "slot": "slot",
         "upgrade": "upgrade",
     }
-
+# TODO Remove
     def __init__(self, province_ids, mode, slot, upgrade=None, game=None):
         super().__init__(game)
         self.province_ids = province_ids

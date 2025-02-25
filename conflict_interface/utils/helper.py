@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
+
 
 # Helper functions for parsing a mapped value
 
@@ -13,9 +14,9 @@ def unixtimestamp_to_datetime(timestamp):
         return None
 
     if len(str(timestamp)) == 10:
-        return datetime.utcfromtimestamp(int(timestamp))
+        return datetime.fromtimestamp(int(timestamp), UTC)
     elif len(str(timestamp)) == 13:
-        return datetime.utcfromtimestamp(int(timestamp)/1000)
+        return datetime.fromtimestamp(int(timestamp)/1000, UTC)
 
 
 def seconds_to_timedelta(seconds):
