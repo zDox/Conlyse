@@ -9,6 +9,8 @@ if __name__ == "__main__":
     interface = ConflictInterface()
     interface.login(creds.username, creds.password)
     for game_info in interface.get_global_games().values():
+        if game_info.day_of_game != 1:
+            continue
         print(f"Game: {game_info.game_id}")
         game = interface.join_game(game_info.game_id, guest=True)
         print(f"Day: {game.game_state.states.game_info_state.day_of_game}")
@@ -19,6 +21,8 @@ if __name__ == "__main__":
         print(f"Open slots: {game.game_state.states.game_info_state.open_slots}")
         print(f"Speed: {1/game.game_state.states.game_info_state.time_scale}")
         print(f"Time: {game.client_time()}")
-        print(f"Delta: {game.client_time() - game.game_state.states.game_info_state.start_of_game}")
+        print(f"Delta between next_day_time and current time: {game.game_state.states.game_info_state.next_day_time - game.client_time()}")
+        print(f"Delta between next_day_time and start time: {game.game_state.states.game_info_state.next_day_time - game.game_state.states.game_info_state.start_of_game}")
         print(f"First day delta {game.game_state.states.game_info_state.next_day_time - game.game_state.states.game_info_state.start_of_game}")
+        print(f"Time : {game.game_state.states.game_info_state.get_display_time()}")
         print()

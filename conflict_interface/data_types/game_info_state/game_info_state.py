@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from math import floor
 
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
@@ -167,41 +168,37 @@ class GameInfoState(GameObject):
         "coalition_victory_points_modifier": "coalitionVictoryPointsMod",
         "admin_time_forward_allowed": "adminTimeFwdAllowed",
     }
-"""
-    def get_remaining_hr(self):
-        return (self.next_day_time - self.game.client_time()) / 1000, True, 2)
 
-    def get_current_day_time(self):
-        if self.next_day_time:
-            return self.next_day_time - timedelta(days=1)
-        else:
-            return 0
+    def get_remaining_timedelta(self) -> timedelta:
+        """
+        Calculate the remaining time until the next day.
 
-    def get_current_day_time_hr(self, c):
-        b = self.get_current_day_time()
-        if b > 0:
-            b = (self.get_client_time() - b.timestamp()) / 1000
-            if 0 <= c < 2:
-                return self.format_timer(b, c, 2)
-            else:
-                return self.format_timer_tiny(b, 3, 3)
-        return "-"
+        Returns:
+            timedelta: The duration representing the remaining time until the next day.
+        """
+        return self.next_day_time - self.game.client_time()
 
-    def get_remaining_seconds_till_next_game_minute(self):
-        a = self.get_current_day_time()
-        return 60 - (self.get_client_time() - a.timestamp()) / 1000 % 60
+    def get_display_time(self) -> timedelta:
+        """
+        Calculates the hour, minutes and seconds that are displayed in the game.
 
-    def get_day_of_game(self):
-        return self.day_of_game
+        Returns:
+            timedelta: Display time in the format of hours, minutes and seconds.
+        """
+        remaining_timedelta = self.get_remaining_timedelta()
+        hours = 23 - remaining_timedelta.seconds // 3600
+        minutes = 59 - (remaining_timedelta.seconds % 3600) // 60
+        seconds = 59 - remaining_timedelta.seconds % 60
+        return timedelta(hours=hours, minutes=minutes, seconds=seconds)
 
-    def get_day_of_timestamp(self, c):
-        c = datetime.fromtimestamp(c)
-        b = 86400 * (self.get_game_info_state().get_day_of_game() + 1)
-        b = datetime.fromtimestamp(self.get_client_time() - b)
+    def get_day_of_timestamp(self, timestamp):
+        b = 86400 * (self.day_of_game+ 1)
+        b = self.game.client_time() - timedelta(seconds=b)
         return (c.timestamp() - b.timestamp()) / 86400
 
+    """
     # Mock methods for `format_timer` and `format_timer_tiny`
     def format_timer(self, time, is_formatted, precision):
         # Placeholder for formatting function
         return str(time)  # Implement actual formatting logic as needed
-"""
+    """
