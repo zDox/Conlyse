@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from conflict_interface.data_types.custom_types import Vector
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state import ModableUpgrade
-from conflict_interface.utils import GameObject, Vector
+
 
 
 class UpdateProvinceActionModes(Enum):
@@ -16,6 +18,7 @@ class UpdateProvinceActionModes(Enum):
 
 @dataclass
 class UpdateProvinceAction(GameObject):
+    C = "ultshared.action.UltUpdateProvinceAction"
     province_ids: Vector[int]
     mode: UpdateProvinceActionModes
     upgrade: ModableUpgrade

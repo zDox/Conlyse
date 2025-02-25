@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from conflict_interface.utils import ConMapping, \
-    unixtimestamp_to_datetime, timestamp_to_datetime, DefaultEnumMeta, GameObject
+from conflict_interface.data_types.custom_types import DefaultEnumMeta
+from conflict_interface.data_types.game_object import GameObject
 
 
 class HubGameState(Enum, metaclass=DefaultEnumMeta):
@@ -23,7 +23,7 @@ def timescale_to_speedfactor(time_scale):
 
 
 @dataclass
-class HubGameInfo(GameObject):
+class HubGameInfo:
     """
     Its a dataclass for the getInternationalGames webapi
     entry point to model that retrieved data

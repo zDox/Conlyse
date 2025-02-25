@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
-from conflict_interface.utils import GameObject
+from conflict_interface.data_types.game_object import GameObject
+
 
 @dataclass
 class AIState(GameObject):
@@ -13,4 +14,5 @@ class AIState(GameObject):
     TODO:
         * Implement AI state.
     """
+    C = "ultshared.AIState"
     STATE_ID = 13

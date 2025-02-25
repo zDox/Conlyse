@@ -1,6 +1,6 @@
 import logging
 from copy import deepcopy
-from pprint import pprint
+from typing import cast
 
 from fake_useragent import UserAgent
 from requests import Session
@@ -10,11 +10,12 @@ import json
 import base64
 import hashlib
 
-from .parser import parse_international_games
-from .data_types import AuthDetails, HubGameInfo
-from .utils.exceptions import ConflictWebAPIError, ConflictJoinError
-from .game_interface import GameInterface
-from .game_api import GameAPI
+from conflict_interface.data_types.authentification import AuthDetails
+from conflict_interface.data_types.game_object import parse_dataclass
+from conflict_interface.data_types.hub_game_info import HubGameInfo
+from conflict_interface.game_api import GameAPI
+from conflict_interface.game_interface import GameInterface
+from conflict_interface.utils.exceptions import ConflictWebAPIError
 
 
 def protected(func):
@@ -24,7 +25,18 @@ def protected(func):
     return wrapper
 
 
-class ConflictInterface():
+def parse_international_games(data):
+    res = {}
+    print(data)
+    for item in data:
+        properties = item["properties"]
+        game = parse_dataclass(HubGameInfo, properties, None)
+        game = cast(HubGameInfo, game)
+        res[game.game_id] = game
+    return res
+
+
+class HubInterface:
     def __init__(self):
         self.session = Session()
         self.user_agent = UserAgent(platforms='desktop').random
@@ -144,6 +156,7 @@ class ConflictInterface():
             "gameID": game_id,
             "password": ""
         }, "joinGame")
+        return res
 
     def join_game(self, game_id: int, guest=False) -> GameInterface:
         if not self.is_in_game(game_id) and not guest:
@@ -165,3 +178,4 @@ class ConflictInterface():
             "userID": self.auth.user_id,
         }, "getSessionToken")
         return res["sessionToken"]
+

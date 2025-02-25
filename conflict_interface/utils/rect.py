@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from math import ceil
 
-from .point import Point
+from conflict_interface.data_types.point import Point
 
 
 @dataclass

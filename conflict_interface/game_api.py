@@ -1,21 +1,18 @@
+import re
 from datetime import datetime, UTC, timedelta
 from functools import wraps
-
 from requests import Session
 from lxml import html
-
 from typing import Any
 from collections.abc import MutableMapping
 from hashlib import sha1
-import re
 from dataclasses import dataclass
 from json import loads, dumps
 from time import time
 
-from .data_types import AuthDetails
-from .utils import unixtimestamp_to_datetime
-from .utils.exceptions import ConflictJoinError, GameActivationException, GameActivationErrorCodes, \
-    CountryUnselectedException
+from conflict_interface.data_types.authentification import AuthDetails
+from conflict_interface.utils.exceptions import CountryUnselectedException, ConflictJoinError, GameActivationException
+from conflict_interface.utils.helper import unix_to_datetime
 
 
 @dataclass
@@ -154,25 +151,7 @@ class GameAPI:
         self.load_game_php()
         self.load_index_html()
 
-    def get_static_map_data(self):
-        headers = {
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-        }
 
-        params = {
-            # 'bust': '1700054640135',
-        }
-
-        domain = "static1.bytro.com"
-        url = f"https://{domain}/fileadmin/mapjson/live/{self.map_id}.json"
-        response = self.session.get(
-            url,
-            params=params,
-            headers=headers,
-        )
-
-        response.raise_for_status()
-        return loads(response.text)
 
     def make_game_server_request(self, parameters, actions=None):
         headers = {
@@ -217,6 +196,18 @@ class GameAPI:
 
         return loads(response.text)
 
+    def request_game_state_action(self, actions):
+        return self.make_game_server_request({
+            "@c": "ultshared.action.UltUpdateGameStateAction",
+            "stateType": 0,
+            "stateID": "0",
+            "addStateIDsOnSent": True,
+            "option": None,
+            "stateIDs": self.state_ids,
+            "tstamps": self.time_stamps,
+        }, actions)
+
+
     def request_game_activation(self, selected_player_id=0, selected_team_id=0,
                                 random_team_country_selection=False) -> int:
         res = self.make_game_server_request({
@@ -234,30 +225,6 @@ class GameAPI:
             pass
         self.player_id = res["result"]
         return self.player_id
-
-    def request_game_state_action(self, actions):
-        return self.make_game_server_request({
-            "@c": "ultshared.action.UltUpdateGameStateAction",
-            "stateType": 0,
-            "stateID": "0",
-            "addStateIDsOnSent": True,
-            "option": None,
-            "stateIDs": self.state_ids,
-            "tstamps": self.time_stamps,
-        }, actions)
-
-    @country_selected
-    def request_province_action(self, province_id, action): # TODO revise (province_id)
-        data = {"requestID": f"actionReq-{self.action_request_id}",
-                "language": "en",
-                **action,
-                }
-
-        res = self.request_game_state_action([data])
-
-
-        self.action_request_id = + 1
-        return res
 
     def request_login_action(self) -> dict[str, Any]:
         res = self.make_game_server_request({
@@ -296,6 +263,7 @@ class GameAPI:
 
         return res["result"]
 
+
     def request_game_update(self) -> dict[str, Any]:
         res = self.make_game_server_request(
             {
@@ -321,9 +289,7 @@ class GameAPI:
         """
         Calculates the client time
 
-        :param time_scale: The time scale of the game
-        :param last_update_time: The last update time (datetime)
-        :param server_time_offset: The server time offset (timedelta)
+        :param time_scale: The time_scale of the game
         """
         current_time = datetime.now(UTC)
         if not time_scale in (0.25, 1, 0.1):
@@ -342,5 +308,26 @@ class GameAPI:
             self.server_time_offset = timedelta(seconds = -seconds_since_epoch)
             return
 
-        t_stamp_now = unixtimestamp_to_datetime(t_stamp_now)
+        t_stamp_now = unix_to_datetime(t_stamp_now)
         self.server_time_offset = t_stamp_now - self.last_update_time
+
+
+    def get_static_map_data(self):
+        headers = {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+        }
+
+        params = {
+            # 'bust': '1700054640135',
+        }
+
+        domain = "static1.bytro.com"
+        url = f"https://{domain}/fileadmin/mapjson/live/{self.map_id}.json"
+        response = self.session.get(
+            url,
+            params=params,
+            headers=headers,
+        )
+
+        response.raise_for_status()
+        return loads(response.text)

@@ -1,15 +1,16 @@
 
-from conflict_interface.utils import GameObject
 
 from dataclasses import dataclass
 from datetime import timedelta
 
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import \
         MissileConfig, SortingConfig, SoundConfig, AirplaneConfig, \
         ControllableConfig, CarrierConfig, AntiAirConfig, ScoutConfig, \
         TokenProducerConfig, TokenConsumerConfig
 
-from conflict_interface.utils.json_mapped_class import HashMap
+
 from typing import Optional
 
 
@@ -22,6 +23,7 @@ class UnitType(GameObject):
     """
 
     """
+    C = "ultshared.UltUnitType"
     id: int
     stats_column_id: int
     unit_pack: int

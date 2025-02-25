@@ -1,12 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from conflict_interface.game_interface import GameInterface
-from conflict_interface.utils.game_object import GameObject
 
 from dataclasses import dataclass
 
 from conflict_interface.data_types.map_state.province import StaticProvince
+
+if TYPE_CHECKING:
+    from conflict_interface.game_interface import GameInterface
+from conflict_interface.data_types.game_object import GameObject
 
 
 @dataclass

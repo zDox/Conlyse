@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.resource_state.resource_types import ResourceType
-from conflict_interface.utils import GameObject
+
 
 
 @dataclass
 class ResourceEntry(GameObject):
+    C = "ultshared.UltResourceEntry"
     resource_id: ResourceType
     name: str
 

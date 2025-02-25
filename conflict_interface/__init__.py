@@ -1,1 +1,0 @@
-from .conflict_interface import ConflictInterface

@@ -1,6 +1,6 @@
 from enum import Enum
 
-from conflict_interface.utils import DefaultEnumMeta
+from conflict_interface.data_types.custom_types import DefaultEnumMeta
 
 
 class TerrainType(Enum, metaclass=DefaultEnumMeta):

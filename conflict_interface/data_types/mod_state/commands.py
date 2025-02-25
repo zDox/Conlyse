@@ -1,13 +1,12 @@
-from conflict_interface.utils import GameObject
+
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Union, Any
 from enum import Enum
 
-
-from conflict_interface.utils import ConMapping, Point, \
-        unixtimestamp_to_datetime
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.point import Point
 
 
 @dataclass
@@ -15,6 +14,7 @@ class GotoCommand(GameObject):
     """
     Command that tells a army to move
     """
+    C = "ultshared.UltGotoCommand"
     start_time: datetime
     arrival_time: datetime
 

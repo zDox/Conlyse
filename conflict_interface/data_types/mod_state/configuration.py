@@ -1,24 +1,23 @@
 from datetime import date, timedelta
 from dataclasses import dataclass
 
-from conflict_interface.utils import JsonMappedClass, \
-    unixtimestamp_to_datetime, ConMapping, milliseconds_to_timedelta, HashSet, HashMap, UnmodifiableCollection, \
-    LinkedHashMap, GameObject
+from conflict_interface.data_types.custom_types import UnmodifiableCollection, HashMap
+from conflict_interface.data_types.game_object import GameObject, parse_any
 
 
 @dataclass
-class SortingConfig(JsonMappedClass):
+class SortingConfig(GameObject):
     sorting_order: int
     MAPPING = {"sorting_order": "sortOrder"}
 
 
 @dataclass
-class SoundConfig(JsonMappedClass):
+class SoundConfig(GameObject):
     pass
 
 
 @dataclass
-class AirplaneConfig(JsonMappedClass):
+class AirplaneConfig(GameObject):
     spy: bool
     patrol_radius: int
     patrol_target_damage_types: UnmodifiableCollection[int]
@@ -39,7 +38,7 @@ class AirplaneConfig(JsonMappedClass):
 
 
 @dataclass
-class ControllableConfig(JsonMappedClass):
+class ControllableConfig(GameObject):
     controllable: bool
     MAPPING = {"controllable": "controllable"}
 
@@ -50,7 +49,7 @@ def parse_dict_of_ints(obj):
 
 
 @dataclass
-class CarrierConfig(JsonMappedClass):
+class CarrierConfig(GameObject):
     slot_config: HashMap[int, int]
     max_capacity: int
 
@@ -61,13 +60,13 @@ class CarrierConfig(JsonMappedClass):
 
 
 @dataclass
-class AntiAirConfig(JsonMappedClass):
+class AntiAirConfig(GameObject):
     range: int
     MAPPING = {"range": "range"}
 
 
 @dataclass
-class ScoutConfig(JsonMappedClass):
+class ScoutConfig(GameObject):
     stealth_classes: UnmodifiableCollection[int]
     camoflage_classes: UnmodifiableCollection[int]
 
@@ -78,7 +77,8 @@ class ScoutConfig(JsonMappedClass):
 
 
 @dataclass
-class TokenProducerConfigProduction(JsonMappedClass):
+class TokenProducerConfigProduction(GameObject):
+    C = "ultshared.warfare.UltTokenProducerConfigProduction"
     type: str
     amount: int
     duration: timedelta
@@ -90,12 +90,11 @@ class TokenProducerConfigProduction(JsonMappedClass):
 
 
 def parse_list_of_production(obj):
-    return [TokenProducerConfigProduction.from_dict(elm)
-            for elm in obj[1]]
+    return [parse_any(TokenProducerConfigProduction, elm) for elm in obj[1]]
 
 
 @dataclass
-class TokenProducerConfig(JsonMappedClass):
+class TokenProducerConfig(GameObject):
     tokens_on_spawn: UnmodifiableCollection[TokenProducerConfigProduction]
     tokens_provided: UnmodifiableCollection[TokenProducerConfigProduction]
 
@@ -106,12 +105,12 @@ class TokenProducerConfig(JsonMappedClass):
 
 
 @dataclass
-class TokenConsumerConfig(JsonMappedClass):
+class TokenConsumerConfig(GameObject):
     pass
 
 
 @dataclass
-class MissileConfig(JsonMappedClass):
+class MissileConfig(GameObject):
     launch_behaviour: str
     missile_slot: int
     stacking_limit: int
@@ -166,7 +165,7 @@ class RadarSignatureFeature(GameObject):
 
 
 @dataclass
-class TokenFeature(JsonMappedClass):
+class TokenFeature(GameObject):
     """
     Not implemented. There exists no knowledge
     about how they work.
@@ -175,7 +174,7 @@ class TokenFeature(JsonMappedClass):
 
 
 @dataclass
-class CarrierFeature(JsonMappedClass):
+class CarrierFeature(GameObject):
     """
     Not implemented. There exists no knowledge
     about how they work.

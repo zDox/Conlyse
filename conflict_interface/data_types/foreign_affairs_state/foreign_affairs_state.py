@@ -1,8 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from conflict_interface.game_interface import GameInterface
-from conflict_interface.utils import GameObject, HashMap, ConMapping
+from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 
@@ -24,6 +22,7 @@ class ForeignAffairRelationTypes(Enum):
 
 @dataclass
 class ForeignAffairRelations(GameObject):
+    C = "ultshared.ForeignAffairRelations"
     # TODO Implement
     # neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]]
     pass
@@ -36,6 +35,7 @@ class ForeignAffairRelations(GameObject):
 
 @dataclass
 class ForeignAffairsState(GameObject):
+    C = "ultshared.ForeignAffairsState"
     STATE_ID = 5
     relations: ForeignAffairRelations
     MAPPING = {

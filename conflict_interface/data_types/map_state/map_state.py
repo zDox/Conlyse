@@ -4,7 +4,7 @@ from typing import Union
 
 from .sea_province import SeaProvince
 
-from conflict_interface.utils import GameObject, HashMap, HashSet
+
 
 from dataclasses import dataclass
 
@@ -12,6 +12,9 @@ from .province import Province, ProvinceProperty
 from .region import Region
 from conflict_interface.data_types.common import RegionType
 from conflict_interface.data_types.static_map_data import StaticMapData
+from ..custom_types import HashMap, HashSet
+from ..game_object import GameObject
+
 
 @dataclass
 class Map(GameObject):
@@ -38,6 +41,7 @@ class Map(GameObject):
         locations: A set of locations, including both land and sea provinces on the map.
         population_factor: A scaling factor related to population data in the map.
     """
+
     is_reduced: bool
     version: int
     map_id: int
@@ -88,6 +92,7 @@ class MapState(GameObject):
     This class is used to store and manage the state of the map and player-owned
     provinces within the context of the game.
     """
+    C = "ultshared.UltMapState"
     STATE_ID = 3
     map: Map
     # Provinces which are owned by the current player

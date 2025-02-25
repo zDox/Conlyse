@@ -9,10 +9,10 @@ def timestamp_to_datetime(timestamp):
             if timestamp else None
 
 
-def unixtimestamp_to_datetime(timestamp):
+def unix_to_datetime(timestamp):
     if timestamp is None:
         return None
-
+# TODO this is not gonna work in a few years
     if len(str(timestamp)) == 10:
         return datetime.fromtimestamp(int(timestamp), UTC)
     elif len(str(timestamp)) == 13:
