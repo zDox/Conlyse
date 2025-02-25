@@ -98,7 +98,7 @@ class GameInfoState(GameObject):
         coalition_victory_points_modifier: Modifier for coalition victory points.
         admin_time_forward_allowed: Boolean indicating if admin can forward time.
     """
-    C = "ultshared.GameInfoState"
+    C = "ultshared.UltGameInfoState"
     STATE_ID = 12
     day_of_game: int
     start_of_game: datetime

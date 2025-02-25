@@ -9,7 +9,7 @@ from ..game_object import GameObject
 
 @dataclass
 class ModState(GameObject):
-    C = "ultshared.UltModState"
+    C = "ultshared.UltMod"
     STATE_ID = 11
     upgrades: HashMap[int, UpgradeType]
     unit_types: HashMap[int, UnitType]

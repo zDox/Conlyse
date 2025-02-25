@@ -18,24 +18,22 @@ class ForeignAffairRelationTypes(Enum):
     MUTUAL_PROTECTION = 5
     SHARED_INTELLIGENCE = 6
     MILITARY_AUTHORITY = 7
+    MAX = 99
 
 
 @dataclass
 class ForeignAffairRelations(GameObject):
-    C = "ultshared.ForeignAffairRelations"
+    C = "ultshared.UltForeignAffairRelations"
     # TODO Implement
-    # neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]]
-    pass
-    """
+    neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]]
     MAPPING = {
-        "neighbor_relations": ConMapping("neighborRelations", dict[str, dict[str, int]])
+        "neighbor_relations": "neighborRelations",
     }
-    """
 
 
 @dataclass
 class ForeignAffairsState(GameObject):
-    C = "ultshared.ForeignAffairsState"
+    C = "ultshared.UltForeignAffairsState"
     STATE_ID = 5
     relations: ForeignAffairRelations
     MAPPING = {

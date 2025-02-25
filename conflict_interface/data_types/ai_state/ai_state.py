@@ -14,5 +14,6 @@ class AIState(GameObject):
     TODO:
         * Implement AI state.
     """
-    C = "ultshared.AIState"
+    C = "ultshared.UltAIState"
     STATE_ID = 13
+    MAPPING = {}

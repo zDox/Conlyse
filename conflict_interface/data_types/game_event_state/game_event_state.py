@@ -5,5 +5,6 @@ from conflict_interface.data_types.game_object import GameObject
 
 @dataclass
 class GameEventState(GameObject):
-    C = "ultshared.GameEventState"
+    C = "ultshared.gameevents.UltGameEventState"
     STATE_ID = 24
+    MAPPING = {}

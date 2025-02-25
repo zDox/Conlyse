@@ -77,7 +77,7 @@ class Map(GameObject):
                 return location
 
     def set_static_map_data(self, static_map_data: StaticMapData):
-        for province in static_map_data.provinces:
+        for province in static_map_data.locations:
             self.get_province(province.id).set_static_province(province)
 
     def update(self, new_state):

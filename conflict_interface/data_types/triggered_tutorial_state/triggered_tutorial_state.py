@@ -7,3 +7,4 @@ from conflict_interface.data_types.game_object import GameObject
 class TriggeredTutorialState(GameObject):
     C = "ultshared.UltTriggeredTutorialState"
     STATE_ID = 21
+    MAPPING = {}

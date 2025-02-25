@@ -13,7 +13,7 @@ class SortingConfig(GameObject):
 
 @dataclass
 class SoundConfig(GameObject):
-    pass
+    MAPPING = {}
 
 
 @dataclass
@@ -78,12 +78,12 @@ class ScoutConfig(GameObject):
 
 @dataclass
 class TokenProducerConfigProduction(GameObject):
-    C = "ultshared.warfare.UltTokenProducerConfigProduction"
-    type: str
+    C = "ultshared.modding.configuration.UltTokenProducerConfig$TokenProduction"
+    type_id: int
     amount: int
-    duration: timedelta
+    duration: timedelta = timedelta(0)
     MAPPING = {
-            "type": "type",
+            "type_id": "typeID",
             "amount": "amount",
             "duration": "duration",
     }
@@ -106,14 +106,14 @@ class TokenProducerConfig(GameObject):
 
 @dataclass
 class TokenConsumerConfig(GameObject):
-    pass
+    MAPPING = {}
 
 
 @dataclass
 class MissileConfig(GameObject):
-    launch_behaviour: str
     missile_slot: int
     stacking_limit: int
+    launch_behaviour: str = ""
 
     MAPPING = {
         "launch_behaviour": "launchBehaviour",

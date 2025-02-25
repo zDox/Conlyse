@@ -4,5 +4,6 @@ from conflict_interface.data_types.game_object import GameObject
 
 @dataclass
 class UserInventoryState(GameObject):
-    C = "ultshared.UltUserInventoryState"
+    C = "ultshared.premium.UltUserInventory"
     STATE_ID = 16
+    MAPPING = {}

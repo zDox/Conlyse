@@ -5,5 +5,6 @@ from dataclasses import dataclass
 
 @dataclass
 class ConfigurationState(GameObject):
-    C = "ultshared.ConfigurationState"
+    C = "ultshared.UltConfigurationState"
     STATE_ID = 28
+    MAPPING = {}

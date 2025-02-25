@@ -7,3 +7,4 @@ from conflict_interface.data_types.game_object import GameObject
 class PremiumState(GameObject):
     C = "ultshared.UltPremiumState"
     STATE_ID = 14
+    MAPPING = {}

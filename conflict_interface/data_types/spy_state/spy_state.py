@@ -6,3 +6,4 @@ class SpyState(GameObject):
     C = "ultshared.UltSpyState"
     STATE_ID = 7
     # Spies, Nations, SpyReports
+    MAPPING = {}

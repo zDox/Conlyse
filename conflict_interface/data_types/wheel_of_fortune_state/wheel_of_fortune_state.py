@@ -7,3 +7,4 @@ from conflict_interface.data_types.game_object import GameObject
 class WheelOfFortuneState(GameObject):
     C = "ultshared.UltWheelOfFortuneState"
     STATE_ID = 22
+    MAPPING = {}

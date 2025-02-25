@@ -3,19 +3,21 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, cast
-from typing import TYPE_CHECKING
 
+from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
 from .data_types.game_object import parse_game_object
+from .data_types.map_state import Province, ProvinceStateID
+from .data_types.mod_state import UpgradeType, UnitType
+from .data_types.newspaper_state import Article
+from .data_types.player_state import PlayerProfile
+from .data_types.resource_state import ResourceProfile, ResourceEntry
+from .data_types.static_map_data import StaticMapData
 from .game_api import GameAPI
 from .data_types.game_state import GameState
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 
-if TYPE_CHECKING:
-    from .data_types import TeamProfile, PlayerProfile, Province, Article, GameState, StaticMapData, ProvinceStateID
-    from .data_types import ResourceProfile, ResourceEntry
-    from .data_types import Army, UnitType
-    from .data_types import UpgradeType
+from conflict_interface.data_types.player_state.team_profile import TeamProfile
 
 
 
@@ -88,8 +90,8 @@ class GameInterface:
         static_map_data = parse_game_object(StaticMapData, self.game_api.get_static_map_data(), self)
 
 
-        self.game_state = cast(self.game_state, GameState)
-
+        self.game_state = cast(GameState, self.game_state)
+        print(type(self.game_state))
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,

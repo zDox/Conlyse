@@ -7,3 +7,4 @@ from conflict_interface.data_types.game_object import GameObject
 class StatisticState(GameObject):
     C = "ultshared.UltStatisticState"
     STATE_ID = 10
+    MAPPING = {}

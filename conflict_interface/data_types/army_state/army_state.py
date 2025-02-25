@@ -17,7 +17,7 @@ class ArmyState(GameObject):
         STATE_ID (int): The unique identifier for the Army state.
         armies (HashMap[int, Army]): A mapping of army id to army object.
     """
-    C = "ultshared.ArmyState"
+    C = "ultshared.UltArmyState"
     STATE_ID = 6
 
     armies: HashMap[int,Army]
