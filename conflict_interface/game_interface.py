@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any
+from typing import Any, TypedDict
 from typing import TYPE_CHECKING
 
 from conflict_interface.data_types import ProvinceStateID, GameState
@@ -181,11 +181,14 @@ class GameInterface:
     def get_my_player(self):
         return self.get_player(self.player_id)
 
+
     def get_players(self, **filters) -> dict[int, PlayerProfile]:
         return {player.player_id: player
                 for player in self.game_state.states.player_state.players.values()
                 if all([getattr(player, key) == val
                         for key, val in filters.items()])}
+
+
 
     def get_playable_countries(self) -> dict[int, PlayerProfile]:
         return self.get_players(available=True)

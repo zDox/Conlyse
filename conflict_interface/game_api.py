@@ -174,7 +174,7 @@ class GameAPI:
         response.raise_for_status()
         return loads(response.text)
 
-    def make_game_server_request(self, parameters, actions=None):
+    def make_game_server_request(self, parameters):
         headers = {
             'Accept': 'text/plain, */*; q=0.01',
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -201,9 +201,6 @@ class GameAPI:
         }
 
         self.request_id += 1
-
-        if actions:
-            data["actions"] = ["java.util.LinkedList", actions]
 
         response = self.session.post(self.game_server_address,
                                      headers=headers,
@@ -235,28 +232,26 @@ class GameAPI:
         self.player_id = res["result"]
         return self.player_id
 
-    def request_game_state_action(self, actions):
-        return self.make_game_server_request({
+    def request_game_state_action(self, action):
+        res = self.make_game_server_request(
+            {
             "@c": "ultshared.action.UltUpdateGameStateAction",
             "stateType": 0,
             "stateID": "0",
             "addStateIDsOnSent": True,
             "option": None,
-            "stateIDs": self.state_ids,
-            "tstamps": self.time_stamps,
-        }, actions)
-
-    @country_selected
-    def request_province_action(self, province_id, action): # TODO revise (province_id)
-        data = {"requestID": f"actionReq-{self.action_request_id}",
+            "actions": ["java.util.LinkedList", [
+                {"requestID": f"actionReq-{self.action_request_id}",
                 "language": "en",
                 **action,
                 }
+            ]],
+            "stateIDs": self.state_ids,
+            "tstamps": self.time_stamps,
+            }
+        )
 
-        res = self.request_game_state_action([data])
-
-
-        self.action_request_id = + 1
+        self.action_request_id += 1
         return res
 
     def request_login_action(self) -> dict[str, Any]:
@@ -314,7 +309,7 @@ class GameAPI:
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
 
-        return res["result"]["states"]
+        return res["result"]
 
 
     def client_time(self, time_scale) -> datetime:

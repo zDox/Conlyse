@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from conflict_interface.data_types.research_state.research_action import ResearchAction
 from conflict_interface.utils import GameObject, ArrayList, HashMap
 
 from dataclasses import dataclass
@@ -18,6 +19,11 @@ class Research(GameObject):
 
     def remaining_time(self):
         return self.end_time - self.game.client_time()
+
+    def do_research(self, research_id: int):
+        return self.game.game_api.request_game_state_action(ResearchAction(
+            research_id=research_id,
+        ).to_dict())
 
 
 @dataclass
