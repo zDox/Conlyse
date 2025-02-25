@@ -131,6 +131,17 @@ class GameInterface:
     def get_api(self) -> GameAPI:
         return self.game_api
 
+    def client_time(self) -> datetime:
+        """
+        Retrieves the current client time adjusted for the game's time scale.
+
+        Returns
+        -------
+        datetime
+            The adjusted client time as a datetime object.
+        """
+        return self.game_api.client_time(self.game_state.states.game_info_state.time_scale)
+
     def relative_time_since_start(self, date) -> timedelta:
         """
         Computes the relative time difference between a given date and the start of the game.

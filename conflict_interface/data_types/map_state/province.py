@@ -14,7 +14,7 @@ from conflict_interface.data_types.mod_state import ModableUpgrade
 from .update_province_action import UpdateProvinceActionModes, UpdateProvinceAction
 
 
-class ProvinceStateID(Enum):
+class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
     """
     Enumeration for representing different types of administrative areas.
 
@@ -25,6 +25,7 @@ class ProvinceStateID(Enum):
         ANNEXED_CITY: Represents a city annexed to a different territory.
         MAINLAND_CITY: Represents a city within the mainland.
     """
+    NONE = 0
     OCCUPIED_PROVINCE = 51
     MAINLAND_PROVINCE = 52
     OCCUPIED_CITY = 53
@@ -92,10 +93,11 @@ class Province(GameObject):
     adjacent_to_water: bool
     resource_production: Optional[int]
     resource_production_type: ResourceType
-    money_production: int
+
     victory_points: int
     owner_id: int
     upgrades: HashSet[ModableUpgrade]
+    money_production: int = 0
     morale: int = 70
     legal_owner: int = -1
 

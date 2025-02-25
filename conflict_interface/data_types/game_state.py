@@ -153,7 +153,7 @@ class GameState(GameObject):
     state_id: str
     time_stamp: str
     states: States
-    action_results: HashMap[str, int]
+    action_results: Optional[HashMap[str, int]]
 
     MAPPING = {
         "state_type": "stateType",

@@ -27,6 +27,12 @@ class DefaultEnumMeta(EnumMeta):
             return next(iter(cls))
         return super().__call__(value, *args, **kwargs)
 
+    def get_value_type(cls):
+        if len(cls) == 0:
+            return None
+        else:
+            return type(next(iter(cls)).value)
+
 class LinkedList(list):
     C = "java.util.LinkedList"
 
@@ -84,6 +90,7 @@ class JsonMappedClass:
     def from_dict(cls, obj: dict):
         parsed_data = {}
         resolved = get_type_hints(cls)
+        print(obj)
 
         for new_name, mapped_value in cls.MAPPING.items():
             ftype = resolved[new_name]

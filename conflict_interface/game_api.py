@@ -314,7 +314,7 @@ class GameAPI:
             self.time_stamps[state_type] = state["timeStamp"]
             self.state_ids[state_type] = state["stateID"]
 
-        return res["result"]["states"]
+        return res["result"]
 
 
     def client_time(self, time_scale) -> datetime:
@@ -326,6 +326,8 @@ class GameAPI:
         :param server_time_offset: The server time offset (timedelta)
         """
         current_time = datetime.now(UTC)
+        if not time_scale in (0.25, 1, 0.1):
+            raise ValueError(f"Time scale cannot be {time_scale}. Must be 0.1, 0.25 or 1")
         if time_scale != 1:
             time_elapsed = timedelta(seconds = (current_time -self.last_update_time).total_seconds() / time_scale)
             return self.last_update_time + self.server_time_offset + time_elapsed

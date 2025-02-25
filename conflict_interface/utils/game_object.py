@@ -73,10 +73,18 @@ def handle_normal(value, py_type, game):
     elif py_type == timedelta:
         return seconds_to_timedelta(value)
     elif py_type in (bool, int, float, str):
+        if value is None:
+            return None
         return py_type(value)
 
     elif issubclass(py_type, Enum):
-        return py_type(int(value))
+        if isinstance(py_type, DefaultEnumMeta): # Check for DefaultEnumMeta as metaclass
+            entry_type = py_type.get_value_type()
+            if value is None:
+                return py_type()  # Provide default instance
+            return py_type(entry_type(value))
+        else:
+            raise ValueError(f"Enum {py_type} has not DefaultEnumMeta metaclass")
     elif issubclass(py_type, JsonMappedClass):
         return py_type.from_dict(value)
     elif issubclass(py_type, GameObject):
@@ -159,6 +167,7 @@ class GameObject(JsonMappedClass):
             raise TypeError(f"{cls.__name__} must be a dataclass")
         parsed_data = {}
         resolved = get_type_hints(cls)
+        # print(obj)
 
         for py_name, mapped_value in cls.MAPPING.items():
             py_type = resolved[py_name]
@@ -168,7 +177,6 @@ class GameObject(JsonMappedClass):
                 obj_contains = mapped_value.con_key in obj
             else:
                 obj_contains = mapped_value in obj
-
             if not obj_contains:
                 if type(None) in get_args(py_type):  # Check if py_type is typing.Optional
                     parsed_data[py_name] = None
@@ -180,7 +188,8 @@ class GameObject(JsonMappedClass):
                     parsed_data[py_name] = field_info.default_factory()
                 else:
                     raise ValueError(
-                        f"Entry of type {py_type} cannot be parsed as object of type {cls} contains no conflict key {mapped_value} (pyname {py_name})")
+                        f"Entry of type {py_type} cannot be parsed as object of type {cls} contains no conflict key {mapped_value} (pyname {py_name})"
+                        f"\n {obj}")
             else:
                 if is_optional(py_type):
                     py_type = get_underlying_type(py_type)
