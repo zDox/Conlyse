@@ -1,10 +1,9 @@
-from conflict_interface.utils import GameObject, LinkedList
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from conflict_interface.utils import Point, \
-        DefaultEnumMeta
+from conflict_interface.data_types.custom_types import DefaultEnumMeta, LinkedList
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
         TokenFeature
@@ -15,6 +14,7 @@ from conflict_interface.data_types.mod_state.anti_air_parameters import AntiAirP
 from conflict_interface.data_types.army_state.unit import Unit
 
 from conflict_interface.data_types.map_state.terrain_type import TerrainType
+from conflict_interface.data_types.point import Point
 
 ARMY_CLOSE_COMBAT_RANGE = 5
 
@@ -35,6 +35,7 @@ def parse_commands(value: list):
 
 @dataclass
 class Battle(GameObject):
+    C = "ultshared.warfare.UltBattle"
     attacker_ids: list[int]
 
     MAPPING = {
@@ -139,6 +140,7 @@ class Army(GameObject):
         radar_signature_feature: How the army shows up on radar.
         token_feature: How the army consumes tokens on mobilization.
     """
+    C = "ultshared.warfare.UltArmy"
     id: int = None
     size: int = 1
     health: float = 1.0

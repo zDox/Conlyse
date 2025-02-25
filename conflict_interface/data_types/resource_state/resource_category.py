@@ -1,18 +1,20 @@
 from dataclasses import dataclass
 
 from .resource_entry import ResourceEntry
-from conflict_interface.utils import ConMapping, HashMap
-from conflict_interface.utils import GameObject
+from ..custom_types import HashMap
+from ..game_object import GameObject, parse_any
+
 
 def parse_resource_entries(obj):
     if obj is None:
         return {}
-    return {int(resource_id): ResourceEntry.from_dict(resource)
-            for resource_id, resource in list(obj.items())[1:]}
+
+    return {int(resource_id): parse_any(ResourceEntry, resource) for resource_id, resource in obj.items()}
 
 
 @dataclass
 class ResourceCategory(GameObject):
+    C = "ultshared.UltResourceCategory"
     category_id: int
     name: str
     daily_unit_consumption: float

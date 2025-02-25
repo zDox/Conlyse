@@ -1,15 +1,12 @@
-from conflict_interface.utils import GameObject
-
+from conflict_interface.data_types.game_object import GameObject
 from dataclasses import dataclass
 from datetime import datetime
 
 
-from conflict_interface.utils import ConMapping, \
-        unixtimestamp_to_datetime
-
 
 @dataclass
 class Article(GameObject):
+    C = "ultshared.UltArticle"
     sender_id: int
     receiver_id: int
     message_id: int

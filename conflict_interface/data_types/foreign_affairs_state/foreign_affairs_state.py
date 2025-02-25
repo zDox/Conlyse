@@ -1,8 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from conflict_interface.game_interface import GameInterface
-from conflict_interface.utils import GameObject, HashMap, ConMapping
+from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 
@@ -20,22 +18,22 @@ class ForeignAffairRelationTypes(Enum):
     MUTUAL_PROTECTION = 5
     SHARED_INTELLIGENCE = 6
     MILITARY_AUTHORITY = 7
+    MAX = 99
 
 
 @dataclass
 class ForeignAffairRelations(GameObject):
+    C = "ultshared.UltForeignAffairRelations"
     # TODO Implement
-    # neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]]
-    pass
-    """
+    neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]]
     MAPPING = {
-        "neighbor_relations": ConMapping("neighborRelations", dict[str, dict[str, int]])
+        "neighbor_relations": "neighborRelations",
     }
-    """
 
 
 @dataclass
 class ForeignAffairsState(GameObject):
+    C = "ultshared.UltForeignAffairsState"
     STATE_ID = 5
     relations: ForeignAffairRelations
     MAPPING = {

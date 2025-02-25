@@ -1,10 +1,12 @@
-from conflict_interface import ConflictInterface
+
 
 import creds
 from pprint import pprint
 
+from conflict_interface.hub_interface import HubInterface
+
 if __name__ == "__main__":
-    interface = ConflictInterface()
+    interface = HubInterface()
     interface.login(creds.username, creds.password)
     print("Starting example")
 

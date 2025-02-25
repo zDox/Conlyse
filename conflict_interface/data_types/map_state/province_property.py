@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state import ModableUpgrade, SpecialUnit
-from conflict_interface.utils import GameObject, LinkedList, ArrayList
+from conflict_interface.data_types.custom_types import LinkedList, ArrayList
 
 
 @dataclass
@@ -22,6 +23,7 @@ class ProvinceProperty(GameObject):
         uprising_chance: The chance of an uprising occurring in the province expressed as a percentage.
         target_morale: The morale that will be reached over time.
     """
+    C = "ultshared.UltProvinceProperty"
     possible_upgrades: LinkedList[ModableUpgrade]
     queueable_upgrades: LinkedList[ModableUpgrade]
 

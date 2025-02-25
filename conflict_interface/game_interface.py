@@ -2,20 +2,23 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any
-from typing import TYPE_CHECKING
+from typing import Any, cast
 
-from conflict_interface.data_types import ProvinceStateID, GameState
-from .data_types import StaticMapData
+from .data_types.army_state.army import Army
+from .data_types.custom_types import ArrayList
+from .data_types.game_object import parse_game_object
+from .data_types.map_state import Province, ProvinceStateID
+from .data_types.mod_state import UpgradeType, UnitType
+from .data_types.newspaper_state import Article
+from .data_types.player_state import PlayerProfile
+from .data_types.resource_state import ResourceProfile, ResourceEntry
+from .data_types.static_map_data import StaticMapData
 from .game_api import GameAPI
-from .utils import ArrayList
-
-if TYPE_CHECKING:
-    from .data_types import TeamProfile, PlayerProfile, Province, Article
-    from .data_types import ResourceProfile, ResourceEntry
-    from .data_types import Army, UnitType
-    from .data_types import UpgradeType
+from .data_types.game_state import GameState
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
+
+from conflict_interface.data_types.player_state.team_profile import TeamProfile
+
 
 
 class GameInterface:
@@ -75,15 +78,20 @@ class GameInterface:
                     selected_team_id=-1,
                     random_team_country_selection=False,
                 )
-                self.game_state = GameState.from_dict(self.game_api.request_login_action(), self)
+
+                self.game_state = parse_game_object(GameState, self.game_api.request_login_action(), self)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
-                self.game_state = GameState.from_dict(self.game_api.request_game_update(), self)
-        else:
-            self.game_state = GameState.from_dict(self.game_api.request_game_update(), self)
-        static_map_data = StaticMapData.from_dict(self.game_api.get_static_map_data(), self)
 
+                self.game_state = parse_game_object(GameState, self.game_api.request_game_update(), self)
+        else:
+            self.game_state = parse_game_object(GameState, self.game_api.request_game_update(), self)
+        static_map_data = parse_game_object(StaticMapData, self.game_api.get_static_map_data(), self)
+
+
+        self.game_state = cast(GameState, self.game_state)
+        print(type(self.game_state))
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,
@@ -110,7 +118,7 @@ class GameInterface:
         self.player_id = self.game_api.request_game_activation(country_id, team_id,
                                               random_country_team)
 
-        self.game_state = GameState.from_dict(self.game_api.request_login_action(), self)
+        self.game_state = parse_game_object(GameState, self.game_api.request_login_action(), self)
 
     def update(self) -> GameState:
         """
@@ -199,7 +207,7 @@ class GameInterface:
     NewspaperState(2)
     """
 
-    def get_articles(self, day):
+    def get_articles(self, day) -> dict[int, Article]:
         return {article_id: article
                 for article_id, article in self.game_state.states.newspaper_state.articles
                 if self.relative_time_since_start(article.time_stamp).days + 1 == day}

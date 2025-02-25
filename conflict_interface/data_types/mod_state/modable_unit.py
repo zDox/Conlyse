@@ -1,14 +1,15 @@
 
-from conflict_interface.utils import GameObject
+
 
 from dataclasses import dataclass
 
 from conflict_interface.data_types.army_state.unit import Unit
-
+from conflict_interface.data_types.game_object import GameObject
 
 
 @dataclass
 class SpecialUnit(GameObject):
+    C = "ultshared.UltSpecialUnit"
     enabled: bool
     constructing: bool
     unit: Unit

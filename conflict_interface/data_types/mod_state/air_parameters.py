@@ -2,9 +2,9 @@ from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional
 
-from conflict_interface.utils import Point, \
-        unixtimestamp_to_datetime, ConMapping
-from conflict_interface.utils import GameObject
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.point import Point
+
 
 def parse_air_field(obj):
     if obj is None:
@@ -21,6 +21,7 @@ def parse_air_field(obj):
 
 @dataclass
 class AirParameters(GameObject):
+    C = "ultshared.UltAirParameters"
     last_air_action_time: datetime
     last_air_position: Optional[Point]
     launch_target: Optional[Point]

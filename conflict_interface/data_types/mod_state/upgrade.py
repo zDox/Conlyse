@@ -4,7 +4,9 @@ from enum import Enum
 from math import floor
 from typing import List, Optional
 
-from conflict_interface.utils import GameObject, Point, HashMap
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.point import Point
 
 
 class UpgradeFeature(Enum):
@@ -66,6 +68,7 @@ class ValueFunction(Enum):
 
 @dataclass
 class UpgradeType(GameObject):
+    C = "ultshared.UltUpgradeType"
     id: int
     build_time: timedelta
     build_condition: int

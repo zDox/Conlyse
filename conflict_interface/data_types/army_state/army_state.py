@@ -1,7 +1,10 @@
 from .army import Army
-from conflict_interface.utils import GameObject, HashMap
+
 
 from dataclasses import dataclass
+
+from ..custom_types import HashMap
+from ..game_object import GameObject
 
 
 @dataclass
@@ -14,6 +17,7 @@ class ArmyState(GameObject):
         STATE_ID (int): The unique identifier for the Army state.
         armies (HashMap[int, Army]): A mapping of army id to army object.
     """
+    C = "ultshared.UltArmyState"
     STATE_ID = 6
 
     armies: HashMap[int,Army]

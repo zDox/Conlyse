@@ -22,3 +22,5 @@ from .static_map_data import *
 
 # Extra Classes
 from .common import *
+from .custom_types import *
+from .game_object import *

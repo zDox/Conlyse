@@ -1,4 +1,4 @@
-from conflict_interface.utils import GameObject
+from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 
@@ -16,6 +16,7 @@ getFlagImage
 
 @dataclass
 class TeamProfile(GameObject):
+    C = "ultshared.UltTeamProfile"
     team_id: int
     name: str
     description: str

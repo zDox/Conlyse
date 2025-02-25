@@ -4,7 +4,7 @@ from conflict_interface.data_types.common import RegionType
 from .province_property import ProvinceProperty
 from .terrain_type import TerrainType
 from conflict_interface.data_types.resource_state import ResourceType
-from conflict_interface.utils import GameObject, ConMapping, Point, HashSet, DefaultEnumMeta
+
 
 from dataclasses import dataclass
 from enum import Enum
@@ -12,6 +12,9 @@ from enum import Enum
 
 from conflict_interface.data_types.mod_state import ModableUpgrade
 from .update_province_action import UpdateProvinceActionModes, UpdateProvinceAction
+from ..custom_types import DefaultEnumMeta, HashSet
+from ..game_object import GameObject
+from ..point import Point
 
 
 class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
@@ -57,6 +60,8 @@ class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
         return ResourceType(self.value-1)
 
 
+
+
 @dataclass
 class Province(GameObject):
     """
@@ -92,7 +97,7 @@ class Province(GameObject):
 
     adjacent_to_water: bool
     resource_production: Optional[int]
-    resource_production_type: ResourceType
+    resource_production_type: ResourceProductionType
 
     victory_points: int
     owner_id: int
@@ -116,7 +121,7 @@ class Province(GameObject):
         "morale": "m",
         "province_state_id": "pst",
         "resource_production": "rp",
-        "resource_production_type": ConMapping("r", ResourceProductionType),
+        "resource_production_type": "r",
         "money_production": "tp",
         "legal_owner": "lo",
         "victory_points": "plv",

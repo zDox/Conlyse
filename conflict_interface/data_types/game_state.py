@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from .admin_state import AdminState
-from .ai_state import AIState
+from .admin_state.admin_state import AdminState
+from .ai_state.ai_state import AIState
+from .army_state.army_state import ArmyState
 from .build_queue_state import BuildQueueState
+from .custom_types import HashMap
 from .exploration_state import ExplorationState
 from .game_event_state import GameEventState
+from .game_object import GameObject
 from .in_game_alliance_state import InGameAllianceState
 from .location_state import LocationState
 from .map_info_state import MapInfoState
@@ -17,7 +20,6 @@ from .premium_state import PremiumState
 from .quest_state import QuestState
 from .resource_state import ResourceState
 from .foreign_affairs_state import ForeignAffairsState
-from .army_state import ArmyState
 from .spy_state import SpyState
 from .mod_state import ModState
 from .game_info_state import GameInfoState
@@ -30,7 +32,6 @@ from .user_inventory_state import UserInventoryState
 from .user_options_state import UserOptionsState
 from .user_sms_state import UserSMSState
 from .wheel_of_fortune_state import WheelOfFortuneState
-from ..utils import GameObject, HashMap
 
 """
 The following are all states but not every state

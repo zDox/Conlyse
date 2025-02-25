@@ -1,11 +1,12 @@
 from typing import Optional
 
-from conflict_interface.utils import GameObject
+from conflict_interface.data_types.custom_types import DefaultEnumMeta
+from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.utils import DefaultEnumMeta
+
 
 
 LAST_LOGIN_INACTIVE = 0
@@ -57,6 +58,7 @@ getNationLabelSize
 
 @dataclass
 class PlayerProfile(GameObject):
+    C = "ultshared.UltPlayerProfile"
     player_id: int
     team_id: int
     name: str

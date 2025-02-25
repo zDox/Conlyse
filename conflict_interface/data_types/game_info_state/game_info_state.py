@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 from math import floor
 
-from conflict_interface.utils import GameObject, HashMap
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 
@@ -21,6 +22,7 @@ class GameFeature(GameObject):
         name (str): Name of the game feature.
         description (str): Description or details about the game feature.
     """
+    C = "ultshared.GameFeature"
     feature_id: int
     value: int
     value_name: str
@@ -41,6 +43,7 @@ class GameFeature(GameObject):
 
 @dataclass
 class GameFeatures(GameObject):
+    C = "ultshared.GameFeatures"
     """
     Represents a collection of game features mapped by their identifiers.
     """
@@ -96,6 +99,7 @@ class GameInfoState(GameObject):
         coalition_victory_points_modifier: Modifier for coalition victory points.
         admin_time_forward_allowed: Boolean indicating if admin can forward time.
     """
+    C = "ultshared.UltGameInfoState"
     STATE_ID = 12
     day_of_game: int
     start_of_game: datetime

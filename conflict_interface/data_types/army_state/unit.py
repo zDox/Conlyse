@@ -1,7 +1,9 @@
-from conflict_interface.utils import GameObject
+
 
 from dataclasses import dataclass
 from enum import Enum
+
+from conflict_interface.data_types.game_object import GameObject
 
 
 class MissileType(Enum):
@@ -11,6 +13,7 @@ class MissileType(Enum):
 
 @dataclass
 class Unit(GameObject):
+    C = "ultshared.warfare.UltUnit"
     id: int
     unit_type_id: int
     health: float
