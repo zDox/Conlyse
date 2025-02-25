@@ -1,6 +1,7 @@
 from datetime import datetime, UTC, timedelta
 from functools import wraps
 from pprint import pprint
+from xmlrpc.client import DateTime
 
 from requests import Session
 from lxml import html
@@ -209,6 +210,9 @@ class GameAPI:
                                      headers=headers,
                                      data=dumps(data))
         response.raise_for_status()
+
+        self.update_server_time(0)
+
         return loads(response.text)
 
     def request_game_activation(self, selected_player_id=0, selected_team_id=0,
@@ -241,13 +245,15 @@ class GameAPI:
         }, actions)
 
     @country_selected
-    def request_province_action(self, province_id, action):
+    def request_province_action(self, province_id, action): # TODO revise (province_id)
         data = {"requestID": f"actionReq-{self.action_request_id}",
                 "language": "en",
                 **action,
                 }
-        pprint(data)
+
         res = self.request_game_state_action([data])
+
+
         self.action_request_id = + 1
         return res
 
@@ -283,7 +289,10 @@ class GameAPI:
         self.action_request_id = + 1
         if "states" not in res["result"]:
             raise ConflictJoinError(f"Login failed with error code {res['result']}")
-        return res["result"]["states"]
+
+
+
+        return res["result"]
 
     def request_game_update(self) -> dict[str, Any]:
         res = self.make_game_server_request(
@@ -306,7 +315,7 @@ class GameAPI:
         return res["result"]["states"]
 
 
-    def client_time(self, time_scale, last_update_time, server_time_offset) -> datetime:
+    def client_time(self, time_scale) -> datetime:
         """
         Calculates the client time
 
@@ -316,10 +325,12 @@ class GameAPI:
         """
         current_time = datetime.now(UTC)
         if time_scale != 1:
-            time_elapsed = timedelta(seconds = (current_time -last_update_time).total_seconds() / time_scale)
-            return last_update_time + server_time_offset + time_elapsed
-        return current_time + server_time_offset
+            time_elapsed = timedelta(seconds = (current_time -self.last_update_time).total_seconds() / time_scale)
+            return self.last_update_time + self.server_time_offset + time_elapsed
+        return current_time + self.server_time_offset
 
-    def update_server_time(self, last_update):
+    def update_server_time(self, t_stamp_now):
+        # convert t_stamp_now to datetime
+        t_stamp_now = datetime.fromtimestamp(t_stamp_now, UTC)
         self.last_update_time = datetime.now(UTC)
-        self.server_time_offset = last_update - self.last_update_time
+        self.server_time_offset = t_stamp_now - self.last_update_time

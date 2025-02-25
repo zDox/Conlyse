@@ -30,7 +30,7 @@ from .user_inventory_state import UserInventoryState
 from .user_options_state import UserOptionsState
 from .user_sms_state import UserSMSState
 from .wheel_of_fortune_state import WheelOfFortuneState
-from ..utils import GameObject
+from ..utils import GameObject, HashMap
 
 """
 The following are all states but not every state
@@ -70,7 +70,6 @@ STATE_TYPE_MISSION_STATE: 29
 
 @dataclass
 class States(GameObject):
-    timestamp: str
     player_state: Optional[PlayerState]
     newspaper_state: Optional[NewspaperState]
     map_state: Optional[MapState]
@@ -102,7 +101,6 @@ class States(GameObject):
     mission_state: Optional[MissionState]
 
     MAPPING = {
-        "timestamp": "timeStamp",
         "player_state": "1",
         "newspaper_state": "2",
         "map_state": "3",
@@ -147,3 +145,21 @@ class States(GameObject):
             if not callable(getattr(attr, "update", None)):
                 continue
             getattr(self, field).update(new_fields[self.MAPPING[field]])
+
+
+@dataclass
+class GameState(GameObject):
+    state_type: int
+    state_id: str
+    time_stamp: str
+    states: States
+    action_results: HashMap[str, int]
+
+    MAPPING = {
+        "state_type": "stateType",
+        "state_id": "stateID",
+        "time_stamp": "timeStamp",
+        "states": "states",
+        "action_results": "actionResults"
+    }
+

@@ -14,7 +14,7 @@ from .mod_state import *
 from .game_info_state import *
 from .research_state import *
 from .configuration_state import *
-from .states import *
+from .game_state import *
 from .static_map_data import *
 
 

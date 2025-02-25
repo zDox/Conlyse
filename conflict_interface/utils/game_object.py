@@ -156,6 +156,7 @@ class GameObject(JsonMappedClass):
         parsed_data = {}
         resolved = get_type_hints(cls)
 
+        print(obj.keys())
         for py_name, mapped_value in cls.MAPPING.items():
             py_type = resolved[py_name]
             field_info = cls.__dataclass_fields__[py_name]
