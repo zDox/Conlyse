@@ -5,6 +5,7 @@ from enum import Enum
 from pprint import pprint
 from typing import TYPE_CHECKING, get_origin, Union, get_args
 
+from . import LinkedHashMap
 from .json_mapped_class import ArrayList, HashMap, TreeMap, Vector, HashSet, LinkedList
 
 if TYPE_CHECKING:
@@ -46,11 +47,13 @@ def parse_dict(obj, py_type, game):
 def parse_conflict_dict(obj, py_type, game):
     if len(py_type.__args__) != 2:
         raise ValueError(f"HashMap of type {py_type} must have two arguments")
-    return py_type({
-        handle_normal(key, py_type.__args__[0], game): handle_normal(value, py_type.__args__[1], game)
-        for key, value in obj.items()
-        if key != "@c"
-    })
+
+    type_dict = {}
+    for key,value in obj.items():
+        if key == "@c":
+            continue
+        type_dict[handle_normal(key, py_type.__args__[0], game)] = handle_normal(value, py_type.__args__[1], game)
+    return py_type(type_dict)
 
 
 def handle_con_mapping(value, py_type, mapped_type, game):
@@ -61,6 +64,7 @@ def handle_con_mapping(value, py_type, mapped_type, game):
         raise ValueError(f"Type {mapped_type} has no to_py method")
 
 def handle_normal(value, py_type, game):
+    # print(f"Handling {value} of type {py_type}")
     if get_origin(py_type) is Union:
         py_type = get_type_of_union(value, py_type)
 
@@ -79,7 +83,7 @@ def handle_normal(value, py_type, game):
         return py_type.from_dict(value, game)
     elif get_origin(py_type) in (Vector, ArrayList, LinkedList):
         return parse_conflict_list(value, py_type, game)
-    elif get_origin(py_type) in (HashMap, TreeMap):
+    elif get_origin(py_type) in (HashMap, TreeMap, LinkedHashMap):
         return parse_conflict_dict(value, py_type, game)
     elif get_origin(py_type) in [HashSet]:
         return parse_set(value, py_type, game)
@@ -156,7 +160,6 @@ class GameObject(JsonMappedClass):
         parsed_data = {}
         resolved = get_type_hints(cls)
 
-        print(obj.keys())
         for py_name, mapped_value in cls.MAPPING.items():
             py_type = resolved[py_name]
             field_info = cls.__dataclass_fields__[py_name]

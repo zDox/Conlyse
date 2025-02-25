@@ -1,7 +1,5 @@
 from datetime import datetime, UTC, timedelta
 from functools import wraps
-from pprint import pprint
-from xmlrpc.client import DateTime
 
 from requests import Session
 from lxml import html
@@ -15,6 +13,7 @@ from json import loads, dumps
 from time import time
 
 from .data_types import AuthDetails
+from .utils import unixtimestamp_to_datetime
 from .utils.exceptions import ConflictJoinError, GameActivationException, GameActivationErrorCodes, \
     CountryUnselectedException
 
@@ -211,7 +210,10 @@ class GameAPI:
                                      data=dumps(data))
         response.raise_for_status()
 
-        self.update_server_time(0)
+        if not type(response.json()["result"]) is int:
+            self.update_server_time(response.json()["result"]["timeStamp"])
+        else:
+            self.update_server_time(0)
 
         return loads(response.text)
 
@@ -330,7 +332,13 @@ class GameAPI:
         return current_time + self.server_time_offset
 
     def update_server_time(self, t_stamp_now):
-        # convert t_stamp_now to datetime
-        t_stamp_now = datetime.fromtimestamp(t_stamp_now, UTC)
         self.last_update_time = datetime.now(UTC)
+
+        t_stamp_now = int(t_stamp_now)
+        if t_stamp_now == 0:
+            seconds_since_epoch = (self.last_update_time - datetime(1970, 1, 1, tzinfo=UTC)).total_seconds()
+            self.server_time_offset = timedelta(seconds = -seconds_since_epoch)
+            return
+
+        t_stamp_now = unixtimestamp_to_datetime(t_stamp_now)
         self.server_time_offset = t_stamp_now - self.last_update_time

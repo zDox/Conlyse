@@ -124,14 +124,12 @@ class MissileConfig(JsonMappedClass):
 
 
 @dataclass
-class MissileSlotConfig(JsonMappedClass):
-    id: int
+class MissileSlotConfig(GameObject):
     capacity: int
     resupply_time: timedelta
     initial_inventory: int
 
     MAPPING = {
-        "province_id": "province_id",
         "capacity": "capacity",
         "resupply_time": "resupplyTime",
         "initial_inventory": "initialInventory",
@@ -139,19 +137,23 @@ class MissileSlotConfig(JsonMappedClass):
 
 
 @dataclass
-class MissileCarrierConfig():
-    missile_slot_config: LinkedHashMap[int, MissileSlotConfig]
-
-@dataclass
-class MissileCarrierFeature:
-    missile_carrier_config: MissileCarrierConfig
-    inventory: dict[int, int]
-    last_missile_spawns: dict[int, date]
+class MissileCarrierConfig(GameObject):
+    missile_slot_config: HashMap[int, MissileSlotConfig]
 
     MAPPING = {
-        "missileCarrierConfig": "missileCarrierConfig",
+        "missile_slot_config": "missileSlotConfig",
+    }
+
+@dataclass
+class MissileCarrierFeature(GameObject):
+    missile_carrier_config: MissileCarrierConfig
+    inventory: HashMap[int, int]
+    last_missile_spawns: HashMap[int, date]
+
+    MAPPING = {
+        "missile_carrier_config": "missileCarrierConfig",
         "inventory": "inventory",
-        "lastMissileSpawns": "lastMissileSpawns",
+        "last_missile_spawns": "lastMissileSpawns",
     }
 
 
