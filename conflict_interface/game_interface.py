@@ -142,23 +142,6 @@ class GameInterface:
         """
         return self.game_api.client_time(self.game_state.states.game_info_state.time_scale)
 
-    def relative_time_since_start(self, date) -> timedelta:
-        """
-        Computes the relative time difference between a given date and the start of the game.
-
-        This function calculates the difference in time (as a timedelta) between the provided
-        date and the start of the game stored in the game_info_state attribute. It is useful
-        for determining elapsed time in relation to the game's start.
-
-        Parameters:
-            date (datetime): The date for which the calculation of relative time is
-            required.
-
-        Returns:
-            timedelta: The time difference between the given date and the start of the
-            game.
-        """
-        return date - self.game_state.states.game_info_state.start_of_game
 
     def get_latest_uptime(self) -> datetime:
         """

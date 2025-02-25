@@ -65,6 +65,7 @@ def handle_con_mapping(value, py_type, mapped_type, game):
 
 def handle_normal(value, py_type, game):
     # print(f"Handling {value} of type {py_type}")
+
     if get_origin(py_type) is Union:
         py_type = get_type_of_union(value, py_type)
 
@@ -85,10 +86,10 @@ def handle_normal(value, py_type, game):
             return py_type(entry_type(value))
         else:
             raise ValueError(f"Enum {py_type} has not DefaultEnumMeta metaclass")
-    elif issubclass(py_type, JsonMappedClass):
-        return py_type.from_dict(value)
     elif issubclass(py_type, GameObject):
         return py_type.from_dict(value, game)
+    elif issubclass(py_type, JsonMappedClass):
+        return py_type.from_dict(value)
     elif get_origin(py_type) in (Vector, ArrayList, LinkedList):
         return parse_conflict_list(value, py_type, game)
     elif get_origin(py_type) in (HashMap, TreeMap, LinkedHashMap):
@@ -167,8 +168,6 @@ class GameObject(JsonMappedClass):
             raise TypeError(f"{cls.__name__} must be a dataclass")
         parsed_data = {}
         resolved = get_type_hints(cls)
-        # print(obj)
-
         for py_name, mapped_value in cls.MAPPING.items():
             py_type = resolved[py_name]
             field_info = cls.__dataclass_fields__[py_name]
