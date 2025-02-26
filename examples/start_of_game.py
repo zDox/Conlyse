@@ -1,12 +1,12 @@
 from pprint import pprint
 
-from conflict_interface import ConflictInterface
+from conflict_interface import HubInterface
 from conflict_interface.data_types.hub_game_info import HubGameState
 from examples import creds
 
 if __name__ == "__main__":
     print("Starting start of game example")
-    interface = ConflictInterface()
+    interface = HubInterface()
     interface.login(creds.username, creds.password)
     for game_info in interface.get_global_games().values():
         if game_info.day_of_game != 1:
