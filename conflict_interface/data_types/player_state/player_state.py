@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from conflict_interface.data_types.custom_types import DefaultEnumMeta, HashMap
 from conflict_interface.data_types.game_object import GameObject
 
@@ -30,8 +32,15 @@ class PlayerState(GameObject):
     players: HashMap[int, PlayerProfile]
     teams: HashMap[int, TeamProfile]
 
+    state_type: int # should be the same as STATE_ID
+    time_stamp: datetime
+    state_id: str # Is not the STATE_ID above
+
 
     MAPPING = {
+        "state_type": "stateType",
+        "time_stamp": "timeStamp",
+        "state_id": "stateID",
         "players": "players",
         "teams": "teams"
     }

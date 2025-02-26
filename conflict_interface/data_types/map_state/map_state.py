@@ -41,7 +41,7 @@ class Map(GameObject):
         locations: A set of locations, including both land and sea provinces on the map.
         population_factor: A scaling factor related to population data in the map.
     """
-
+    C = "ultshared.UltMap"
     is_reduced: bool
     version: int
     map_id: int

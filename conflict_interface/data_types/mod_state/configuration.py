@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from dataclasses import dataclass
+from typing import Optional
 
 from conflict_interface.data_types.custom_types import UnmodifiableCollection, HashMap
 from conflict_interface.data_types.game_object import GameObject, parse_any
@@ -7,24 +8,27 @@ from conflict_interface.data_types.game_object import GameObject, parse_any
 
 @dataclass
 class SortingConfig(GameObject):
+    C = "ultshared.modding.configuration.UltSortingConfig"
     sorting_order: int
     MAPPING = {"sorting_order": "sortOrder"}
 
 
 @dataclass
 class SoundConfig(GameObject):
+    C = "ultshared.modding.configuration.UltSoundConfig"
     MAPPING = {}
 
 
 @dataclass
 class AirplaneConfig(GameObject):
+    C = "ultshared.modding.configuration.UltAirplaneConfig"
     spy: bool
     patrol_radius: int
     patrol_target_damage_types: UnmodifiableCollection[int]
     embarkation_time: timedelta
     disembarkation_time: timedelta
     refuel_time: timedelta
-    max_flight_time: timedelta
+    max_flight_time: Optional[timedelta]
 
     MAPPING = {
             "spy": "spy",
@@ -61,12 +65,14 @@ class CarrierConfig(GameObject):
 
 @dataclass
 class AntiAirConfig(GameObject):
+    C = "ultshared.modding.configuration.UltAntiAirConfig"
     range: int
     MAPPING = {"range": "range"}
 
 
 @dataclass
 class ScoutConfig(GameObject):
+    C = "ultshared.modding.configuration.UltScoutConfig$DummyScoutConfig"
     stealth_classes: UnmodifiableCollection[int]
     camoflage_classes: UnmodifiableCollection[int]
 
@@ -95,6 +101,7 @@ def parse_list_of_production(obj):
 
 @dataclass
 class TokenProducerConfig(GameObject):
+    C = "ultshared.modding.configuration.UltTokenProducerConfig"
     tokens_on_spawn: UnmodifiableCollection[TokenProducerConfigProduction]
     tokens_provided: UnmodifiableCollection[TokenProducerConfigProduction]
 
@@ -106,11 +113,13 @@ class TokenProducerConfig(GameObject):
 
 @dataclass
 class TokenConsumerConfig(GameObject):
+    C = "ultshared.modding.configuration.UltTokenConsumerConfig"
     MAPPING = {}
 
 
 @dataclass
 class MissileConfig(GameObject):
+    C = "ultshared.modding.configuration.UltMissileConfig$DummyMissileConfig"
     missile_slot: int
     stacking_limit: int
     launch_behaviour: str = ""
@@ -158,6 +167,7 @@ class MissileCarrierFeature(GameObject):
 
 @dataclass
 class RadarSignatureFeature(GameObject):
+    C = "ultshared.warfare.UltRadarSignatureFeature"
     signature_size_map: HashMap[int, int]
     MAPPING = {
         "signature_size_map": "ssm",
@@ -170,6 +180,7 @@ class TokenFeature(GameObject):
     Not implemented. There exists no knowledge
     about how they work.
     """
+    C = "ultshared.warfare.UltTokenFeature"
     MAPPING = {}
 
 

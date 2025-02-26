@@ -6,8 +6,7 @@ from conflict_interface.data_types.game_object import GameObject
 from dataclasses import dataclass
 from enum import Enum
 
-
-
+from conflict_interface.data_types.point import Point
 
 LAST_LOGIN_INACTIVE = 0
 GUEST_PLAYER_ID = 0
@@ -59,11 +58,11 @@ getNationLabelSize
 @dataclass
 class PlayerProfile(GameObject):
     C = "ultshared.UltPlayerProfile"
+
     player_id: int
     team_id: int
     name: str
     gender: int
-    victory_points: int
     nationality: int
     capital_id: int
     title: str
@@ -78,16 +77,32 @@ class PlayerProfile(GameObject):
     retired: bool
     achievement_title_id: int
     passive_ai: bool
-    default_nation_name: str
+    default_nation_name: Optional[str] # TODO check why not playing ai does not have this
     playing: bool
     taken: bool
     faction: Faction
     available: bool
     receive_rewards: bool
     kickable_from_coalition: bool
+    nation_label_size: float
+    nation_label_coord: Optional[Point]
+    primary_color: str # TODO implement Color
+    secondary_color: str # TODO implement Color
+    premium_build_slot: Optional[bool]
+    premium_production_slot: Optional[bool]
+    premium_user: Optional[bool]
+    activity_state: Optional[str] # TODO make enum ex. "ACTIVE"
+    ai_profile: Optional[str] # TODO make enum ex. "major"
+
+
     banned: bool = False
     mail: str = ""
     full_title: str = ""
+    victory_points: int = 0
+    player_image_id: int = -1
+    flag_image_id: int = -1
+    noob_bonus: int = 0
+
 
     MAPPING = {
         "player_id": "playerID",
@@ -116,6 +131,19 @@ class PlayerProfile(GameObject):
         "available": "available",
         "receive_rewards": "receiveRewards",
         "kickable_from_coalition": "kickableFromCoalition",
+        "nation_label_size": "nationLabelSize",
+        "nation_label_coord": "nationLabelCoord",
+        "primary_color": "primaryColor",
+        "secondary_color": "secondaryColor",
+        "player_image_id": "playerImageID",
+        "flag_image_id": "flagImageID",
+        "premium_build_slot": "premiumBuildSlot",
+        "premium_production_slot": "premiumProductionSlot",
+        "banned": "banned",
+        "premium_user": "premiumUser",
+        "noob_bonus": "noobBonus",
+        "activity_state": "activityState",
+        "ai_profile": "aiProfile",
     }
 
     def get_player_id(self):
