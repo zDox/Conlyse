@@ -1,7 +1,7 @@
 from conflict_interface.utils.exceptions import CountryUnselectedException
 
 from conflict_interface import ConflictInterface
-from conflict_interface.data_types.hub_game_info import HubGameState
+from conflict_interface.data_types.hub_game import HubGameState
 
 import creds
 from pprint import pprint
