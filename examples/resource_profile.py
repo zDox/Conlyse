@@ -14,12 +14,10 @@ if __name__ == "__main__":
         print("Account is in no game")
         exit(1)
 
-    selected_game = next(iter(my_games.values()))
-    game = interface.join_game(selected_game.game_id)
+    game = interface.join_game(9759068)
 
     game.update()
-    print(game.get_latest_uptime())
+    print(game.client_time())
     for category_id, category in game.get_my_resource_profile().categories.items():
         for resource_id, resource in category.resources.items():
-            pprint(f"{resource.name}: {resource.get_resource_amount()}")
-            pprint(resource)
+            pprint(f"{resource.name} at {resource.time_zero}: {resource.get_resource_amount()}")
