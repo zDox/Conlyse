@@ -1,10 +1,10 @@
-from conflict_interface import ConflictInterface
+from conflict_interface import HubInterface
 
 import creds
 from pprint import pprint
 
 if __name__ == "__main__":
-    interface = ConflictInterface()
+    interface = HubInterface()
     interface.login(creds.username, creds.password)
     city_name = "Hargeisa"
     game_id = 9709963
@@ -16,5 +16,5 @@ if __name__ == "__main__":
 
     city = next(iter(game.get_my_provinces(name=city_name).values()))
     pprint(city)
-    game.cancel_construction(city.province_id)
+    city.cancel_construction()
     game.update()

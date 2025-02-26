@@ -4,7 +4,7 @@ from .army import Army
 from dataclasses import dataclass
 
 from ..custom_types import HashMap
-from ..game_object import GameObject
+from ..game_object import GameObject, parse_game_object
 
 
 @dataclass
@@ -32,8 +32,9 @@ class ArmyState(GameObject):
         :param new_state: The new state to update with (dict)
         :return: None
         """
-
-        new_state = self.from_dict(new_state)
+        if new_state is None:
+            return
+        new_state = parse_game_object(ArmyState, new_state, self.game)
         for new_army in new_state.armies:
             if new_army.removed:
                 self.armies.pop(new_army.id)
