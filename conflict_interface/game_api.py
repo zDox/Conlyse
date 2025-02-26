@@ -11,7 +11,7 @@ from json import loads, dumps
 from time import time
 
 from conflict_interface.data_types.authentification import AuthDetails
-from conflict_interface.utils.exceptions import CountryUnselectedException, ConflictJoinError, GameActivationException
+from conflict_interface.utils.exceptions import CountryUnselectedException, GameActivationException
 from conflict_interface.utils.helper import unix_to_datetime
 
 
@@ -136,7 +136,7 @@ class GameApi:
         if match:
             self.client_version = int(match.group(1))
         else:
-            raise ConflictJoinError(f"Could not find client_version \
+            raise GameJoinException(f"Could not find client_version \
                     in request {response.text}")
 
     def load_game_site(self):
@@ -249,7 +249,7 @@ class GameApi:
             }])
         self.action_request_id = + 1
         if "states" not in res["result"]:
-            raise ConflictJoinError(f"Login failed with error code {res['result']}")
+            raise GameJoinException(f"Login failed with error code {res['result']}")
 
 
 

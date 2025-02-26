@@ -3,7 +3,6 @@ from datetime import datetime
 from enum import Enum
 
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
-from conflict_interface.data_types.game_object import GameObject
 
 
 class HubGameState(Enum, metaclass=DefaultEnumMeta):
@@ -12,14 +11,6 @@ class HubGameState(Enum, metaclass=DefaultEnumMeta):
     READY_TO_JOIN = "readytojoin"
     RUNNING = "running"
     FINISHED = "finished"
-
-
-def openslots_to_currentplayers(obj, openslots):
-    return int(obj["nrofplayers"]) - int(openslots)
-
-
-def timescale_to_speedfactor(time_scale):
-    return int(1/float(time_scale))
 
 @dataclass
 class HubGameProperties:

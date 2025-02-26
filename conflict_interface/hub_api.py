@@ -1,7 +1,7 @@
 import base64
 import hashlib
 import json
-from dataclasses import dataclass
+
 from datetime import datetime
 from typing import Any, cast
 
@@ -10,27 +10,11 @@ from fake_useragent import UserAgent
 from lxml import html
 from requests import Session, Response
 
-from conflict_interface.data_types import AuthDetails, HubGame, parse_any
-from conflict_interface.utils.exceptions import ConflictWebAPIError
-
-invalid_user_name_or_password_text = '<div id="login_error_message_div"><p>Invalid username or password.</p> </div>'
-email_in_conflict_in_use_text = """<script type="text/javascript">setEmailCheckResponse(0, 'You are already registered, log in.', 4);</script>"""
-email_in_supremecy_in_use_text = """<script type="text/javascript">setEmailCheckResponse(0, 'Email is already registered in Supremacy 1914. Use log in.', 4);</script>"""
-successful_registration_details_text = """<script type="text/javascript">BytroAnalytics.logLPButtonRegisterDataValid();document.getElementById('sg_reg_form_0').submit();</script>"""
-@dataclass
-class AjaxRequest:
-    name: str
-    host: str
-    callback_obj_name: str
-    action: str
-    language_id: int
-    keys: list
-    values: list
-    buffer_request: bool = False
-    is_polling: bool = False
-    evaluate_response: bool = False
-    current_request: int = 0
-    method = "post"
+from conflict_interface.data_types import AuthDetails
+from conflict_interface.data_types.hub_types.ajax_request import AjaxRequest
+from conflict_interface.data_types.hub_types.hub_result_code import HubResultCode
+from conflict_interface.data_types.hub_types.identification_text import INVALID_USER_OR_PASSWORD_TEXT, \
+    EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT
 
 
 def get_user_name_taken_response_text(username):
@@ -176,10 +160,15 @@ class HubApi:
         response.raise_for_status()
 
         result = json.loads(response.text)
-        if not (result["resultCode"] == 0 and result["resultMessage"] == "ok"):
-            raise ConflictWebAPIError(result)
+        try:
+            result_code = HubResultCode(result["resultCode"])
+        except ValueError:
+            raise ValueError(f"Invalid hub result code: {result['resultCode']}")
+        if result_code.OK:
+            return result["result"]
+        else:
+            raise ValueError(result_code, result["resultMessage"])
 
-        return result["result"]
 
     def check_login(self, username: str, password: str) -> bool:
         """
@@ -206,7 +195,7 @@ class HubApi:
             values=['2000', username, password],
         )
         response = self.send_ajax_request(rm)
-        if response.text.endswith(invalid_user_name_or_password_text):
+        if response.text.endswith(INVALID_USER_OR_PASSWORD_TEXT):
             return False
         else:
             return True
@@ -267,9 +256,9 @@ class HubApi:
             values=['2000', email],
         )
         response = self.send_ajax_request(rm)
-        if response.text.endswith(email_in_conflict_in_use_text):
+        if response.text.endswith(EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT):
             return False
-        elif response.text.endswith(email_in_supremecy_in_use_text):
+        elif response.text.endswith(EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT):
             return False
         else:
             return True
@@ -520,4 +509,5 @@ class HubApi:
             "password": ""
         }, "joinGame")
         # TODO Error handling
+        print(res)
         return res

@@ -15,12 +15,8 @@ def protected(func):
     return wrapper
 
 
-from fake_useragent import UserAgent
-from requests import Session
-
 from conflict_interface.data_types import HubGame, parse_any
-from conflict_interface.data_types.hub_game import HubGameProperties
-from conflict_interface.game_api import GameApi
+from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.game_interface import GameInterface
 from conflict_interface.hub_api import HubApi
 
@@ -62,6 +58,7 @@ class HubInterface:
     @protected
     def logout(self):
         self.api.logout()
+        self.auth = False
 
     def register(self, username, email, password):
         """
@@ -130,6 +127,9 @@ class HubInterface:
             game.properties for game in data
             if all(getattr(game.properties, key) == value for key, value in filters.items())
         ]
+
+    def first_join(self, game_id: int):
+        self.api.request_first_join(game_id)
 
     @protected
     def join_game(self, game_id: int, guest=False) -> GameInterface:
