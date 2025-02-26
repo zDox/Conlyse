@@ -1,7 +1,4 @@
-from pprint import pprint
-
-from conflict_interface import HubInterface
-from conflict_interface.data_types.hub_game_info import HubGameState
+from conflict_interface import ConflictInterface
 from examples import creds
 
 if __name__ == "__main__":
