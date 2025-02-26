@@ -25,7 +25,7 @@ class AirParameters(GameObject):
     last_air_action_time: datetime
     last_air_position: Optional[Point]
     launch_target: Optional[Point]
-    max_flight_time: datetime
+    max_flight_time: Optional[datetime]
     air_field: Optional[Point | str]  # Can be either a province_id or a Position
 
     MAPPING = {

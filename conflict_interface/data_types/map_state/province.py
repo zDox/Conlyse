@@ -133,7 +133,7 @@ class Province(GameObject):
                        "victory_points", "owner_id", "legal_owner",
                        "moral", "buildings"]
 
-    def build_upgrade(self, upgrade):
+    def build_upgrade(self, upgrade: ModableUpgrade):
         self.game.get_api().request_province_action(self.province_id, UpdateProvinceAction(
             province_ids=[self.province_id],
             mode=UpdateProvinceActionModes.UPGRADE,

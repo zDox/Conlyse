@@ -7,7 +7,7 @@ from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
         TokenFeature
-from conflict_interface.data_types.mod_state.commands import Command, parse_command
+from conflict_interface.data_types.mod_state.commands import Command
 from conflict_interface.data_types.mod_state.air_parameters import AirParameters
 from conflict_interface.data_types.mod_state.anti_air_parameters import AntiAirParameters
 

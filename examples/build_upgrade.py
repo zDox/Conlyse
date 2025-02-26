@@ -15,7 +15,7 @@ if __name__ == "__main__":
     city = next(iter(game.get_my_provinces(name="Hargeisa").values()))
     pprint(city)
     arms_lvl_1 = game.get_upgrade_type_by_name_and_tier('Arms Industry', 1)
-    game.build_upgrade(city.province_id, ModableUpgrade(
+    city.build_upgrade(ModableUpgrade(
         id=arms_lvl_1.id,
         condition=0,
         constructing=False,

@@ -63,8 +63,8 @@ class UnitType(GameObject):
     sorting_config: SortingConfig
     sound_config: SoundConfig
     airplane_config: AirplaneConfig
-    controllable_config: ControllableConfig
-    carrier_config: CarrierConfig
+    controllable_config: Optional[ControllableConfig]
+    carrier_config: Optional[CarrierConfig]
     type_size_name: str
     sort_value: int
     producible: bool

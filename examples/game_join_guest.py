@@ -1,12 +1,15 @@
-from conflict_interface import ConflictInterface
-from conflict_interface.data_types.hub_types.hub_game import HubGameState
+from conflict_interface.utils.exceptions import CountryUnselectedException
+
+from conflict_interface import HubInterface
+from conflict_interface.data_types.hub_game_info import HubGameState
+
 
 import creds
 from pprint import pprint
 
 if __name__ == "__main__":
     print("Starting game join example as guest")
-    interface = ConflictInterface()
+    interface = HubInterface()
     interface.login(creds.username, creds.password)
     games = interface.get_global_games(scenario_id=5975, # World war 3 1x speed
                                        state=HubGameState.READY_TO_JOIN)

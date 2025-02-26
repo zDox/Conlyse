@@ -71,6 +71,7 @@ STATE_TYPE_MISSION_STATE: 29
 
 @dataclass
 class States(GameObject):
+    C = "java.util.HashMap"
     player_state: Optional[PlayerState]
     newspaper_state: Optional[NewspaperState]
     map_state: Optional[MapState]
@@ -141,15 +142,18 @@ class States(GameObject):
         :param new_fields: The new fields to update with (dict)
         :return: None
         """
+        if new_fields is None:
+            return
         for field in self.__annotations__.keys():
             attr = getattr(self, field)
             if not callable(getattr(attr, "update", None)):
                 continue
-            getattr(self, field).update(new_fields[self.MAPPING[field]])
+            getattr(self, field).update(new_fields.get(self.MAPPING[field]))
 
 
 @dataclass
 class GameState(GameObject):
+    C = "ultshared.UltGameState"
     state_type: int
     state_id: str
     time_stamp: str

@@ -16,5 +16,5 @@ if __name__ == "__main__":
 
     city = next(iter(game.get_my_provinces(name=city_name).values()))
     pprint(city)
-    game.cancel_construction(city.province_id)
+    city.cancel_construction()
     game.update()
