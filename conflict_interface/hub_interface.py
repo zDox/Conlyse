@@ -1,181 +1,146 @@
-import logging
 from copy import deepcopy
+from functools import wraps
+from multiprocessing.context import AuthenticationError
 from typing import cast
 
-from fake_useragent import UserAgent
-from requests import Session
-from lxml import html
 
-import json
-import base64
-import hashlib
-
-from conflict_interface.data_types.authentification import AuthDetails
-from conflict_interface.data_types.game_object import parse_dataclass
-from conflict_interface.data_types.hub_game_info import HubGameInfo
-from conflict_interface.game_api import GameAPI
-from conflict_interface.game_interface import GameInterface
-from conflict_interface.utils.exceptions import ConflictWebAPIError
-
-
+# Decorator to check if the user is authenticated
 def protected(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
-        if self.auth:
-            return func(self, *args, **kwargs)
+        if not self.auth:
+            raise AuthenticationError("Client is not authenticated. Please login first.")
+        return func(self, *args, **kwargs)
+
     return wrapper
 
 
-def parse_international_games(data):
-    res = {}
-    print(data)
-    for item in data:
-        properties = item["properties"]
-        game = parse_dataclass(HubGameInfo, properties, None)
-        game = cast(HubGameInfo, game)
-        res[game.game_id] = game
-    return res
+from conflict_interface.data_types import HubGame, parse_any
+from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
+from conflict_interface.game_interface import GameInterface
+from conflict_interface.hub_api import HubApi
 
 
 class HubInterface:
     def __init__(self):
-        self.session = Session()
-        self.user_agent = UserAgent(platforms='desktop').random
-        self.session.headers = {
-                "User-Agent": self.user_agent,
-                "Accept-Language": 'en-US,en;q=0.9',
-        }
-        self.auth = None
+        self.api: HubApi = HubApi()
+        self.auth = False
 
-    def login(self, username, password):
-        params = {
-            'source': 'browser-desktop',
-        }
+    def login(self, username: str, password: str):
+        """
+        Logs in a user to the system using the provided username and password.
 
-        data = {
-            'user': username,
-            'pass': password,
-        }
+        This method communicates with the backend API to authenticate the user
+        credentials. If the login fails, an exception is raised with an appropriate
+        error message indicating invalid credentials.
 
-        response = self.session.post(
-            'https://www.conflictnations.com/index.php',
-            params=params,
-            data=data,
-        )
-        response.raise_for_status()
+        Parameters
+        ----------
+        username : The username of the user attempting to log in.
+        password : The password associated with the username for authentication.
 
-        response_html = html.fromstring(response.text)
+        Raises
+        ------
+        Exception
+            Raised when the login attempt fails, indicating that the username or
+            password provided is incorrect.
 
-        url = response_html.xpath(r'//iframe[@id="ifm"]/@src')[0]
+        """
+        if self.auth:
+            raise AuthenticationError("Client is already authenticated. Please logout first.")
 
-        self.auth = AuthDetails.from_url_parameters(url)
-
-        self.auth.session_token = self.get_session_token()
-        logging.debug("Login successful with username %s", username)
+        result = self.api.login(username, password)
+        if not result:
+            raise Exception("Login for user " + username + " failed. Check username and password.")
+        else:
+            self.auth = True
 
     @protected
-    def send_api_request(self, params, action):
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        }
+    def logout(self):
+        self.api.logout()
+        self.auth = False
 
-        keycode = "uberCon"
+    def register(self, username, email, password):
+        """
+        Registers a new user with the specified username, email, and password.
 
-        if keycode != "open":
-            params['authTstamp'] = self.auth.auth_tstamp
-            params['authUserID'] = self.auth.user_id
+        This method interacts with the API to register a user in the system.
+        The user must provide a unique username, a valid email address, and
+        a secure password.
 
-        encoded_params = ""
-        param_list = []
-        if params:
-            for key, value in params.items():
-                param_list.append(key + "=" + str(value))
-            encoded_params = "&".join(param_list)
+        Parameters:
+            username: The desired username for the new user.
+            email: The email address associated with the user.
+            password: The password to secure the user account.
 
-        encoded_params_b64 = base64.b64encode(encoded_params.encode()).decode()
-        data_string = "data=" + encoded_params_b64
+        Raises:
+            Exception: If the registration fails, indicating that the username or email is already taken.
+        """
+        if self.auth:
+            raise AuthenticationError("Client is already authenticated. Please logout first.")
 
-        if keycode == "open":
-            hash_prepare = keycode + action + encoded_params
-        else:
-            hash_prepare = keycode + action + encoded_params
-            hash_prepare += self.auth.uber_auth_hash
-        hash_str = hashlib.sha1(hash_prepare.encode()).hexdigest()
+        result = self.api.register_user(username, email, password)
+        if not result:
+            raise Exception(f"Registration failed. Check {username} or {email} is already taken.")
 
-        params = {
-            'eID': 'api',
-            'key': keycode,
-            'action': action,
-            'hash': hash_str,
-            'outputFormat': 'json',
-            'apiVersion': '20141208',
-        }
-        response = self.session.post(
-            'https://www.conflictnations.com/index.php',
-            params=params,
-            headers=headers,
-            data=data_string,
-        )
-        response.raise_for_status()
+    @protected
+    def get_my_games(self, archived: bool = False, **filters) -> list[HubGameProperties]:
+        """
+        Retrieve the games associated with the current user, with optional filters and
+        archived status.
+    
+        Args:
+            archived: If set to True, retrieves only archived games. Defaults to False.
+            filters: Key-value pairs representing the attributes and their expected values
+                to filter games.
+    
+        Returns:
+            A list of HubGameProperties, each representing the properties of games that
+            match the filtering criteria and archived state.
+        """
+        data = cast(list[HubGame], parse_any(list[HubGame], self.api.get_my_games(archived)))
+        return [
+            game.properties for game in data
+            if all(getattr(game.properties, key) == value for key, value in filters.items())
+        ]
 
-        result = json.loads(response.text)
-        if not (result["resultCode"] == 0 and result["resultMessage"] == "ok"):
-            raise ConflictWebAPIError(result)
+    @protected
+    def get_global_games(self, **filters) -> list[HubGameProperties]:
+        """
+        Retrieve a list of global games filtered by specified criteria. The function
+        retrieves data from an external API, parses it into a list of `HubGame` objects,
+        and applies the provided filters to extract games that match the given
+        conditions.
+    
+        Arguments:
+            filters: Arbitrary keyword arguments specifying the filter criteria
+                     for the games. Each key corresponds to a property in
+                     `HubGameProperties` and must match exactly for the game to
+                     be included.
+    
+        Returns:
+            list[HubGameProperties]: A list of properties for global games that
+                                     satisfy the provided filters.
+        """
+        data = cast(list[HubGame], parse_any(list[HubGame], self.api.get_global_games()))
+        return [
+            game.properties for game in data
+            if all(getattr(game.properties, key) == value for key, value in filters.items())
+        ]
 
-        return result["result"]
+    def first_join(self, game_id: int):
+        self.api.request_first_join(game_id)
 
-    def get_my_games(self, archived=False) -> dict[int, HubGameInfo]:
-        params = {
-                "userID": self.auth.user_id,
-        }
-        if archived:
-            params["mygamesMode"] = "archived"
-
-        res = self.send_api_request(params, "getInternationalGames")
-        return parse_international_games(res)
-
-    def get_global_games(self, **filters) -> dict[int, HubGameInfo] :
-        last_page = False
-        page = 0
-        games = {}
-        while not last_page:
-            res = self.send_api_request({"userID": self.auth.user_id,
-                                         "global": "1",
-                                         "page": str(page)},
-                                        "getInternationalGames")
-            last_page = res["lastPage"]
-            page += 1
-            page_games = parse_international_games(res["games"])
-            for page_game_id, page_game in page_games.items():
-                if all([getattr(page_game, key) == val for key, val in filters.items()]):
-                    games[page_game_id] = page_game
-        return games
-
-    def request_join_game(self, game_id: int):
-        res = self.send_api_request({
-            "userID": self.auth.user_id,
-            "gameID": game_id,
-            "password": ""
-        }, "joinGame")
-        return res
-
+    @protected
     def join_game(self, game_id: int, guest=False) -> GameInterface:
+        # If user is not already in first game join it the first time
         if not self.is_in_game(game_id) and not guest:
-            self.request_join_game(game_id)
+            self.api.request_first_join(game_id)
 
-        game_api = GameAPI(self.session.cookies.get_dict(),
-                           self.session.headers,
-                           deepcopy(self.auth),
-                           game_id)
-        game_interface = GameInterface(game_id, game_api)
+        game_interface = GameInterface(game_id)
+        game_interface.init_api(deepcopy(self.api.session), deepcopy(self.api.auth))
         game_interface.join_game(guest)
         return game_interface
 
     def is_in_game(self, game_id: int) -> bool:
-        return self.get_my_games(archived=False).get(game_id) is not None
-
-    def get_session_token(self):
-        res = self.send_api_request({
-            "userID": self.auth.user_id,
-        }, "getSessionToken")
-        return res["sessionToken"]
-
+        return any(game.game_id == game_id for game in self.get_my_games())

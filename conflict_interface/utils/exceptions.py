@@ -1,11 +1,10 @@
 from enum import Enum
 
-
-class ConflictWebAPIError(Exception):
-    pass
+from conflict_interface.data_types.hub_types.hub_result_code import HubResultCode
 
 
-class ConflictJoinError(Exception):
+
+class GameJoinException(Exception):
     pass
 
 class CountryUnselectedException(Exception):

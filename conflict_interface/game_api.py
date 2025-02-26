@@ -11,7 +11,7 @@ from json import loads, dumps
 from time import time
 
 from conflict_interface.data_types.authentification import AuthDetails
-from conflict_interface.utils.exceptions import CountryUnselectedException, ConflictJoinError, GameActivationException
+from conflict_interface.utils.exceptions import CountryUnselectedException, GameActivationException
 from conflict_interface.utils.helper import unix_to_datetime
 
 
@@ -29,7 +29,7 @@ class DeviceDetails:
             return DeviceDetails("Unknown", "")
 
 
-class GameAPI:
+class GameApi:
     @staticmethod
     def country_selected(func):
         """
@@ -54,14 +54,13 @@ class GameAPI:
 
         return wrap
 
-    def __init__(self, cookies: dict, headers: MutableMapping, auth_details: AuthDetails,
+    def __init__(self, session: Session, auth_details: AuthDetails,
                  game_id: int):
-        self.session = Session()
+        self.session = session
         self.game_id = game_id
         self.player_id = 0
         self.auth = auth_details
-        self.device_details = DeviceDetails.from_user_agent(
-            headers["User-Agent"])
+        self.device_details = DeviceDetails.from_user_agent(session.headers["User-Agent"])
         self.request_id = 1
         self.action_request_id = 1
         self.index_html_url = None
@@ -71,13 +70,6 @@ class GameAPI:
 
         self.last_update_time = None
         self.server_time_offset = None
-
-        # Set cookies from previous ConflictInterface Session
-        for key, value in cookies.items():
-            self.session.cookies.set(key, value)
-
-        # Set headers from previous ConflictInterface Session
-        self.session.headers = headers
 
         # Get set from the auto GameUpdate request
         self.time_stamps = {"@c": "java.util.HashMap"}
@@ -144,7 +136,7 @@ class GameAPI:
         if match:
             self.client_version = int(match.group(1))
         else:
-            raise ConflictJoinError(f"Could not find client_version \
+            raise GameJoinException(f"Could not find client_version \
                     in request {response.text}")
 
     def load_game_site(self):
@@ -257,7 +249,7 @@ class GameAPI:
             }])
         self.action_request_id = + 1
         if "states" not in res["result"]:
-            raise ConflictJoinError(f"Login failed with error code {res['result']}")
+            raise GameJoinException(f"Login failed with error code {res['result']}")
 
 
 

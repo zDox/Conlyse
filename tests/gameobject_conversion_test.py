@@ -7,7 +7,6 @@ from conflict_interface.data_types import ModableUpgrade, parse_dataclass, GameS
 from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes
 from conflict_interface.data_types import Vector
 from conflict_interface.data_types import parse_game_object
-from conflict_interface.game_api import GameAPI
 from conflict_interface.game_interface import GameInterface
 from tests.compare_dicts import test_dict_contains
 
@@ -33,21 +32,21 @@ class ParseDumpTests(unittest.TestCase):
                 with open(file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                game = GameInterface(9709744, GameAPI({}, {"User-Agent": "None"}, None, 9709744))
+                game = GameInterface(9709744)
 
                 states = data["result"]
                 parsed_state = parse_game_object(GameState, states, game)
                 self.assertIsInstance(parsed_state, GameState) # Just checks if parsing throws an error
 
 
-    def test_player_state_dump_states(self):
+    def test_parse_dump_states(self):
         for file in ParseDumpTests.test_files:
             for state in ParseDumpTests.test_states:
                 with self.subTest(file=file, state = state):
                     with open(file, "r", encoding="utf-8") as f:
                         data = json.load(f)
 
-                    game = GameInterface(9709744, GameAPI({}, {"User-Agent": "None"}, None, 9709744))
+                    game = GameInterface(9709744)
 
                     states = data["result"]["states"][str(state.STATE_ID)]
 

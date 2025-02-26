@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, cast
 
+from requests import Session
+
+from .data_types import AuthDetails
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
 from .data_types.game_object import parse_game_object
@@ -13,7 +16,7 @@ from .data_types.newspaper_state import Article
 from .data_types.player_state import PlayerProfile
 from .data_types.resource_state import ResourceProfile, ResourceEntry
 from .data_types.static_map_data import StaticMapData
-from .game_api import GameAPI
+from .game_api import GameApi
 from .data_types.game_state import GameState
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 
@@ -22,11 +25,15 @@ from conflict_interface.data_types.player_state.team_profile import TeamProfile
 
 
 class GameInterface:
-    def __init__(self, game_id: int, game_api: GameAPI):
-        self.game_api = game_api
+    def __init__(self, game_id: int):
+        self.game_api: GameApi | None = None
         self.game_id = game_id
         self.player_id = 0
         self.game_state: GameState | None = None
+
+    def init_api(self, session: Session, auth_details: AuthDetails):
+        self.game_api = GameApi(session, auth_details, self.game_id)
+        self.game_api.session = session
 
     @staticmethod
     def country_selected(func):
@@ -91,7 +98,6 @@ class GameInterface:
 
 
         self.game_state = cast(GameState, self.game_state)
-        print(type(self.game_state))
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,
@@ -136,7 +142,7 @@ class GameInterface:
     """
     Utility functions
     """
-    def get_api(self) -> GameAPI:
+    def get_api(self) -> GameApi:
         return self.game_api
 
     def client_time(self) -> datetime:
