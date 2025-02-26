@@ -91,7 +91,6 @@ class GameInterface:
 
 
         self.game_state = cast(GameState, self.game_state)
-        print(type(self.game_state))
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,

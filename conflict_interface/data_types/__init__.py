@@ -1,5 +1,5 @@
 from .authentification import AuthDetails
-from .hub_game_info import HubGameInfo
+from .hub_game import HubGame
 
 
 # States
