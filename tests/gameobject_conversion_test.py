@@ -4,7 +4,7 @@ from conflict_interface.data_types import ModableUpgrade, parse_dataclass
 from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes
 from conflict_interface.data_types import Vector
 from conflict_interface.data_types import parse_game_object
-from conflict_interface.game_api import GameAPI
+from conflict_interface.game_api import GameApi
 from conflict_interface.game_interface import GameInterface
 
 

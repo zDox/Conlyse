@@ -1,11 +1,13 @@
 from pprint import pprint
 
-from conflict_interface.hub_api import HubApi, AjaxRequest
+from conflict_interface.hub_interface import HubInterface
 
 if __name__ == "__main__":
-    api = HubApi()
+    hub = HubInterface()
+    print(hub)
     user_name = "Juicy8533"
     password = "REMOVED_SECRET"
 
-    api.login(user_name, password)
-    pprint(api.get_my_games())
+    hub.login(user_name, password)
+    print(hub)
+    pprint(hub.get_my_games())
