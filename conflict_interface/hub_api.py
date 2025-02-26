@@ -438,6 +438,14 @@ class HubApi:
         self.load_authentication_from_response(response)
         return True
 
+    def logout(self):
+        self.session = Session()
+        self.user_agent = UserAgent(platforms='desktop').random
+        self.session.headers = {
+                "User-Agent": self.user_agent,
+                "Accept-Language": 'en-US,en;q=0.9',
+        }
+        self.auth = None
 
     """
     Functions where user has to be logged in.

@@ -1,35 +1,25 @@
-import logging
 from copy import deepcopy
-from typing import cast
 
 from fake_useragent import UserAgent
 from requests import Session
-from lxml import html
 
-import json
-import base64
-import hashlib
-
-from conflict_interface.data_types.authentification import AuthDetails
-from conflict_interface.data_types.game_object import parse_dataclass
-from conflict_interface.data_types.hub_game import HubGame
 from conflict_interface.game_api import GameAPI
 from conflict_interface.game_interface import GameInterface
-from conflict_interface.utils.exceptions import ConflictWebAPIError
-
-
-
+from conflict_interface.hub_api import HubApi
 
 
 class HubInterface:
     def __init__(self):
-        self.session = Session()
-        self.user_agent = UserAgent(platforms='desktop').random
-        self.session.headers = {
-                "User-Agent": self.user_agent,
-                "Accept-Language": 'en-US,en;q=0.9',
-        }
-        self.auth = None
+        self.api: HubApi = HubApi()
+
+    def login(self, username, password):
+        self.api.login(username, password)
+
+    def logout(self):
+        self.api.logout()
+
+    def register(self, username, email, password):
+        self.api.register_user(username, email, password)
 
     def join_game(self, game_id: int, guest=False) -> GameInterface:
         if not self.is_in_game(game_id) and not guest:
