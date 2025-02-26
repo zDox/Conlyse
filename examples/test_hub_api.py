@@ -9,5 +9,4 @@ if __name__ == "__main__":
     password = "REMOVED_SECRET"
 
     hub.login(user_name, password)
-    print(hub)
-    pprint(hub.get_my_games())
+    print(hub.first_join(4))

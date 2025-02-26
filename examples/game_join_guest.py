@@ -1,12 +1,8 @@
-from conflict_interface.utils.exceptions import CountryUnselectedException
-
 from conflict_interface import ConflictInterface
-from conflict_interface.data_types.hub_game import HubGameState
+from conflict_interface.data_types.hub_types.hub_game import HubGameState
 
 import creds
 from pprint import pprint
-from time import sleep, time
-
 
 if __name__ == "__main__":
     print("Starting game join example as guest")

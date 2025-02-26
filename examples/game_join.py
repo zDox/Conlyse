@@ -1,5 +1,5 @@
 from conflict_interface import ConflictInterface
-from conflict_interface.data_types.hub_game import HubGameState
+from conflict_interface.data_types.hub_types.hub_game import HubGameState
 
 import creds
 from pprint import pprint
