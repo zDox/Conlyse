@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from conflict_interface.data_types import dump_any, GameObject, dump_dataclass, HashMap, LinkedList
+from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.game_api_types.game_activation_action import GameActivationAction
 from conflict_interface.data_types.game_api_types.game_state_action import GameStateAction
 
@@ -15,16 +16,12 @@ class ActionHandler:
         self.game_state = None
 
     def que_action(self, action, execute_immediately=False):
-        if not isinstance(action, GameObject):
+        if not issubclass(action, Action):
             raise ValueError(f"Action {action} is not a GameObject")
         if isinstance(action, GameStateAction):
             raise ValueError(f"GameStateAction {action} should not be added to the que but executed directly")
         if isinstance(action, GameActivationAction):
             raise ValueError(f"GameActivationAction {action} should not be added to the que but executed directly")
-        if not hasattr(action, "action_request_id"):
-            raise ValueError(f"Action {action} has no action_request_id implemented")
-        if not hasattr(action, "language"):
-            raise ValueError(f"Action {action} has no language parameter")
 
         if execute_immediately:
             self.execute_game_state_action(use_que=False, custom_actions=LinkedList([action]))
