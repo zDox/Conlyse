@@ -30,6 +30,8 @@ def get_inner_type(cls: type, json_obj):
         args = get_args(cls)
         if args[0] is None:
             raise ValueError("Type is None, can't extract inner type.")
+        if len(args) == 2 and args[1] is type(None):
+            return args[0]
 
         for arg in args:
             if json_type is dict:
@@ -196,7 +198,7 @@ def parse_any(cls, json_obj: Any, game: GameInterface = None) -> object:
         raise ValueError(f"Type is None for json_obj {str(json_obj)[:1000]}")
     cls = get_inner_type(cls, json_obj)
 
-    #print(f"Handling parse_any for {cls} and {str(json_obj)[:1000]}")
+    # print(f"Handling parse_any for {cls} and {str(json_obj)[:1000]}")
 
     if issubclass(cls, GameObject):
         return parse_game_object(cls, json_obj, game)
