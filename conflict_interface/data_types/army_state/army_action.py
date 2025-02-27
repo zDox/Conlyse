@@ -8,7 +8,11 @@ from conflict_interface.data_types.army_state.army import Army
 class ArmyAction(GameObject):
     C = "ultshared.action.UltArmyAction"
     armies: LinkedList[Army]
+    action_request_id: str
+    language: str
 
     MAPPING = {
-        "armies": "armies"
+        "armies": "armies",
+        "action_request_id": "requestID",
+        "language": "language"
     }

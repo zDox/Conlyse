@@ -200,23 +200,7 @@ class GameApi:
         }, actions)
 
 
-    def request_game_activation(self, selected_player_id=0, selected_team_id=0,
-                                random_team_country_selection=False) -> int:
-        res = self.make_game_server_request({
-            "@c": "ultshared.action.UltActivateGameAction",
-            "selectedPlayerID": selected_player_id,
-            "selectedTeamID": selected_team_id,
-            "randomTeamAndCountrySelection": random_team_country_selection,
-            "os": self.device_details.os,
-            "device": self.device_details.device,
-        }, None)
 
-        try:
-            raise GameActivationException.from_error_code(res["result"])
-        except ValueError:
-            pass
-        self.player_id = res["result"]
-        return self.player_id
 
     def request_login_action(self) -> dict[str, Any]:
         res = self.make_game_server_request({

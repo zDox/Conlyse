@@ -4,7 +4,7 @@ from dataclasses import is_dataclass
 from dataclasses import MISSING as DATACLASS_MISSING
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, cast, get_origin, Optional, get_args, Union
+from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union
 from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import HashMap, ArrayList, HashSet, DefaultEnumMeta, LinkedList, Vector, \
@@ -127,7 +127,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     timedelta: datetime_to_unix # --||--
 }
 
-def parse_dataclass(cls: type, json_obj: dict, game: GameInterface = None) -> object:
+def parse_dataclass(cls, json_obj: dict, game: GameInterface = None) -> object:
     # --Error handling
     if not is_dataclass(cls):
         raise TypeError(f"{cls.__name__} must be a dataclass")
@@ -141,6 +141,11 @@ def parse_dataclass(cls: type, json_obj: dict, game: GameInterface = None) -> ob
     parsed_data = {}
     for python_var_name, conflict_var_name in getattr(cls,"MAPPING").items():
         python_var_type = var_type_dict[python_var_name]
+
+        # if not has __dataclass_fields__ raise error
+        if not hasattr(cls, "__dataclass_fields__"):
+            raise ValueError(f"{cls.__name__} has no __dataclass_fields__")
+
         field_info = cls.__dataclass_fields__[python_var_name]
 
 
@@ -165,7 +170,7 @@ def parse_dataclass(cls: type, json_obj: dict, game: GameInterface = None) -> ob
     instance = cls(**parsed_data)
     return instance
 
-def parse_game_object(cls: type[GameObject], json_obj: dict, game: GameInterface) -> GameObject:
+def parse_game_object(cls, json_obj: dict, game: GameInterface) -> GameObject:
     if game is None:
         raise ValueError(f"GameObject {cls} requires a game instance")
 
@@ -184,7 +189,7 @@ def parse_enum(cls: type[Enum], json_obj: str | int) -> Enum:
             raise ValueError(f"Unknown enum value {json_obj} for {cls}")
 
 
-def parse_any(cls: type, json_obj: Any, game: GameInterface = None) -> object:
+def parse_any(cls, json_obj: Any, game: GameInterface = None) -> object:
     if json_obj is None:
         return None
     if cls is None:
@@ -207,7 +212,7 @@ def parse_any(cls: type, json_obj: Any, game: GameInterface = None) -> object:
         raise ValueError(f"Unknown type {cls}: not in TYPE_MAPPING, origin is {get_origin(cls)}")
 
 
-def dump_dataclass(obj: object) -> dict:
+def dump_dataclass(obj: object) -> dict[str , Any]:
     if not is_dataclass(obj):
         raise TypeError(f"{type(obj).__name__} must be a dataclass")
     if not hasattr(obj, "MAPPING"):
@@ -222,7 +227,7 @@ def dump_dataclass(obj: object) -> dict:
 
     return json_obj
 
-def dump_any(obj: object) -> Any:
+def dump_any(obj: Any) -> Any:
     t: type = type(obj)
     if obj is None:
         return None
@@ -254,4 +259,6 @@ class GameObject:
         self.game = game  # Reference to the central game instance
         
     def __hash__(self):
+        if not hasattr(self, "MAPPING"):
+            raise ValueError(f"{type(self).__name__} has no MAPPING implemented")
         return hash(self.__getattribute__(key) for key in self.MAPPING.keys())
