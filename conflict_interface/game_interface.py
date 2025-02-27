@@ -6,7 +6,8 @@ from typing import Any, cast
 
 from requests import Session
 
-from .data_types import AuthDetails
+from .action_handler import ActionHandler
+from .data_types import AuthDetails, LinkedList, GameObject, dump_dataclass
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
 from .data_types.game_object import parse_game_object
@@ -30,6 +31,8 @@ class GameInterface:
         self.game_id = game_id
         self.player_id = 0
         self.game_state: GameState | None = None
+        self.action_handler = ActionHandler(self.game_api)
+
 
     def init_api(self, session: Session, auth_details: AuthDetails):
         self.game_api = GameApi(session, auth_details, self.game_id)
@@ -137,6 +140,10 @@ class GameInterface:
         """
         new_states = self.game_api.request_game_update()
         self.game_state.states.update(new_states)
+
+        # Execute any queued actions
+        self.action_handler.execute_game_state_action()
+
         return self.game_state
 
     """
@@ -173,6 +180,9 @@ class GameInterface:
                         for time_stamp_str in self.game_api.time_stamps.values()
                         if time_stamp_str != "java.util.HashMap"]
         return max(update_times)
+
+    def do_action(self,action: GameObject, execute_immediately=False):
+        self.action_handler.que_action(action, execute_immediately)
 
 
 
@@ -324,3 +334,4 @@ class GameInterface:
         return {unit_type_id: unit_type
                 for unit_type_id, unit_type in self.game_state.states.mod_state.unit_types.items()
                 if all(getattr(unit_type, key, None) == value for key, value in filters.items())}
+

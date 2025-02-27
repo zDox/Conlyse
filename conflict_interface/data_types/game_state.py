@@ -168,3 +168,20 @@ class GameState(GameObject):
         "action_results": "actionResults"
     }
 
+    def get_state_ids_and_time_stamps(self):
+        state_ids = HashMap()
+        time_stamps = HashMap()
+        for state in self.states.__annotations__.values():
+            if not hasattr(state, "state_type"):
+                raise ValueError(f"State {state} has no state_type")
+            if not hasattr(state, "state_id"):
+                raise ValueError(f"State {state} has no state_id")
+            if not hasattr(state, "time_stamp"):
+                raise ValueError(f"State {state} has no time_stamp")
+
+            state_ids[state.state_type] = state.state_id
+            time_stamps[state.state_type] = state.time_stamp
+
+        return state_ids, time_stamps
+
+

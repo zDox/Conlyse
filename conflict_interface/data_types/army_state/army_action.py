@@ -1,14 +1,18 @@
 from dataclasses import dataclass
 
 from conflict_interface.data_types import GameObject, LinkedList
+from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.army_state.army import Army
 
 
 @dataclass
-class ArmyAction(GameObject):
+class ArmyAction(Action):
     C = "ultshared.action.UltArmyAction"
     armies: LinkedList[Army]
 
     MAPPING = {
-        "armies": "armies"
+        **Action.MAPPING,
+        "armies": "armies",
+        "action_request_id": "requestID",
+        "language": "language"
     }
