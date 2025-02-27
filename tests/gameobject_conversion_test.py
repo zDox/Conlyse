@@ -1,18 +1,15 @@
 import json
 import unittest
-from pprint import pprint
 
-from deepdiff import DeepDiff
+from requests import Session
 
-from conflict_interface.data_types import ModableUpgrade, parse_dataclass, GameState, AuthDetails, dump_any, \
+from conflict_interface.data_types import GameState, dump_any, \
     PlayerState, ForeignAffairsState, NewspaperState
-from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes
-from conflict_interface.data_types import Vector
 from conflict_interface.data_types import parse_game_object
 from conflict_interface.data_types.army_state.army_state import ArmyState
-from conflict_interface.data_types.game_state.game_state import States
 from conflict_interface.game_interface import GameInterface
 from tests.compare_dicts import compare_dicts
+
 
 class ParseDumpTests(unittest.TestCase):
     test_states = [NewspaperState, PlayerState, ArmyState, ForeignAffairsState]
@@ -35,7 +32,7 @@ class ParseDumpTests(unittest.TestCase):
                 with open(file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                game = GameInterface(9709744)
+                game = GameInterface(9709744, False, Session(), None)
 
                 states = data["result"]
                 parsed_state = parse_game_object(GameState, states, game)
@@ -49,7 +46,7 @@ class ParseDumpTests(unittest.TestCase):
                     with open(file, "r", encoding="utf-8") as f:
                         data = json.load(f)
 
-                    game = GameInterface(9709744)
+                    game = GameInterface(9709744, False, Session(), None)
 
                     states = data["result"]["states"][str(state.STATE_ID)]
 
