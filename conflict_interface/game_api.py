@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from json import loads, dumps
 from time import time
 
-from conflict_interface.data_types.authentification import AuthDetails
+from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.utils.exceptions import CountryUnselectedException, GameActivationException, GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
 

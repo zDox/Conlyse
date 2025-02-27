@@ -1,15 +1,15 @@
-Conflict Interface
+Hub Interface
 ----------------------------------------------
 
-.. automodule:: conflict_interface.conflict_interface
+.. automodule:: conflict_interface.hub_interface
    :members:
    :show-inheritance:
    :undoc-members:
 
-Game API
-------------------------------------
+Hub Api
+------------------------------------------
 
-.. automodule:: conflict_interface.game_api
+.. automodule:: conflict_interface.hub_api
    :members:
    :show-inheritance:
    :undoc-members:
@@ -22,10 +22,10 @@ Game Interface
    :show-inheritance:
    :undoc-members:
 
-Parser
----------------------------------
+Game Api
+------------------------------------
 
-.. automodule:: conflict_interface.parser
+.. automodule:: conflict_interface.game_api
    :members:
    :show-inheritance:
    :undoc-members:

@@ -1,4 +1,4 @@
-from .authentification import AuthDetails
+from .authentication import AuthDetails
 from conflict_interface.data_types.hub_types.hub_game import HubGame
 
 

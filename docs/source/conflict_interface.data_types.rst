@@ -18,6 +18,7 @@ The data types are used to represent the state of an element of the game and are
    conflict_interface.data_types.exploration_state
    conflict_interface.data_types.foreign_affairs_state
    conflict_interface.data_types.game_event_state
+   conflict_interface.data_types.game_state
    conflict_interface.data_types.game_info_state
    conflict_interface.data_types.in_game_alliance_state
    conflict_interface.data_types.location_state
@@ -45,10 +46,11 @@ Submodules
 .. toctree::
    :maxdepth: 1
 
-   conflict_interface.data_types.modules.authentification
-   conflict_interface.data_types.modules.hub_game_info
-   conflict_interface.data_types.modules.states
+   conflict_interface.data_types.modules.authentication
    conflict_interface.data_types.modules.static_map_data
+   conflict_interface.data_types.modules.custom_types
+   conflict_interface.data_types.modules.game_object
+   conflict_interface.data_types.modules.point
 
 
 
