@@ -34,7 +34,7 @@ class ParseDumpTests(unittest.TestCase):
                 with open(file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                game = GameInterface(9709744)
+                game = GameInterface(9709744, False, Session(), None)
 
                 states = data["result"]
                 parsed_state = parse_game_object(GameState, states, game)
