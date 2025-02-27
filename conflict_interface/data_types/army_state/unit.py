@@ -13,7 +13,7 @@ class MissileType(Enum):
 
 @dataclass
 class Unit(GameObject):
-    C = "ultshared.warfare.UltUnit"
+    C = "u"
     id: int
     unit_type_id: int
     health: float

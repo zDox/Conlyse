@@ -1,6 +1,10 @@
 from enum import EnumMeta
 
 
+class UnitList(list):
+    C = "[Lultshared.warfare.UltUnit;"
+
+
 class LinkedList(list):
     C = "java.util.LinkedList"
 

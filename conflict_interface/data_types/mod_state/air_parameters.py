@@ -21,8 +21,8 @@ def parse_air_field(obj):
 
 @dataclass
 class AirParameters(GameObject):
-    C = "ultshared.UltAirParameters"
-    last_air_action_time: datetime
+    C = "ap"
+    last_air_action_time: int
     last_air_position: Optional[Point]
     launch_target: Optional[Point]
     max_flight_time: Optional[timedelta]
