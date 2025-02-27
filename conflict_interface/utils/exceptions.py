@@ -3,6 +3,53 @@ from enum import Enum
 from conflict_interface.data_types.hub_types.hub_result_code import HubResultCode
 
 
+class SessionExpired(Exception):
+    pass
+
+class AuthenticationFailed(Exception):
+    pass
+
+class RestrictedAction(Exception):
+    pass
+
+class MissingParameter(Exception):
+    pass
+
+class JoiningGameFailed(Exception):
+    pass
+
+class GameFull(Exception):
+    pass
+
+class IncorrectPassword(Exception):
+    pass
+
+class InvalidCountry(Exception):
+    pass
+
+class InvalidParameterValue(Exception):
+    pass
+
+class MaxJoinedGamesExceeded(Exception):
+    pass
+
+class TooManyMessage(Exception):
+    pass
+
+class GameJoiningFailedOldGame(Exception):
+    pass
+
+class FeatureRestrictedForUser(Exception):
+    pass
+
+class TooManyGameJoinsTooFrequently(Exception):
+    pass
+
+class NotEnoughTickets(Exception):
+    pass
+
+class AuthenticationException(Exception):
+    pass
 
 class GameJoinException(Exception):
     pass

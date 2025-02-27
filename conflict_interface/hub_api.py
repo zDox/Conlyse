@@ -3,6 +3,7 @@ import hashlib
 import json
 
 from datetime import datetime
+from functools import wraps
 from typing import Any, cast
 
 import lxml
@@ -15,12 +16,31 @@ from conflict_interface.data_types.hub_types.ajax_request import AjaxRequest
 from conflict_interface.data_types.hub_types.hub_result_code import HubResultCode
 from conflict_interface.data_types.hub_types.identification_text import INVALID_USER_OR_PASSWORD_TEXT, \
     EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT
+from conflict_interface.utils.exceptions import AuthenticationFailed, RestrictedAction, MissingParameter, \
+    JoiningGameFailed, GameFull, InvalidCountry, InvalidParameterValue, MaxJoinedGamesExceeded, TooManyMessage, \
+    TooManyGameJoinsTooFrequently, NotEnoughTickets, GameJoiningFailedOldGame, AuthenticationException
 
+
+HUB_RESULT_CODE_EXCEPTION_MAPPING = {
+    HubResultCode.AuthenticationFailed: AuthenticationFailed,
+    HubResultCode.RestrictedAction: RestrictedAction,
+    HubResultCode.MissingParameter: MissingParameter,
+    HubResultCode.JoiningGameFailed: JoiningGameFailed,
+    HubResultCode.GameFull: GameFull,
+    HubResultCode.InvalidCountry: InvalidCountry,
+    HubResultCode.InvalidParameterValue: InvalidParameterValue,
+    HubResultCode.MaxJoinedGamesExceeded: MaxJoinedGamesExceeded,
+    HubResultCode.TooManyMessage: TooManyMessage,
+    HubResultCode.GameJoiningFailedOldGame: GameJoiningFailedOldGame,
+    HubResultCode.TooManyGameJoinsTooFrequently: TooManyGameJoinsTooFrequently,
+    HubResultCode.NotEnoughTickets: NotEnoughTickets,
+}
 
 def get_user_name_taken_response_text(username):
     return f'<script type="text/javascript">setNameCheckResponse(0, "Username already taken", 2, "{username}");</script>'
 
 def protected(func):
+    @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.auth:
             return func(self, *args, **kwargs)
@@ -89,34 +109,27 @@ class HubApi:
     @protected
     def send_api_request(self, params: dict, action: str, keycode: str = DEFAULT_KEY_CODE) -> Any:
         """
-            Sends an API request to the Conflict Nations hub server.
+        Sends an API request to the Conflict Nations hub server.
 
-            This method constructs and sends an API request based on the provided
-            keycode, parameters, and action. It performs hashing for request
-            authentication, encodes parameters in base64, and ensures the response
-            validity according to the server's response codes.
+        This method constructs and sends an API request based on the provided
+        keycode, parameters, and action. It performs hashing for request
+        authentication, encodes parameters in base64, and ensures the response
+        validity according to the server's response codes.
 
-            Parameters
-            ----------
-            params : Key-value pair of parameters to include in the API request.
-            action : Specifies the action being performed by the request.
+        Parameters:
+            params: Key-value pair of parameters to include in the API request.
+            action: Specifies the action being performed by the request.
             keycode: API keycode used to identify the request type. Some keycodes require
-                additional authentication parameters.
+                    additional authentication parameters.
 
-            Raises
-            ------
-            ConflictWebAPIError
-                Raised when the response returned by the API indicates a failure,
+        Raises:
+            ConflictWebAPIError: Raised when the response returned by the API indicates a failure,
                 based on the result code and message in the response.
-            requests.exceptions.RequestException
-                Raised when there's an issue with the HTTP request such as
+            requests.exceptions.RequestException: Raised when there's an issue with the HTTP request such as
                 connectivity problems.
 
-            Returns
-            -------
-            Any
-                Extracted result data from the API response after ensuring its
-                validity.
+        Returns:
+            Any: Extracted result data from the API response after ensuring its validity.
         """
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -163,11 +176,13 @@ class HubApi:
         try:
             result_code = HubResultCode(result["resultCode"])
         except ValueError:
-            raise ValueError(f"Invalid hub result code: {result['resultCode']}")
+            raise ValueError(f"Invalid hub result code: {result['resultCode']} message: {result['resultMessage']}")
         if result_code.OK:
             return result["result"]
+        elif result_code in HUB_RESULT_CODE_EXCEPTION_MAPPING:
+            raise HUB_RESULT_CODE_EXCEPTION_MAPPING.get(result_code)(result["resultMessage"])
         else:
-            raise ValueError(result_code, result["resultMessage"])
+            raise Exception(result["resultMessage"])
 
 
     def check_login(self, username: str, password: str) -> bool:
@@ -179,8 +194,8 @@ class HubApi:
         to confirm if the login attempt was successful or not.
 
         Args:
-            username: The username to authenticate.
-            password: The password associated with the username.
+            username (str): The username to authenticate.
+            password (str): The password associated with the username.
 
         Returns:
             bool: True if the login credentials are valid; False otherwise.

@@ -3,7 +3,7 @@ import unittest
 
 
 from conflict_interface.data_types import ModableUpgrade, parse_dataclass, GameState, AuthDetails, dump_any, \
-    PlayerState, AdminState, ForeignAffairsState
+    PlayerState
 from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes
 from conflict_interface.data_types import Vector
 from conflict_interface.data_types import parse_game_object

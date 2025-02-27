@@ -29,6 +29,7 @@ extensions = [
 
 templates_path = ['_templates']
 exclude_patterns = []
+autodoc_typehints = "description"
 
 source_suffix = {
     '.rst': 'restructuredtext',

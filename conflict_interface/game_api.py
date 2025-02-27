@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, UTC, timedelta
 from functools import wraps
-from requests import Session
+from requests import Session, Response
 from lxml import html
 from typing import Any
 from collections.abc import MutableMapping
@@ -10,8 +10,8 @@ from dataclasses import dataclass
 from json import loads, dumps
 from time import time
 
-from conflict_interface.data_types.authentification import AuthDetails
-from conflict_interface.utils.exceptions import CountryUnselectedException, GameActivationException
+from conflict_interface.data_types.authentication import AuthDetails
+from conflict_interface.utils.exceptions import CountryUnselectedException, GameActivationException, GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
 
 
@@ -62,7 +62,6 @@ class GameApi:
         self.auth = auth_details
         self.device_details = DeviceDetails.from_user_agent(session.headers["User-Agent"])
         self.request_id = 1
-        self.action_request_id = 1
         self.index_html_url = None
         self.client_version = None
         self.game_server_address = None
@@ -70,10 +69,6 @@ class GameApi:
 
         self.last_update_time = None
         self.server_time_offset = None
-
-        # Get set from the auto GameUpdate request
-        self.time_stamps = {"@c": "java.util.HashMap"}
-        self.state_ids = {"@c": "java.util.HashMap"}
 
     def load_game_php(self):
         """
@@ -144,8 +139,7 @@ class GameApi:
         self.load_index_html()
 
 
-
-    def make_game_server_request(self, parameters, actions=None):
+    def make_game_server_request(self, parameters):
         headers = {
             'Accept': 'text/plain, */*; q=0.01',
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -173,92 +167,36 @@ class GameApi:
 
         self.request_id += 1
 
-        if actions:
-            data["actions"] = ["java.util.LinkedList", actions]
-
         response = self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data))
-        response.raise_for_status()
 
         if not type(response.json()["result"]) is int:
             self.update_server_time(response.json()["result"]["timeStamp"])
         else:
             self.update_server_time(0)
 
-        return loads(response.text)
+        self.handle_response(parameters["@c"], response)
 
-    def request_game_state_action(self, actions):
-        return self.make_game_server_request({
-            "@c": "ultshared.action.UltUpdateGameStateAction",
-            "stateType": 0,
-            "stateID": "0",
-            "addStateIDsOnSent": True,
-            "option": None,
-            "stateIDs": self.state_ids,
-            "tstamps": self.time_stamps,
-        }, actions)
+    def handle_activate_game_action_response(self, response_json: Any):
+        try:
+            raise GameActivationException.from_error_code(response_json["result"])
+        except ValueError:
+            pass
+        self.player_id = response_json["result"]
+        return self.player_id
 
-
+    def handle_game_update_action_response(self, response_json: Any):
+        return response_json["result"]
 
 
-    def request_login_action(self) -> dict[str, Any]:
-        res = self.make_game_server_request({
-            "@c": "ultshared.action.UltUpdateGameStateAction",
-            "stateType": 0,
-            "stateID": "0",
-            "addStateIDsOnSent": True,
-            "option": None,
-        }, [
-            {
-                "requestID": f"actionReq-{self.action_request_id}",
-                "language": "en",
-                "@c": "ultshared.action.UltLoginAction",
-                "resolution": "1920x1080",
-                "sysInfos": {
-                    "@c": "ultshared.action.UltSystemInfos",
-                    "verbose": False,
-                    "clientVersion": self.client_version,
-                    "processors": "",
-                    "accMem": "",
-                    "javaVersion": "",
-                    "osArch": "",
-                    "osName": "UNIX",
-                    "osVersion": "",
-                    "osPatchLevel": "",
-                    "userCountry": "",
-                    "screenWidth": 1920,
-                    "screenHeight": 1080
-                }
-            }])
-        self.action_request_id = + 1
-        if "states" not in res["result"]:
-            raise GameJoinException(f"Login failed with error code {res['result']}")
-
-
-
-        return res["result"]
-
-
-    def request_game_update(self) -> dict[str, Any]:
-        res = self.make_game_server_request(
-            {
-                "@c": "ultshared.action.UltUpdateGameStateAction",
-                "stateType": 0,
-                "stateID": "0",
-                "addStateIDsOnSent": True,
-                "option": None,
-                "stateIDs": self.state_ids,
-                "tstamps": self.time_stamps,
-            })
-        # Set stateIDs and tstamps from response
-        for state in list(res["result"]["states"].values())[1:]:
-            state_type = str(state["stateType"])
-
-            self.time_stamps[state_type] = state["timeStamp"]
-            self.state_ids[state_type] = state["stateID"]
-
-        return res["result"]
+    def handle_response(self, c_type: str, response: Response):
+        if c_type == "ultshared.action.UltActivateGameAction":
+            self.handle_activate_game_action_response(response)
+        elif c_type == "ultshared.action.UltGameUpdateAction":
+            self.handle_game_update_action_response(response)
+        else:
+            raise ValueError(f"Cannot handle response of unknown request type: {c_type}")
 
 
     def client_time(self, time_scale) -> datetime:
