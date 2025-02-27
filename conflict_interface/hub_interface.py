@@ -1,7 +1,12 @@
 from copy import deepcopy
 from functools import wraps
-from multiprocessing.context import AuthenticationError
 from typing import cast
+
+from conflict_interface.data_types import HubGame, parse_any
+from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
+from conflict_interface.game_interface import GameInterface
+from conflict_interface.hub_api import HubApi
+from conflict_interface.utils.exceptions import AuthenticationException
 
 
 # Decorator to check if the user is authenticated
@@ -9,16 +14,11 @@ def protected(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if not self.auth:
-            raise AuthenticationError("Client is not authenticated. Please login first.")
+            raise AuthenticationException("Client is not authenticated. Please login first.")
         return func(self, *args, **kwargs)
 
     return wrapper
 
-
-from conflict_interface.data_types import HubGame, parse_any
-from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
-from conflict_interface.game_interface import GameInterface
-from conflict_interface.hub_api import HubApi
 
 
 class HubInterface:
@@ -41,17 +41,17 @@ class HubInterface:
 
         Raises
         ------
-        Exception
+        AuthenticationException
             Raised when the login attempt fails, indicating that the username or
             password provided is incorrect.
 
         """
         if self.auth:
-            raise AuthenticationError("Client is already authenticated. Please logout first.")
+            raise AuthenticationException("Client is already authenticated. Please logout first.")
 
         result = self.api.login(username, password)
         if not result:
-            raise Exception("Login for user " + username + " failed. Check username and password.")
+            raise AuthenticationException("Login for user " + username + " failed. Check username and password.")
         else:
             self.auth = True
 
@@ -74,10 +74,10 @@ class HubInterface:
             password: The password to secure the user account.
 
         Raises:
-            Exception: If the registration fails, indicating that the username or email is already taken.
+            AuthenticationException: If the registration fails, indicating that the username or email is already taken.
         """
         if self.auth:
-            raise AuthenticationError("Client is already authenticated. Please logout first.")
+            raise AuthenticationException("Client is already authenticated. Please logout first.")
 
         result = self.api.register_user(username, email, password)
         if not result:

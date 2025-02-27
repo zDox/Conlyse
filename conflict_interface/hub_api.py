@@ -15,7 +15,25 @@ from conflict_interface.data_types.hub_types.ajax_request import AjaxRequest
 from conflict_interface.data_types.hub_types.hub_result_code import HubResultCode
 from conflict_interface.data_types.hub_types.identification_text import INVALID_USER_OR_PASSWORD_TEXT, \
     EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT
+from conflict_interface.utils.exceptions import AuthenticationFailed, RestrictedAction, MissingParameter, \
+    JoiningGameFailed, GameFull, InvalidCountry, InvalidParameterValue, MaxJoinedGamesExceeded, TooManyMessage, \
+    TooManyGameJoinsTooFrequently, NotEnoughTickets, GameJoiningFailedOldGame, AuthenticationException
 
+
+HUB_RESULT_CODE_EXCEPTION_MAPPING = {
+    HubResultCode.AuthenticationFailed: AuthenticationFailed,
+    HubResultCode.RestrictedAction: RestrictedAction,
+    HubResultCode.MissingParameter: MissingParameter,
+    HubResultCode.JoiningGameFailed: JoiningGameFailed,
+    HubResultCode.GameFull: GameFull,
+    HubResultCode.InvalidCountry: InvalidCountry,
+    HubResultCode.InvalidParameterValue: InvalidParameterValue,
+    HubResultCode.MaxJoinedGamesExceeded: MaxJoinedGamesExceeded,
+    HubResultCode.TooManyMessage: TooManyMessage,
+    HubResultCode.GameJoiningFailedOldGame: GameJoiningFailedOldGame,
+    HubResultCode.TooManyGameJoinsTooFrequently: TooManyGameJoinsTooFrequently,
+    HubResultCode.NotEnoughTickets: NotEnoughTickets,
+}
 
 def get_user_name_taken_response_text(username):
     return f'<script type="text/javascript">setNameCheckResponse(0, "Username already taken", 2, "{username}");</script>'
@@ -163,11 +181,13 @@ class HubApi:
         try:
             result_code = HubResultCode(result["resultCode"])
         except ValueError:
-            raise ValueError(f"Invalid hub result code: {result['resultCode']}")
+            raise ValueError(f"Invalid hub result code: {result['resultCode']} message: {result['resultMessage']}")
         if result_code.OK:
             return result["result"]
+        elif result_code in HUB_RESULT_CODE_EXCEPTION_MAPPING:
+            raise HUB_RESULT_CODE_EXCEPTION_MAPPING.get(result_code)(result["resultMessage"])
         else:
-            raise ValueError(result_code, result["resultMessage"])
+            raise Exception(result["resultMessage"])
 
 
     def check_login(self, username: str, password: str) -> bool:
