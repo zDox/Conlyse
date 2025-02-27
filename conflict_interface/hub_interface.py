@@ -137,9 +137,8 @@ class HubInterface:
         if not self.is_in_game(game_id) and not guest:
             self.api.request_first_join(game_id)
 
-        game_interface = GameInterface(game_id)
-        game_interface.init_api(deepcopy(self.api.session), deepcopy(self.api.auth))
-        game_interface.join_game(guest)
+        game_interface = GameInterface(game_id, guest, deepcopy(self.api.session), deepcopy(self.api.auth))
+        game_interface.load_game()
         return game_interface
 
     def is_in_game(self, game_id: int) -> bool:

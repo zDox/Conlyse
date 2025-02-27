@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
+from pprint import pprint
 from typing import Any, cast
 
 from requests import Session
 
 from .action_handler import ActionHandler
 from .data_types import AuthDetails, LinkedList, GameObject, dump_dataclass
+from .data_types.action import Action
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
+from .data_types.game_api_types.login_action import LoginAction, DEFAULT_LOGIN_ACTION
+from .data_types.game_api_types.system_information import SystemInformation
 from .data_types.game_object import parse_game_object
 from .data_types.map_state import Province, ProvinceStateID
 from .data_types.mod_state import UpgradeType, UnitType
@@ -26,17 +31,14 @@ from conflict_interface.data_types.player_state.team_profile import TeamProfile
 
 
 class GameInterface:
-    def __init__(self, game_id: int):
-        self.game_api: GameApi | None = None
+    def __init__(self, game_id: int, guest: bool, session: Session, auth_details: AuthDetails):
         self.game_id = game_id
+        self.game_api: GameApi = GameApi(session, auth_details, self.game_id)
         self.player_id = 0
         self.game_state: GameState | None = None
-        self.action_handler = ActionHandler(self.game_api)
+        self.action_handler = ActionHandler(self)
+        self.guest: bool = guest
 
-
-    def init_api(self, session: Session, auth_details: AuthDetails):
-        self.game_api = GameApi(session, auth_details, self.game_id)
-        self.game_api.session = session
 
     @staticmethod
     def country_selected(func):
@@ -62,7 +64,7 @@ class GameInterface:
 
         return wrap
 
-    def join_game(self, guest=False):
+    def load_game(self):
         """
         Join a game session as a player or a guest and set up the game state and map data.
 
@@ -81,26 +83,27 @@ class GameInterface:
                 requested country selection and the user is not a guest.
         """
         self.game_api.load_game_site()
-        if not guest:
+        if self.guest:
+            self.game_state = self.action_handler.execute_game_state_action(use_queue=False)
+        else:
             try:
-                self.player_id = self.game_api.request_game_activation(
+                self.player_id = self.action_handler.activate_game(
+                    os=self.game_api.device_details.os,
+                    device=self.game_api.device_details.device,
                     selected_player_id=-1,
                     selected_team_id=-1,
                     random_team_country_selection=False,
                 )
-
-                self.game_state = parse_game_object(GameState, self.game_api.request_login_action(), self)
+                print(f"Loading game with player id: {self.player_id}")
+                self.game_state = self.action_handler.que_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
 
-                self.game_state = parse_game_object(GameState, self.game_api.request_game_update(), self)
-        else:
-            self.game_state = parse_game_object(GameState, self.game_api.request_game_update(), self)
+                self.game_state = self.action_handler.execute_game_state_action(use_queue=False)
+
         static_map_data = parse_game_object(StaticMapData, self.game_api.get_static_map_data(), self)
 
-
-        self.game_state = cast(GameState, self.game_state)
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,
@@ -124,10 +127,8 @@ class GameInterface:
         Returns:
             None
         """
-        self.player_id = self.game_api.request_game_activation(country_id, team_id,
-                                              random_country_team)
-
-        self.game_state = parse_game_object(GameState, self.game_api.request_login_action(), self)
+        self.player_id = self.action_handler.activate_game(country_id, team_id, random_country_team)
+        self.game_state = self.action_handler.que_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
 
     def update(self) -> GameState:
         """
@@ -138,11 +139,9 @@ class GameInterface:
         Returns:
             States: The updated current state of the game.
         """
-        new_states = self.game_api.request_game_update()
-        self.game_state.states.update(new_states)
-
         # Execute any queued actions
-        self.action_handler.execute_game_state_action()
+        game_state: GameState = self.action_handler.execute_game_state_action()
+        self.game_state.states.update(game_state.states)
 
         return self.game_state
 
@@ -163,25 +162,7 @@ class GameInterface:
         """
         return self.game_api.client_time(self.game_state.states.game_info_state.time_scale)
 
-
-    def get_latest_uptime(self) -> datetime:
-        """
-        Retrieves the most recent uptime as a datetime object. This method converts
-        timestamps stored as strings in the game API's timestamp data structure to
-        datetime objects and determines the most recent one. Non-relevant entries,
-        such as "java.util.HashMap", are excluded during processing.
-
-        Returns
-        -------
-        datetime
-            The latest datetime object created from the provided timestamps.
-        """
-        update_times = [datetime.fromtimestamp(int(time_stamp_str) / 1000)
-                        for time_stamp_str in self.game_api.time_stamps.values()
-                        if time_stamp_str != "java.util.HashMap"]
-        return max(update_times)
-
-    def do_action(self,action: GameObject, execute_immediately=False):
+    def do_action(self,action: Action, execute_immediately=False):
         self.action_handler.que_action(action, execute_immediately)
 
 

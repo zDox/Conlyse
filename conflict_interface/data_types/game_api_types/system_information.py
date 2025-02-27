@@ -4,7 +4,7 @@ from conflict_interface.data_types import GameObject
 
 
 @dataclass
-class SystemInfos(GameObject):
+class SystemInformation(GameObject):
     C = "ultshared.action.UltSystemInfos"
     verbose: bool
     client_version: str
@@ -31,4 +31,5 @@ class SystemInfos(GameObject):
         "os_patch_level": "osPatchLevel",
         "user_country": "userCountry",
         "screen_width": "screenWidth",
+        "screen_height": "screenHeight",
     }

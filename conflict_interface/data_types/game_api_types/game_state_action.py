@@ -3,9 +3,11 @@ from datetime import datetime
 from typing import Any, Optional
 
 from conflict_interface.data_types import GameObject, LinkedList, HashMap
+from conflict_interface.data_types.action import Action
+
 
 @dataclass
-class GameStateAction(GameObject):
+class GameStateAction:
     C = "ultshared.action.UltUpdateGameStateAction"
     state_type: int
     state_id: str
