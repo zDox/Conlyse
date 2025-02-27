@@ -1,10 +1,15 @@
-from conflict_interface import ConflictInterface
+import logging
+
+from conflict_interface import HubInterface
 
 import creds
 from pprint import pprint
 
+from conflict_interface.logger_config import setup_library_logger
+
 if __name__ == "__main__":
-    interface = ConflictInterface()
+    setup_library_logger(logging.DEBUG)
+    interface = HubInterface()
     interface.login(creds.username, creds.password)
     print("Starting example")
 

@@ -1,5 +1,5 @@
-from .authentification import AuthDetails
-from .hub_game_info import HubGameInfo
+from .authentication import AuthDetails
+from conflict_interface.data_types.hub_types.hub_game import HubGame
 
 
 # States
@@ -22,3 +22,5 @@ from .static_map_data import *
 
 # Extra Classes
 from .common import *
+from .custom_types import *
+from .game_object import *

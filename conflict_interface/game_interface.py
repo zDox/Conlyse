@@ -1,29 +1,45 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, TypedDict
-from typing import TYPE_CHECKING
+from pprint import pprint
+from typing import Any, cast
 
-from conflict_interface.data_types import ProvinceStateID, GameState
-from .data_types import StaticMapData
-from .game_api import GameAPI
-from .utils import ArrayList
+from requests import Session
 
-if TYPE_CHECKING:
-    from .data_types import TeamProfile, PlayerProfile, Province, Article
-    from .data_types import ResourceProfile, ResourceEntry
-    from .data_types import Army, UnitType
-    from .data_types import UpgradeType
+from .action_handler import ActionHandler
+from .data_types import AuthDetails, LinkedList, GameObject, dump_dataclass
+from .data_types.action import Action
+from .data_types.army_state.army import Army
+from .data_types.custom_types import ArrayList
+from .data_types.game_api_types.login_action import LoginAction, DEFAULT_LOGIN_ACTION
+from .data_types.game_api_types.system_information import SystemInformation
+from .data_types.game_object import parse_game_object
+from .data_types.map_state import Province, ProvinceStateID
+from .data_types.mod_state import UpgradeType, UnitType
+from .data_types.newspaper_state.article import Article
+from .data_types.player_state import PlayerProfile
+from .data_types.resource_state import ResourceProfile, ResourceEntry
+from .data_types.static_map_data import StaticMapData
+from .game_api import GameApi
+from .data_types.game_state import GameState
+from .logger_config import get_logger
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 
+from conflict_interface.data_types.player_state.team_profile import TeamProfile
+
+logger = get_logger()
 
 class GameInterface:
-    def __init__(self, game_id: int, game_api: GameAPI):
-        self.game_api = game_api
+    def __init__(self, game_id: int, guest: bool, session: Session, auth_details: AuthDetails):
         self.game_id = game_id
+        self.game_api: GameApi = GameApi(session, auth_details, self.game_id)
         self.player_id = 0
         self.game_state: GameState | None = None
+        self.action_handler = ActionHandler(self)
+        self.guest: bool = guest
+
 
     @staticmethod
     def country_selected(func):
@@ -49,7 +65,7 @@ class GameInterface:
 
         return wrap
 
-    def join_game(self, guest=False):
+    def load_game(self):
         """
         Join a game session as a player or a guest and set up the game state and map data.
 
@@ -68,21 +84,26 @@ class GameInterface:
                 requested country selection and the user is not a guest.
         """
         self.game_api.load_game_site()
-        if not guest:
+        if self.guest:
+            self.game_state = self.action_handler.execute_game_state_action(use_queue=False)
+        else:
             try:
-                self.player_id = self.game_api.request_game_activation(
+                self.player_id = self.action_handler.activate_game(
+                    os=self.game_api.device_details.os,
+                    device=self.game_api.device_details.device,
                     selected_player_id=-1,
                     selected_team_id=-1,
                     random_team_country_selection=False,
                 )
-                self.game_state = GameState.from_dict(self.game_api.request_login_action(), self)
+                logger.debug(f"Loading game with player id: {self.player_id}")
+                self.game_state = self.action_handler.que_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
-                self.game_state = GameState.from_dict(self.game_api.request_game_update(), self)
-        else:
-            self.game_state = GameState.from_dict(self.game_api.request_game_update(), self)
-        static_map_data = StaticMapData.from_dict(self.game_api.get_static_map_data(), self)
+
+                self.game_state = self.action_handler.execute_game_state_action(use_queue=False)
+
+        static_map_data = parse_game_object(StaticMapData, self.game_api.get_static_map_data(), self)
 
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
@@ -107,10 +128,8 @@ class GameInterface:
         Returns:
             None
         """
-        self.player_id = self.game_api.request_game_activation(country_id, team_id,
-                                              random_country_team)
-
-        self.game_state = GameState.from_dict(self.game_api.request_login_action(), self)
+        self.player_id = self.action_handler.activate_game(country_id, team_id, random_country_team)
+        self.game_state = self.action_handler.que_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
 
     def update(self) -> GameState:
         """
@@ -121,50 +140,31 @@ class GameInterface:
         Returns:
             States: The updated current state of the game.
         """
-        new_states = self.game_api.request_game_update()
-        self.game_state.states.update(new_states)
+        # Execute any queued actions
+        game_state: GameState = self.action_handler.execute_game_state_action()
+        self.game_state.states.update(game_state.states)
+
         return self.game_state
 
     """
     Utility functions
     """
-    def get_api(self) -> GameAPI:
+    def get_api(self) -> GameApi:
         return self.game_api
 
-    def relative_time_since_start(self, date) -> timedelta:
+    def client_time(self) -> datetime:
         """
-        Computes the relative time difference between a given date and the start of the game.
-
-        This function calculates the difference in time (as a timedelta) between the provided
-        date and the start of the game stored in the game_info_state attribute. It is useful
-        for determining elapsed time in relation to the game's start.
-
-        Parameters:
-            date (datetime): The date for which the calculation of relative time is
-            required.
-
-        Returns:
-            timedelta: The time difference between the given date and the start of the
-            game.
-        """
-        return date - self.game_state.states.game_info_state.start_of_game
-
-    def get_latest_uptime(self) -> datetime:
-        """
-        Retrieves the most recent uptime as a datetime object. This method converts
-        timestamps stored as strings in the game API's timestamp data structure to
-        datetime objects and determines the most recent one. Non-relevant entries,
-        such as "java.util.HashMap", are excluded during processing.
+        Retrieves the current client time adjusted for the game's time scale.
 
         Returns
         -------
         datetime
-            The latest datetime object created from the provided timestamps.
+            The adjusted client time as a datetime object.
         """
-        update_times = [datetime.fromtimestamp(int(time_stamp_str) / 1000)
-                        for time_stamp_str in self.game_api.time_stamps.values()
-                        if time_stamp_str != "java.util.HashMap"]
-        return max(update_times)
+        return self.game_api.client_time(self.game_state.states.game_info_state.time_scale)
+
+    def do_action(self,action: Action, execute_immediately=False):
+        self.action_handler.que_action(action, execute_immediately)
 
 
 
@@ -208,7 +208,7 @@ class GameInterface:
     NewspaperState(2)
     """
 
-    def get_articles(self, day):
+    def get_articles(self, day) -> dict[int, Article]:
         return {article_id: article
                 for article_id, article in self.game_state.states.newspaper_state.articles
                 if self.relative_time_since_start(article.time_stamp).days + 1 == day}
@@ -319,3 +319,4 @@ class GameInterface:
         return {unit_type_id: unit_type
                 for unit_type_id, unit_type in self.game_state.states.mod_state.unit_types.items()
                 if all(getattr(unit_type, key, None) == value for key, value in filters.items())}
+

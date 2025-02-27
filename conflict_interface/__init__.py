@@ -1,1 +1,1 @@
-from .conflict_interface import ConflictInterface
+from .hub_interface import HubInterface

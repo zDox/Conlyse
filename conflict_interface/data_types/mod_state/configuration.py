@@ -1,31 +1,34 @@
 from datetime import date, timedelta
 from dataclasses import dataclass
+from typing import Optional
 
-from conflict_interface.utils import JsonMappedClass, \
-    unixtimestamp_to_datetime, ConMapping, milliseconds_to_timedelta, HashSet, HashMap, UnmodifiableCollection, \
-    LinkedHashMap, GameObject
+from conflict_interface.data_types.custom_types import UnmodifiableCollection, HashMap, HashSet
+from conflict_interface.data_types.game_object import GameObject, parse_any
 
 
 @dataclass
-class SortingConfig(JsonMappedClass):
+class SortingConfig(GameObject):
+    C = "ultshared.modding.configuration.UltSortingConfig"
     sorting_order: int
     MAPPING = {"sorting_order": "sortOrder"}
 
 
 @dataclass
-class SoundConfig(JsonMappedClass):
-    pass
+class SoundConfig(GameObject):
+    C = "ultshared.modding.configuration.UltSoundConfig"
+    MAPPING = {}
 
 
 @dataclass
-class AirplaneConfig(JsonMappedClass):
+class AirplaneConfig(GameObject):
+    C = "ultshared.modding.configuration.UltAirplaneConfig"
     spy: bool
     patrol_radius: int
     patrol_target_damage_types: UnmodifiableCollection[int]
     embarkation_time: timedelta
     disembarkation_time: timedelta
     refuel_time: timedelta
-    max_flight_time: timedelta
+    max_flight_time: Optional[timedelta]
 
     MAPPING = {
             "spy": "spy",
@@ -39,7 +42,7 @@ class AirplaneConfig(JsonMappedClass):
 
 
 @dataclass
-class ControllableConfig(JsonMappedClass):
+class ControllableConfig(GameObject):
     controllable: bool
     MAPPING = {"controllable": "controllable"}
 
@@ -50,7 +53,7 @@ def parse_dict_of_ints(obj):
 
 
 @dataclass
-class CarrierConfig(JsonMappedClass):
+class CarrierConfig(GameObject):
     slot_config: HashMap[int, int]
     max_capacity: int
 
@@ -61,13 +64,15 @@ class CarrierConfig(JsonMappedClass):
 
 
 @dataclass
-class AntiAirConfig(JsonMappedClass):
+class AntiAirConfig(GameObject):
+    C = "ultshared.modding.configuration.UltAntiAirConfig"
     range: int
     MAPPING = {"range": "range"}
 
 
 @dataclass
-class ScoutConfig(JsonMappedClass):
+class ScoutConfig(GameObject):
+    C = "ultshared.modding.configuration.UltScoutConfig$DummyScoutConfig"
     stealth_classes: UnmodifiableCollection[int]
     camoflage_classes: UnmodifiableCollection[int]
 
@@ -78,24 +83,25 @@ class ScoutConfig(JsonMappedClass):
 
 
 @dataclass
-class TokenProducerConfigProduction(JsonMappedClass):
-    type: str
+class TokenProducerConfigProduction(GameObject):
+    C = "ultshared.modding.configuration.UltTokenProducerConfig$TokenProduction"
+    type_id: int
     amount: int
-    duration: timedelta
+    duration: timedelta = timedelta(0)
     MAPPING = {
-            "type": "type",
+            "type_id": "typeID",
             "amount": "amount",
             "duration": "duration",
     }
 
 
 def parse_list_of_production(obj):
-    return [TokenProducerConfigProduction.from_dict(elm)
-            for elm in obj[1]]
+    return [parse_any(TokenProducerConfigProduction, elm) for elm in obj[1]]
 
 
 @dataclass
-class TokenProducerConfig(JsonMappedClass):
+class TokenProducerConfig(GameObject):
+    C = "ultshared.modding.configuration.UltTokenProducerConfig"
     tokens_on_spawn: UnmodifiableCollection[TokenProducerConfigProduction]
     tokens_provided: UnmodifiableCollection[TokenProducerConfigProduction]
 
@@ -106,15 +112,17 @@ class TokenProducerConfig(JsonMappedClass):
 
 
 @dataclass
-class TokenConsumerConfig(JsonMappedClass):
-    pass
+class TokenConsumerConfig(GameObject):
+    C = "ultshared.modding.configuration.UltTokenConsumerConfig"
+    MAPPING = {}
 
 
 @dataclass
-class MissileConfig(JsonMappedClass):
-    launch_behaviour: str
+class MissileConfig(GameObject):
+    C = "ultshared.modding.configuration.UltMissileConfig$DummyMissileConfig"
     missile_slot: int
     stacking_limit: int
+    launch_behaviour: str = ""
 
     MAPPING = {
         "launch_behaviour": "launchBehaviour",
@@ -159,6 +167,7 @@ class MissileCarrierFeature(GameObject):
 
 @dataclass
 class RadarSignatureFeature(GameObject):
+    C = "ultshared.warfare.UltRadarSignatureFeature"
     signature_size_map: HashMap[int, int]
     MAPPING = {
         "signature_size_map": "ssm",
@@ -166,16 +175,20 @@ class RadarSignatureFeature(GameObject):
 
 
 @dataclass
-class TokenFeature(JsonMappedClass):
+class TokenFeature(GameObject):
     """
     Not implemented. There exists no knowledge
     about how they work.
     """
-    MAPPING = {}
+    C = "ultshared.warfare.UltTokenFeature"
+    tokens: HashSet[int] # TODO no idea if its int int (no examples in data1)
+    MAPPING = {
+        "tokens": "tokens",
+    }
 
 
 @dataclass
-class CarrierFeature(JsonMappedClass):
+class CarrierFeature(GameObject):
     """
     Not implemented. There exists no knowledge
     about how they work.

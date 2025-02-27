@@ -2,17 +2,18 @@ from dataclasses import dataclass
 from math import sqrt, atan2
 from copy import deepcopy
 
-from conflict_interface.utils import JsonMappedClass
+from conflict_interface.data_types.game_object import GameObject
 
 
 @dataclass
-class Point(JsonMappedClass):
+class Point(GameObject):
     x: float
     y: float
 
-    @classmethod
-    def from_dict(cls, obj):
-        return cls(x=obj["x"], y=obj["y"])
+    MAPPING = {
+        "x": "x",
+        "y": "y",
+    }
 
     def get_x(self):
         return self.x
@@ -128,7 +129,7 @@ class Point(JsonMappedClass):
         return sqrt(self.line_dist_sq(x1, y1, x2, y2))
 
     def closest_line_point(self, x1, y1, x2, y2):
-        result = Point()
+        result = Point(0, 0)
         if x1 == x2 and y1 == y2:
             result.x, result.y = x1, y1
             return result
@@ -176,28 +177,9 @@ class Point(JsonMappedClass):
 
     def to_reference_system(self, reference_width):
         raise NotImplementedError()
-        """
-        reference_width = reference_width or
-        GameState.get_map_state().get_width()
-        self.x %= reference_width
-        if self.x < 0:
-            self.x += reference_width
-        return self
-        """
 
     def get_closest_equivalent(self, other, threshold):
         raise NotImplementedError()
-        """
-        reference_width = reference_width or
-        GameState.get_map_state().get_width()
-        if GameState.is_continuous_map():
-            diff = other.x - self.x
-            if diff > threshold / 2:
-                return Point(self.x + threshold, self.y)
-            elif diff < -threshold / 2:
-                return Point(self.x - threshold, self.y)
-        return self
-        """
 
     def cache_key(self):
         return "{},{}".format(int(10 * self.x), int(10 * self.y))

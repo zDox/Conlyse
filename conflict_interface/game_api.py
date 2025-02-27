@@ -1,21 +1,18 @@
+import re
 from datetime import datetime, UTC, timedelta
 from functools import wraps
-
-from requests import Session
+from requests import Session, Response
 from lxml import html
-
 from typing import Any
 from collections.abc import MutableMapping
 from hashlib import sha1
-import re
 from dataclasses import dataclass
 from json import loads, dumps
 from time import time
 
-from .data_types import AuthDetails
-from .utils import unixtimestamp_to_datetime
-from .utils.exceptions import ConflictJoinError, GameActivationException, GameActivationErrorCodes, \
-    CountryUnselectedException
+from conflict_interface.data_types.authentication import AuthDetails
+from conflict_interface.utils.exceptions import CountryUnselectedException, GameActivationException, GameJoinException
+from conflict_interface.utils.helper import unix_to_datetime
 
 
 @dataclass
@@ -32,7 +29,7 @@ class DeviceDetails:
             return DeviceDetails("Unknown", "")
 
 
-class GameAPI:
+class GameApi:
     @staticmethod
     def country_selected(func):
         """
@@ -57,16 +54,14 @@ class GameAPI:
 
         return wrap
 
-    def __init__(self, cookies: dict, headers: MutableMapping, auth_details: AuthDetails,
+    def __init__(self, session: Session, auth_details: AuthDetails,
                  game_id: int):
-        self.session = Session()
+        self.session = session
         self.game_id = game_id
         self.player_id = 0
         self.auth = auth_details
-        self.device_details = DeviceDetails.from_user_agent(
-            headers["User-Agent"])
+        self.device_details = DeviceDetails.from_user_agent(session.headers.get("User-Agent"))
         self.request_id = 1
-        self.action_request_id = 1
         self.index_html_url = None
         self.client_version = None
         self.game_server_address = None
@@ -74,17 +69,6 @@ class GameAPI:
 
         self.last_update_time = None
         self.server_time_offset = None
-
-        # Set cookies from previous ConflictInterface Session
-        for key, value in cookies.items():
-            self.session.cookies.set(key, value)
-
-        # Set headers from previous ConflictInterface Session
-        self.session.headers = headers
-
-        # Get set from the auto GameUpdate request
-        self.time_stamps = {"@c": "java.util.HashMap"}
-        self.state_ids = {"@c": "java.util.HashMap"}
 
     def load_game_php(self):
         """
@@ -147,32 +131,13 @@ class GameAPI:
         if match:
             self.client_version = int(match.group(1))
         else:
-            raise ConflictJoinError(f"Could not find client_version \
+            raise GameJoinException(f"Could not find client_version \
                     in request {response.text}")
 
     def load_game_site(self):
         self.load_game_php()
         self.load_index_html()
 
-    def get_static_map_data(self):
-        headers = {
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-        }
-
-        params = {
-            # 'bust': '1700054640135',
-        }
-
-        domain = "static1.bytro.com"
-        url = f"https://{domain}/fileadmin/mapjson/live/{self.map_id}.json"
-        response = self.session.get(
-            url,
-            params=params,
-            headers=headers,
-        )
-
-        response.raise_for_status()
-        return loads(response.text)
 
     def make_game_server_request(self, parameters):
         headers = {
@@ -205,122 +170,23 @@ class GameAPI:
         response = self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data))
-        response.raise_for_status()
 
+        response.raise_for_status()
         if not type(response.json()["result"]) is int:
             self.update_server_time(response.json()["result"]["timeStamp"])
         else:
             self.update_server_time(0)
-
-        return loads(response.text)
-
-    def request_game_activation(self, selected_player_id=0, selected_team_id=0,
-                                random_team_country_selection=False) -> int:
-        res = self.make_game_server_request({
-            "@c": "ultshared.action.UltActivateGameAction",
-            "selectedPlayerID": selected_player_id,
-            "selectedTeamID": selected_team_id,
-            "randomTeamAndCountrySelection": random_team_country_selection,
-            "os": self.device_details.os,
-            "device": self.device_details.device,
-        }, None)
-
-        try:
-            raise GameActivationException.from_error_code(res["result"])
-        except ValueError:
-            pass
-        self.player_id = res["result"]
-        return self.player_id
-
-    def request_game_state_action(self, action):
-        res = self.make_game_server_request(
-            {
-            "@c": "ultshared.action.UltUpdateGameStateAction",
-            "stateType": 0,
-            "stateID": "0",
-            "addStateIDsOnSent": True,
-            "option": None,
-            "actions": ["java.util.LinkedList", [
-                {"requestID": f"actionReq-{self.action_request_id}",
-                "language": "en",
-                **action,
-                }
-            ]],
-            "stateIDs": self.state_ids,
-            "tstamps": self.time_stamps,
-            }
-        )
-
-        self.action_request_id += 1
-        return res
-
-    def request_login_action(self) -> dict[str, Any]:
-        res = self.make_game_server_request({
-            "@c": "ultshared.action.UltUpdateGameStateAction",
-            "stateType": 0,
-            "stateID": "0",
-            "addStateIDsOnSent": True,
-            "option": None,
-        }, [
-            {
-                "requestID": f"actionReq-{self.action_request_id}",
-                "language": "en",
-                "@c": "ultshared.action.UltLoginAction",
-                "resolution": "1920x1080",
-                "sysInfos": {
-                    "@c": "ultshared.action.UltSystemInfos",
-                    "verbose": False,
-                    "clientVersion": self.client_version,
-                    "processors": "",
-                    "accMem": "",
-                    "javaVersion": "",
-                    "osArch": "",
-                    "osName": "UNIX",
-                    "osVersion": "",
-                    "osPatchLevel": "",
-                    "userCountry": "",
-                    "screenWidth": 1920,
-                    "screenHeight": 1080
-                }
-            }])
-        self.action_request_id = + 1
-        if "states" not in res["result"]:
-            raise ConflictJoinError(f"Login failed with error code {res['result']}")
-
-
-
-        return res["result"]
-
-    def request_game_update(self) -> dict[str, Any]:
-        res = self.make_game_server_request(
-            {
-                "@c": "ultshared.action.UltUpdateGameStateAction",
-                "stateType": 0,
-                "stateID": "0",
-                "addStateIDsOnSent": True,
-                "option": None,
-                "stateIDs": self.state_ids,
-                "tstamps": self.time_stamps,
-            })
-        # Set stateIDs and tstamps from response
-        for state in list(res["result"]["states"].values())[1:]:
-            state_type = str(state["stateType"])
-
-            self.time_stamps[state_type] = state["timeStamp"]
-            self.state_ids[state_type] = state["stateID"]
-
-        return res["result"]
 
 
     def client_time(self, time_scale) -> datetime:
         """
         Calculates the client time
 
-        :param time_scale: The time scale of the game
-        :param last_update_time: The last update time (datetime)
-        :param server_time_offset: The server time offset (timedelta)
+        :param time_scale: The time_scale of the game
         """
         current_time = datetime.now(UTC)
+        if not time_scale in (0.25, 1, 0.1):
+            raise ValueError(f"Time scale cannot be {time_scale}. Must be 0.1, 0.25 or 1")
         if time_scale != 1:
             time_elapsed = timedelta(seconds = (current_time -self.last_update_time).total_seconds() / time_scale)
             return self.last_update_time + self.server_time_offset + time_elapsed
@@ -335,5 +201,26 @@ class GameAPI:
             self.server_time_offset = timedelta(seconds = -seconds_since_epoch)
             return
 
-        t_stamp_now = unixtimestamp_to_datetime(t_stamp_now)
+        t_stamp_now = unix_to_datetime(t_stamp_now)
         self.server_time_offset = t_stamp_now - self.last_update_time
+
+
+    def get_static_map_data(self):
+        headers = {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+        }
+
+        params = {
+            # 'bust': '1700054640135',
+        }
+
+        domain = "static1.bytro.com"
+        url = f"https://{domain}/fileadmin/mapjson/live/{self.map_id}.json"
+        response = self.session.get(
+            url,
+            params=params,
+            headers=headers,
+        )
+
+        response.raise_for_status()
+        return loads(response.text)

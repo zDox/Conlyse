@@ -1,36 +1,37 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from .admin_state import AdminState
-from .ai_state import AIState
-from .build_queue_state import BuildQueueState
-from .exploration_state import ExplorationState
-from .game_event_state import GameEventState
-from .in_game_alliance_state import InGameAllianceState
-from .location_state import LocationState
-from .map_info_state import MapInfoState
-from .mission_state import MissionState
-from .player_state import PlayerState
-from .newspaper_state import NewspaperState
-from .map_state import MapState
-from .premium_state import PremiumState
-from .quest_state import QuestState
-from .resource_state import ResourceState
-from .foreign_affairs_state import ForeignAffairsState
-from .army_state import ArmyState
-from .spy_state import SpyState
-from .mod_state import ModState
-from .game_info_state import GameInfoState
-from .research_state import ResearchState
-from .configuration_state import ConfigurationState
-from .statistic_state import StatisticState
-from .triggered_tutorial_state.triggered_tutorial_state import TriggeredTutorialState
-from .tutorial_state import TutorialState
-from .user_inventory_state import UserInventoryState
-from .user_options_state import UserOptionsState
-from .user_sms_state import UserSMSState
-from .wheel_of_fortune_state import WheelOfFortuneState
-from ..utils import GameObject, HashMap
+from conflict_interface.data_types.admin_state.admin_state import AdminState
+from conflict_interface.data_types.ai_state.ai_state import AIState
+from conflict_interface.data_types.army_state.army_state import ArmyState
+from conflict_interface.data_types.build_queue_state import BuildQueueState
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.exploration_state import ExplorationState
+from conflict_interface.data_types.game_event_state import GameEventState
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.in_game_alliance_state import InGameAllianceState
+from conflict_interface.data_types.location_state import LocationState
+from conflict_interface.data_types.map_info_state import MapInfoState
+from conflict_interface.data_types.mission_state import MissionState
+from conflict_interface.data_types.player_state import PlayerState
+from conflict_interface.data_types.newspaper_state import NewspaperState
+from conflict_interface.data_types.map_state import MapState
+from conflict_interface.data_types.premium_state import PremiumState
+from conflict_interface.data_types.quest_state import QuestState
+from conflict_interface.data_types.resource_state import ResourceState
+from conflict_interface.data_types.foreign_affairs_state import ForeignAffairsState
+from conflict_interface.data_types.spy_state import SpyState
+from conflict_interface.data_types.mod_state import ModState
+from conflict_interface.data_types.game_info_state import GameInfoState
+from conflict_interface.data_types.research_state import ResearchState
+from conflict_interface.data_types.configuration_state import ConfigurationState
+from conflict_interface.data_types.statistic_state import StatisticState
+from conflict_interface.data_types.triggered_tutorial_state.triggered_tutorial_state import TriggeredTutorialState
+from conflict_interface.data_types.tutorial_state import TutorialState
+from conflict_interface.data_types.user_inventory_state import UserInventoryState
+from conflict_interface.data_types.user_options_state import UserOptionsState
+from conflict_interface.data_types.user_sms_state import UserSMSState
+from conflict_interface.data_types.wheel_of_fortune_state import WheelOfFortuneState
 
 """
 The following are all states but not every state
@@ -70,6 +71,7 @@ STATE_TYPE_MISSION_STATE: 29
 
 @dataclass
 class States(GameObject):
+    C = "java.util.HashMap"
     player_state: Optional[PlayerState]
     newspaper_state: Optional[NewspaperState]
     map_state: Optional[MapState]
@@ -133,27 +135,30 @@ class States(GameObject):
     }
 
 
-    def update(self, new_fields):
+    def update(self, new_fields: "States"):
         """
         Call the update method of each state that has a update and hand of the state as dict
 
         :param new_fields: The new fields to update with (dict)
         :return: None
         """
+        if new_fields is None:
+            return
         for field in self.__annotations__.keys():
             attr = getattr(self, field)
             if not callable(getattr(attr, "update", None)):
                 continue
-            getattr(self, field).update(new_fields[self.MAPPING[field]])
+            getattr(self, field).update(getattr(new_fields, field, None))
 
 
 @dataclass
 class GameState(GameObject):
+    C = "ultshared.UltGameState"
     state_type: int
     state_id: str
     time_stamp: str
     states: States
-    action_results: HashMap[str, int]
+    action_results: Optional[HashMap[str, int]]
 
     MAPPING = {
         "state_type": "stateType",
@@ -162,4 +167,21 @@ class GameState(GameObject):
         "states": "states",
         "action_results": "actionResults"
     }
+
+    def get_state_ids_and_time_stamps(self):
+        state_ids = HashMap()
+        time_stamps = HashMap()
+        for state in self.states.__annotations__.values():
+            if not hasattr(state, "state_type"):
+                raise ValueError(f"State {state} has no state_type")
+            if not hasattr(state, "state_id"):
+                raise ValueError(f"State {state} has no state_id")
+            if not hasattr(state, "time_stamp"):
+                raise ValueError(f"State {state} has no time_stamp")
+
+            state_ids[state.state_type] = state.state_id
+            time_stamps[state.state_type] = state.time_stamp
+
+        return state_ids, time_stamps
+
 

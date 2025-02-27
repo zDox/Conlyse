@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from .terrain_type import TerrainType
-from conflict_interface.utils import GameObject, Point
+from ..game_object import GameObject
+from ..point import Point
 
 
 @dataclass

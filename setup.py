@@ -50,6 +50,9 @@ setup(
             "setuptools",
             "recommonmark",
             "sphinx_rtd_theme",
+        ],
+        "tests": [
+            "deepdiff",
         ]
     },
 )

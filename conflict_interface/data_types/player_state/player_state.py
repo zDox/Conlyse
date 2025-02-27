@@ -1,9 +1,12 @@
-from conflict_interface.utils import GameObject, HashMap
+from datetime import datetime
+
+from conflict_interface.data_types.custom_types import DefaultEnumMeta, HashMap
+from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.utils import DefaultEnumMeta
+
 from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
 
@@ -24,16 +27,25 @@ class VisibilityMode(Enum, metaclass=DefaultEnumMeta):
 
 @dataclass
 class PlayerState(GameObject):
+    C = "ultshared.UltPlayerState"
     STATE_ID = 1
     players: HashMap[int, PlayerProfile]
     teams: HashMap[int, TeamProfile]
 
+    state_type: int # should be the same as STATE_ID
+    time_stamp: datetime
+    state_id: str # Is not the STATE_ID above
+
+
     MAPPING = {
+        "state_type": "stateType",
+        "time_stamp": "timeStamp",
+        "state_id": "stateID",
         "players": "players",
         "teams": "teams"
     }
 
-
+    # TODO: Implement this method
     def get_players(self, terra_incognita_feature: bool,
                     visibility_mode=VisibilityMode.ALL):
 

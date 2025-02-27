@@ -1,7 +1,9 @@
-from conflict_interface.utils import GameObject
+
 
 from dataclasses import dataclass
 from enum import Enum
+
+from conflict_interface.data_types.game_object import GameObject
 
 
 class MissileType(Enum):
@@ -11,12 +13,13 @@ class MissileType(Enum):
 
 @dataclass
 class Unit(GameObject):
+    C = "u"
     id: int
     unit_type_id: int
     health: float
     size: int
     kills: int
-    camoflage_replacement_unit: int
+    camoflage_replacement_unit: bool
     on_sea: bool
     at_airfield: bool
     hit_points: float

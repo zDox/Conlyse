@@ -4,7 +4,7 @@ from conflict_interface.data_types.common import RegionType
 from .province_property import ProvinceProperty
 from .terrain_type import TerrainType
 from conflict_interface.data_types.resource_state import ResourceType
-from conflict_interface.utils import GameObject, ConMapping, Point, HashSet, DefaultEnumMeta
+
 
 from dataclasses import dataclass
 from enum import Enum
@@ -12,9 +12,12 @@ from enum import Enum
 
 from conflict_interface.data_types.mod_state import ModableUpgrade
 from .update_province_action import UpdateProvinceActionModes, UpdateProvinceAction
+from ..custom_types import DefaultEnumMeta, HashSet
+from ..game_object import GameObject
+from ..point import Point
 
 
-class ProvinceStateID(Enum):
+class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
     """
     Enumeration for representing different types of administrative areas.
 
@@ -25,6 +28,7 @@ class ProvinceStateID(Enum):
         ANNEXED_CITY: Represents a city annexed to a different territory.
         MAINLAND_CITY: Represents a city within the mainland.
     """
+    NONE = 0
     OCCUPIED_PROVINCE = 51
     MAINLAND_PROVINCE = 52
     OCCUPIED_CITY = 53
@@ -54,6 +58,8 @@ class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
         if self.value == 0:
             return ResourceType(0)
         return ResourceType(self.value-1)
+
+
 
 
 @dataclass
@@ -91,11 +97,12 @@ class Province(GameObject):
 
     adjacent_to_water: bool
     resource_production: Optional[int]
-    resource_production_type: ResourceType
-    money_production: int
+    resource_production_type: ResourceProductionType
+
     victory_points: int
     owner_id: int
     upgrades: HashSet[ModableUpgrade]
+    money_production: int = 0
     morale: int = 70
     legal_owner: int = -1
 
@@ -114,7 +121,7 @@ class Province(GameObject):
         "morale": "m",
         "province_state_id": "pst",
         "resource_production": "rp",
-        "resource_production_type": ConMapping("r", ResourceProductionType),
+        "resource_production_type": "r",
         "money_production": "tp",
         "legal_owner": "lo",
         "victory_points": "plv",
@@ -126,7 +133,7 @@ class Province(GameObject):
                        "victory_points", "owner_id", "legal_owner",
                        "moral", "buildings"]
 
-    def build_upgrade(self, upgrade):
+    def build_upgrade(self, upgrade: ModableUpgrade):
         self.game.get_api().request_province_action(self.province_id, UpdateProvinceAction(
             province_ids=[self.province_id],
             mode=UpdateProvinceActionModes.UPGRADE,

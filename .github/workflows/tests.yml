@@ -2,6 +2,9 @@ name: tests
 
 on: [push, pull_request, workflow_dispatch]
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -18,7 +21,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .
+          pip install .[tests]
+
+
+      - name: get test data
+        run: |
+          wget -O full_test_data_1.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_1.json
+          wget -O full_test_data_2.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_2.json
+          wget -O full_test_data_3.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_3.json
+          
 
       - name: Run tests with unittest
         run: |

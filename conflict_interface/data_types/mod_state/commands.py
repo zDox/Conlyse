@@ -1,13 +1,12 @@
-from conflict_interface.utils import GameObject
+
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Union, Any
+from typing import Union, Any, Optional
 from enum import Enum
 
-
-from conflict_interface.utils import ConMapping, Point, \
-        unixtimestamp_to_datetime
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.point import Point
 
 
 @dataclass
@@ -15,17 +14,19 @@ class GotoCommand(GameObject):
     """
     Command that tells a army to move
     """
-    start_time: datetime
-    arrival_time: datetime
+    C = "gc"
+
 
     start_position: Point
     target_position: Point
     speed: float
 
-    on_water: bool
-    in_air: bool
-    location_id: int
-    speed_factor: float
+    location_id: int = None
+    on_water: bool = False
+    start_time: datetime = None
+    arrival_time: datetime = None
+    speed_factor: float = 0 # TODO Need to check what it should really be
+    in_air: bool = False
 
     MAPPING = {
         "start_time": "st",
@@ -42,11 +43,13 @@ class GotoCommand(GameObject):
 
 @dataclass
 class RetreatCommand(GameObject):
-    pass
+    C = "rt"
+    MAPPING = {}
 
 
 @dataclass
 class AttackCommand(GameObject):
+    C = "ac"
     target_unit_id: int
     target_position: Point
     user_given: bool
@@ -60,7 +63,8 @@ class AttackCommand(GameObject):
 
 @dataclass
 class SiegeCommand(GameObject):
-    pass
+    C = "sc"
+    MAPPING = {}
 
 
 class PatrolType(Enum):
@@ -70,6 +74,7 @@ class PatrolType(Enum):
 
 @dataclass
 class PatrolCommand(GameObject):
+    C = "pc"
     target_position: Point
     approaching: bool
     patrol_type: PatrolType
@@ -83,6 +88,7 @@ class PatrolCommand(GameObject):
 
 @dataclass
 class WaitCommand(GameObject):
+    C = "wc"
     wait_time: timedelta
     cancelable: bool
     direction: int
@@ -100,6 +106,7 @@ class WaitCommand(GameObject):
 
 @dataclass
 class SplitArmyCommand(GameObject):
+    C = "sac"
     splitted_army: Any
     MAPPING = {
         "splitted_army": "splittedArmy",
@@ -108,29 +115,13 @@ class SplitArmyCommand(GameObject):
 
 @dataclass
 class FireMissileCommand(GameObject):
-    pass
-
+    C = "fm"
+    MAPPING = {}
 
 COMMAND_TYPES = [GotoCommand, RetreatCommand, AttackCommand, SiegeCommand,
                  PatrolCommand, WaitCommand, SplitArmyCommand,
                  FireMissileCommand]
 
-Command: Union = [GotoCommand, RetreatCommand, AttackCommand, SiegeCommand,
+Command: Union = Union[GotoCommand, RetreatCommand, AttackCommand, SiegeCommand,
                   PatrolCommand, WaitCommand, SplitArmyCommand,
                   FireMissileCommand]
-
-COMMAND_IDENTIFIERS = {
-    "gc": GotoCommand,
-    "rt": RetreatCommand,
-    "ac": AttackCommand,
-    "sc": SiegeCommand,
-    "pc": PatrolCommand,
-    "wc": WaitCommand,
-    "sac": SplitArmyCommand,
-    "fm": FireMissileCommand,
-}
-
-
-def parse_command(obj):
-    print(obj)
-    return COMMAND_IDENTIFIERS[obj.get("@c")].from_dict(obj)

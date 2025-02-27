@@ -1,4 +1,6 @@
-from conflict_interface.utils import GameObject
+from typing import Optional
+
+from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 
@@ -16,12 +18,17 @@ getFlagImage
 
 @dataclass
 class TeamProfile(GameObject):
+    C = "ultshared.UltTeamProfile"
     team_id: int
     name: str
     description: str
     leader_id: int
     disbanded: bool
-    victory_points: int
+
+    primary_color: str  # TODO implement Color
+
+    flag_image_id: int = -1
+    victory_points: int = 0
 
     MAPPING = {
             "team_id": "teamID",
@@ -30,6 +37,8 @@ class TeamProfile(GameObject):
             "leader_id": "leaderID",
             "disbanded": "disbanded",
             "victory_points": "vps",
+            "primary_color": "primaryColor",
+            "flag_image_id": "flagImageID",
     }
 
     def get_team_id(self):

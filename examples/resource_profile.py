@@ -1,25 +1,27 @@
-from conflict_interface import ConflictInterface
+import logging
+
+from conflict_interface import HubInterface
 
 import creds
 from pprint import pprint
 
+from conflict_interface.logger_config import setup_library_logger
 
 if __name__ == "__main__":
-    interface = ConflictInterface()
+    setup_library_logger(logging.DEBUG)
+    interface = HubInterface()
     interface.login(creds.username, creds.password)
 
     print("Starting resource profile example")
     my_games = interface.get_my_games()
     if iter(my_games).__next__() is None:
-        print("Account is no game")
+        print("Account is in no game")
         exit(1)
 
-    selected_game = next(iter(my_games.values()))
-    game = interface.join_game(selected_game.game_id)
+    game = interface.join_game(9759068)
 
     game.update()
-    print(game.get_latest_uptime())
+    print(game.client_time())
     for category_id, category in game.get_my_resource_profile().categories.items():
         for resource_id, resource in category.resources.items():
-            pprint(f"{resource.name}: {game.get_resource_amount(resource_id)}")
-            pprint(resource)
+            pprint(f"{resource.name} at {resource.time_zero}: {resource.get_resource_amount()}")

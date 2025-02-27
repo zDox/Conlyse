@@ -1,12 +1,15 @@
 from dataclasses import dataclass
 from datetime import datetime
+from math import floor
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.resource_state.resource_types import ResourceType
-from conflict_interface.utils import GameObject
+
 
 
 @dataclass
 class ResourceEntry(GameObject):
+    C = "ultshared.UltResourceEntry"
     resource_id: ResourceType
     name: str
 
@@ -66,6 +69,6 @@ class ResourceEntry(GameObject):
         "currency": "currency",
     }
 
-    def get_resource_amount(self) -> float:
-        delta = int(self.game.get_latest_uptime().timestamp() / 1000) - int(self.time_zero.timestamp() / 1000)
-        return self.amount_zero + delta * 1000 * self.rate
+    def get_resource_amount(self) -> int:
+        delta = self.game.client_time() - self.time_zero
+        return floor(self.amount_zero + delta.total_seconds() * self.rate)
