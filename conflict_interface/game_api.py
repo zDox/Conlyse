@@ -176,7 +176,7 @@ class GameApi:
             self.update_server_time(response.json()["result"]["timeStamp"])
         else:
             self.update_server_time(0)
-
+            
         return response.json()
 
 
