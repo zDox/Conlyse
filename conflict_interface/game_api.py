@@ -60,7 +60,7 @@ class GameApi:
         self.game_id = game_id
         self.player_id = 0
         self.auth = auth_details
-        self.device_details = DeviceDetails.from_user_agent(session.headers["User-Agent"])
+        self.device_details = DeviceDetails.from_user_agent(session.headers.get("User-Agent"))
         self.request_id = 1
         self.index_html_url = None
         self.client_version = None

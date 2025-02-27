@@ -1,6 +1,7 @@
 import json
 import unittest
 
+from requests import Session
 
 from conflict_interface.data_types import ModableUpgrade, parse_dataclass, GameState, AuthDetails, dump_any, \
     PlayerState, ForeignAffairsState
@@ -47,7 +48,7 @@ class ParseDumpTests(unittest.TestCase):
                     with open(file, "r", encoding="utf-8") as f:
                         data = json.load(f)
 
-                    game = GameInterface(9709744)
+                    game = GameInterface(9709744, False, Session(), None)
 
                     states = data["result"]["states"][str(state.STATE_ID)]
 
