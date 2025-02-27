@@ -4,14 +4,6 @@ from typing import Any, Optional
 
 from conflict_interface.data_types import GameObject, LinkedList, HashMap
 
-"@c": "ultshared.action.UltUpdateGameStateAction",
-            "stateType": 0,
-            "stateID": "0",
-            "addStateIDsOnSent": True,
-            "option": None,
-            "stateIDs": self.state_ids,
-            "tstamps": self.time_stamps,
-
 @dataclass
 class GameStateAction(GameObject):
     C = "ultshared.action.UltUpdateGameStateAction"
