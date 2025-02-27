@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import logging
 from datetime import datetime
 from typing import Any, cast, TYPE_CHECKING
 
@@ -8,9 +10,13 @@ from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.game_api_types.game_activation_action import GameActivationAction
 from conflict_interface.data_types.game_api_types.game_state_action import GameStateAction
 from conflict_interface.game_api import GameApi
+from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import GameActivationException
 if TYPE_CHECKING:
     from conflict_interface.game_interface import GameInterface
+
+logger = get_logger()
+
 
 class ActionHandler:
     def __init__(self, game: GameInterface):
@@ -35,6 +41,12 @@ class ActionHandler:
         self.actions.append(action)
 
     def execute_action(self, action):
+        if logger.isEnabledFor(logging.DEBUG):
+            if isinstance(action, GameStateAction):
+                logger.debug(f"Executing game state action with smaller actions {[type(at).__name__ for at in action.actions]}")
+            else:
+                logger.debug(f"Executing action {type(action).__name__}")
+
         json_action = dump_any(action)
         return self.game_api.make_game_server_request(json_action)
 
@@ -64,7 +76,6 @@ class ActionHandler:
             time_stamps=time_stamps,
             actions=actions
         )
-
         response_json = self.execute_action(game_state_action)
         return parse_game_object(GameState, response_json["result"], self.game)
 

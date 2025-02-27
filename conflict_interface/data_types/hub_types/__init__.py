@@ -1,1 +1,1 @@
-from .hub_game import HubGame
+from .hub_game import HubGame, HubGameState

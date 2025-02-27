@@ -1,8 +1,12 @@
-from conflict_interface import ConflictInterface
+import logging
+
+from conflict_interface import HubInterface
+from conflict_interface.logger_config import setup_library_logger
 from examples import creds
 
 if __name__ == "__main__":
     print("Starting start of game example")
+    setup_library_logger(logging.DEBUG)
     interface = HubInterface()
     interface.login(creds.username, creds.password)
     for game_info in interface.get_global_games().values():

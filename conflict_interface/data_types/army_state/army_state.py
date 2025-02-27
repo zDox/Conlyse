@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from .army import Army
 
@@ -24,7 +25,7 @@ class ArmyState(GameObject):
     state_type: int  # should be the same as STATE_ID
     time_stamp: datetime
     state_id: str  # Is not the STATE_ID above
-    bombardments: HashMap[int, int] # TODO no idea if its actually int int (no examples in data1)
+    bombardments: Optional[HashMap[int, int]] # TODO no idea if its actually int int (no examples in data1)
     change_set: bool
 
     armies: HashMap[int,Army]

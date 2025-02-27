@@ -1,8 +1,12 @@
+import logging
+
 from conflict_interface import HubInterface
+from conflict_interface.logger_config import setup_library_logger
 from examples import creds
 
 if __name__ == "__main__":
     print("Starting game join example with specific country")
+    setup_library_logger(logging.DEBUG)
     interface = HubInterface()
     interface.login(creds.username, creds.password)
     game_id = list(interface.get_my_games().values())[1].game_id

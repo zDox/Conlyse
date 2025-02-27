@@ -24,11 +24,12 @@ from .data_types.resource_state import ResourceProfile, ResourceEntry
 from .data_types.static_map_data import StaticMapData
 from .game_api import GameApi
 from .data_types.game_state import GameState
+from .logger_config import get_logger
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
 
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
 
-
+logger = get_logger()
 
 class GameInterface:
     def __init__(self, game_id: int, guest: bool, session: Session, auth_details: AuthDetails):
@@ -94,7 +95,7 @@ class GameInterface:
                     selected_team_id=-1,
                     random_team_country_selection=False,
                 )
-                print(f"Loading game with player id: {self.player_id}")
+                logger.debug(f"Loading game with player id: {self.player_id}")
                 self.game_state = self.action_handler.que_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
