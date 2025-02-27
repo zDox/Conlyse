@@ -1,11 +1,14 @@
 import json
+import logging
 from pprint import pprint
 
 from conflict_interface import HubInterface
 from conflict_interface.data_types import dump_dataclass
+from conflict_interface.logger_config import setup_library_logger
 from examples import creds
 
 if __name__ == "__main__":
+    setup_library_logger(logging.DEBUG)
     interface = HubInterface()
     interface.login(creds.username, creds.password)
     print("Starting example")
