@@ -1,5 +1,5 @@
 from conflict_interface import HubInterface
-from conflict_interface.data_types.hub_game_info import HubGameState
+from conflict_interface.data_types.hub_types import HubGameState
 
 
 import creds

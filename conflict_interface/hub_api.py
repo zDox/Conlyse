@@ -19,7 +19,9 @@ from conflict_interface.data_types.hub_types.identification_text import INVALID_
 from conflict_interface.utils.exceptions import AuthenticationFailed, RestrictedAction, MissingParameter, \
     JoiningGameFailed, GameFull, InvalidCountry, InvalidParameterValue, MaxJoinedGamesExceeded, TooManyMessage, \
     TooManyGameJoinsTooFrequently, NotEnoughTickets, GameJoiningFailedOldGame, AuthenticationException
+from conflict_interface.logger_config import get_logger
 
+logger = get_logger()
 
 HUB_RESULT_CODE_EXCEPTION_MAPPING = {
     HubResultCode.AuthenticationFailed: AuthenticationFailed,
@@ -103,6 +105,7 @@ class HubApi:
         url += "&" + str(tstamp)
         request.current_request += 1
 
+        logger.debug(f"Sending AJAX request to {url}")
         response = self.session.request(request.method, url, params=params)
         return response
 
@@ -164,6 +167,8 @@ class HubApi:
             'outputFormat': 'json',
             'apiVersion': '20141208',
         }
+        logger.debug(f"Sending API request to {self.HOST} with params: {params}")
+
         response = self.session.post(
             'https://www.conflictnations.com/index.php',
             params=params,
@@ -385,6 +390,10 @@ class HubApi:
         """
         username_ok = self.check_username_available(username)
         email_ok = self.check_email_available(email)
+        if not username_ok:
+            logger.info(f"Trying to register username {username} which is already taken")
+        if not email_ok:
+            logger.info(f"Trying to register with email {email} which is already taken")
         if not username_ok or not email_ok:
             return False
 
@@ -450,6 +459,7 @@ class HubApi:
                 "Accept-Language": 'en-US,en;q=0.9',
         }
         self.auth = None
+        logger.debug("Logged out")
 
     """
     Functions where user has to be logged in.
@@ -524,5 +534,4 @@ class HubApi:
             "password": ""
         }, "joinGame")
         # TODO Error handling
-        print(res)
         return res

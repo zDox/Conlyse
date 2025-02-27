@@ -1,13 +1,17 @@
 from copy import deepcopy
+from dataclasses import fields, dataclass, is_dataclass, make_dataclass
+from datetime import datetime
 from functools import wraps
-from typing import cast
+from typing import cast, TypedDict, overload, get_type_hints, Optional, Type, Dict, TypeVar
 
 from conflict_interface.data_types import HubGame, parse_any
-from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
+from conflict_interface.data_types.hub_types.hub_game import HubGameProperties, HubGameState
 from conflict_interface.game_interface import GameInterface
 from conflict_interface.hub_api import HubApi
 from conflict_interface.utils.exceptions import AuthenticationException
 
+from conflict_interface.logger_config import get_logger
+logger = get_logger()
 
 # Decorator to check if the user is authenticated
 def protected(func):
@@ -47,18 +51,21 @@ class HubInterface:
 
         """
         if self.auth:
-            raise AuthenticationException("Client is already authenticated. Please logout first.")
+            logger.warn("Client is already authenticated. Please logout first. Logging out and then logging in...")
+            self.logout()
 
         result = self.api.login(username, password)
         if not result:
             raise AuthenticationException("Login for user " + username + " failed. Check username and password.")
         else:
             self.auth = True
+            logger.info("Login successful for user " + username)
 
     @protected
     def logout(self):
         self.api.logout()
         self.auth = False
+        logger.info("Logout successful")
 
     def register(self, username, email, password):
         """
@@ -77,11 +84,15 @@ class HubInterface:
             AuthenticationException: If the registration fails, indicating that the username or email is already taken.
         """
         if self.auth:
-            raise AuthenticationException("Client is already authenticated. Please logout first.")
+            logger.warn("Client is already authenticated. Please logout first. Logging out and then registering the user...")
+            self.logout()
 
         result = self.api.register_user(username, email, password)
         if not result:
             raise Exception(f"Registration failed. Check {username} or {email} is already taken.")
+        else:
+            self.auth = True
+            logger.info("Registration successful for user " + username)
 
     @protected
     def get_my_games(self, archived: bool = False, **filters) -> list[HubGameProperties]:
@@ -104,7 +115,6 @@ class HubInterface:
             if all(getattr(game.properties, key) == value for key, value in filters.items())
         ]
 
-    @protected
     def get_global_games(self, **filters) -> list[HubGameProperties]:
         """
         Retrieve a list of global games filtered by specified criteria. The function
@@ -122,6 +132,11 @@ class HubInterface:
             list[HubGameProperties]: A list of properties for global games that
                                      satisfy the provided filters.
         """
+        valid_fields = {field.name for field in fields(HubGameProperties)}
+        for key, value in filters.items():
+            if key not in valid_fields:
+                raise ValueError(f"Invalid filter key: {key}")
+
         data = cast(list[HubGame], parse_any(list[HubGame], self.api.get_global_games()))
         return [
             game.properties for game in data
@@ -135,8 +150,9 @@ class HubInterface:
     def join_game(self, game_id: int, guest=False) -> GameInterface:
         # If user is not already in first game join it the first time
         if not self.is_in_game(game_id) and not guest:
+            logger.info(f"User is not in game {game_id}. Requesting first join...")
             self.api.request_first_join(game_id)
-
+        logger.info(f"Joining game {game_id} as guest={guest}...")
         game_interface = GameInterface(game_id, guest, deepcopy(self.api.session), deepcopy(self.api.auth))
         game_interface.load_game()
         return game_interface
