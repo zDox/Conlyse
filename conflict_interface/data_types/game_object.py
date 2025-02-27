@@ -67,10 +67,13 @@ def parse_normal_dict(cls,json_obj,game):
     parsed_data = {}
     for key, value in json_obj.items():
         parsed_data[parse_any(cls.__args__[0], key, game)] = parse_any(cls.__args__[1], value, game)
-    return HashMap(parsed_data)
+    return cls(parsed_data)
 
 def parse_normal_list(cls, json_obj, game):
     return [parse_any(cls.__args__[0], v, game) for v in json_obj]
+
+def dump_normal_dict(obj) -> dict:
+    return {str(dump_any(k)): dump_any(v) for k, v in obj.items()}
 
 def dump_conflict_list(obj) -> list:
     if not hasattr(obj, "C"):
@@ -118,6 +121,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     str: str,
     bool: bool,
     list:list,
+    dict: dump_normal_dict,
     Vector: dump_conflict_list,
     LinkedList: dump_conflict_list,
     ArrayList: dump_conflict_list,
@@ -200,7 +204,7 @@ def parse_any(cls, json_obj: Any, game: GameInterface = None) -> object:
         raise ValueError(f"Type is None for json_obj {str(json_obj)[:1000]}")
     cls = get_inner_type(cls, json_obj)
 
-    # print(f"Handling parse_any for {cls} and {str(json_obj)[:1000]}")
+    #print(f"Handling parse_any for {cls} and {str(json_obj)[:1000]}")
 
     if issubclass(cls, GameObject):
         return parse_game_object(cls, json_obj, game)
