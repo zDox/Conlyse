@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union
 from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import HashMap, ArrayList, HashSet, DefaultEnumMeta, LinkedList, Vector, \
-    UnmodifiableCollection, TreeMap, LinkedHashMap
+    UnmodifiableCollection, TreeMap, LinkedHashMap, UnitList
 from conflict_interface.utils.helper import unix_to_datetime, seconds_to_timedelta, datetime_to_unix
 
 if TYPE_CHECKING:
@@ -106,6 +106,7 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     ArrayList: parse_conflict_array,
     HashSet: parse_conflict_array,
     UnmodifiableCollection: parse_conflict_array,
+    UnitList: parse_conflict_array,
     HashMap: parse_conflict_mapping,
     TreeMap: parse_conflict_mapping,
     LinkedHashMap: parse_conflict_mapping,
@@ -122,6 +123,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     ArrayList: dump_conflict_list,
     HashSet: dump_conflict_list,
     UnmodifiableCollection: dump_conflict_list,
+    UnitList: dump_conflict_list,
     HashMap: dump_conflict_mapping,
     TreeMap: dump_conflict_mapping,
     LinkedHashMap: dump_conflict_mapping,

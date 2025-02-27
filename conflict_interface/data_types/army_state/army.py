@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from conflict_interface.data_types.custom_types import DefaultEnumMeta, LinkedList
+from conflict_interface.data_types.custom_types import DefaultEnumMeta, LinkedList, UnitList
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
@@ -13,7 +13,7 @@ from conflict_interface.data_types.mod_state.anti_air_parameters import AntiAirP
 
 from conflict_interface.data_types.army_state.unit import Unit
 
-from conflict_interface.data_types.map_state.terrain_type import TerrainType
+from conflict_interface.data_types.map_state.terrain_type import TerrainType, TerrainTypeStr
 from conflict_interface.data_types.point import Point
 
 ARMY_CLOSE_COMBAT_RANGE = 5
@@ -140,7 +140,8 @@ class Army(GameObject):
         radar_signature_feature: How the army shows up on radar.
         token_feature: How the army consumes tokens on mobilization.
     """
-    C = "ultshared.warfare.UltArmy"
+    C = "a"
+    patrol_radius: int
     id: int = None
     size: int = 1
     health: float = 1.0
@@ -152,7 +153,7 @@ class Army(GameObject):
     last_direction: Point = None
     on_sea: bool = False
     at_airfield: bool = False
-    units: LinkedList[Unit] = None
+    units: UnitList[Unit] = None
 
     commands: LinkedList[Command] = None
     fight_status: FightStatus = FightStatus.IDLE
@@ -181,6 +182,7 @@ class Army(GameObject):
     forced_march: ForcedMarch = ForcedMarch.DEACTIVE
     removed: bool = False
     terrain_type: TerrainType = None
+    terrain_type_str: TerrainTypeStr = None
 
     air_parameters: AirParameters = None
     anti_air_parameters: AntiAirParameters = None
@@ -243,7 +245,8 @@ class Army(GameObject):
         "aggressiveness": "ag",
         "forced_march": "fm",
         "removed": "rm",
-        "terrain_type": "tt",
+        "terrain_type_str": "terrainType",
+        "terrain_type": "tt", # TODO confirm this is a terrain type (another similar exists)
         "air_parameters": "aip",
         "anti_air_parameters": "aap",
         "carriable": "ca",
@@ -263,6 +266,7 @@ class Army(GameObject):
         "army_moral": "m",
         "radar_signature_feature": "rs",
         "token_feature": "tok",
+        "patrol_radius": "patrolRadius"
     }
 
     def find_path(self, position: Point) -> [Command]:

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from .army import Army
 
 
@@ -19,10 +21,21 @@ class ArmyState(GameObject):
     """
     C = "ultshared.UltArmyState"
     STATE_ID = 6
+    state_type: int  # should be the same as STATE_ID
+    time_stamp: datetime
+    state_id: str  # Is not the STATE_ID above
+    bombardments: HashMap[int, int] # TODO no idea if its actually int int (no examples in data1)
+    change_set: bool
 
     armies: HashMap[int,Army]
 
-    MAPPING = {"armies": "armies"}
+    MAPPING = {"armies": "armies",
+               "state_type": "stateType",
+               "time_stamp": "timeStamp",
+               "state_id": "stateID",
+                "bombardments": "bombardments",
+                "change_set": "changeSet"
+               }
 
 
     def update(self, new_state):

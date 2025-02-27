@@ -20,3 +20,21 @@ class TerrainType(Enum, metaclass=DefaultEnumMeta):
     HIGHSEA = 19
     COASTAL = 20
     SUBURBAN = 21
+
+class TerrainTypeStr(Enum, metaclass=DefaultEnumMeta):
+    """
+    The type of terrain a province is.
+    """
+    NONE = "NONE"
+    PLAINS = "PLAINS"
+    HILLS = "HILLS"
+    MOUNTAIN = "MOUNTAIN"
+    FOREST = "FOREST"
+    URBAN = "URBAN"
+    JUNGLE = "JUNGLE"
+    TUNDRA = "TUNDRA"
+    DESERT = "DESERT"
+    SEA = "SEA"
+    HIGHSEA = "HIGHSEA"
+    COASTAL = "COASTAL"
+    SUBURBAN = "SUBURBAN"

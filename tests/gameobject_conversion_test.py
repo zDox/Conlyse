@@ -7,12 +7,13 @@ from conflict_interface.data_types import ModableUpgrade, parse_dataclass, GameS
 from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes
 from conflict_interface.data_types import Vector
 from conflict_interface.data_types import parse_game_object
+from conflict_interface.data_types.army_state.army_state import ArmyState
 from conflict_interface.game_interface import GameInterface
 from tests.compare_dicts import test_dict_contains
 
 
 class ParseDumpTests(unittest.TestCase):
-    test_states = [PlayerState, ForeignAffairsState]
+    test_states = [PlayerState, ForeignAffairsState, ArmyState]
     test_files = ["full_test_data_1.json"]
 
     def test_load_json(self):

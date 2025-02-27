@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from dataclasses import dataclass
 from typing import Optional
 
-from conflict_interface.data_types.custom_types import UnmodifiableCollection, HashMap
+from conflict_interface.data_types.custom_types import UnmodifiableCollection, HashMap, HashSet
 from conflict_interface.data_types.game_object import GameObject, parse_any
 
 
@@ -181,7 +181,10 @@ class TokenFeature(GameObject):
     about how they work.
     """
     C = "ultshared.warfare.UltTokenFeature"
-    MAPPING = {}
+    tokens: HashSet[int] # TODO no idea if its int int (no examples in data1)
+    MAPPING = {
+        "tokens": "tokens",
+    }
 
 
 @dataclass
