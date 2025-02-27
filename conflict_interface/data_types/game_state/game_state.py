@@ -135,7 +135,7 @@ class States(GameObject):
     }
 
 
-    def update(self, new_fields):
+    def update(self, new_fields: "States"):
         """
         Call the update method of each state that has a update and hand of the state as dict
 
@@ -148,7 +148,7 @@ class States(GameObject):
             attr = getattr(self, field)
             if not callable(getattr(attr, "update", None)):
                 continue
-            getattr(self, field).update(new_fields.get(self.MAPPING[field]))
+            getattr(self, field).update(getattr(new_fields, field, None))
 
 
 @dataclass

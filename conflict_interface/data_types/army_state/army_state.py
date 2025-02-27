@@ -47,8 +47,7 @@ class ArmyState(GameObject):
         """
         if new_state is None:
             return
-        new_state = parse_game_object(ArmyState, new_state, self.game)
-        for new_army in new_state.armies:
+        for new_army in new_state.armies.values():
             if new_army.removed:
                 self.armies.pop(new_army.id)
                 continue

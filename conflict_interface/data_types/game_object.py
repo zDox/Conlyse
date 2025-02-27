@@ -4,7 +4,7 @@ from dataclasses import is_dataclass
 from dataclasses import MISSING as DATACLASS_MISSING
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union
+from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union, TypeVar, Type
 from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import HashMap, ArrayList, HashSet, DefaultEnumMeta, LinkedList, Vector, \
@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 Parsing: Json -> Python
 Dumping: Python -> Json
 """
+GameObjectType = TypeVar("GameObjectType", bound="GameObject")
+DataclassType = TypeVar("DataclassType", bound="object")
 
 def get_inner_type(cls: type, json_obj):
     # Check if the type is Optional
@@ -131,7 +133,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     timedelta: datetime_to_unix # --||--
 }
 
-def parse_dataclass(cls, json_obj: dict, game: GameInterface = None) -> object:
+def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterface = None) -> DataclassType:
     # --Error handling
     if not is_dataclass(cls):
         raise TypeError(f"{cls.__name__} must be a dataclass")
@@ -174,12 +176,12 @@ def parse_dataclass(cls, json_obj: dict, game: GameInterface = None) -> object:
     instance = cls(**parsed_data)
     return instance
 
-def parse_game_object(cls, json_obj: dict, game: GameInterface) -> GameObject:
+def parse_game_object(cls: Type[GameObjectType], json_obj: dict, game: GameInterface) -> GameObjectType:
     if game is None:
         raise ValueError(f"GameObject {cls} requires a game instance")
 
     instance = parse_dataclass(cls, json_obj, game)
-    instance = cast(GameObject, instance)
+    instance = cast(GameObjectType, instance)
     instance.game = game
     return instance
 
@@ -193,7 +195,7 @@ def parse_enum(cls: type[Enum], json_obj: str | int) -> Enum:
             raise ValueError(f"Unknown enum value {json_obj} for {cls}")
 
 
-def parse_any(cls, json_obj: Any, game: GameInterface = None) -> object:
+def parse_any(cls: Type[DataclassType], json_obj: Any, game: GameInterface = None) -> DataclassType:
     if json_obj is None:
         return None
     if cls is None:

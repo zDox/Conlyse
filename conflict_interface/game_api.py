@@ -171,32 +171,13 @@ class GameApi:
                                      headers=headers,
                                      data=dumps(data))
 
+        response.raise_for_status()
         if not type(response.json()["result"]) is int:
             self.update_server_time(response.json()["result"]["timeStamp"])
         else:
             self.update_server_time(0)
 
-        self.handle_response(parameters["@c"], response)
-
-    def handle_activate_game_action_response(self, response_json: Any):
-        try:
-            raise GameActivationException.from_error_code(response_json["result"])
-        except ValueError:
-            pass
-        self.player_id = response_json["result"]
-        return self.player_id
-
-    def handle_game_update_action_response(self, response_json: Any):
-        return response_json["result"]
-
-
-    def handle_response(self, c_type: str, response: Response):
-        if c_type == "ultshared.action.UltActivateGameAction":
-            self.handle_activate_game_action_response(response)
-        elif c_type == "ultshared.action.UltGameUpdateAction":
-            self.handle_game_update_action_response(response)
-        else:
-            raise ValueError(f"Cannot handle response of unknown request type: {c_type}")
+        return response.json()
 
 
     def client_time(self, time_scale) -> datetime:
