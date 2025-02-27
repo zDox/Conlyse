@@ -3,18 +3,16 @@ import unittest
 
 from requests import Session
 
-from conflict_interface.data_types import ModableUpgrade, parse_dataclass, GameState, AuthDetails, dump_any, \
-    PlayerState, ForeignAffairsState
-from conflict_interface.data_types import UpdateProvinceAction, UpdateProvinceActionModes
-from conflict_interface.data_types import Vector
+from conflict_interface.data_types import GameState, dump_any, \
+    PlayerState, ForeignAffairsState, NewspaperState
 from conflict_interface.data_types import parse_game_object
 from conflict_interface.data_types.army_state.army_state import ArmyState
 from conflict_interface.game_interface import GameInterface
-from tests.compare_dicts import test_dict_contains
+from tests.compare_dicts import compare_dicts
 
 
 class ParseDumpTests(unittest.TestCase):
-    test_states = [PlayerState, ForeignAffairsState, ArmyState]
+    test_states = [NewspaperState, PlayerState, ArmyState, ForeignAffairsState]
     test_files = ["full_test_data_1.json"]
 
     def test_load_json(self):
@@ -53,16 +51,12 @@ class ParseDumpTests(unittest.TestCase):
                     states = data["result"]["states"][str(state.STATE_ID)]
 
                     parsed_state = parse_game_object(state, states, game)
-
                     dumped_states = dump_any(parsed_state)
+
                     self.assertIsInstance(dumped_states, dict)
 
-                    try:
-                        test_dict_contains(states, dumped_states)
-                        # If we get here, the test passed (no exception)
-                    except AssertionError as e:
-                        self.fail(f"Unexpected AssertionError: {e}")
-
+                    diff = compare_dicts(states, dumped_states)
+                    self.assertEqual(diff, {}, msg=f"Failed for {state}")
 
 if __name__ == "__main__":
     unittest.main()

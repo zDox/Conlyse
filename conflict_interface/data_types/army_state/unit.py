@@ -19,7 +19,7 @@ class Unit(GameObject):
     health: float
     size: int
     kills: int
-    camoflage_replacement_unit: int
+    camoflage_replacement_unit: bool
     on_sea: bool
     at_airfield: bool
     hit_points: float

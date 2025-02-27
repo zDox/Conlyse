@@ -18,7 +18,7 @@ from .data_types.game_api_types.system_information import SystemInformation
 from .data_types.game_object import parse_game_object
 from .data_types.map_state import Province, ProvinceStateID
 from .data_types.mod_state import UpgradeType, UnitType
-from .data_types.newspaper_state import Article
+from .data_types.newspaper_state.article import Article
 from .data_types.player_state import PlayerProfile
 from .data_types.resource_state import ResourceProfile, ResourceEntry
 from .data_types.static_map_data import StaticMapData
