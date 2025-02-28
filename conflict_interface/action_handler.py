@@ -107,7 +107,7 @@ class ActionHandler:
         json_action = dump_any(action)
         return self.game_api.make_game_server_request(json_action)
 
-    def create_game_state_action(self, use_queue=True, custom_actions=None) -> GameState:
+    def create_game_state_action(self, use_queue: bool=True, custom_actions: LinkedList=None) -> GameState:
         """
         Create a game state action and execute it
         This is used to send multiple minor actions in one request
@@ -123,12 +123,17 @@ class ActionHandler:
 
         :return: The response game state object
         """
+        if custom_actions is not None and not isinstance(custom_actions, LinkedList):
+            raise ValueError(f"custom_actions must be a LinkedList, not {type(custom_actions)}")
+
         if use_queue:
             actions = self.actions
         else:
             if custom_actions is None:
-                raise ValueError("No custom actions provided")
-            actions = custom_actions
+                actions = LinkedList()
+            else:
+                actions = custom_actions
+
         for action in actions:
             action.action_request_id = "actionReq-" + str(self.action_request_id)
             action.language = self.language

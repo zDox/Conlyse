@@ -46,6 +46,8 @@ def protected(func):
     def wrapper(self, *args, **kwargs):
         if self.auth:
             return func(self, *args, **kwargs)
+        else:
+            raise AuthenticationException("Trying to access protected method without authentication. Please login first.")
     return wrapper
 
 class HubApi:
@@ -328,6 +330,7 @@ class HubApi:
         parsed_html = lxml.html.fromstring(response.text)
         form = parsed_html.get_element_by_id("sg_reg_form_0")
         form_data = dict(form.form_values())
+        logger.debug(f"Loaded main page action: {form.action} form data: {form_data}")
         return form.action, form_data
 
     def load_authentication_from_response(self, response: Response):
