@@ -1,6 +1,8 @@
 import re
 from datetime import datetime, UTC, timedelta
 from functools import wraps
+from pprint import pprint
+
 from requests import Session, Response
 from lxml import html
 from typing import Any
@@ -11,9 +13,11 @@ from json import loads, dumps
 from time import time
 
 from conflict_interface.data_types.authentication import AuthDetails
+from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException, GameActivationException, GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
 
+logger = get_logger()
 
 @dataclass
 class DeviceDetails:
@@ -164,7 +168,6 @@ class GameApi:
             "rights": self.auth.rights,
             "userAuth": self.auth.auth,
         }
-
         self.request_id += 1
 
         response = self.session.post(self.game_server_address,
@@ -173,7 +176,10 @@ class GameApi:
 
         response.raise_for_status()
         if not type(response.json()["result"]) is int:
-            self.update_server_time(response.json()["result"]["timeStamp"])
+            if "timeStamp" in response.json()["result"]:
+                self.update_server_time(response.json()["result"]["timeStamp"])
+            else:
+                raise Exception(response.json()["result"])
         else:
             self.update_server_time(0)
             
