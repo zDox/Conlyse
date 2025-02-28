@@ -1,21 +1,20 @@
 from __future__ import annotations
 
-import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
-from pprint import pprint
-from typing import Any, cast
+from typing import Any
 
 from requests import Session
 
+from conflict_interface.data_types.player_state.team_profile import TeamProfile
 from .action_handler import ActionHandler
-from .data_types import AuthDetails, LinkedList, GameObject, dump_dataclass
+from .data_types import AuthDetails
 from .data_types.action import Action
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
-from .data_types.game_api_types.login_action import LoginAction, DEFAULT_LOGIN_ACTION
-from .data_types.game_api_types.system_information import SystemInformation
+from .data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from .data_types.game_object import parse_game_object
+from .data_types.game_state import GameState
 from .data_types.map_state import Province, ProvinceStateID
 from .data_types.mod_state import UpgradeType, UnitType
 from .data_types.newspaper_state.article import Article
@@ -23,11 +22,8 @@ from .data_types.player_state import PlayerProfile
 from .data_types.resource_state import ResourceProfile, ResourceEntry
 from .data_types.static_map_data import StaticMapData
 from .game_api import GameApi
-from .data_types.game_state import GameState
 from .logger_config import get_logger
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
-
-from conflict_interface.data_types.player_state.team_profile import TeamProfile
 
 logger = get_logger()
 
@@ -75,10 +71,6 @@ class GameInterface:
         is updated directly for guest users. Additionally, static map data for the game is
         retrieved and set for the current map.
 
-        Args:
-            guest (bool): Optional; True if the user is joining as a guest, False otherwise.
-                Defaults to False.
-
         Raises:
             GameActivationException: If the game activation fails due to reasons other than
                 requested country selection and the user is not a guest.
@@ -96,7 +88,7 @@ class GameInterface:
                     random_team_country_selection=False,
                 )
                 logger.debug(f"Loading game with player id: {self.player_id}")
-                self.game_state = self.action_handler.que_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+                self.game_state = self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
