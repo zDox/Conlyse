@@ -23,3 +23,4 @@ tests/data/full_test_data_1.json
 tests/data/full_test_data_3.json
 tests/data/full_test_data_2.json
 tests/full_test_data_1.json
+tests/credentials.json

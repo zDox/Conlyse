@@ -51,7 +51,7 @@ class HubInterface:
 
         """
         if self.auth:
-            logger.warn("Client is already authenticated. Please logout first. Logging out and then logging in...")
+            logger.warning("Client is already authenticated. Please logout first. Logging out and then logging in...")
             self.logout()
 
         result = self.api.login(username, password)
@@ -84,7 +84,7 @@ class HubInterface:
             AuthenticationException: If the registration fails, indicating that the username or email is already taken.
         """
         if self.auth:
-            logger.warn("Client is already authenticated. Please logout first. Logging out and then registering the user...")
+            logger.warning("Client is already authenticated. Please logout first. Logging out and then registering the user...")
             self.logout()
 
         result = self.api.register_user(username, email, password)
@@ -109,7 +109,7 @@ class HubInterface:
             A list of HubGameProperties, each representing the properties of games that
             match the filtering criteria and archived state.
         """
-        data = cast(list[HubGame], parse_any(list[HubGame], self.api.get_my_games(archived)))
+        data = parse_any(list[HubGame], self.api.get_my_games(archived))
         return [
             game.properties for game in data
             if all(getattr(game.properties, key) == value for key, value in filters.items())
