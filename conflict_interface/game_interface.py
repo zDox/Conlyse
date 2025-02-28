@@ -85,7 +85,7 @@ class GameInterface:
         """
         self.game_api.load_game_site()
         if self.guest:
-            self.game_state = self.action_handler.execute_game_state_action(use_queue=False)
+            self.game_state = self.action_handler.create_game_state_action(use_queue=False)
         else:
             try:
                 self.player_id = self.action_handler.activate_game(
@@ -101,7 +101,7 @@ class GameInterface:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
 
-                self.game_state = self.action_handler.execute_game_state_action(use_queue=False)
+                self.game_state = self.action_handler.create_game_state_action(use_queue=False)
 
         static_map_data = parse_game_object(StaticMapData, self.game_api.get_static_map_data(), self)
 
@@ -141,7 +141,7 @@ class GameInterface:
             States: The updated current state of the game.
         """
         # Execute any queued actions
-        game_state: GameState = self.action_handler.execute_game_state_action()
+        game_state: GameState = self.action_handler.create_game_state_action()
         self.game_state.states.update(game_state.states)
 
         return self.game_state
@@ -164,7 +164,19 @@ class GameInterface:
         return self.game_api.client_time(self.game_state.states.game_info_state.time_scale)
 
     def do_action(self,action: Action, execute_immediately=False):
-        self.action_handler.que_action(action, execute_immediately)
+        """
+        Uses the action handler to execute an action immediately or queue it for later.
+        Queuing is done to reduce the load on the server by only sending requests bundeld together roughly every 5 minutes.
+
+        :param action: The action to be executed
+        :param execute_immediately: Whether the action should be executed immediately or queued defaults to False
+
+        :returns: The response from the server
+        """
+        if execute_immediately:
+            return self.action_handler.immediate_action(action)
+        else:
+            return self.action_handler.que_action(action)
 
 
 
