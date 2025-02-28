@@ -3,12 +3,12 @@ import unittest
 
 from conflict_interface.hub_interface import HubInterface
 from conflict_interface.utils.exceptions import AuthenticationException
-from tests.load_credentials import load_credentials
-
+from tests.helper_functions import load_credentials, get_test_game_id, get_new_game_id
 
 random_prefix = "test_"
 
 class HubInterfaceTests(unittest.TestCase):
+    @classmethod
     def setUpClass(cls):
         cls.username, cls.password, cls.email = load_credentials()
 
@@ -52,5 +52,13 @@ class HubInterfaceTests(unittest.TestCase):
             self.fail(f"get_global_games() raised an exception unexpectedly: {e}")
 
     def test_is_in_game_failure(self):
-        self.interface.login(self.username, self.self.password)
+        self.interface.login(self.username, self.password)
         self.assertFalse(self.interface.is_in_game(-1))
+
+    def test_game_join_as_guest(self):
+        self.interface.login(self.username, self.password)
+        try:
+            game = self.interface.join_game(get_new_game_id(self.interface), guest=True)
+        except Exception as e:
+            self.fail(f"join_game() raised an exception unexpectedly: {e}")
+        self.assertIsNotNone(game)

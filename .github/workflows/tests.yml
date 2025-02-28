@@ -32,6 +32,10 @@ jobs:
           
 
       - name: Run tests with unittest
+        env:
+          TEST_ACCOUNT_USERNAME: ${{ secrets.TEST_ACCOUNT_USERNAME }}
+          TEST_ACCOUNT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD }}
+          TEST_ACCOUNT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL }}
         run: |
-          python -m unittest discover -s tests -p "*.py" -v
+          python tests/run_tests.py
           

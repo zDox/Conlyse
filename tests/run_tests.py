@@ -1,6 +1,9 @@
+import logging
 import os
 import unittest
 import sys
+
+from conflict_interface.logger_config import setup_library_logger
 
 
 def run_tests():
@@ -34,4 +37,5 @@ def run_tests():
 
 # Run tests if script is executed directly
 if __name__ == '__main__':
+    # setup_library_logger(logging.DEBUG)
     run_tests()

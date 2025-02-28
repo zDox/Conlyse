@@ -2,7 +2,7 @@ import os
 import unittest
 from conflict_interface.hub_api import HubApi
 from conflict_interface.utils.exceptions import AuthenticationException
-from tests.load_credentials import load_credentials
+from tests.helper_functions import load_credentials
 
 
 class HubApiTests(unittest.TestCase):
