@@ -20,7 +20,7 @@ class Article(GameObject):
     message_body: str
 
     address: str
-    receiver: str
+    receiver: Optional[str]
     read_by_sender: bool
     read_by_receiver: bool
     deleted_by_sender: bool
@@ -28,7 +28,7 @@ class Article(GameObject):
     author_id: int
     day: int
     extended: int
-    intercepted: Vector[int] # TODO: Check if int is the correct type
+    intercepted: Optional[Vector[int]] # TODO: Check if int is the correct type
     sender_flag_id: int
     receiver_flag_id: int
     report_count: int

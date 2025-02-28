@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+from typing import Union
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.map_state.morale_factors import MoraleFactors
+from conflict_interface.data_types.map_state.revolt_suppression_property import RevoltSuppressionProperty
 from conflict_interface.data_types.mod_state import ModableUpgrade, SpecialUnit
 from conflict_interface.data_types.custom_types import LinkedList, ArrayList
 
@@ -23,16 +26,21 @@ class ProvinceProperty(GameObject):
         uprising_chance: The chance of an uprising occurring in the province expressed as a percentage.
         target_morale: The morale that will be reached over time.
     """
-    C = "ultshared.UltProvinceProperty"
+    C = "ultshared.UltProvinceProperties"
     possible_upgrades: LinkedList[ModableUpgrade]
     queueable_upgrades: LinkedList[ModableUpgrade]
 
-    possible_productions: ArrayList[SpecialUnit]
-    queueable_productions: ArrayList[SpecialUnit]
+    possible_productions: Union[ArrayList[SpecialUnit], LinkedList[SpecialUnit]]
+    queueable_productions: Union[ArrayList[SpecialUnit], LinkedList[SpecialUnit]]
 
     revolt_chance: int
     uprising_chance: int
     target_morale: int
+
+    base_uprising_chance: float
+    morale_factors: MoraleFactors
+
+    revolt_suppression_property: RevoltSuppressionProperty
 
     MAPPING = {
         "possible_upgrades": "possibleUpgrades",
@@ -42,4 +50,7 @@ class ProvinceProperty(GameObject):
         "revolt_chance": "revoltChance",
         "uprising_chance": "uprisingChance",
         "target_morale": "targetMorale",
+        "base_uprising_chance": "baseUprisingChance",
+        "morale_factors": "moraleFactors",
+        "revolt_suppression_property": "revoltSuppressionProperty",
     }

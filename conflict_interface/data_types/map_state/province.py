@@ -1,6 +1,8 @@
 from typing import Optional
 
 from conflict_interface.data_types.common import RegionType
+from .impact import Impact
+from .province_production import ProvinceProduction
 from .province_property import ProvinceProperty
 from .terrain_type import TerrainType
 from conflict_interface.data_types.resource_state import ResourceType
@@ -12,6 +14,7 @@ from enum import Enum
 
 from conflict_interface.data_types.mod_state import ModableUpgrade
 from .update_province_action import UpdateProvinceActionModes, UpdateProvinceAction
+from ..custom_types import ArrayList, ProductionList
 from ..custom_types import DefaultEnumMeta, HashSet
 from ..game_object import GameObject
 from ..point import Point
@@ -102,6 +105,20 @@ class Province(GameObject):
     victory_points: int
     owner_id: int
     upgrades: HashSet[ModableUpgrade]
+
+    stationary_army: Optional[int]
+    base_production: int
+
+    core_ids: list[int]
+
+    last_battle: Optional[int]
+    impacts: Optional[ArrayList[Impact]]
+
+
+    production: Optional[ProvinceProduction]
+    productions: Optional[ProductionList[ProvinceProduction]]
+
+    costal: bool = False
     money_production: int = 0
     morale: int = 70
     legal_owner: int = -1
@@ -111,7 +128,7 @@ class Province(GameObject):
     terrain_type: TerrainType = None
     center_coordinate: Point = None
     region: RegionType = RegionType.NONE
-    properties: ProvinceProperty = None  # If player owns the province
+    properties: ProvinceProperty = None  # If player owns the provinc
 
     MAPPING = {
         "province_id": "id",
@@ -126,6 +143,15 @@ class Province(GameObject):
         "legal_owner": "lo",
         "victory_points": "plv",
         "upgrades": "us",
+        "stationary_army": "sa",
+        "base_production": "bp",
+        "core_ids": "ci",
+        "last_battle": "lb",
+        "impacts": "ims",
+        "costal": "co",
+        "production": "bi", # TODO why the fuck bi??
+        "productions": "cos" # TODO what the heck cos??
+
     }
 
     updateable_keys = ["province_state_id", "adjacent_to_water",

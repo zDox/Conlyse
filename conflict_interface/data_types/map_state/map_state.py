@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Union
 
 from .sea_province import SeaProvince
@@ -44,7 +45,7 @@ class Map(GameObject):
     C = "ultshared.UltMap"
     is_reduced: bool
     version: int
-    map_id: int
+    map_id: str
     day_of_game: int
     width: int
     height: int
@@ -98,7 +99,17 @@ class MapState(GameObject):
     # Provinces which are owned by the current player
     properties: HashMap[int, ProvinceProperty]
 
+    state_type: int  # should be the same as STATE_ID
+    time_stamp: datetime
+    state_id: str  # Is not the STATE_ID above
+
+    change_set: bool
+
     MAPPING = {
         "map": "map",
-        "properties": "properties"
+        "properties": "properties",
+        "state_type": "stateType",
+        "time_stamp": "timeStamp",
+        "state_id": "stateID",
+        "change_set": "changeSet"
     }
