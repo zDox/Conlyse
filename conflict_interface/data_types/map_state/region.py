@@ -8,7 +8,7 @@ class Region(GameObject):
     """
     Represents a region on the map. For example Africa and Europe are regions.
     """
-    C = "ultshared.UltRegion"
+    C = "ultshared.map.UltRegion"
     index: int
     name: str
 

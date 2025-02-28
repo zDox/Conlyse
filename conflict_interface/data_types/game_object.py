@@ -7,6 +7,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union, TypeVar, Type
 from typing import get_type_hints
 
+from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.data_types.custom_types import HashMap, ArrayList, HashSet, DefaultEnumMeta, LinkedList, Vector, \
     UnmodifiableCollection, TreeMap, LinkedHashMap, UnitList
 from conflict_interface.utils.helper import unix_to_datetime, seconds_to_timedelta, datetime_to_unix
@@ -43,6 +44,9 @@ def get_inner_type(cls: type, json_obj):
                 elif json_type == arg:
                     return arg
                 elif arg.__name__ == "Point" and json_obj.keys() == {"x", "y"}:
+                    return arg
+            elif json_type is list:
+                if arg.C == json_obj[0]:
                     return arg
             elif arg is json_type:
                 return arg
@@ -115,6 +119,7 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     HashMap: parse_conflict_mapping,
     TreeMap: parse_conflict_mapping,
     LinkedHashMap: parse_conflict_mapping,
+    ProductionList: parse_conflict_array
 }
 
 SIMPLE_DUMP_MAPPING: dict[type,Any] = {
@@ -130,6 +135,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     HashSet: dump_conflict_list,
     UnmodifiableCollection: dump_conflict_list,
     UnitList: dump_conflict_list,
+    ProductionList: dump_conflict_list,
     HashMap: dump_conflict_mapping,
     TreeMap: dump_conflict_mapping,
     LinkedHashMap: dump_conflict_mapping,
