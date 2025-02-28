@@ -3,7 +3,7 @@ import os
 import unittest
 import sys
 
-from conflict_interface.logger_config import setup_library_logger
+# from conflict_interface.logger_config import setup_library_logger
 
 
 def run_tests():
