@@ -1,21 +1,20 @@
 from __future__ import annotations
 
-import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
-from pprint import pprint
-from typing import Any, cast
+from typing import Any
 
 from requests import Session
 
+from conflict_interface.data_types.player_state.team_profile import TeamProfile
 from .action_handler import ActionHandler
-from .data_types import AuthDetails, LinkedList, GameObject, dump_dataclass
+from .data_types import AuthDetails
 from .data_types.action import Action
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
-from .data_types.game_api_types.login_action import LoginAction, DEFAULT_LOGIN_ACTION
-from .data_types.game_api_types.system_information import SystemInformation
+from .data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from .data_types.game_object import parse_game_object
+from .data_types.game_state import GameState
 from .data_types.map_state import Province, ProvinceStateID
 from .data_types.mod_state import UpgradeType, UnitType
 from .data_types.newspaper_state.article import Article
@@ -23,11 +22,8 @@ from .data_types.player_state import PlayerProfile
 from .data_types.resource_state import ResourceProfile, ResourceEntry
 from .data_types.static_map_data import StaticMapData
 from .game_api import GameApi
-from .data_types.game_state import GameState
 from .logger_config import get_logger
 from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
-
-from conflict_interface.data_types.player_state.team_profile import TeamProfile
 
 logger = get_logger()
 
@@ -75,17 +71,13 @@ class GameInterface:
         is updated directly for guest users. Additionally, static map data for the game is
         retrieved and set for the current map.
 
-        Args:
-            guest (bool): Optional; True if the user is joining as a guest, False otherwise.
-                Defaults to False.
-
         Raises:
             GameActivationException: If the game activation fails due to reasons other than
                 requested country selection and the user is not a guest.
         """
         self.game_api.load_game_site()
         if self.guest:
-            self.game_state = self.action_handler.execute_game_state_action(use_queue=False)
+            self.game_state = self.action_handler.create_game_state_action(use_queue=False)
         else:
             try:
                 self.player_id = self.action_handler.activate_game(
@@ -96,12 +88,12 @@ class GameInterface:
                     random_team_country_selection=False,
                 )
                 logger.debug(f"Loading game with player id: {self.player_id}")
-                self.game_state = self.action_handler.que_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+                self.game_state = self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
 
-                self.game_state = self.action_handler.execute_game_state_action(use_queue=False)
+                self.game_state = self.action_handler.create_game_state_action(use_queue=False)
 
         static_map_data = parse_game_object(StaticMapData, self.game_api.get_static_map_data(), self)
 
@@ -141,7 +133,7 @@ class GameInterface:
             States: The updated current state of the game.
         """
         # Execute any queued actions
-        game_state: GameState = self.action_handler.execute_game_state_action()
+        game_state: GameState = self.action_handler.create_game_state_action()
         self.game_state.states.update(game_state.states)
 
         return self.game_state
@@ -164,7 +156,19 @@ class GameInterface:
         return self.game_api.client_time(self.game_state.states.game_info_state.time_scale)
 
     def do_action(self,action: Action, execute_immediately=False):
-        self.action_handler.que_action(action, execute_immediately)
+        """
+        Uses the action handler to execute an action immediately or queue it for later.
+        Queuing is done to reduce the load on the server by only sending requests bundeld together roughly every 5 minutes.
+
+        :param action: The action to be executed
+        :param execute_immediately: Whether the action should be executed immediately or queued defaults to False
+
+        :returns: The response from the server
+        """
+        if execute_immediately:
+            return self.action_handler.immediate_action(action)
+        else:
+            return self.action_handler.que_action(action)
 
 
 
