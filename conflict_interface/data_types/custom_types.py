@@ -1,4 +1,5 @@
 from enum import EnumMeta
+from datetime import datetime, timedelta
 
 
 class UnitList(list):
@@ -58,6 +59,18 @@ class RegularImmutableMap(dict):
 
 class EmptyMap(dict):
     C = "java.util.Collections$EmptyMap"
+
+class DateTimeStr(datetime):
+    pass
+
+class DateTimeInt(datetime):
+    pass
+
+class TimeDeltaStr(timedelta):
+    pass
+
+class TimeDeltaInt(timedelta):
+    pass
 
 
 class DefaultEnumMeta(EnumMeta):

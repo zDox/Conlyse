@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import is_dataclass
 from dataclasses import MISSING as DATACLASS_MISSING
 from datetime import datetime, timedelta
+from email.utils import parsedate_to_datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union, TypeVar, Type
 from typing import get_type_hints
+from datetime import UTC
 
 from conflict_interface.data_types.custom_types import *
 from conflict_interface.utils.helper import unix_to_datetime, seconds_to_timedelta, datetime_to_unix
@@ -76,6 +78,17 @@ def parse_normal_dict(cls,json_obj,game):
 def parse_normal_list(cls, json_obj, game):
     return [parse_any(cls.__args__[0], v, game) for v in json_obj]
 
+def parse_date_time(json_obj):
+    if len(str(json_obj)) <= 13:
+        raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits")
+    return datetime.fromtimestamp(int(json_obj) / 1000, UTC)
+
+def dump_date_time_int(obj) -> int:
+    pass
+
+def dump_date_time_str(obj) -> str:
+    pass
+
 def dump_normal_dict(obj) -> dict:
     return {str(dump_any(k)): dump_any(v) for k, v in obj.items()}
 
@@ -102,8 +115,10 @@ SIMPLE_PARSE_MAPPING: dict[type,Any] = {
     str: str,
     bool: bool,
 
-    datetime: unix_to_datetime,
-    timedelta: seconds_to_timedelta,
+    DateTimeInt: parse_date_time,
+    DateTimeStr: parse_date_time,
+    TimeDeltaInt: parse_date_time,
+    TimeDeltaStr: parse_date_time,
 }
 COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     dict: parse_normal_dict,
@@ -152,8 +167,10 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     LinkedHashMap: dump_conflict_mapping,
     RegularImmutableMap: dump_conflict_mapping,
     EmptyMap: dump_conflict_mapping,
-    datetime: datetime_to_unix, # Technically not a simple type, since GameInfoState.startOfGame requires seconds = True
-    timedelta: datetime_to_unix # --||--
+    DateTimeInt: dump_date_time_int,
+    DateTimeStr: dump_date_time_str,
+    TimeDeltaInt: dump_date_time_int,
+    TimeDeltaStr: dump_date_time_str,
 }
 
 def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterface = None) -> DataclassType:
