@@ -12,7 +12,7 @@ if __name__ == "__main__":
     interface = HubInterface()
     interface.login(creds.username, creds.password)
     game = interface.join_game(9759068)
-
+    pprint(game.get_my_provinces())
     city = next(iter(game.get_my_provinces(name="Madrid").values()))
     pprint(city)
     arms_lvl_1 = game.get_upgrade_type_by_name_and_tier('Arms Industry', 1)
