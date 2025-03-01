@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from dataclasses import is_dataclass
 from dataclasses import MISSING as DATACLASS_MISSING
-from datetime import datetime, timedelta
-from email.utils import parsedate_to_datetime
+
 from enum import Enum
 from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union, TypeVar, Type
 from typing import get_type_hints
 from datetime import UTC
 
 from conflict_interface.data_types.custom_types import *
-from conflict_interface.utils.helper import unix_to_datetime, seconds_to_timedelta, datetime_to_unix
+
 
 if TYPE_CHECKING:
     from conflict_interface.game_interface import GameInterface
@@ -79,15 +78,42 @@ def parse_normal_list(cls, json_obj, game):
     return [parse_any(cls.__args__[0], v, game) for v in json_obj]
 
 def parse_date_time(json_obj):
-    if len(str(json_obj)) <= 13:
+    if len(str(json_obj)) < 13 and str(json_obj) != "0":
+        raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits {json_obj}")
+    if type(json_obj) is str:
+        return DateTimeStr.fromtimestamp(int(json_obj) / 1000, UTC)
+    elif type(json_obj) is int:
+        return DateTimeInt.fromtimestamp(int(json_obj) / 1000, UTC)
+    else:
+        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
+
+def parse_time_delta(json_obj):
+    if len(str(json_obj)) < 13:
         raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits")
-    return datetime.fromtimestamp(int(json_obj) / 1000, UTC)
+    if type(json_obj) is str:
+        return TimeDeltaStr(seconds=int(json_obj) / 1000)
+    elif type(json_obj) is int:
+        return TimeDeltaInt(seconds=int(json_obj) / 1000)
+    else:
+        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
 def dump_date_time_int(obj) -> int:
-    pass
+    t: type = type(obj)
+    if t is DateTimeInt:
+        return int(obj.timestamp() * 1000)
+    elif t is TimeDeltaInt:
+        return int(obj.total_seconds() * 1000)
+    else:
+        raise ValueError(f"Unknown type {t} for {obj} (expected DateTimeInt or TimeDeltaInt)")
 
 def dump_date_time_str(obj) -> str:
-    pass
+    t: type = type(obj)
+    if t is DateTimeStr:
+        return str(int(obj.timestamp() * 1000))
+    elif t is TimeDeltaStr:
+        return str(int(obj.total_seconds() * 1000))
+    else:
+        raise ValueError(f"Unknown type {t} for {obj} (expected DateTimeStr or TimeDeltaStr)")
 
 def dump_normal_dict(obj) -> dict:
     return {str(dump_any(k)): dump_any(v) for k, v in obj.items()}
@@ -128,6 +154,7 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     ArrayList: parse_conflict_list,
     EmptyList: parse_conflict_list,
     HashSet: parse_conflict_list,
+    UnmodifiableSet: parse_conflict_list,
     UnmodifiableCollection: parse_conflict_list,
     UnitList: parse_conflict_list,
     BidListInner: parse_conflict_list,
@@ -155,6 +182,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     ArrayList: dump_conflict_list,
     EmptyList: dump_conflict_list,
     HashSet: dump_conflict_list,
+    UnmodifiableSet: dump_conflict_list,
     UnmodifiableCollection: dump_conflict_list,
     UnitList: dump_conflict_list,
     ProductionList: dump_conflict_list,
@@ -254,6 +282,11 @@ def parse_any(cls: Type[DataclassType], json_obj: Any, game: GameInterface = Non
     elif issubclass(cls, Enum):
         return parse_enum(cls, json_obj)
     elif cls in SIMPLE_PARSE_MAPPING: # For basic types
+        # debug
+        if SIMPLE_PARSE_MAPPING[cls] is int:
+            if type(json_obj) is dict:
+                raise ValueError(f"Expected int, got dict {json_obj}, cls is {cls}")
+        # end debug
         return SIMPLE_PARSE_MAPPING[cls](json_obj)
     elif get_origin(cls) in COMPLEX_PARSE_MAPPING: # For complex types, hashmap, dict etc
         return COMPLEX_PARSE_MAPPING[get_origin(cls)](cls, json_obj, game)

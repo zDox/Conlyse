@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime
 
 from conflict_interface.data_types.game_object import GameObject
 

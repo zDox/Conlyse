@@ -1,7 +1,6 @@
 
 
 from dataclasses import dataclass
-from datetime import timedelta
 from typing import Union
 
 from conflict_interface.data_types.custom_types import HashMap
@@ -25,11 +24,6 @@ from typing import Optional
 
 from conflict_interface.data_types.mod_state.configuration import RadarConfig
 from conflict_interface.data_types.mod_state.configuration import RadarSignatureConfig
-
-
-class RenderConfig:
-    pass
-
 
 @dataclass
 class UnitType(GameObject):

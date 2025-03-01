@@ -4,7 +4,7 @@ from datetime import datetime
 from functools import wraps
 from typing import cast, TypedDict, overload, get_type_hints, Optional, Type, Dict, TypeVar
 
-from conflict_interface.data_types import HubGame, parse_any
+from conflict_interface.data_types import HubGame
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties, HubGameState
 from conflict_interface.game_interface import GameInterface
 from conflict_interface.hub_api import HubApi

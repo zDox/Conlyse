@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
+from typing import Optional
 
+from conflict_interface.data_types.custom_types import DateTimeInt
 from conflict_interface.data_types.custom_types import DefaultEnumMeta, LinkedList, UnitList
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import \
@@ -17,21 +18,6 @@ from conflict_interface.data_types.map_state.terrain_type import TerrainType, Te
 from conflict_interface.data_types.point import Point
 
 ARMY_CLOSE_COMBAT_RANGE = 5
-
-
-def parse_units(value: list):
-    if value is None:
-        return []
-
-    return [Unit.from_dict(unit) for unit in value[1]]
-
-
-def parse_commands(value: list):
-    if value is None:
-        return []
-
-    return [parse_command(command) for command in value[1]]
-
 
 @dataclass
 class Battle(GameObject):
@@ -142,6 +128,11 @@ class Army(GameObject):
     """
     C = "a"
     patrol_radius: int
+    next_attack_time: Optional[DateTimeInt]
+    estimated_arrival_time: Optional[DateTimeInt]
+    spy_reveal_time: Optional[DateTimeInt]
+    last_damage_taken_time: Optional[DateTimeInt]
+
     id: int = None
     size: int = 1
     health: float = 1.0
@@ -155,13 +146,14 @@ class Army(GameObject):
     at_airfield: bool = False
     units: UnitList[Unit] = None
 
+
     commands: LinkedList[Command] = None
     fight_status: FightStatus = FightStatus.IDLE
     battle: Battle = None
     attack_unit_id: int = None
     attack_position: Point = None
-    next_attack_time: int = None
-    estimated_arrival_time: datetime = None
+
+
 
     # I do not now any unit which needs rail but whatever
     needs_rail: bool = False
@@ -174,7 +166,7 @@ class Army(GameObject):
 
     range: int = ARMY_CLOSE_COMBAT_RANGE
     base_speed: float = None
-    spy_reveal_time: datetime = None
+
 
     view_width: int = None
     detailed_view_width: int = None
@@ -202,7 +194,6 @@ class Army(GameObject):
     next_anti_air_attack: int = None
     last_anti_air_attack: int = None
     last_anti_air_attack_distance: float = None
-    last_damage_taken_time: datetime = None
     strength: float = None
 
     defence: float = None

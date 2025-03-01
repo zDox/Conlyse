@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
 
+from conflict_interface.data_types.custom_types import DateTimeInt
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
 
 
@@ -20,12 +20,12 @@ class HubGameProperties:
     scenario_id: int
     scenario_version_id: int
     season_id: int
-    start_of_game: datetime
+    start_of_game: DateTimeInt
     open_slots: int
     max_players: int
     day_of_game: int
     end_of_game: bool
-    last_login: datetime
+    last_login: DateTimeInt
     creator_id: int
     title: str
     comment: str
@@ -34,7 +34,7 @@ class HubGameProperties:
     demo_game: bool
     min_rank: int
     managed_game: bool
-    creation_date: datetime
+    creation_date: DateTimeInt
     ai_level: int
     victory_points: int
     victory_condition: int
@@ -54,11 +54,11 @@ class HubGameProperties:
     deleted: bool
     gold_round: bool
     game_status: int
-    last_statistics_update: datetime
+    last_statistics_update: DateTimeInt
     unit_pack: int
     xp_boost_factor: int
     time_scale: float
-    update_timestamp: datetime
+    update_timestamp: DateTimeInt
     max_rank: int
     max_join_day: int
     map_reference: str

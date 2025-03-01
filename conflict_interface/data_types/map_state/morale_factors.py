@@ -13,7 +13,9 @@ class MoraleFactors(GameObject):
     building_influence: Optional[HashMap[str, int]]
     war_countries: int
     war_influence: int
-    capital_distance_influence: int
+    capital_distance_influence: Optional[int]
+    neighbour_influence: Optional[int]
+    enemy_neighbour_influence: Optional[int]
 
     MAPPING = {
         "base_target_morale": "baseTargetMorale",
@@ -22,5 +24,7 @@ class MoraleFactors(GameObject):
         "building_influence": "buildingInfluence",
         "war_countries": "warCountries",
         "war_influence": "warInfluence",
-        "capital_distance_influence": "capitalDistanceInfluence"
+        "capital_distance_influence": "capitalDistanceInfluence",
+        "neighbour_influence": "neighbourInfluence",
+        "enemy_neighbour_influence": "enemyNeighbourInfluence",
     }
