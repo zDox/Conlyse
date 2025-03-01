@@ -2,6 +2,8 @@ from enum import Enum
 
 from conflict_interface.data_types.hub_types.hub_result_code import HubResultCode
 
+class ActionException(Exception):
+    pass
 
 class SessionExpired(Exception):
     pass

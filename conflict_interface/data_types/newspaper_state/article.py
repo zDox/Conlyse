@@ -19,7 +19,7 @@ class Article(GameObject):
     author: str  # Theme of article
     message_body: str
 
-    address: str
+    address: Optional[str]
     receiver: Optional[str]
     read_by_sender: bool
     read_by_receiver: bool
