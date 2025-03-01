@@ -9,7 +9,7 @@ from conflict_interface.data_types.resource_state.resource_types import Resource
 
 @dataclass
 class ResourceEntry(GameObject):
-    C = "ultshared.UltResourceEntry"
+    C = "re"
     resource_id: ResourceType
     name: str
 
@@ -22,9 +22,8 @@ class ResourceEntry(GameObject):
     priority: float
     production: float
 
-
     amount_zero: float
-    time_zero: datetime
+    time_zero: int
     rate: float  # in unit per second
     lack_zero: float
     consumed_zero: float
@@ -40,7 +39,7 @@ class ResourceEntry(GameObject):
 
     min_amount: float = 0
     max_amount: float = 0
-    tradeable: bool = False
+    tradable: bool = False
 
     MAPPING = {
         "resource_id": "resourceID",
@@ -64,7 +63,7 @@ class ResourceEntry(GameObject):
         "include_in_statistics": "includeInStatistics",
         "min_price": "minPrice",
         "max_price": "maxPrice",
-        "tradeable": "tradeable",
+        "tradable": "tradable",
         "manpower": "manpower",
         "currency": "currency",
     }

@@ -7,6 +7,18 @@ class UnitList(list):
 class ProductionList(list):
     C = "ultshared.UltProductionList"
 
+class BidListOuter(list):
+    C = "[Lultshared.UltBidList;" # TODO maby a better way to do this but its the most generic also
+                                  # They are just stupid for using 2 different types of lists
+
+class  BidListInner(list):
+    C = "ultshared.UltBidList"
+
+class AskListOuter(list):
+    C = "[Lultshared.UltAskList;"
+
+class AskListInner(list):
+    C = "ultshared.UltAskList"
 
 class LinkedList(list):
     C = "java.util.LinkedList"

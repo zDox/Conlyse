@@ -14,7 +14,7 @@ def parse_resource_entries(obj):
 
 @dataclass
 class ResourceCategory(GameObject):
-    C = "ultshared.UltResourceCategory"
+    C = "rc"
     category_id: int
     name: str
     daily_unit_consumption: float
