@@ -169,7 +169,8 @@ class GameApi:
             "userAuth": self.auth.auth,
         }
         self.request_id += 1
-
+        pprint(headers)
+        pprint(data)
         response = self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data))

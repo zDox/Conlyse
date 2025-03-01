@@ -30,8 +30,8 @@ class ProvinceProperty(GameObject):
     possible_upgrades: LinkedList[ModableUpgrade]
     queueable_upgrades: LinkedList[ModableUpgrade]
 
-    possible_productions: Union[ArrayList[SpecialUnit], LinkedList[SpecialUnit]]
-    queueable_productions: Union[ArrayList[SpecialUnit], LinkedList[SpecialUnit]]
+    possible_productions: LinkedList[SpecialUnit]
+    queueable_productions: LinkedList[SpecialUnit]
 
     revolt_chance: int
     uprising_chance: int
