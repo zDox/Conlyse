@@ -7,21 +7,15 @@ Army State
    :undoc-members:
    :noindex:
 
-Army
-------------------------------------------------------
 
-.. automodule:: conflict_interface.data_types.army_state.army
-   :members:
-   :show-inheritance:
-   :undoc-members:
-   :no-index:
+Army State Data Types
+=====================
+.. toctree::
+   :maxdepth: 1
+    conflict_interface.data_types.army_state.army
+    conflict_interface.data_types.army_state.unit
 
-Unit
-------------------------------------------------------
-
-.. automodule:: conflict_interface.data_types.army_state.unit
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
+Army State Actions
+==================
+    conflict_interface.data_types.army_state.army_action
 

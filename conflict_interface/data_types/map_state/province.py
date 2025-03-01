@@ -1,10 +1,12 @@
+from functools import wraps
 from typing import Optional
 
 
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.data_types.custom_types import ArrayList
+from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
+from conflict_interface.data_types.custom_types import ArrayList, Vector
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.custom_types import HashSet
@@ -20,7 +22,7 @@ from conflict_interface.data_types.map_state.province_production import Province
 from conflict_interface.data_types.map_state.province_property import ProvinceProperty
 from conflict_interface.data_types.point import Point
 
-from conflict_interface.data_types.mod_state.upgrade import ModableUpgrade
+from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import ActionException
 
@@ -69,6 +71,18 @@ class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
         return ResourceType(self.value-1)
 
 
+def requires_ownership(func):
+    """Decorator to ensure certain methods are executed only if ownership is verified."""
+
+    @wraps(func)
+    def wrapper(self: "Province", *args, **kwargs):
+        if self.is_owner():
+            return func(self, *args, **kwargs)
+        else:
+            raise ActionException(f"Current player does not own province {self.province_id}. Action denied.")
+
+
+    return wrapper
 
 
 @dataclass
@@ -134,7 +148,7 @@ class Province(GameObject):
     terrain_type: TerrainType = None
     center_coordinate: Point = None
     region: RegionType = RegionType.NONE
-    properties: ProvinceProperty = None  # If player owns the province
+    _properties: ProvinceProperty = None  # If player owns the province
 
     MAPPING = {
         "province_id": "id",
@@ -165,6 +179,32 @@ class Province(GameObject):
                        "victory_points", "owner_id", "legal_owner",
                        "moral", "buildings"]
 
+    def is_owner(self):
+        return self.owner_id == self.game.player_id
+
+    @property
+    def properties(self) -> ProvinceProperty | None:
+        if self._properties:
+            return self._properties
+        else:
+            self._properties = self.game.game_state.states.map_state.properties.get(self.province_id)
+            return self._properties
+
+    def get_possible_upgrades(self, **filters) -> list[ModableUpgrade]:
+        if not self.is_owner():
+            return []
+        else:
+            return [mu for mu in self.properties.possible_upgrades
+                    if all(getattr(mu, key) == value for key, value in filters.items())]
+
+    def get_possible_productions(self, **filters) -> list[ModableUpgrade]:
+        if not self.is_owner():
+            return []
+        else:
+            return [mu for mu in self.properties.possible_productions
+                    if all(getattr(mu, key) == value for key, value in filters.items())]
+
+    @requires_ownership
     def build_upgrade(self, upgrade: ModableUpgrade):
         self.check_ownership()
         if upgrade in self.properties.possible_upgrades:
@@ -177,6 +217,7 @@ class Province(GameObject):
         else:
             raise ActionException(f"Upgrade {upgrade.id} is not available for province {self.province_id}.")
 
+    @requires_ownership
     def cancel_construction(self):
         self.check_ownership()
         if self.production is None:
@@ -189,6 +230,7 @@ class Province(GameObject):
             slot=0
         ))
 
+    @requires_ownership
     def cancel_mobilization(self, province_id):
         self.check_ownership()
         # TODO Check if province is mobilizing something
@@ -198,7 +240,7 @@ class Province(GameObject):
             slot=0,
         ))
 
-
+    @requires_ownership
     def mobilize_unit(self, unit: SpecialUnit):
         self.check_ownership()
         if unit in self.properties.possible_productions:
@@ -223,16 +265,6 @@ class Province(GameObject):
 
     def __hash__(self):
         return hash(self.province_id)
-
-    def check_ownership(self):
-        """
-        Checks if the provided player_id corresponds to the owner of this province.
-
-        :raises ActionException: If the player does not own the province.
-        """
-        if self.owner_id != self.game.player_id:
-            raise ActionException(f"Current player does not own province {self.province_id}. Action denied.")
-
 
 @dataclass
 class StaticProvince(GameObject):

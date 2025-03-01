@@ -160,7 +160,7 @@ class Army(GameObject):
     battle: Battle = None
     attack_unit_id: int = None
     attack_position: Point = None
-    next_attack_time: datetime = None
+    next_attack_time: int = None
     estimated_arrival_time: datetime = None
 
     # I do not now any unit which needs rail but whatever
@@ -199,8 +199,8 @@ class Army(GameObject):
     missile_carrier_feature: MissileCarrierFeature = None
     entrenched: bool = False
 
-    next_anti_air_attack: datetime = None
-    last_anti_air_attack: datetime = None
+    next_anti_air_attack: int = None
+    last_anti_air_attack: int = None
     last_anti_air_attack_distance: float = None
     last_damage_taken_time: datetime = None
     strength: float = None

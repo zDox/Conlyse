@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.state import State
 
 
 @dataclass
-class QuestState(GameObject):
+class QuestState(State):
     C = "ultshared.UltQuestState"
-    STATE_ID = 27
+    STATE_TYPE = 27
     MAPPING = {}

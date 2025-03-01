@@ -31,6 +31,8 @@ class Vector(list):
 class ArrayList(list):
     C = "java.util.ArrayList"
 
+class EmptyList(list):
+    C = "java.util.Collections$EmptyList"
 
 class UnmodifiableCollection(list):
     C = "java.util.Collections$UnmodifiableCollection"

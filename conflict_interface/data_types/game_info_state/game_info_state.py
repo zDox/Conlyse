@@ -6,6 +6,9 @@ from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 
+from conflict_interface.data_types.state import State
+
+
 # TODO GameFeature should only be a abstract class. There exist multiple gameFeatures
 
 @dataclass
@@ -54,7 +57,7 @@ class GameFeatures(GameObject):
     }
 
 @dataclass
-class GameInfoState(GameObject):
+class GameInfoState(State):
     """
     Represents the state of a game with detailed information about the game.
 
@@ -65,7 +68,7 @@ class GameInfoState(GameObject):
     mapping for various operations.
 
     Attributes:
-        STATE_ID (int): Identifier for the current state of the game.
+        STATE_TYPE (int): Identifier for the current state of the game.
         day_of_game: Current day within the game.
         start_of_game: Starting date and time of the game.
         next_day_time: Date and time when the next game day begins.
@@ -100,7 +103,7 @@ class GameInfoState(GameObject):
         admin_time_forward_allowed: Boolean indicating if admin can forward time.
     """
     C = "ultshared.UltGameInfoState"
-    STATE_ID = 12
+    STATE_TYPE = 12
     day_of_game: int
     start_of_game: datetime
     next_day_time: datetime

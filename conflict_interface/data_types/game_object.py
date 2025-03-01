@@ -64,7 +64,7 @@ def parse_conflict_mapping(cls,json_obj,game):
         parsed_data[parse_any(cls.__args__[0],key , game)] = parse_any(cls.__args__[1],value , game)
     return cls(parsed_data)
 
-def parse_conflict_array(cls, json_obj: list, game):
+def parse_conflict_list(cls, json_obj: list, game):
     return cls([parse_any(cls.__args__[0], v, game) for v in json_obj[1]])
 
 def parse_normal_dict(cls,json_obj,game):
@@ -108,17 +108,18 @@ SIMPLE_PARSE_MAPPING: dict[type,Any] = {
 COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     dict: parse_normal_dict,
     list: parse_normal_list,
-    LinkedList: parse_conflict_array,
-    Vector: parse_conflict_array,
-    ArrayList: parse_conflict_array,
-    HashSet: parse_conflict_array,
-    UnmodifiableCollection: parse_conflict_array,
-    UnitList: parse_conflict_array,
-    BidListInner: parse_conflict_array,
-    BidListOuter: parse_conflict_array,
-    AskListInner: parse_conflict_array,
-    AskListOuter: parse_conflict_array,
-    ProductionList: parse_conflict_array,
+    LinkedList: parse_conflict_list,
+    Vector: parse_conflict_list,
+    ArrayList: parse_conflict_list,
+    EmptyList: parse_conflict_list,
+    HashSet: parse_conflict_list,
+    UnmodifiableCollection: parse_conflict_list,
+    UnitList: parse_conflict_list,
+    BidListInner: parse_conflict_list,
+    BidListOuter: parse_conflict_list,
+    AskListInner: parse_conflict_list,
+    AskListOuter: parse_conflict_list,
+    ProductionList: parse_conflict_list,
     HashMap: parse_conflict_mapping,
     TreeMap: parse_conflict_mapping,
     LinkedHashMap: parse_conflict_mapping,
@@ -137,6 +138,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     Vector: dump_conflict_list,
     LinkedList: dump_conflict_list,
     ArrayList: dump_conflict_list,
+    EmptyList: dump_conflict_list,
     HashSet: dump_conflict_list,
     UnmodifiableCollection: dump_conflict_list,
     UnitList: dump_conflict_list,
@@ -164,9 +166,12 @@ def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterfac
 
     var_type_dict = get_type_hints(cls)
 
-
+    if issubclass(cls, GameObject):
+        mapping = cls.get_mapping()
+    else:
+        mapping = getattr(cls,"MAPPING")
     parsed_data = {}
-    for python_var_name, conflict_var_name in getattr(cls,"MAPPING").items():
+    for python_var_name, conflict_var_name in mapping.items():
         python_var_type = var_type_dict[python_var_name]
 
         # if not has __dataclass_fields__ raise error
@@ -249,7 +254,12 @@ def dump_dataclass(obj: object) -> dict[str , Any]:
 
     json_obj: dict = {"@c": getattr(obj, "C")}
 
-    for python_var_name, conflict_var_name in getattr(obj,"MAPPING").items():
+    if issubclass(type(obj), GameObject):
+        mapping = type(obj).get_mapping()
+    else:
+        mapping = getattr(type(obj), "MAPPING")
+
+    for python_var_name, conflict_var_name in mapping.items():
         json_obj[conflict_var_name] = dump_any(getattr(obj, python_var_name))
 
     return json_obj
@@ -289,3 +299,18 @@ class GameObject:
         if not hasattr(self, "MAPPING"):
             raise ValueError(f"{type(self).__name__} has no MAPPING implemented")
         return hash(tuple(self.__getattribute__(key) for key in self.MAPPING.keys()))
+
+    _mapping = {}
+    @classmethod
+    def get_mapping(cls):
+        if not hasattr(cls, "MAPPING"):
+            raise ValueError(f"{cls.__name__} has no MAPPING implemented")
+
+        cls._mapping = cls.MAPPING
+        for c in cls.__bases__:
+            if c is GameObject:
+                continue
+            if issubclass(c, GameObject):
+                cls._mapping = {**cls._mapping,
+                                **c.get_mapping()}
+        return cls._mapping

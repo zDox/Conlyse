@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.state import State
 
 
 @dataclass
-class TriggeredTutorialState(GameObject):
+class TriggeredTutorialState(State):
     C = "ultshared.UltTriggeredTutorialState"
-    STATE_ID = 21
+    STATE_TYPE = 21
     MAPPING = {}

@@ -28,12 +28,13 @@ from conflict_interface.data_types.spy_state.premium_spy_job import (CountryInfo
                                                                      DecreaseMoralJob, DestroyResouceJob,
                                                                      DamageUpgradeJob, RevealAllArmiesJob)
 from conflict_interface.data_types.spy_state.spy_mission import SpyMission
+from conflict_interface.data_types.state import State
 
 
 @dataclass
-class ModState(GameObject):
+class ModState(State):
     C = "ultshared.UltMod"
-    STATE_ID = 11
+    STATE_TYPE = 11
 
     mod_id: int
 

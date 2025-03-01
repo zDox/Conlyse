@@ -50,7 +50,7 @@ class ParseDumpTests(unittest.TestCase):
 
                     game = GameInterface(9709744, False, Session(), None)
 
-                    states = data["result"]["states"][str(state.STATE_ID)]
+                    states = data["result"]["states"][str(state.STATE_TYPE)]
 
                     parsed_state = parse_game_object(state, states, game)
                     dumped_states = dump_any(parsed_state)
@@ -75,7 +75,7 @@ class ParseDumpTests(unittest.TestCase):
 
                  game = GameInterface(9709744, False, Session(), None)
 
-                 states = data["result"]["states"][str(state.STATE_ID)]
+                 states = data["result"]["states"][str(state.STATE_TYPE)]
 
                  parsed_state = parse_game_object(state, states, game)
                  dumped_states = dump_any(parsed_state)

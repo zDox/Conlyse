@@ -8,6 +8,9 @@ from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 
+from conflict_interface.data_types.state import State
+
+
 @dataclass
 class Research(GameObject):
     C = "ultshared.UltResearch"
@@ -31,9 +34,9 @@ class Research(GameObject):
 
 
 @dataclass
-class ResearchState(GameObject):
+class ResearchState(State):
     C = "ultshared.UltResearchState"
-    STATE_ID = 23
+    STATE_TYPE = 23
     current_researches: ArrayList[Research]
     completed_researches: HashMap[int, Research]
 

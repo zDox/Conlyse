@@ -1,9 +1,12 @@
 from conflict_interface.data_types.game_object import GameObject
 from dataclasses import dataclass
 
+from conflict_interface.data_types.state import State
+
+
 @dataclass
-class SpyState(GameObject):
+class SpyState(State):
     C = "ultshared.UltSpyState"
-    STATE_ID = 7
+    STATE_TYPE = 7
     # Spies, Nations, SpyReports
     MAPPING = {}

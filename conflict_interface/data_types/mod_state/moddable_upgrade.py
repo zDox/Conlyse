@@ -12,6 +12,7 @@ class ModableUpgrade(GameObject):
     condition: Optional[int]
 
     relative_position: Optional[Point]
+    built: bool = False
     enabled: bool = True
     premium_level: int = 0
     constructing: bool = False
@@ -23,6 +24,7 @@ class ModableUpgrade(GameObject):
         "enabled": "e",
         "relative_position": "rp",
         "premium_level": "pl",
+        "built": "built",
     }
 
     __hash__ = GameObject.__hash__

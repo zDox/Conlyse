@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import datetime, UTC, timedelta
 from functools import wraps
@@ -65,7 +66,7 @@ class GameApi:
         self.player_id = 0
         self.auth = auth_details
         self.device_details = DeviceDetails.from_user_agent(session.headers.get("User-Agent"))
-        self.request_id = 1
+        self.request_id = 0
         self.index_html_url = None
         self.client_version = None
         self.game_server_address = None
@@ -162,15 +163,14 @@ class GameApi:
             "hash": hash_hex,
             "sessionTstamp": 0,
             "gameID": str(self.game_id),
-            "playerID": str(self.player_id),
+            "playerID": self.player_id,
             "siteUserID": str(self.auth.user_id),
             "adminLevel": None,
             "rights": self.auth.rights,
             "userAuth": self.auth.auth,
+            "lastCallDuration": 0,
         }
         self.request_id += 1
-        pprint(headers)
-        pprint(data)
         response = self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data))

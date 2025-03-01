@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 from enum import Enum
 
+from ..state import State
+
 
 class ForeignAffairRelationTypes(Enum):
     WAR = -2
@@ -44,13 +46,13 @@ class ForeignAffairRelations(GameObject):
 
 
 @dataclass
-class ForeignAffairsState(GameObject):
+class ForeignAffairsState(State):
     C = "ultshared.UltForeignAffairsState"
-    STATE_ID = 5
+    STATE_TYPE = 5
     relations: ForeignAffairRelations
-    state_type: int # should be the same as STATE_ID
+    state_type: int # should be the same as STATE_TYPE
     time_stamp: datetime
-    state_id: str # Is not the STATE_ID above
+    state_id: str # Is not the STATE_TYPE above
     messages: Vector[str]  # TODO no idea if its a string vector (no examples in data1)
     MAPPING = {
         "relations": "relations",

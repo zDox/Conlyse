@@ -227,7 +227,7 @@ class TokenFeature(GameObject):
     Not implemented. There exists no knowledge
     about how they work.
     """
-    C = "ultshared.warfare.UltTokenFeature"
+    C = "ultshared.tokens.UltTokenFeature"
     tokens: HashSet[int] # TODO no idea if its int int (no examples in data1)
     MAPPING = {
         "tokens": "tokens",
@@ -347,8 +347,8 @@ class FrontendConfig(GameObject):
 class FreeformConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
 
-    visibility: dict[str, bool]
-    construction_visibility: dict[str, bool]
+    visibility: Optional[dict[str, bool]]
+    construction_visibility: Optional[dict[str, bool]]
     highlight: Optional[dict[str, bool]]
 
     MAPPING = {
