@@ -108,7 +108,7 @@ class Army(GameObject):
         terrain_type: The terrain type of the province that the army is in.
         air_parameters: The air parameters the army.
         anti_air_parameters: The anti air parameters the army.
-        carriable: If the army can be stationed on a Aircraft/Helicopter carrier.
+        carriable: If the army can be stationed on an Aircraft/Helicopter carrier.
         carrier_feature: Further information about the Aircraft/Helicopter carrier.
         last_location_ids: Unknown
         end_of_unit_walk: Unknown
