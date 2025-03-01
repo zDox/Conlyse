@@ -7,9 +7,10 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union, TypeVar, Type
 from typing import get_type_hints
 
+
 from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.data_types.custom_types import HashMap, ArrayList, HashSet, DefaultEnumMeta, LinkedList, Vector, \
-    UnmodifiableCollection, TreeMap, LinkedHashMap, UnitList
+    UnmodifiableCollection, TreeMap, LinkedHashMap, UnitList, BidListInner, BidListOuter, AskListInner, AskListOuter
 from conflict_interface.utils.helper import unix_to_datetime, seconds_to_timedelta, datetime_to_unix
 
 if TYPE_CHECKING:
@@ -116,6 +117,10 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     HashSet: parse_conflict_array,
     UnmodifiableCollection: parse_conflict_array,
     UnitList: parse_conflict_array,
+    BidListInner: parse_conflict_array,
+    BidListOuter: parse_conflict_array,
+    AskListInner: parse_conflict_array,
+    AskListOuter: parse_conflict_array,
     HashMap: parse_conflict_mapping,
     TreeMap: parse_conflict_mapping,
     LinkedHashMap: parse_conflict_mapping,
@@ -136,6 +141,10 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     UnmodifiableCollection: dump_conflict_list,
     UnitList: dump_conflict_list,
     ProductionList: dump_conflict_list,
+    BidListInner: dump_conflict_list,
+    BidListOuter: dump_conflict_list,
+    AskListInner: dump_conflict_list,
+    AskListOuter: dump_conflict_list,
     HashMap: dump_conflict_mapping,
     TreeMap: dump_conflict_mapping,
     LinkedHashMap: dump_conflict_mapping,
