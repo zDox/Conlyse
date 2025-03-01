@@ -5,6 +5,7 @@ from requests import Session
 
 from conflict_interface.data_types import GameState, dump_any, \
     PlayerState, ForeignAffairsState, NewspaperState, MapState
+from conflict_interface.data_types import ModState
 from conflict_interface.data_types import ResourceState
 from conflict_interface.data_types import parse_game_object
 from conflict_interface.data_types.army_state.army_state import ArmyState
@@ -13,7 +14,7 @@ from tests.compare_dicts import compare_dicts, deepdiff
 
 
 class ParseDumpTests(unittest.TestCase):
-    test_states = [ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState]
+    test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState]
     test_files = ["full_test_data_1.json"]
 
     def test_load_json(self):

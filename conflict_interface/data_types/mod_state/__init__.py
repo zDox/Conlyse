@@ -4,5 +4,7 @@ from .anti_air_parameters import AntiAirParameters
 from .commands import Command
 from .unit_feature import UnitFeature
 from .unit_type import UnitType
-from .upgrade import UpgradeType, UpgradeFeature, ModableUpgrade
+from .upgrade_enums import UpgradeFeature
+from .upgrade_type import UpgradeType
+from .moddable_upgrade import ModableUpgrade
 from .modable_unit import SpecialUnit

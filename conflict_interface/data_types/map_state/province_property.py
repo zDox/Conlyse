@@ -4,7 +4,8 @@ from typing import Union
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.morale_factors import MoraleFactors
 from conflict_interface.data_types.map_state.revolt_suppression_property import RevoltSuppressionProperty
-from conflict_interface.data_types.mod_state import ModableUpgrade, SpecialUnit
+from conflict_interface.data_types.mod_state import SpecialUnit
+from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.data_types.custom_types import LinkedList, ArrayList
 
 

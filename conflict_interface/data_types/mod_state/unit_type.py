@@ -2,9 +2,19 @@
 
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Union
 
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.mod_state.configuration import AirMobileConfig
+from conflict_interface.data_types.mod_state.configuration import ArmyBoostConfig
+from conflict_interface.data_types.mod_state.configuration import ConvertToResourceConfig
+from conflict_interface.data_types.mod_state.configuration import DiplomaticAggressionConfig
+from conflict_interface.data_types.mod_state.configuration import DisbandConfig
+from conflict_interface.data_types.mod_state.configuration import DummyMissileConfig
+from conflict_interface.data_types.mod_state.configuration import DummyScoutConfig
+from conflict_interface.data_types.mod_state.configuration import LimitedMobilizationConfig
+from conflict_interface.data_types.mod_state.configuration import MissileCarrierConfig, DummyMissileCarrierConfig
 from conflict_interface.data_types.mod_state.configuration import \
         MissileConfig, SortingConfig, SoundConfig, AirplaneConfig, \
         ControllableConfig, CarrierConfig, AntiAirConfig, ScoutConfig, \
@@ -12,6 +22,9 @@ from conflict_interface.data_types.mod_state.configuration import \
 
 
 from typing import Optional
+
+from conflict_interface.data_types.mod_state.configuration import RadarConfig
+from conflict_interface.data_types.mod_state.configuration import RadarSignatureConfig
 
 
 class RenderConfig:
@@ -23,25 +36,25 @@ class UnitType(GameObject):
     """
 
     """
-    C = "ultshared.UltUnitType"
+    C = "ultshared.warfare.UltUnitType"
     id: int
     stats_column_id: int
     unit_pack: int
-    ranking_factor: int
-    build_time: timedelta
-    costs: Optional[HashMap[int, float]]
-    daily_costs: Optional[HashMap[int, float]]
-    speeds: Optional[HashMap[int, float]]
-    hit_points: Optional[HashMap[int, float]]
-    damage_types: Optional[HashMap[int, float]]
-    damage_area: Optional[HashMap[int, float]]
-    strength: Optional[HashMap[int, float]]
-    defense: Optional[HashMap[int, float]]
-    ranges: Optional[HashMap[int, float]]
-    view_widths: Optional[HashMap[int, float]]
-    required_upgrades: Optional[HashMap[int, int]]
-    required_researches: Optional[HashMap[int, int]]
-    unit_cap_research_items: Optional[HashMap[int, int]]
+    ranking_factor: float
+    build_time: int
+    costs: HashMap[int, float]
+    daily_costs: HashMap[int, float]
+    speeds: HashMap[int, float]
+    hit_points: HashMap[int, float]
+    damage_types: HashMap[int, float]
+    damage_area: HashMap[int, float]
+    strength: HashMap[int, float]
+    defense: HashMap[int, float]
+    ranges: HashMap[int, float]
+    view_widths: HashMap[int, float]
+    required_upgrades: HashMap[int, int]
+    required_researches: HashMap[int, int]
+    unit_cap_research_items: HashMap[int, int]
     friendly_speed_factor: float
     foreign_speed_factor: float
     identifier: str
@@ -60,20 +73,35 @@ class UnitType(GameObject):
     name_faction3: str
     name_faction4: str
     type_name: str
-    sorting_config: SortingConfig
-    sound_config: SoundConfig
-    airplane_config: AirplaneConfig
-    controllable_config: Optional[ControllableConfig]
-    carrier_config: Optional[CarrierConfig]
     type_size_name: str
     sort_value: int
     producible: bool
-    missile_config: MissileConfig
+    unit_moral_impact_factor: float
+    images: HashMap[str, str] # TODO check tpyes
+    unit_name: str
+
+    diplomatic_aggression_config: DiplomaticAggressionConfig
+    air_mobile_config: AirMobileConfig
+    army_boost_config: ArmyBoostConfig
+    limited_mobilization_config: LimitedMobilizationConfig
+    controllable_config: Optional[ControllableConfig]
+    carrier_config: Optional[CarrierConfig]
+    missile_config: Union[MissileConfig, DummyMissileConfig]
     anti_air_config: AntiAirConfig
-    scout_config: ScoutConfig
+    sorting_config: SortingConfig
+    sound_config: SoundConfig
+    airplane_config: AirplaneConfig
+    scout_config: Union[ScoutConfig, DummyScoutConfig]
     token_producer_config: TokenProducerConfig
     token_consumer_config: TokenConsumerConfig
-    unit_moral_impact_factor: float
+    missile_carrier_config: Union[MissileCarrierConfig, DummyMissileCarrierConfig]
+    radar_signature_config: Optional[RadarSignatureConfig]
+    radar_config: Optional[RadarConfig]
+    convert_to_resource_config: Optional[ConvertToResourceConfig]
+    disband_config: Optional[DisbandConfig]
+
+
+
 
     MAPPING = {
         "id": "itemID",
@@ -88,7 +116,7 @@ class UnitType(GameObject):
         "damage_types": "damageTypes",
         "damage_area": "damageArea",
         "strength": "strength",
-        "defense": "defense",
+        "defense": "defence",
         "ranges": "ranges",
         "view_widths": "viewWidths",
         "required_upgrades": "requiredUpgrades",
@@ -126,4 +154,15 @@ class UnitType(GameObject):
         "scout_config": "scoutConfig",
         "token_producer_config": "tokenProducerConfig",
         "token_consumer_config": "tokenConsumerConfig",
+        "missile_carrier_config": "missileCarrierConfig",
+        "diplomatic_aggression_config": "diplomaticAggressionConfig",
+        "air_mobile_config": "airmobile",
+        "army_boost_config": "armyBoostConfig",
+        "limited_mobilization_config": "limitedMobilizationConfig",
+        "images": "images",
+        "unit_name": "unitName",
+        "radar_signature_config": "radarSignatureConfig",
+        "radar_config": "radarConfig",
+        "convert_to_resource_config": "convertToResourceConfig",
+        "disband_config": "disbandConfig"
     }

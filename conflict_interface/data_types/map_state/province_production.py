@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from conflict_interface.data_types.mod_state import ModableUpgrade
+from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.data_types.game_object import GameObject
 
 
