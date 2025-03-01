@@ -69,7 +69,7 @@ Unit Type
 Upgrade
 ---------------------------------------------------------
 
-.. automodule:: conflict_interface.data_types.mod_state.upgrade
+.. automodule:: conflict_interface.data_types.mod_state.upgrade_type
    :members:
    :show-inheritance:
    :undoc-members:
