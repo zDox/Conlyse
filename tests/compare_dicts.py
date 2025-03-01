@@ -1,3 +1,5 @@
+import enum
+
 from deepdiff import DeepDiff
 
 
@@ -28,8 +30,6 @@ def recur_compare_keys(dict1, dict2, depth, path, max_depth):
         current_path = path + dict1["@c"] + "/"
 
     for key in dict1.keys():
-        key_path = f"{current_path}{key}"
-
         if key not in dict2:
             print(f"Key '{key}' not found in changed dictionary at path: {current_path}")
             good = False
@@ -123,12 +123,18 @@ def custom_list_sort(item):
     if isinstance(item, dict):
         if 'id' in item:
             return (0, item['id'])
-        elif '@c' in item:
-            return (0, item['@c'])
+        elif 'itemID' in item:
+            return (0, item['itemID'])
         elif 'timeStamp' in item:
             return (0, item['timeStamp'])
+        elif '@c' in item:
+            if item["@c"] == "ultshared.modding.configuration.UltArmyBoostConfig$Boost":
+                return (0, item["stat"], item["damageType"])
+            else:
+                return (0, item['@c'])
         else:
-            return (0, len(item))
+            return 1
+
     elif isinstance(item, list):
         return (1, len(item))
     else:
@@ -152,6 +158,7 @@ def recur_list_value_compare(list1, list2, depth, path, max_depth):
     # Sort both lists for comparison
     list1 = sorted(list1, key=custom_list_sort)
     list2 = sorted(list2, key=custom_list_sort)
+
 
     for i in range(len(list1)):
         item_path = f"{path}[{i}]/"

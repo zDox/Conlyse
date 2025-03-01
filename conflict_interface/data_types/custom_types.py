@@ -45,11 +45,17 @@ class HashMap(dict):
 
 
 class LinkedHashMap(dict):
-    C = "LinkedHashMap"
+    C = "java.util.LinkedHashMap"
 
 
 class TreeMap(dict):
-    C = "TreeMap"
+    C = "java.util.TreeMap"
+
+class RegularImmutableMap(dict):
+    C = "com.google.common.collect.RegularImmutableMap"
+
+class EmptyMap(dict):
+    C = "java.util.Collections$EmptyMap"
 
 
 class DefaultEnumMeta(EnumMeta):

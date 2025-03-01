@@ -1,76 +1,25 @@
 from dataclasses import dataclass
 from datetime import timedelta
-from enum import Enum
 from math import floor
-from typing import List, Optional
+from typing import List
+from typing import Optional
 
-from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.mod_state.configuration import ConstructionSpeedupConfig
+from conflict_interface.data_types.mod_state.configuration import FreeformConfig
+from conflict_interface.data_types.mod_state.configuration import HealArmiesModFeatureConfig
+from conflict_interface.data_types.mod_state.configuration import HealArmiesUpgradeFeatureConfig
+from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.point import Point
-
-
-class UpgradeFeature(Enum):
-    FORTRESS = 0
-    HARBOUR = 1
-    RAILROAD = 2
-    FACTORY = 3
-    CAPITAL = 4
-    MORALE_BONUS = 5
-    RECRUIT = 6
-    FACTORY_TECH = 7
-    AIRFIELD = 8
-    INDESTRUCTIBLE = 9
-    PUBLIC = 10
-    UNKNOWN_11 = 11  # Not known what this feature does
-    CONSTRUCTION_SLOTS = 12
-    PRODUCTION_SLOTS = 13
-    INVISIBLE = 14
-    NO_SPEED_UP = 15
-    INDESTRUCTABLE = 16
-    STATUS_CHANGE = 17
-    REPORT_PROGRESS = 18
-    VICTORY_POINTS = 19
-    SIEGE_DELAY = 20
-    MINIMUM_SIEGE = 21
-    UNKNOWN_22 = 22  # Not known what this feature does
-    RESEARCH_LIMIT_LEVEL = 23
-    MAX_MANPOWER = 24
-    STACKABLE = 25
-    SHOW_IN_NEWSPAPER = 26
-    BUILDING_PLOTS = 27
-    USED_BUILDING_PLOTS = 28
-    UNKNOWN_29 = 29  # Not known what this feature does
-    UNKNOWN_30 = 30  # Not known what this feature does
-    CAN_SPEEDUP_CONSTRUCTION = 31
-    CONSTRUCTION_CLASS = 32
-    UNKNOWN_33 = 33  # Not known what this feature does
-    CAN_HEAL_ARMIES = 34
-    UNKNOWN_35 = 35  # Not known what this feature does
-    UNKNOWN_36 = 36  # Not known what this feature does
-    UNKNOWN_37 = 37  # Not known what this feature does
-    DEMOLISHABLE = 38
-    NOT_ADDED_TO_PROVINCE = 39
-    INVISIBLE_FROM_STATS = 40
-
-
-def parse_features(obj):
-    obj.pop("@c")
-    return {UpgradeFeature(int(key)): value
-            for key, value in obj.items()}
-
-
-class ValueFunction(Enum):
-    VALUE_FUNCTION_LINEAR = 0,
-    VALUE_FUNCTION_SQRT = 1,
-    VALUE_FUNCTION_PANZERWARS = 2,
-    VALUE_FUNCTION_STEP = 3
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.mod_state.upgrade_enums import UpgradeFeature
+from conflict_interface.data_types.research_state.research_requirement_config import ResearchRequirementConfig
 
 
 @dataclass
 class UpgradeType(GameObject):
-    C = "ultshared.UltUpgradeType"
+    C = "ut"
     id: int
-    build_time: timedelta
+    build_time: int # Wierd type of time format (only 5 digits)
     build_condition: int
     max_condition: int
     min_condition: int
@@ -82,16 +31,26 @@ class UpgradeType(GameObject):
     daily_productions: HashMap[int, int]
     production_bonus: HashMap[int, float]
     features: HashMap[UpgradeFeature, float]
-    # feature_functions -> Dont know how to implement
-    # build_time_functions -> Dont know how to implement
+    feature_functions: HashMap[int, int] # TODO type unknown
+    build_time_functions: HashMap[int, int] # TODO type unknown
     replaced_upgrade: Optional[int]
-    # removed_upgrades -> Dont know how to implement
+    removed_upgrades: HashMap[int, ModableUpgrade] # TODO type unknown
     required_upgrades: HashMap[int, int]
-    # required_researches -> Dont know how to implement
+    required_researches: HashMap[int, ResearchRequirementConfig] # TODO type unknown
 
 
-    sorting_orders: int
+    sorting_orders: str
     upgrade_identifier: str
+
+    art: int # TODO Dont know what this is
+    upgrade_description: str
+    upgrade_name: str
+
+    possible_province_states: HashMap[int, int]
+
+    heal_armies_upgrade_feature_config: Optional[HealArmiesUpgradeFeatureConfig]
+    construction_speedup_config: Optional[ConstructionSpeedupConfig]
+    freeform_config: Optional[FreeformConfig]
 
     ranking_factor: int = 1
     feature_icon_prefix: str = ""
@@ -100,6 +59,7 @@ class UpgradeType(GameObject):
 
     _tier: int | None = None
     _replacing_upgrade_id: int | None = None
+
 
     MAPPING = {
         "id": "id",
@@ -122,6 +82,18 @@ class UpgradeType(GameObject):
         "ranking_factor": "rnf",
         "sorting_orders": "so",
         "upgrade_identifier": "uid",
+        "art": "art",
+        "removed_upgrades": "rmu",
+        "required_researches": "rqr",
+        "feature_functions": "ff",
+        "build_time_functions": "btf",
+        "upgrade_description": "upd",
+        "upgrade_name": "upn",
+        "possible_province_states": "pps",
+        "heal_armies_upgrade_feature_config": "hac",
+        "construction_speedup_config": "csc",
+        "freeform_config": "fc",
+
     }
 
     def has_feature(self, feature: UpgradeFeature):
@@ -210,26 +182,3 @@ class UpgradeType(GameObject):
                     self._replacing_upgrade_id = upgrade_id
                     break
         return self._replacing_upgrade_id
-
-
-@dataclass
-class ModableUpgrade(GameObject):
-    id: int
-    condition: Optional[int]
-
-    relative_position: Optional[Point]
-    enabled: bool = True
-    premium_level: int = 0
-    constructing: bool = False
-    C = "mu"
-    MAPPING = {
-        "id": "id",
-        "condition": "c",
-        "constructing": "cn",
-        "enabled": "e",
-        "relative_position": "rp",
-        "premium_level": "pl",
-    }
-
-    def __hash__(self):
-        return hash((self.id, self.condition, self.relative_position, self.enabled, self.premium_level, self.constructing))

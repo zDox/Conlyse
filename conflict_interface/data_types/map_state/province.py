@@ -1,23 +1,24 @@
 from typing import Optional
 
-from conflict_interface.data_types.common import RegionType
-from .impact import Impact
-from .province_production import ProvinceProduction
-from .province_property import ProvinceProperty
-from .terrain_type import TerrainType
-from conflict_interface.data_types.resource_state import ResourceType
-
 
 from dataclasses import dataclass
 from enum import Enum
 
-
-from conflict_interface.data_types.mod_state import ModableUpgrade
-from .update_province_action import UpdateProvinceActionModes, UpdateProvinceAction
-from ..custom_types import ArrayList, ProductionList
-from ..custom_types import DefaultEnumMeta, HashSet
-from ..game_object import GameObject
-from ..point import Point
+from conflict_interface.data_types.custom_types import ArrayList
+from conflict_interface.data_types.custom_types import DefaultEnumMeta
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.custom_types import HashSet
+from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
+from conflict_interface.data_types.custom_types import ProductionList
+from conflict_interface.data_types.common.enums.region_type import RegionType
+from conflict_interface.data_types.resource_state.resource_types import ResourceType
+from conflict_interface.data_types.map_state.terrain_type import TerrainType
+from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceAction
+from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionModes
+from conflict_interface.data_types.map_state.impact import Impact
+from conflict_interface.data_types.map_state.province_production import ProvinceProduction
+from conflict_interface.data_types.map_state.province_property import ProvinceProperty
+from conflict_interface.data_types.point import Point
 
 
 class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):

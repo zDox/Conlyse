@@ -7,10 +7,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union, TypeVar, Type
 from typing import get_type_hints
 
-
-from conflict_interface.data_types.custom_types import ProductionList
-from conflict_interface.data_types.custom_types import HashMap, ArrayList, HashSet, DefaultEnumMeta, LinkedList, Vector, \
-    UnmodifiableCollection, TreeMap, LinkedHashMap, UnitList, BidListInner, BidListOuter, AskListInner, AskListOuter
+from conflict_interface.data_types.custom_types import *
 from conflict_interface.utils.helper import unix_to_datetime, seconds_to_timedelta, datetime_to_unix
 
 if TYPE_CHECKING:
@@ -65,7 +62,7 @@ def parse_conflict_mapping(cls,json_obj,game):
         if key == "@c":
             continue
         parsed_data[parse_any(cls.__args__[0],key , game)] = parse_any(cls.__args__[1],value , game)
-    return HashMap(parsed_data)
+    return cls(parsed_data)
 
 def parse_conflict_array(cls, json_obj: list, game):
     return cls([parse_any(cls.__args__[0], v, game) for v in json_obj[1]])
@@ -121,10 +118,13 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     BidListOuter: parse_conflict_array,
     AskListInner: parse_conflict_array,
     AskListOuter: parse_conflict_array,
+    ProductionList: parse_conflict_array,
     HashMap: parse_conflict_mapping,
     TreeMap: parse_conflict_mapping,
     LinkedHashMap: parse_conflict_mapping,
-    ProductionList: parse_conflict_array
+    RegularImmutableMap: parse_conflict_mapping,
+    EmptyMap: parse_conflict_mapping,
+
 }
 
 SIMPLE_DUMP_MAPPING: dict[type,Any] = {
@@ -148,6 +148,8 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     HashMap: dump_conflict_mapping,
     TreeMap: dump_conflict_mapping,
     LinkedHashMap: dump_conflict_mapping,
+    RegularImmutableMap: dump_conflict_mapping,
+    EmptyMap: dump_conflict_mapping,
     datetime: datetime_to_unix, # Technically not a simple type, since GameInfoState.startOfGame requires seconds = True
     timedelta: datetime_to_unix # --||--
 }
@@ -286,4 +288,4 @@ class GameObject:
     def __hash__(self):
         if not hasattr(self, "MAPPING"):
             raise ValueError(f"{type(self).__name__} has no MAPPING implemented")
-        return hash(self.__getattribute__(key) for key in self.MAPPING.keys())
+        return hash(tuple(self.__getattribute__(key) for key in self.MAPPING.keys()))
