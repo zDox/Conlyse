@@ -50,8 +50,9 @@ def recur_list_key_compare(list1, list2, depth, path, max_depth):
             good = good and recur_list_key_compare(list1[i], list2[i], depth + 1, path + f": {str(list1[i])[:10]} ->", max_depth)
         else:
             if list1[i] != list2[i]:
-                print(f"Value at path {path} is different: \n {str(list1[i])[:1000]} \n {str(list2[i])[:1000]}")
+                print(f"Value at path {path} is different: \n Original: {str(list1[i])[:1000]} \n Processed: {str(list2[i])[:1000]}")
                 good = False
+
 
     return good
 
@@ -70,7 +71,12 @@ def recur_compare_values(dict1, dict2, depth, path, max_depth):
         else:
             if dict1[key] != dict2[key]:
 
-                print(f"Value at path {path+str(key)} is different: \n {str(dict1[key])[:1000]} \n {str(dict2[key])[:1000]}")
+                print(f"Value at path {path+str(key)} is different: \n Original: {str(dict1[key])[:1000]} \n Processed: {str(dict2[key])[:1000]}")
+                good = False
+            elif type(dict1[key]) != type(dict2[key]):
+                if type(dict1[key]) is int and type(dict2[key]) is float: # Allow int to float conversion (most floats with no deciamplacese are interpreted as ints)
+                    continue
+                print(f"Type at path {path+str(key)} is different: \n Original: {type(dict1[key])} \n Processed: {type(dict2[key])}")
                 good = False
 
     return good
@@ -109,7 +115,12 @@ def recur_list_value_compare(list1, list2, depth, path, max_depth):
             good = good and recur_list_value_compare(list1[i], list2[i], depth + 1, path + f": {str(list1[i])[:10]} ->", max_depth)
         else:
             if list1[i] != list2[i]:
-                print(f"Value at path {path} is different: \n {str(list1[i])[:1000]} \n {str(list2[i])[:1000]}")
+                print(f"Value at path {path +str(list1[i])[:10]} is different: \n Original: {str(list1[i])[:1000]} \n Processed: {str(list2[i])[:1000]}")
+                good = False
+            elif type(list1[i]) != type(list2[i]):
+                if type(list1[i]) is int and type(list2[i]) is float: # Allow int to float conversion (most floats with no deciamplacese are interpreted as ints)
+                    continue
+                print(f"Type at path {path +str(list1[i])[:10]}   is different: \n Original: {type(list1[i])} \n Processed: {type(list2[i])}")
                 good = False
 
     return good
