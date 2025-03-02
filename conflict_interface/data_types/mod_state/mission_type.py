@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.mod_state.configuration import MissionTypeFrontEndConfig
 from conflict_interface.data_types.mod_state.mission_reward import MissionReward
+from conflict_interface.data_types.mod_state.mission_trigger import MissionTrigger
 
 
 @dataclass
@@ -14,15 +15,15 @@ class MissionType:
     long_description: str
     short_description: str
     title: str
-    start_triggers: ArrayList[int] #TODO check typing
-    end_triggers: ArrayList[int] #TODO check typing
-    fail_triggers: ArrayList[int] #TODO check typing
+    start_triggers: ArrayList[MissionTrigger] #TODO check typing
+    end_triggers: ArrayList[MissionTrigger]
+    fail_triggers: ArrayList[MissionTrigger] #TODO check typing
 
     rewards: ArrayList[MissionReward]
     frontend_config: MissionTypeFrontEndConfig
 
     MAPPING = {
-        "item_id": "itemId",
+        "item_id": "itemID",
         "help_title": "helpTitle",
         "help_description": "helpDescription",
         "long_description": "longDescription",
@@ -32,5 +33,6 @@ class MissionType:
         "end_triggers": "endTriggers",
         "fail_triggers": "failTriggers",
         "rewards": "rewards",
+        "frontend_config": "frontendConfig",
     }
 

@@ -7,11 +7,13 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import AirMobileConfig
 from conflict_interface.data_types.mod_state.configuration import ArmyBoostConfig
+from conflict_interface.data_types.mod_state.configuration import ConflictCondition
 from conflict_interface.data_types.mod_state.configuration import ConvertToResourceConfig
 from conflict_interface.data_types.mod_state.configuration import DiplomaticAggressionConfig
 from conflict_interface.data_types.mod_state.configuration import DisbandConfig
 from conflict_interface.data_types.mod_state.configuration import DummyMissileConfig
 from conflict_interface.data_types.mod_state.configuration import DummyScoutConfig
+from conflict_interface.data_types.mod_state.configuration import LaunchTargetConfig
 from conflict_interface.data_types.mod_state.configuration import LimitedMobilizationConfig
 from conflict_interface.data_types.mod_state.configuration import MissileCarrierConfig, DummyMissileCarrierConfig
 from conflict_interface.data_types.mod_state.configuration import \
@@ -24,6 +26,11 @@ from typing import Optional
 
 from conflict_interface.data_types.mod_state.configuration import RadarConfig
 from conflict_interface.data_types.mod_state.configuration import RadarSignatureConfig
+from conflict_interface.data_types.mod_state.configuration import RenderConfig
+from conflict_interface.data_types.mod_state.configuration import StackingConfig
+from conflict_interface.data_types.mod_state.configuration import TokenSensitivityConfig
+from conflict_interface.data_types.mod_state.configuration import UnitTypeFrontEndConfig
+
 
 @dataclass
 class UnitType(GameObject):
@@ -93,6 +100,12 @@ class UnitType(GameObject):
     radar_config: Optional[RadarConfig]
     convert_to_resource_config: Optional[ConvertToResourceConfig]
     disband_config: Optional[DisbandConfig]
+    stacking_config: StackingConfig
+    launch_target_config: LaunchTargetConfig
+    token_sensitivity_config: TokenSensitivityConfig
+    production_requirements_config: ConflictCondition
+    frontend_config: UnitTypeFrontEndConfig
+    render_config: RenderConfig
 
 
 
@@ -158,5 +171,11 @@ class UnitType(GameObject):
         "radar_signature_config": "radarSignatureConfig",
         "radar_config": "radarConfig",
         "convert_to_resource_config": "convertToResourceConfig",
-        "disband_config": "disbandConfig"
+        "disband_config": "disbandConfig",
+        "stacking_config": "stackingConfig",
+        "launch_target_config": "launchTargetConfig",
+        "token_sensitivity_config": "tokenSensitivityConfig",
+        "production_requirements_config": "productionRequirementConfig",
+        "frontend_config": "frontendConfig",
+        "render_config": "renderConfig",
     }

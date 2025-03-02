@@ -10,5 +10,5 @@ class RankCache(GameObject):
     min_points_to_level: TreeMap[int, int]
 
     MAPPING = {
-        "min_points_to_level": "minPointsToLevel",
+        "min_points_to_level": "minPointsToRankLevel",
     }

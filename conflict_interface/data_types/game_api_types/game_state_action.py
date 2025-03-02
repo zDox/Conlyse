@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from conflict_interface.data_types import GameObject
 from conflict_interface.data_types.action import Action
-from conflict_interface.data_types.custom_types import DateTimeInt
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import LinkedList
 
@@ -16,7 +16,7 @@ class GameStateAction:
     add_state_ids_on_sent: bool
     option: Any
     state_ids: HashMap[int, str]
-    time_stamps: HashMap[int, DateTimeInt]
+    time_stamps: HashMap[int, DateTimeMillisecondsInt]
     actions: Optional[LinkedList[GameObject]]
 
     MAPPING = {

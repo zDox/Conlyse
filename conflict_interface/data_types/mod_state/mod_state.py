@@ -3,13 +3,15 @@ from typing import Optional
 from typing import Union
 
 from conflict_interface.data_types.army_state.unit import Unit
-from conflict_interface.data_types.custom_types import DateTimeInt
+from conflict_interface.data_types.custom_types import ArraysArrayList
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.map_state.province_state import ProvinceState
 from conflict_interface.data_types.map_state.sea_type import SeaType
 from conflict_interface.data_types.map_state.terrain_type import TerrainTypeStr
 from conflict_interface.data_types.mod_state.configuration import AStarConfig
 from conflict_interface.data_types.mod_state.configuration import ArmyStackingPenaltyConfig
-from conflict_interface.data_types.mod_state.configuration import FrontendConfig
+from conflict_interface.data_types.mod_state.configuration import FreeFormSoundConfig
+from conflict_interface.data_types.mod_state.configuration import ModStateFrontendConfig
 from conflict_interface.data_types.mod_state.configuration import HealArmiesModFeatureConfig
 from conflict_interface.data_types.mod_state.configuration import MoraleBasedProductionConfig
 from conflict_interface.data_types.mod_state.configuration import NewspaperConfig
@@ -24,6 +26,7 @@ from conflict_interface.data_types.mod_state.damage_types import DamageType
 from conflict_interface.data_types.mod_state.mission_type import MissionType
 from conflict_interface.data_types.mod_state.premium import Premium
 from conflict_interface.data_types.mod_state.rank_cache import RankCache
+from conflict_interface.data_types.mod_state.rank_type import RankType
 from conflict_interface.data_types.mod_state.token_type import TokenType
 from conflict_interface.data_types.research_state.research_type import ResearchType
 from conflict_interface.data_types.resource_state.resource_entry import ResourceEntry
@@ -66,7 +69,7 @@ class ModState(State):
     units: HashMap[int, Unit]
     terrain_types: TreeMap[int, TerrainTypeStr]
     sea_types: TreeMap[int, SeaType]
-    damage_types: ArrayList[DamageType]
+    damage_types: ArraysArrayList[DamageType]
     replacements: HashMap[int, HashSet[int]]
     has_admin_action: bool
     morale_based_construction_time_config: MoraleBasedProductionConfig
@@ -76,19 +79,20 @@ class ModState(State):
     army_stacking_penalty_config: ArmyStackingPenaltyConfig
     astar_config: AStarConfig
     noob_bonus_config: NoobBonusConfig
-    frontend_config: FrontendConfig
+    frontend_config: ModStateFrontendConfig
     rank_cache: RankCache
     mission_types: HashMap[int, MissionType]
     token_types: HashMap[int, TokenType]
+    rank_types: HashMap[int, RankType]
     spy_config: SpyConfig
     render_config: RenderConfig
     newspaper_config: NewspaperConfig
-    sound_config: SoundConfig
+    sound_config: Union[SoundConfig,FreeFormSoundConfig]
     uber_config: UberConfig
     player_progress_config: PlayerProgressionConfig
 
     state_type: int  # should be the same as STATE_ID
-    time_stamp: DateTimeInt
+    time_stamp: DateTimeMillisecondsInt
     state_id: str  # Is not the STATE_ID above
 
     # research_types: list(ResearchType)
@@ -129,10 +133,11 @@ class ModState(State):
         "rank_cache": "rankCache",
         "mission_types": "missionTypes",
         "token_types": "tokenTypes",
+        "rank_types": "rankTypes",
         "spy_config": "spyConfig",
         "render_config": "renderConfig",
         "newspaper_config": "newspaperConfig",
         "sound_config": "soundConfig",
         "uber_config": "uberConfig",
-        "player_progress_config": "playerProgressConfig",
+        "player_progress_config": "playerProgressionConfig",
     }

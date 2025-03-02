@@ -5,8 +5,8 @@ from datetime import timedelta
 from typing import Union, Any, Optional
 from enum import Enum
 
-from conflict_interface.data_types.custom_types import DateTimeInt
-from conflict_interface.data_types.custom_types import TimeDeltaInt
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
+from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.point import Point
 
@@ -25,8 +25,8 @@ class GotoCommand(GameObject):
 
     location_id: int = None
     on_water: bool = False
-    start_time: DateTimeInt = None
-    arrival_time: DateTimeInt = None
+    start_time: DateTimeMillisecondsInt = None
+    arrival_time: DateTimeMillisecondsInt = None
     speed_factor: float = 0 # TODO Need to check what it should really be
     in_air: bool = False
 

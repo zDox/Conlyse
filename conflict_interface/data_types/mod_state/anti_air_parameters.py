@@ -1,7 +1,7 @@
 
 from dataclasses import dataclass
 
-from conflict_interface.data_types.custom_types import DateTimeInt
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_object import GameObject
 
 
@@ -13,8 +13,8 @@ class AntiAirParameters(GameObject):
     distance to the last anti-air attack enemy was.
     """
     C = "ultshared.UltAntiAirParameters"
-    next_anti_air_attack: DateTimeInt
-    last_anti_air_attack: DateTimeInt
+    next_anti_air_attack: DateTimeMillisecondsInt
+    last_anti_air_attack: DateTimeMillisecondsInt
     last_anti_air_attack_distance: float
 
     MAPPING = {

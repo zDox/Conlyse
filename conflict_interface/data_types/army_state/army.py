@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from conflict_interface.data_types.custom_types import DateTimeInt
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import DefaultEnumMeta, LinkedList, UnitList
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import \
@@ -128,10 +128,10 @@ class Army(GameObject):
     """
     C = "a"
     patrol_radius: int
-    next_attack_time: Optional[DateTimeInt]
-    estimated_arrival_time: Optional[DateTimeInt]
-    spy_reveal_time: Optional[DateTimeInt]
-    last_damage_taken_time: Optional[DateTimeInt]
+    next_attack_time: Optional[DateTimeMillisecondsInt]
+    estimated_arrival_time: Optional[DateTimeMillisecondsInt]
+    spy_reveal_time: Optional[DateTimeMillisecondsInt]
+    last_damage_taken_time: Optional[DateTimeMillisecondsInt]
 
     id: int = None
     size: int = 1

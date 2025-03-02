@@ -3,6 +3,8 @@ from typing import Optional
 
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.mod_state.configuration import ConflictCondition
+from conflict_interface.data_types.mod_state.configuration import FactionSpecificConfig
 from conflict_interface.data_types.research_state.faction_specific_research_config import FactionSpecificResearchConfig
 from conflict_interface.data_types.research_state.research_requirement_config import ResearchRequirementConfig
 
@@ -28,9 +30,10 @@ class ResearchType(GameObject):
     name_faction2: str
     name_faction3: str
     name_faction4: str
-    research_requirement_config: ResearchRequirementConfig
+    research_requirement_config: ConflictCondition
     description: str
     faction_specific_research_config: Optional[FactionSpecificResearchConfig]
+    faction_specific_config: Optional[FactionSpecificConfig]
 
     MAPPING = {
         "item_id": "itemID",
@@ -54,4 +57,5 @@ class ResearchType(GameObject):
         "set": "set",
         "identifier": "identifier",
         "costs": "costs",
+        "faction_specific_config": "factionSpecificConfig",
     }

@@ -1,7 +1,7 @@
 from datetime import timedelta
 from math import floor
 
-from conflict_interface.data_types.custom_types import DateTimeInt
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
 
@@ -107,8 +107,8 @@ class GameInfoState(State):
     STATE_TYPE = 12
     day_of_game: int
     start_of_game: int
-    next_day_time: DateTimeInt
-    next_heal_time: DateTimeInt
+    next_day_time: DateTimeMillisecondsInt
+    next_heal_time: DateTimeMillisecondsInt
     gold_round: bool
     demo_game: bool
     password: str
@@ -132,7 +132,7 @@ class GameInfoState(State):
     military_score: int
     military_boost_score: int
     game_image_path: str
-    end_of_game: DateTimeInt
+    end_of_game: DateTimeMillisecondsInt
     game_ended: bool
     victory_points_modifier: int
     coalition_victory_points_modifier: int

@@ -32,6 +32,9 @@ class Vector(list):
 class ArrayList(list):
     C = "java.util.ArrayList"
 
+class ArraysArrayList(list):
+    C = "java.util.Arrays$ArrayList"
+
 class EmptyList(list):
     C = "java.util.Collections$EmptyList"
 
@@ -62,16 +65,31 @@ class RegularImmutableMap(dict):
 class EmptyMap(dict):
     C = "java.util.Collections$EmptyMap"
 
-class DateTimeStr(datetime):
+class UnmodifiableMap(dict):
+    C = "java.util.Collections$UnmodifiableMap"
+
+class DateTimeMillisecondsStr(datetime):
     pass
 
-class DateTimeInt(datetime):
+class DateTimeMillisecondsInt(datetime):
     pass
 
-class TimeDeltaStr(timedelta):
+class TimeDeltaMillisecondsStr(timedelta):
     pass
 
-class TimeDeltaInt(timedelta):
+class TimeDeltaMillisecondsInt(timedelta):
+    pass
+
+class DateTimeSecondsStr(datetime):
+    pass
+
+class DateTimeSecondsInt(datetime):
+    pass
+
+class TimeDeltaSecondsStr(timedelta):
+    pass
+
+class TimeDeltaSecondsInt(timedelta):
     pass
 
 

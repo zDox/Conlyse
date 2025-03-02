@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from enum import Enum
 
-from ..custom_types import DateTimeInt
+from ..custom_types import DateTimeMillisecondsInt
 from ..custom_types import HashMap
 from ..custom_types import Vector
 from ..newspaper_state.article import Article
@@ -34,7 +34,7 @@ class ForeignAffairRelations(GameObject):
 
     state_id: int # TODO why is here a state_id?
     players: int
-    end_of_honor_period: HashMap[int, DateTimeInt] # TODO no idea if this is correct (no examples in data1)
+    end_of_honor_period: HashMap[int, DateTimeMillisecondsInt] # TODO no idea if this is correct (no examples in data1)
 
 
     neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]]
@@ -52,7 +52,7 @@ class ForeignAffairsState(State):
     STATE_TYPE = 5
     relations: ForeignAffairRelations
     state_type: int # should be the same as STATE_TYPE
-    time_stamp: DateTimeInt
+    time_stamp: DateTimeMillisecondsInt
     state_id: str # Is not the STATE_TYPE above
     messages: Vector[Article]
     MAPPING = {

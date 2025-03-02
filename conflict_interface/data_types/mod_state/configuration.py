@@ -1,14 +1,17 @@
 from dataclasses import dataclass
 from threading import Condition
+from typing import Any
 from typing import Optional
 from typing import Union
 
 from conflict_interface.data_types.custom_types import ArrayList
+from conflict_interface.data_types.custom_types import EmptyList
 from conflict_interface.data_types.custom_types import EmptyMap
 from conflict_interface.data_types.custom_types import RegularImmutableMap
 from conflict_interface.data_types.constant_segment_function import ConstantSegmentFunction
-from conflict_interface.data_types.custom_types import TimeDeltaInt
+from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.data_types.custom_types import UnmodifiableCollection, HashMap, HashSet, LinkedHashMap
+from conflict_interface.data_types.custom_types import UnmodifiableMap
 from conflict_interface.data_types.custom_types import UnmodifiableSet
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.boost import Boost
@@ -25,10 +28,17 @@ class SortingConfig(GameObject):
 class SoundConfig(GameObject):
     C = "ultshared.modding.configuration.UltSoundConfig"
 
-    action_sounds: RegularImmutableMap[str, str]
+    action_sounds: Optional[RegularImmutableMap[str, str]]
 
     MAPPING = {
         "action_sounds": "actionSounds",
+    }
+
+@dataclass
+class FreeFormSoundConfig(GameObject):
+    C = "ultshared.modding.configuration.UltFreeformConfig"
+
+    MAPPING = {
     }
 
 
@@ -37,7 +47,7 @@ class AirplaneConfig(GameObject):
     C = "ultshared.modding.configuration.UltAirplaneConfig"
     spy: bool
     patrol_radius: int
-    patrol_target_damage_types: HashSet[int]
+    patrol_target_damage_types: UnmodifiableCollection[int]
     embarkation_time: int
     disembarkation_time: int
     refuel_time: int
@@ -92,8 +102,8 @@ class AntiAirConfig(GameObject):
 @dataclass
 class DummyScoutConfig(GameObject):
     C = "ultshared.modding.configuration.UltScoutConfig$DummyScoutConfig"
-    stealth_classes: HashSet[int]
-    camoflage_classes: HashSet[int]
+    stealth_classes: Union[EmptyList[int], UnmodifiableCollection[int]]
+    camoflage_classes: Union[EmptyList[int], UnmodifiableCollection[int]]
 
     MAPPING = {
             "stealth_classes": "stealthClasses",
@@ -103,8 +113,8 @@ class DummyScoutConfig(GameObject):
 @dataclass
 class ScoutConfig(GameObject):
     C = "ultshared.modding.configuration.UltScoutConfig"
-    stealth_classes: HashSet[int]
-    camoflage_classes: HashSet[int]
+    stealth_classes: Union[EmptyList[int], UnmodifiableCollection[int]]
+    camoflage_classes: Union[EmptyList[int], UnmodifiableCollection[int]]
 
     MAPPING = {
             "stealth_classes": "stealthClasses",
@@ -117,7 +127,7 @@ class TokenProducerConfigProduction(GameObject):
     C = "ultshared.modding.configuration.UltTokenProducerConfig$TokenProduction"
     type_id: int
     amount: int
-    duration: TimeDeltaInt = TimeDeltaInt(0)
+    duration: TimeDeltaMillisecondsInt = TimeDeltaMillisecondsInt(0)
     MAPPING = {
             "type_id": "typeID",
             "amount": "amount",
@@ -166,7 +176,7 @@ class DummyMissileConfig(GameObject):
     launch_behaviour: str = ""
 
     MAPPING = {
-        "launch_behaviour": "launchBehaviour",
+        "launch_behaviour": "launchBehavior",
         "missile_slot": "missileSlot",
         "stacking_limit": "stackingLimit",
     }
@@ -179,7 +189,7 @@ class MissileConfig(GameObject):
     launch_behaviour: str = ""
 
     MAPPING = {
-        "launch_behaviour": "launchBehaviour",
+        "launch_behaviour": "launchBehavior",
         "missile_slot": "missileSlot",
         "stacking_limit": "stackingLimit",
     }
@@ -342,7 +352,7 @@ class NoobBonusConfig(GameObject):
     }
 
 @dataclass
-class FrontendConfig(GameObject):
+class ModStateFrontendConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
 
     map_custom_asset_override_config: dict[str, dict[int, int]]
@@ -350,6 +360,10 @@ class FrontendConfig(GameObject):
     flag_config: dict[str, bool]
     game_info_config: dict[int, str] # TODO strings are links
     consts: dict[str, int]
+    community_you_tube: dict[str, Union[str, int]]
+    factor_bonus_tooltip: dict[str, list[int]]
+    ticket_item_ids: list[int]
+
 
     MAPPING = {
         "map_custom_asset_override_config": "mapCustomAssetOverrideConfig",
@@ -357,21 +371,42 @@ class FrontendConfig(GameObject):
         "flag_config": "flagConfig",
         "game_info_config": "gameInfoConfig",
         "consts": "consts",
+        "community_you_tube": "communityYouTube",
+        "factor_bonus_tooltip": "factorBonusTooltip",
+        "ticket_item_ids": "ticketItemIDs",
+    }
+
+@dataclass
+class UnitTypeFrontEndConfig(GameObject):
+    C = "ultshared.modding.configuration.UltFreeformConfig"
+    player_progression_image: Optional[str]
+
+    MAPPING = {
+        "player_progression_image": "playerProgressionImage",
     }
 
 @dataclass
 class FreeformConfig(GameObject):
     C = ""
 
+
+
+@dataclass
+class UpgradeTypeFreeformConfig(GameObject):
+    C = "ultshared.modding.configuration.UltFreeformConfig"
+
     visibility: Optional[dict[str, bool]]
     construction_visibility: Optional[dict[str, bool]]
     highlight: Optional[dict[str, bool]]
+    sound_id: Optional[str]
 
     MAPPING = {
         "visibility": "visibility",
         "construction_visibility": "constructionVisibility",
         "highlight": "highlight",
+        "sound_id": "soundID"
     }
+
 
 @dataclass
 class ConstructionSpeedupConfig(GameObject):
@@ -389,10 +424,12 @@ class ConstructionSpeedupConfig(GameObject):
 class DiplomaticAggressionConfig(GameObject):
     C = "ultshared.modding.configuration.UltDiplomaticAggressionConfig"
 
-    incident_mapping: HashMap[str, int] # TODO key could be enum
+    incident_mapping: UnmodifiableMap[str, int] # TODO key could be enum
+    victim_incident_mapping: UnmodifiableMap[int, int] # TODO check typing
 
     MAPPING = {
         "incident_mapping": "incidentMapping",
+        "victim_incident_mapping": "victimIncidentMapping",
     }
 
 @dataclass
@@ -527,13 +564,13 @@ class SplitStrategyConfig(GameObject):
     strategy: str # TODO could be enum
 
     MAPPING = {
-        "strategy": "splitStrategy",
+        "strategy": "strategy",
     }
 
 @dataclass
 class EffectsConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltEffectsConfig"
-    effects: ArrayList[int] # TODO check typing
+    effects: ArrayList[dict[str, Union[float, str, int]]] # TODO check typing
 
     MAPPING = {
         "effects": "effects",
@@ -555,7 +592,7 @@ class PurchaseStrategyConfig(GameObject):
 
     purchasable: bool
     requirements: ConflictCondition
-    costs: HashMap[int, int]
+    costs: Union[LinkedHashMap[int, int], HashMap[int, int]]
 
     MAPPING = {
         "purchasable": "purchasable",
@@ -602,7 +639,15 @@ class Consumption(GameObject):
 @dataclass
 class RenderConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
-    MAPPING = {}
+    faction_specific_images: Optional[bool]
+    icon: Optional[str]
+    background_image: Optional[str]
+
+    MAPPING = {
+        "faction_specific_images": "factionSpecificImages",
+        "icon": "icon",
+        "background_image": "backgroundImage",
+    }
 
 @dataclass
 class SpyConfig(GameObject):
@@ -623,8 +668,8 @@ class NewspaperConfig(GameObject):
 
     MAPPING = {
         "max_articles": "maxArticles",
-        "max_article_title_characters": "maxArticleTitleCharacters",
-        "max_article_body_characters": "maxArticleBodyCharacters",
+        "max_article_title_characters": "maxArticleTitleChars",
+        "max_article_body_characters": "maxArticleBodyChars",
     }
 
 @dataclass
@@ -668,4 +713,69 @@ class ConsumptionStrategyConfig(GameObject):
         "consumption": "consumption",
     }
 
+@dataclass
+class FactorySpeedUpConfig(GameObject):
+    C = "ultshared.modding.configuration.UltFactorySpeedUpConfig"
+
+    byUnitType: UnmodifiableCollection[int] # TODO check typing
+    base: float
+
+    MAPPING = {
+        "byUnitType": "byUnitType",
+        "base": "base",
+    }
+
+@dataclass
+class VictoryPointsGenerationConfig(GameObject):
+    C = "ultshared.modding.configuration.UltVictoryPointsGenerationConfig"
+
+    daily_victory_points: int
+
+    MAPPING = {
+        "daily_victory_points": "dailyVictoryPoints",
+    }
+
+@dataclass
+class StackingConfig(GameObject):
+    C = "ultshared.modding.configuration.UltStackingConfig"
+
+    stacking_limit: int
+    cls: int
+
+    MAPPING = {
+        "stacking_limit": "limit",
+        "cls": "class",
+    }
+
+@dataclass
+class LaunchTargetConfig(GameObject):
+    C = "ultshared.modding.configuration.UltLaunchTargetConfig"
+
+    follow_target: bool
+    possible_targets: HashSet[str] # TODO could be enum
+
+    MAPPING = {
+        "follow_target": "followTarget",
+        "possible_targets": "possibleTargets",
+    }
+
+@dataclass
+class TokenSensitivityConfig(GameObject):
+    C = "ultshared.modding.configuration.UltTokenSensitivityConfig"
+
+    token_types: UnmodifiableCollection[int]
+
+    MAPPING = {
+        "token_types": "tokenTypes",
+    }
+
+@dataclass
+class FactionSpecificConfig(GameObject):
+    C = "ultshared.modding.configuration.UltFactionSpecificConfig"
+
+    factions: HashSet[int]
+
+    MAPPING = {
+        "factions": "factions",
+    }
 

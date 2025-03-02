@@ -47,10 +47,12 @@ def get_inner_type(cls: type, json_obj):
             elif json_type is list:
                 if arg.C == json_obj[0]:
                     return arg
+            elif json_type is int and arg is DateTimeMillisecondsInt: # TODO could run into problems when Union[int, DateTimeInt]
+                return arg
             elif arg is json_type:
                 return arg
 
-        raise ValueError(f"Unknown type {cls} for json_obj {str(json_obj)[:1000]}")
+        raise ValueError(f"Unknown type {cls} for json_obj {str(json_obj)[:1000]}, origin is {origin}, json_type is {json_type}")
 
     elif cls is None:
         raise ValueError("Type is None, can't extract inner type.")
@@ -77,46 +79,77 @@ def parse_normal_dict(cls,json_obj,game):
 def parse_normal_list(cls, json_obj, game):
     return [parse_any(cls.__args__[0], v, game) for v in json_obj]
 
-def parse_date_time(json_obj):
+def parse_date_time_milliseconds(json_obj):
     if len(str(json_obj)) < 13 and str(json_obj) != "0":
         raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits {json_obj}")
     if type(json_obj) is str:
-        return DateTimeStr.fromtimestamp(int(json_obj) / 1000, UTC)
+        return DateTimeMillisecondsStr.fromtimestamp(int(json_obj) / 1000, UTC)
     elif type(json_obj) is int:
-        return DateTimeInt.fromtimestamp(int(json_obj) / 1000, UTC)
+        return DateTimeMillisecondsInt.fromtimestamp(int(json_obj) / 1000, UTC)
     else:
         raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
-def parse_time_delta(json_obj):
+def parse_time_delta_milliseconds(json_obj):
     if len(str(json_obj)) < 13:
         raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits")
     if type(json_obj) is str:
-        return TimeDeltaStr(seconds=int(json_obj) / 1000)
+        return TimeDeltaMillisecondsStr(seconds=int(json_obj) / 1000)
     elif type(json_obj) is int:
-        return TimeDeltaInt(seconds=int(json_obj) / 1000)
+        return TimeDeltaMillisecondsInt(seconds=int(json_obj) / 1000)
+    else:
+        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
+
+def parse_date_time_seconds(json_obj):
+    if len(str(json_obj)) != 10 and str(json_obj) != "0":
+        raise ValueError(f"Expected int with 10 digits, got {len(str(json_obj))} digits {json_obj}")
+    if type(json_obj) is str:
+        return DateTimeSecondsStr.fromtimestamp(int(json_obj), UTC)
+    elif type(json_obj) is int:
+        return DateTimeSecondsInt.fromtimestamp(int(json_obj), UTC)
+    else:
+        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
+
+def parse_time_delta_seconds(json_obj):
+    if len(str(json_obj)) != 10 and str(json_obj) != "0":
+        raise ValueError(f"Expected int with exactly 10 digits, got {len(str(json_obj))} digits")
+    if type(json_obj) is str:
+        return TimeDeltaSecondsStr(seconds=int(json_obj))
+    elif type(json_obj) is int:
+        return TimeDeltaSecondsInt(seconds=int(json_obj))
     else:
         raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
 def dump_date_time_int(obj) -> int:
     t: type = type(obj)
-    if t is DateTimeInt:
+    if t is DateTimeMillisecondsInt:
         return int(obj.timestamp() * 1000)
-    elif t is TimeDeltaInt:
+    elif t is TimeDeltaMillisecondsInt:
         return int(obj.total_seconds() * 1000)
+    elif t is DateTimeSecondsInt:
+        return int(obj.timestamp())
+    elif t is TimeDeltaSecondsInt:
+        return int(obj.total_seconds())
     else:
         raise ValueError(f"Unknown type {t} for {obj} (expected DateTimeInt or TimeDeltaInt)")
 
 def dump_date_time_str(obj) -> str:
     t: type = type(obj)
-    if t is DateTimeStr:
+    if t is DateTimeMillisecondsStr:
         return str(int(obj.timestamp() * 1000))
-    elif t is TimeDeltaStr:
+    elif t is TimeDeltaMillisecondsStr:
         return str(int(obj.total_seconds() * 1000))
+    elif t is DateTimeSecondsStr:
+        return str(int(obj.timestamp()))
+    elif t is TimeDeltaSecondsStr:
+        return str(int(obj.total_seconds()))
     else:
         raise ValueError(f"Unknown type {t} for {obj} (expected DateTimeStr or TimeDeltaStr)")
 
 def dump_normal_dict(obj) -> dict:
     return {str(dump_any(k)): dump_any(v) for k, v in obj.items()}
+
+def dump_normal_list(obj) -> list:
+    return [dump_any(v) for v in obj]
 
 def dump_conflict_list(obj) -> list:
     if not hasattr(obj, "C"):
@@ -141,10 +174,14 @@ SIMPLE_PARSE_MAPPING: dict[type,Any] = {
     str: str,
     bool: bool,
 
-    DateTimeInt: parse_date_time,
-    DateTimeStr: parse_date_time,
-    TimeDeltaInt: parse_date_time,
-    TimeDeltaStr: parse_date_time,
+    DateTimeMillisecondsInt: parse_date_time_milliseconds,
+    DateTimeMillisecondsStr: parse_date_time_milliseconds,
+    TimeDeltaMillisecondsInt: parse_time_delta_milliseconds,
+    TimeDeltaMillisecondsStr: parse_time_delta_milliseconds,
+    DateTimeSecondsInt: parse_date_time_seconds,
+    DateTimeSecondsStr: parse_date_time_seconds,
+    TimeDeltaSecondsInt: parse_time_delta_seconds,
+    TimeDeltaSecondsStr: parse_time_delta_seconds,
 }
 COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     dict: parse_normal_dict,
@@ -152,6 +189,7 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     LinkedList: parse_conflict_list,
     Vector: parse_conflict_list,
     ArrayList: parse_conflict_list,
+    ArraysArrayList: parse_conflict_list,
     EmptyList: parse_conflict_list,
     HashSet: parse_conflict_list,
     UnmodifiableSet: parse_conflict_list,
@@ -167,6 +205,7 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     LinkedHashMap: parse_conflict_mapping,
     RegularImmutableMap: parse_conflict_mapping,
     EmptyMap: parse_conflict_mapping,
+    UnmodifiableMap: parse_conflict_mapping,
 
 }
 
@@ -175,11 +214,12 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     float: float,
     str: str,
     bool: bool,
-    list:list,
+    list: dump_normal_list,
     dict: dump_normal_dict,
     Vector: dump_conflict_list,
     LinkedList: dump_conflict_list,
     ArrayList: dump_conflict_list,
+    ArraysArrayList: dump_conflict_list,
     EmptyList: dump_conflict_list,
     HashSet: dump_conflict_list,
     UnmodifiableSet: dump_conflict_list,
@@ -195,10 +235,16 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     LinkedHashMap: dump_conflict_mapping,
     RegularImmutableMap: dump_conflict_mapping,
     EmptyMap: dump_conflict_mapping,
-    DateTimeInt: dump_date_time_int,
-    DateTimeStr: dump_date_time_str,
-    TimeDeltaInt: dump_date_time_int,
-    TimeDeltaStr: dump_date_time_str,
+    UnmodifiableMap: dump_conflict_mapping,
+
+    DateTimeMillisecondsInt: dump_date_time_int,
+    DateTimeMillisecondsStr: dump_date_time_str,
+    TimeDeltaMillisecondsInt: dump_date_time_int,
+    TimeDeltaMillisecondsStr: dump_date_time_str,
+    DateTimeSecondsInt: dump_date_time_int,
+    DateTimeSecondsStr: dump_date_time_str,
+    TimeDeltaSecondsInt: dump_date_time_int,
+    TimeDeltaSecondsStr: dump_date_time_str,
 }
 
 def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterface = None) -> DataclassType:
@@ -286,7 +332,8 @@ def parse_any(cls: Type[DataclassType], json_obj: Any, game: GameInterface = Non
         if SIMPLE_PARSE_MAPPING[cls] is int:
             if type(json_obj) is dict:
                 raise ValueError(f"Expected int, got dict {json_obj}, cls is {cls}")
-        # end debug
+
+                    # end debug
         return SIMPLE_PARSE_MAPPING[cls](json_obj)
     elif get_origin(cls) in COMPLEX_PARSE_MAPPING: # For complex types, hashmap, dict etc
         return COMPLEX_PARSE_MAPPING[get_origin(cls)](cls, json_obj, game)

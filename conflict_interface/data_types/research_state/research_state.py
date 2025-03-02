@@ -1,4 +1,4 @@
-from conflict_interface.data_types.custom_types import DateTimeInt
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.research_state.research_action import ResearchAction
 from conflict_interface.data_types.custom_types import ArrayList, HashMap
 from conflict_interface.data_types.game_object import GameObject
@@ -13,8 +13,8 @@ from conflict_interface.data_types.state import State
 class Research(GameObject):
     C = "ultshared.UltResearch"
     research_type_id: int
-    start_time: DateTimeInt
-    end_time: DateTimeInt
+    start_time: DateTimeMillisecondsInt
+    end_time: DateTimeMillisecondsInt
     speed_up: int
 
     MAPPING = {"research_type_id": "researchTypeID",

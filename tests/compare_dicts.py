@@ -54,8 +54,14 @@ def recur_list_key_compare(list1, list2, depth, path, max_depth):
         return True
 
     # Sort both lists for comparison
-    list1 = sorted(list1, key=custom_list_sort)
-    list2 = sorted(list2, key=custom_list_sort)
+    try:
+        list1 = sorted(list1, key=custom_list_sort)
+        list2 = sorted(list2, key=custom_list_sort)
+    except TypeError:
+        print(f"Error sorting lists at path {path}")
+        print(f"  Original: {list1}")
+        print(f"  Processed: {list2}")
+        return False
 
     # Check if lists have same length
     if len(list1) != len(list2):
@@ -138,8 +144,10 @@ def custom_list_sort(item):
 
     elif isinstance(item, list):
         return (1, len(item))
-    else:
+    elif isinstance(item, str):
         return (2, item)
+    else:
+        return (3, item)
 
 
 def recur_list_value_compare(list1, list2, depth, path, max_depth):
@@ -156,9 +164,14 @@ def recur_list_value_compare(list1, list2, depth, path, max_depth):
         print(f"Lists at path {path} have different lengths: {len(list1)} vs {len(list2)}")
         return False
 
-    # Sort both lists for comparison
-    list1 = sorted(list1, key=custom_list_sort)
-    list2 = sorted(list2, key=custom_list_sort)
+    try:
+        list1 = sorted(list1, key=custom_list_sort)
+        list2 = sorted(list2, key=custom_list_sort)
+    except TypeError:
+        print(f"Error sorting lists at path {path}")
+        print(f"  Original: {list1}")
+        print(f"  Processed: {list2}")
+        return False
 
 
     for i in range(len(list1)):

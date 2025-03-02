@@ -17,6 +17,7 @@ from conflict_interface.data_types.mod_state.configuration import VisibilityStra
 
 @dataclass
 class TokenType(GameObject):
+    C = "ultshared.modding.types.UltTokenType"
     item_id: int
     duration_strategy: DurationStrategyConfig
     token_class: TokenClassConfig
@@ -33,12 +34,12 @@ class TokenType(GameObject):
     render_config: RenderConfig
 
     MAPPING = {
-        "item_id": "itemId",
+        "item_id": "itemID",
         "duration_strategy": "durationStrategy",
         "token_class": "tokenClass",
         "priority": "priority",
         "split_strategy": "splitStrategy",
-        "effects_config": "effectsConfig",
+        "effects_config": "effects",
         "purchase_strategy": "purchaseStrategy",
         "merge_strategy": "mergeStrategy",
         "visibility_strategy": "visibilityStrategy",
