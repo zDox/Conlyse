@@ -212,7 +212,7 @@ class MissileSlotConfig(GameObject):
 @dataclass
 class MissileCarrierConfig(GameObject):
     C = "ultshared.modding.configuration.UltMissileCarrierConfig"
-    missile_slot_config: Union[LinkedHashMap[int, MissileSlotConfig], EmptyMap[int, MissileSlotConfig]]
+    missile_slot_config: Union[HashMap[int, MissileSlotConfig], LinkedHashMap[int, MissileSlotConfig], EmptyMap[int, MissileSlotConfig]]
 
     MAPPING = {
         "missile_slot_config": "missileSlotConfig",

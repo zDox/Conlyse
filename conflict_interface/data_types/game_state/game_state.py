@@ -173,8 +173,6 @@ class GameState(State):
             state = getattr(self.states, state)
             if state is None:
                 continue
-            print(state)
-            print(state.state_type)
             state_ids[state.state_type] = state.state_id
             time_stamps[state.state_type] = state.time_stamp
         if len(time_stamps) == 0 or len(state_ids) == 0:
