@@ -323,6 +323,6 @@ class GameInterface:
 
     def get_unit_types(self, **filters) -> dict[int, UnitType]:
         return {unit_type_id: unit_type
-                for unit_type_id, unit_type in self.game_state.states.mod_state.unit_types.items()
+                for unit_type_id, unit_type in self.game_state.states.mod_state.all_unit_types.items()
                 if all(getattr(unit_type, key, None) == value for key, value in filters.items())}
 

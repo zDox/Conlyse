@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.custom_types import Vector, DefaultEnumMeta
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
@@ -21,7 +22,7 @@ class UpdateProvinceAction(Action):
     C = "ultshared.action.UltUpdateProvinceAction"
     province_ids: Vector[int]
     mode: UpdateProvinceActionModes
-    upgrade: ModableUpgrade = None
+    upgrade: ModableUpgrade | SpecialUnit = None
     slot: int = 0
 
     MAPPING = {
