@@ -370,6 +370,8 @@ class HubApi:
         res = self.send_api_request({
             "userID": self.auth.user_id,
         }, "getSessionToken")
+        if "sessionToken" not in res:
+            raise AuthenticationException("Could not get session token")
         return res["sessionToken"]
 
     def register_user(self, username: str, email: str, password: str):
