@@ -30,6 +30,7 @@ from conflict_interface.data_types.mod_state.configuration import RenderConfig
 from conflict_interface.data_types.mod_state.configuration import StackingConfig
 from conflict_interface.data_types.mod_state.configuration import TokenSensitivityConfig
 from conflict_interface.data_types.mod_state.configuration import UnitTypeFrontEndConfig
+from conflict_interface.data_types.research_state.research_type import ResearchType
 
 
 @dataclass
@@ -107,7 +108,8 @@ class UnitType(GameObject):
     frontend_config: UnitTypeFrontEndConfig
     render_config: RenderConfig
 
-
+    _tier: int = None
+    _is_max_tier: int = None
 
 
     MAPPING = {
@@ -179,3 +181,52 @@ class UnitType(GameObject):
         "frontend_config": "frontendConfig",
         "render_config": "renderConfig",
     }
+    def get_name_with_tier(self):
+        """
+        Returns the name of the unit, including its tier if applicable.
+        Tier 1 units at maximum tier will not have the tier displayed.
+        """
+        if self.get_tier() == 1 and self.is_maximum_tier():
+            return self.unit_name
+        else:
+            return f"{self.unit_name} Lvl. {self.get_tier()}"
+
+
+    def get_tier(self):
+        """
+        Returns the tier of the unit, calculating it if necessary.
+        If there are no required researches, defaults to Tier 1.
+        """
+        if self._tier is None:
+            required_research = self.get_required_research_type()
+            self._tier = max(1, required_research.get_tier() if required_research else 1)
+        return self._tier
+
+    def is_maximum_tier(self):
+        """
+        Determines if this unit is at its maximum tier.
+        A unit is at max tier if it has no further replaceable research.
+        """
+        if self._is_max_tier is None:
+            required_research = self.get_required_research_type()
+            self._is_max_tier = not required_research.can_be_replaced() if required_research else True
+        return self._is_max_tier
+
+    def get_required_research_type(self) -> ResearchType | None:
+        """
+        Returns the research type required for this unit.
+        If multiple researches are required, it retrieves the first one.
+        """
+        if self.required_researches:
+            research_key = self.required_researches[0]
+            return self.game.game_state.states.mod_state.research_types.get(research_key)
+        return None
+
+    def get_level_marker(self):
+        """
+        Returns the level marker of the unit.
+        If the tier is greater than 1 and the unit is at its maximum tier, it returns "max".
+        Otherwise, it simply returns the tier.
+        """
+        tier = self.get_tier()
+        return "max" if tier > 1 and self.is_maximum_tier() else tier

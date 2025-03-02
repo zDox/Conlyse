@@ -27,3 +27,6 @@ tests/full_test_data_1.json
 
 tests/credentials.json
 tests/full_test_data_4.json
+/doc/data2.json
+/doc/data3.json
+build
