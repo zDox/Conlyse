@@ -1,5 +1,6 @@
 from datetime import timedelta
 from math import floor
+from typing import Union
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
@@ -10,48 +11,15 @@ from dataclasses import dataclass
 from conflict_interface.data_types.state import State
 
 
-# TODO GameFeature should only be a abstract class. There exist multiple gameFeatures
 
-@dataclass
-class GameFeature(GameObject):
-    """
-    Represents a game feature like TestGame, PeacePeriodRule, MinActivityRule, etc.
-
-    Attributes:
-        feature_id (int): Unique identifier for the game feature.
-        value (int): Numerical value associated with the game feature.
-        value_name (str): Name associated with the value of the game feature.
-        enabled (bool): Indicates whether the game feature is enabled.
-        published (bool): Indicates whether the game feature is published.
-        name (str): Name of the game feature.
-        description (str): Description or details about the game feature.
-    """
-    C = "ultshared.GameFeature"
-    feature_id: int
-    value: int
-    value_name: str
-    enabled: bool
-    published: bool
-    name: str
-    description: str
-
-    MAPPING = {
-        "feature_id": "featureID",
-        "value": "value",
-        "value_name": "valueName",
-        "enabled": "enabled",
-        "published": "published",
-        "name": "name",
-        "description": "description",
-    }
 
 @dataclass
 class GameFeatures(GameObject):
-    C = "ultshared.GameFeatures"
+    C = "ultshared.gamefeatures.UltGameFeatures"
     """
     Represents a collection of game features mapped by their identifiers.
     """
-    id_features: HashMap[int, GameFeature]
+    id_features: HashMap[int, dict[str, Union[str, int ,bool]]]
 
     MAPPING = {
         "id_features": "idFeatures",
@@ -194,11 +162,6 @@ class GameInfoState(State):
         minutes = 59 - (remaining_timedelta.seconds % 3600) // 60
         seconds = 59 - remaining_timedelta.seconds % 60
         return timedelta(hours=hours, minutes=minutes, seconds=seconds)
-
-    def get_day_of_timestamp(self, timestamp):
-        b = 86400 * (self.day_of_game+ 1)
-        b = self.game.client_time() - timedelta(seconds=b)
-        return (c.timestamp() - b.timestamp()) / 86400
 
     """
     # Mock methods for `format_timer` and `format_timer_tiny`
