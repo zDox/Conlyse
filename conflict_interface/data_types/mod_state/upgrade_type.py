@@ -1,13 +1,17 @@
 from dataclasses import dataclass
-from datetime import timedelta
 from math import floor
 from typing import List
 from typing import Optional
+from typing import Union
 
+from conflict_interface.data_types.mod_state.configuration import ConflictCondition
 from conflict_interface.data_types.mod_state.configuration import ConstructionSpeedupConfig
+from conflict_interface.data_types.mod_state.configuration import FactorySpeedUpConfig
 from conflict_interface.data_types.mod_state.configuration import FreeformConfig
 from conflict_interface.data_types.mod_state.configuration import HealArmiesModFeatureConfig
 from conflict_interface.data_types.mod_state.configuration import HealArmiesUpgradeFeatureConfig
+from conflict_interface.data_types.mod_state.configuration import UpgradeTypeFreeformConfig
+from conflict_interface.data_types.mod_state.configuration import VictoryPointsGenerationConfig
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.custom_types import HashMap
@@ -46,11 +50,18 @@ class UpgradeType(GameObject):
     upgrade_description: str
     upgrade_name: str
 
+    new_upgrade_description: HashMap[str,str]
+    new_upgrade_name: HashMap[str,str]
+
     possible_province_states: HashMap[int, int]
 
     heal_armies_upgrade_feature_config: Optional[HealArmiesUpgradeFeatureConfig]
     construction_speedup_config: Optional[ConstructionSpeedupConfig]
-    freeform_config: Optional[FreeformConfig]
+    freeform_config: Optional[UpgradeTypeFreeformConfig]
+
+    factory_speedup_config: Optional[FactorySpeedUpConfig]
+    construction_requirement_config: ConflictCondition
+    victory_points_generation_config: Optional[VictoryPointsGenerationConfig]
 
     ranking_factor: int = 1
     feature_icon_prefix: str = ""
@@ -89,10 +100,15 @@ class UpgradeType(GameObject):
         "build_time_functions": "btf",
         "upgrade_description": "upd",
         "upgrade_name": "upn",
+        "new_upgrade_description": "upgrDesc",
+        "new_upgrade_name": "upgrName",
         "possible_province_states": "pps",
         "heal_armies_upgrade_feature_config": "hac",
         "construction_speedup_config": "csc",
         "freeform_config": "fc",
+        "factory_speedup_config": "fsc",
+        "construction_requirement_config": 'constructionRequirementConfig',
+        "victory_points_generation_config": "victoryPointsGenerationConfig",
 
     }
 

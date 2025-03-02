@@ -25,6 +25,7 @@ from conflict_interface.data_types.mod_state import ModState
 from conflict_interface.data_types.game_info_state import GameInfoState
 from conflict_interface.data_types.research_state import ResearchState
 from conflict_interface.data_types.configuration_state import ConfigurationState
+from conflict_interface.data_types.state import State
 from conflict_interface.data_types.statistic_state import StatisticState
 from conflict_interface.data_types.triggered_tutorial_state.triggered_tutorial_state import TriggeredTutorialState
 from conflict_interface.data_types.tutorial_state import TutorialState
@@ -152,7 +153,7 @@ class States(GameObject):
 
 
 @dataclass
-class GameState(GameObject):
+class GameState(State):
     C = "ultshared.UltGameState"
     state_type: int
     state_id: str
@@ -161,9 +162,6 @@ class GameState(GameObject):
     action_results: Optional[HashMap[str, int]]
 
     MAPPING = {
-        "state_type": "stateType",
-        "state_id": "stateID",
-        "time_stamp": "timeStamp",
         "states": "states",
         "action_results": "actionResults"
     }
@@ -171,17 +169,16 @@ class GameState(GameObject):
     def get_state_ids_and_time_stamps(self):
         state_ids = HashMap()
         time_stamps = HashMap()
-        for state in self.states.__annotations__.values():
-            if not hasattr(state, "state_type"):
-                raise ValueError(f"State {state} has no state_type")
-            if not hasattr(state, "state_id"):
-                raise ValueError(f"State {state} has no state_id")
-            if not hasattr(state, "time_stamp"):
-                raise ValueError(f"State {state} has no time_stamp")
-
+        for state in self.states.__annotations__.keys():
+            state = getattr(self.states, state)
+            if state is None:
+                continue
+            print(state)
+            print(state.state_type)
             state_ids[state.state_type] = state.state_id
             time_stamps[state.state_type] = state.time_stamp
-
+        if len(time_stamps) == 0 or len(state_ids) == 0:
+            return None, None
         return state_ids, time_stamps
 
 

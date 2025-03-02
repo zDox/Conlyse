@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Optional
 
-from conflict_interface.data_types import GameObject, LinkedList, HashMap
+from conflict_interface.data_types import GameObject
 from conflict_interface.data_types.action import Action
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.custom_types import LinkedList
 
 
 @dataclass
@@ -14,7 +16,7 @@ class GameStateAction:
     add_state_ids_on_sent: bool
     option: Any
     state_ids: HashMap[int, str]
-    time_stamps: HashMap[int, datetime]
+    time_stamps: HashMap[int, DateTimeMillisecondsInt]
     actions: Optional[LinkedList[GameObject]]
 
     MAPPING = {

@@ -1,9 +1,10 @@
 from typing import Optional
+from typing import Union
 
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import Vector
 from conflict_interface.data_types.game_object import GameObject
 from dataclasses import dataclass
-from datetime import datetime
 
 from conflict_interface.data_types.newspaper_state.report_article import ReportArticle
 
@@ -19,7 +20,7 @@ class Article(GameObject):
     author: str  # Theme of article
     message_body: str
 
-    address: str
+    address: Optional[str]
     receiver: Optional[str]
     read_by_sender: bool
     read_by_receiver: bool
@@ -33,8 +34,8 @@ class Article(GameObject):
     receiver_flag_id: int
     report_count: int
     alliance_id: int
-    date: list[str] # sql date format
-    time: list[str] # sql time format
+    date: list[Union[str, DateTimeMillisecondsInt]] # sql date format
+    time: list[Union[str, DateTimeMillisecondsInt]] # sql time format
 
 
     image_id: Optional[dict[str, int]]

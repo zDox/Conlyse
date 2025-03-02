@@ -1,4 +1,5 @@
 from enum import EnumMeta
+from datetime import datetime, timedelta
 
 
 class UnitList(list):
@@ -31,6 +32,11 @@ class Vector(list):
 class ArrayList(list):
     C = "java.util.ArrayList"
 
+class ArraysArrayList(list):
+    C = "java.util.Arrays$ArrayList"
+
+class EmptyList(list):
+    C = "java.util.Collections$EmptyList"
 
 class UnmodifiableCollection(list):
     C = "java.util.Collections$UnmodifiableCollection"
@@ -39,6 +45,8 @@ class UnmodifiableCollection(list):
 class HashSet(set):
     C = "java.util.HashSet"
 
+class UnmodifiableSet(set):
+    C = "java.util.Collections$UnmodifiableSet"
 
 class HashMap(dict):
     C = "java.util.HashMap"
@@ -56,6 +64,33 @@ class RegularImmutableMap(dict):
 
 class EmptyMap(dict):
     C = "java.util.Collections$EmptyMap"
+
+class UnmodifiableMap(dict):
+    C = "java.util.Collections$UnmodifiableMap"
+
+class DateTimeMillisecondsStr(datetime):
+    pass
+
+class DateTimeMillisecondsInt(datetime):
+    pass
+
+class TimeDeltaMillisecondsStr(timedelta):
+    pass
+
+class TimeDeltaMillisecondsInt(timedelta):
+    pass
+
+class DateTimeSecondsStr(datetime):
+    pass
+
+class DateTimeSecondsInt(datetime):
+    pass
+
+class TimeDeltaSecondsStr(timedelta):
+    pass
+
+class TimeDeltaSecondsInt(timedelta):
+    pass
 
 
 class DefaultEnumMeta(EnumMeta):

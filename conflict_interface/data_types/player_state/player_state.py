@@ -1,4 +1,4 @@
-from datetime import datetime
+
 
 from conflict_interface.data_types.custom_types import DefaultEnumMeta, HashMap
 from conflict_interface.data_types.game_object import GameObject
@@ -9,6 +9,7 @@ from enum import Enum
 
 from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
+from conflict_interface.data_types.state import State
 
 """
 Not implemented
@@ -26,21 +27,13 @@ class VisibilityMode(Enum, metaclass=DefaultEnumMeta):
 
 
 @dataclass
-class PlayerState(GameObject):
+class PlayerState(State):
     C = "ultshared.UltPlayerState"
-    STATE_ID = 1
+    STATE_TYPE = 1
     players: HashMap[int, PlayerProfile]
     teams: HashMap[int, TeamProfile]
 
-    state_type: int # should be the same as STATE_ID
-    time_stamp: datetime
-    state_id: str # Is not the STATE_ID above
-
-
     MAPPING = {
-        "state_type": "stateType",
-        "time_stamp": "timeStamp",
-        "state_id": "stateID",
         "players": "players",
         "teams": "teams"
     }

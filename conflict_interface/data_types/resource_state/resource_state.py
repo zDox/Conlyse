@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 
 from dataclasses import dataclass
 
@@ -9,17 +8,14 @@ from conflict_interface.data_types.custom_types import HashMap, BidListOuter, Bi
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.resource_state.order import Order
 from conflict_interface.data_types.resource_state.trading import Trading
+from conflict_interface.data_types.state import State
 
 
 @dataclass
-class ResourceState(GameObject):
+class ResourceState(State):
     C = "ultshared.UltResourceState"
-    STATE_ID = 4
+    STATE_TYPE = 4
     resource_profiles: HashMap[int, ResourceProfile]
-
-    state_type: int  # should be the same as STATE_ID
-    time_stamp: datetime
-    state_id: str  # Is not the STATE_ID above
 
     trading: Trading
     bids: BidListOuter[BidListInner[Order]]
@@ -29,9 +25,6 @@ class ResourceState(GameObject):
 
     MAPPING = {
         "resource_profiles": "resourceProfs",
-        "state_type": "stateType",
-        "time_stamp": "timeStamp",
-        "state_id": "stateID",
         "trading": "trading",
         "bids": "bids",
         "asks": "asks",

@@ -93,7 +93,8 @@ class PlayerProfile(GameObject):
     premium_user: Optional[bool]
     activity_state: Optional[str] # TODO make enum ex. "ACTIVE"
     ai_profile: Optional[str] # TODO make enum ex. "major"
-
+    accumulated_victory_points: int
+    daily_victory_points: int
 
     banned: bool = False
     mail: str = ""
@@ -144,6 +145,8 @@ class PlayerProfile(GameObject):
         "noob_bonus": "noobBonus",
         "activity_state": "activityState",
         "ai_profile": "aiProfile",
+        "accumulated_victory_points": "accumulatedVps",
+        "daily_victory_points": "dailyVictoryPoints",
     }
 
     def get_player_id(self):

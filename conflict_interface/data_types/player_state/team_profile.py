@@ -26,19 +26,23 @@ class TeamProfile(GameObject):
     disbanded: bool
 
     primary_color: str  # TODO implement Color
+    accumulated_victory_points: int
+    daily_victory_points: int
 
     flag_image_id: int = -1
     victory_points: int = 0
 
     MAPPING = {
-            "team_id": "teamID",
-            "name": "name",
-            "description": "description",
-            "leader_id": "leaderID",
-            "disbanded": "disbanded",
-            "victory_points": "vps",
-            "primary_color": "primaryColor",
-            "flag_image_id": "flagImageID",
+        "team_id": "teamID",
+        "name": "name",
+        "description": "description",
+        "leader_id": "leaderID",
+        "disbanded": "disbanded",
+        "victory_points": "vps",
+        "primary_color": "primaryColor",
+        "flag_image_id": "flagImageID",
+        "accumulated_victory_points": "accumulatedVps",
+        "daily_victory_points": "dailyVictoryPoints",
     }
 
     def get_team_id(self):

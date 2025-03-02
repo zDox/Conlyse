@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime
 from math import floor
 
 from conflict_interface.data_types.game_object import GameObject
@@ -37,6 +36,9 @@ class ResourceEntry(GameObject):
     manpower: bool
     currency: bool
 
+    production_factor: float = 1
+    consumption_factor: float = 1
+
     min_amount: float = 0
     max_amount: float = 0
     tradable: bool = False
@@ -66,6 +68,8 @@ class ResourceEntry(GameObject):
         "tradable": "tradable",
         "manpower": "manpower",
         "currency": "currency",
+        "production_factor": "productionFactor",
+        "consumption_factor": "consumptionFactor"
     }
 
     def get_resource_amount(self) -> int:

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import logging
+from pprint import pprint
 from typing import TYPE_CHECKING
 
-from conflict_interface.data_types import dump_any, HashMap, LinkedList, GameState, \
-    parse_game_object
+from conflict_interface.data_types import GameState
 from conflict_interface.data_types.action import Action
+from conflict_interface.data_types.custom_types import LinkedList
 from conflict_interface.data_types.game_api_types.game_activation_action import GameActivationAction
 from conflict_interface.data_types.game_api_types.game_state_action import GameStateAction
+from conflict_interface.data_types.game_object import dump_any
+from conflict_interface.data_types.game_object import parse_game_object
 from conflict_interface.game_api import GameApi
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import GameActivationException
@@ -48,7 +51,7 @@ class ActionHandler:
         self.game_api: GameApi = game.get_api()
         self.game = game
         self.language = "en"  # TODO: Make this dynamic
-        self.game_state = None
+        self.game_state: GameState | None= None
 
     def que_action(self, action: Action):
         """
@@ -140,21 +143,22 @@ class ActionHandler:
             self.action_request_id += 1
 
         if self.game_state is not None:
-            state_ids, time_stamps = self.game_state.get_state_ids()
+            state_ids, time_stamps = self.game_state.get_state_ids_and_time_stamps()
         else:
-            state_ids, time_stamps = HashMap(), HashMap()
+            state_ids, time_stamps = None, None
 
         game_state_action = GameStateAction(
             state_type=0,
             state_id="0",
-            add_state_ids_on_sent=(self.game_state is not None),  # Only add state ids if we have a game state
+            add_state_ids_on_sent=True,  # Only add state ids if we have a game state
             option=None,
             state_ids=state_ids,
             time_stamps=time_stamps,
             actions=actions
         )
         response_json = self.execute_action(game_state_action)
-        return parse_game_object(GameState, response_json["result"], self.game)
+        self.game_state = parse_game_object(GameState, response_json["result"], self.game)
+        return self.game_state
 
     def activate_game(self, os, device, selected_player_id=0, selected_team_id=0,
                       random_team_country_selection=False) -> int:
@@ -163,7 +167,7 @@ class ActionHandler:
         This is only called on join
         It creates a game activation action uses the execute_action method to send it to the api
 
-        :param os: The operating system of the device
+        :param os: The operating system of the device.
         :param device: The device type
         :param selected_player_id: The selected player id
         :param selected_team_id: The selected team id
@@ -182,13 +186,3 @@ class ActionHandler:
             pass
         self.game_api.player_id = response_json["result"]
         return response_json["result"]
-
-    def set_game_state(self, game_state):
-        """
-        Set the game state
-        This is used to update the game state in the action handler
-        This will be one once the game state is created after the first request
-
-        :param game_state: The game state to be set
-        """
-        self.game_state = game_state

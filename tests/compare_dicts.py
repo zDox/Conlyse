@@ -38,6 +38,7 @@ def recur_compare_keys(dict1, dict2, depth, path, max_depth):
                 good = good and recur_compare_keys(dict1[key], dict2[key], depth + 1, f"{current_path}{key}/",
                                                    max_depth)
             elif isinstance(dict1[key], list):
+                if not type(dict2) is dict: print("WTH" + " " + str(type(dict2)) + " " + str(dict2))
                 good = good and recur_list_key_compare(dict1[key], dict2[key], depth + 1, f"{current_path}{key}/",
                                                        max_depth)
 
@@ -53,8 +54,14 @@ def recur_list_key_compare(list1, list2, depth, path, max_depth):
         return True
 
     # Sort both lists for comparison
-    list1 = sorted(list1, key=custom_list_sort)
-    list2 = sorted(list2, key=custom_list_sort)
+    try:
+        list1 = sorted(list1, key=custom_list_sort)
+        list2 = sorted(list2, key=custom_list_sort)
+    except TypeError:
+        print(f"Error sorting lists at path {path}")
+        print(f"  Original: {list1}")
+        print(f"  Processed: {list2}")
+        return False
 
     # Check if lists have same length
     if len(list1) != len(list2):
@@ -137,8 +144,10 @@ def custom_list_sort(item):
 
     elif isinstance(item, list):
         return (1, len(item))
-    else:
+    elif isinstance(item, str):
         return (2, item)
+    else:
+        return (3, item)
 
 
 def recur_list_value_compare(list1, list2, depth, path, max_depth):
@@ -155,9 +164,14 @@ def recur_list_value_compare(list1, list2, depth, path, max_depth):
         print(f"Lists at path {path} have different lengths: {len(list1)} vs {len(list2)}")
         return False
 
-    # Sort both lists for comparison
-    list1 = sorted(list1, key=custom_list_sort)
-    list2 = sorted(list2, key=custom_list_sort)
+    try:
+        list1 = sorted(list1, key=custom_list_sort)
+        list2 = sorted(list2, key=custom_list_sort)
+    except TypeError:
+        print(f"Error sorting lists at path {path}")
+        print(f"  Original: {list1}")
+        print(f"  Processed: {list2}")
+        return False
 
 
     for i in range(len(list1)):

@@ -3,19 +3,23 @@ import unittest
 
 from requests import Session
 
-from conflict_interface.data_types import GameState, dump_any, \
-    PlayerState, ForeignAffairsState, NewspaperState, MapState
+from conflict_interface.data_types import ForeignAffairsState
+from conflict_interface.data_types import GameState
+from conflict_interface.data_types import MapState
 from conflict_interface.data_types import ModState
+from conflict_interface.data_types import NewspaperState
+from conflict_interface.data_types import PlayerState
 from conflict_interface.data_types import ResourceState
-from conflict_interface.data_types import parse_game_object
 from conflict_interface.data_types.army_state.army_state import ArmyState
+from conflict_interface.data_types.game_object import dump_any
+from conflict_interface.data_types.game_object import parse_game_object
 from conflict_interface.game_interface import GameInterface
-from tests.compare_dicts import compare_dicts, deepdiff
+from tests.compare_dicts import compare_dicts
 
 
 class ParseDumpTests(unittest.TestCase):
     test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState]
-    test_files = ["full_test_data_1.json"]
+    test_files = ["full_test_data_4.json"]
 
     def test_load_json(self):
         for file in ParseDumpTests.test_files:
@@ -50,7 +54,7 @@ class ParseDumpTests(unittest.TestCase):
 
                     game = GameInterface(9709744, False, Session(), None)
 
-                    states = data["result"]["states"][str(state.STATE_ID)]
+                    states = data["result"]["states"][str(state.STATE_TYPE)]
 
                     parsed_state = parse_game_object(state, states, game)
                     dumped_states = dump_any(parsed_state)
@@ -75,7 +79,7 @@ class ParseDumpTests(unittest.TestCase):
 
                  game = GameInterface(9709744, False, Session(), None)
 
-                 states = data["result"]["states"][str(state.STATE_ID)]
+                 states = data["result"]["states"][str(state.STATE_TYPE)]
 
                  parsed_state = parse_game_object(state, states, game)
                  dumped_states = dump_any(parsed_state)

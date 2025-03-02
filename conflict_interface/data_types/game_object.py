@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from dataclasses import is_dataclass
 from dataclasses import MISSING as DATACLASS_MISSING
-from datetime import datetime, timedelta
+
 from enum import Enum
 from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union, TypeVar, Type
 from typing import get_type_hints
+from datetime import UTC
 
 from conflict_interface.data_types.custom_types import *
-from conflict_interface.utils.helper import unix_to_datetime, seconds_to_timedelta, datetime_to_unix
+
 
 if TYPE_CHECKING:
     from conflict_interface.game_interface import GameInterface
@@ -46,10 +47,12 @@ def get_inner_type(cls: type, json_obj):
             elif json_type is list:
                 if arg.C == json_obj[0]:
                     return arg
+            elif json_type is int and arg is DateTimeMillisecondsInt: # TODO could run into problems when Union[int, DateTimeInt]
+                return arg
             elif arg is json_type:
                 return arg
 
-        raise ValueError(f"Unknown type {cls} for json_obj {str(json_obj)[:1000]}")
+        raise ValueError(f"Unknown type {cls} for json_obj {str(json_obj)[:1000]}, origin is {origin}, json_type is {json_type}")
 
     elif cls is None:
         raise ValueError("Type is None, can't extract inner type.")
@@ -64,7 +67,7 @@ def parse_conflict_mapping(cls,json_obj,game):
         parsed_data[parse_any(cls.__args__[0],key , game)] = parse_any(cls.__args__[1],value , game)
     return cls(parsed_data)
 
-def parse_conflict_array(cls, json_obj: list, game):
+def parse_conflict_list(cls, json_obj: list, game):
     return cls([parse_any(cls.__args__[0], v, game) for v in json_obj[1]])
 
 def parse_normal_dict(cls,json_obj,game):
@@ -76,8 +79,77 @@ def parse_normal_dict(cls,json_obj,game):
 def parse_normal_list(cls, json_obj, game):
     return [parse_any(cls.__args__[0], v, game) for v in json_obj]
 
+def parse_date_time_milliseconds(json_obj):
+    if len(str(json_obj)) < 13 and str(json_obj) != "0":
+        raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits {json_obj}")
+    if type(json_obj) is str:
+        return DateTimeMillisecondsStr.fromtimestamp(int(json_obj) / 1000, UTC)
+    elif type(json_obj) is int:
+        return DateTimeMillisecondsInt.fromtimestamp(int(json_obj) / 1000, UTC)
+    else:
+        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
+
+def parse_time_delta_milliseconds(json_obj):
+    if len(str(json_obj)) < 13:
+        raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits")
+    if type(json_obj) is str:
+        return TimeDeltaMillisecondsStr(seconds=int(json_obj) / 1000)
+    elif type(json_obj) is int:
+        return TimeDeltaMillisecondsInt(seconds=int(json_obj) / 1000)
+    else:
+        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
+
+def parse_date_time_seconds(json_obj):
+    if len(str(json_obj)) != 10 and str(json_obj) != "0":
+        raise ValueError(f"Expected int with 10 digits, got {len(str(json_obj))} digits {json_obj}")
+    if type(json_obj) is str:
+        return DateTimeSecondsStr.fromtimestamp(int(json_obj), UTC)
+    elif type(json_obj) is int:
+        return DateTimeSecondsInt.fromtimestamp(int(json_obj), UTC)
+    else:
+        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
+
+def parse_time_delta_seconds(json_obj):
+    if len(str(json_obj)) != 10 and str(json_obj) != "0":
+        raise ValueError(f"Expected int with exactly 10 digits, got {len(str(json_obj))} digits")
+    if type(json_obj) is str:
+        return TimeDeltaSecondsStr(seconds=int(json_obj))
+    elif type(json_obj) is int:
+        return TimeDeltaSecondsInt(seconds=int(json_obj))
+    else:
+        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
+
+def dump_date_time_int(obj) -> int:
+    t: type = type(obj)
+    if t is DateTimeMillisecondsInt:
+        return int(obj.timestamp() * 1000)
+    elif t is TimeDeltaMillisecondsInt:
+        return int(obj.total_seconds() * 1000)
+    elif t is DateTimeSecondsInt:
+        return int(obj.timestamp())
+    elif t is TimeDeltaSecondsInt:
+        return int(obj.total_seconds())
+    else:
+        raise ValueError(f"Unknown type {t} for {obj} (expected DateTimeInt or TimeDeltaInt)")
+
+def dump_date_time_str(obj) -> str:
+    t: type = type(obj)
+    if t is DateTimeMillisecondsStr:
+        return str(int(obj.timestamp() * 1000))
+    elif t is TimeDeltaMillisecondsStr:
+        return str(int(obj.total_seconds() * 1000))
+    elif t is DateTimeSecondsStr:
+        return str(int(obj.timestamp()))
+    elif t is TimeDeltaSecondsStr:
+        return str(int(obj.total_seconds()))
+    else:
+        raise ValueError(f"Unknown type {t} for {obj} (expected DateTimeStr or TimeDeltaStr)")
+
 def dump_normal_dict(obj) -> dict:
     return {str(dump_any(k)): dump_any(v) for k, v in obj.items()}
+
+def dump_normal_list(obj) -> list:
+    return [dump_any(v) for v in obj]
 
 def dump_conflict_list(obj) -> list:
     if not hasattr(obj, "C"):
@@ -102,28 +174,38 @@ SIMPLE_PARSE_MAPPING: dict[type,Any] = {
     str: str,
     bool: bool,
 
-    datetime: unix_to_datetime,
-    timedelta: seconds_to_timedelta,
+    DateTimeMillisecondsInt: parse_date_time_milliseconds,
+    DateTimeMillisecondsStr: parse_date_time_milliseconds,
+    TimeDeltaMillisecondsInt: parse_time_delta_milliseconds,
+    TimeDeltaMillisecondsStr: parse_time_delta_milliseconds,
+    DateTimeSecondsInt: parse_date_time_seconds,
+    DateTimeSecondsStr: parse_date_time_seconds,
+    TimeDeltaSecondsInt: parse_time_delta_seconds,
+    TimeDeltaSecondsStr: parse_time_delta_seconds,
 }
 COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     dict: parse_normal_dict,
     list: parse_normal_list,
-    LinkedList: parse_conflict_array,
-    Vector: parse_conflict_array,
-    ArrayList: parse_conflict_array,
-    HashSet: parse_conflict_array,
-    UnmodifiableCollection: parse_conflict_array,
-    UnitList: parse_conflict_array,
-    BidListInner: parse_conflict_array,
-    BidListOuter: parse_conflict_array,
-    AskListInner: parse_conflict_array,
-    AskListOuter: parse_conflict_array,
-    ProductionList: parse_conflict_array,
+    LinkedList: parse_conflict_list,
+    Vector: parse_conflict_list,
+    ArrayList: parse_conflict_list,
+    ArraysArrayList: parse_conflict_list,
+    EmptyList: parse_conflict_list,
+    HashSet: parse_conflict_list,
+    UnmodifiableSet: parse_conflict_list,
+    UnmodifiableCollection: parse_conflict_list,
+    UnitList: parse_conflict_list,
+    BidListInner: parse_conflict_list,
+    BidListOuter: parse_conflict_list,
+    AskListInner: parse_conflict_list,
+    AskListOuter: parse_conflict_list,
+    ProductionList: parse_conflict_list,
     HashMap: parse_conflict_mapping,
     TreeMap: parse_conflict_mapping,
     LinkedHashMap: parse_conflict_mapping,
     RegularImmutableMap: parse_conflict_mapping,
     EmptyMap: parse_conflict_mapping,
+    UnmodifiableMap: parse_conflict_mapping,
 
 }
 
@@ -132,12 +214,15 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     float: float,
     str: str,
     bool: bool,
-    list:list,
+    list: dump_normal_list,
     dict: dump_normal_dict,
     Vector: dump_conflict_list,
     LinkedList: dump_conflict_list,
     ArrayList: dump_conflict_list,
+    ArraysArrayList: dump_conflict_list,
+    EmptyList: dump_conflict_list,
     HashSet: dump_conflict_list,
+    UnmodifiableSet: dump_conflict_list,
     UnmodifiableCollection: dump_conflict_list,
     UnitList: dump_conflict_list,
     ProductionList: dump_conflict_list,
@@ -150,8 +235,16 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     LinkedHashMap: dump_conflict_mapping,
     RegularImmutableMap: dump_conflict_mapping,
     EmptyMap: dump_conflict_mapping,
-    datetime: datetime_to_unix, # Technically not a simple type, since GameInfoState.startOfGame requires seconds = True
-    timedelta: datetime_to_unix # --||--
+    UnmodifiableMap: dump_conflict_mapping,
+
+    DateTimeMillisecondsInt: dump_date_time_int,
+    DateTimeMillisecondsStr: dump_date_time_str,
+    TimeDeltaMillisecondsInt: dump_date_time_int,
+    TimeDeltaMillisecondsStr: dump_date_time_str,
+    DateTimeSecondsInt: dump_date_time_int,
+    DateTimeSecondsStr: dump_date_time_str,
+    TimeDeltaSecondsInt: dump_date_time_int,
+    TimeDeltaSecondsStr: dump_date_time_str,
 }
 
 def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterface = None) -> DataclassType:
@@ -164,9 +257,12 @@ def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterfac
 
     var_type_dict = get_type_hints(cls)
 
-
+    if issubclass(cls, GameObject):
+        mapping = cls.get_mapping()
+    else:
+        mapping = getattr(cls,"MAPPING")
     parsed_data = {}
-    for python_var_name, conflict_var_name in getattr(cls,"MAPPING").items():
+    for python_var_name, conflict_var_name in mapping.items():
         python_var_type = var_type_dict[python_var_name]
 
         # if not has __dataclass_fields__ raise error
@@ -232,6 +328,12 @@ def parse_any(cls: Type[DataclassType], json_obj: Any, game: GameInterface = Non
     elif issubclass(cls, Enum):
         return parse_enum(cls, json_obj)
     elif cls in SIMPLE_PARSE_MAPPING: # For basic types
+        # debug
+        if SIMPLE_PARSE_MAPPING[cls] is int:
+            if type(json_obj) is dict:
+                raise ValueError(f"Expected int, got dict {json_obj}, cls is {cls}")
+
+                    # end debug
         return SIMPLE_PARSE_MAPPING[cls](json_obj)
     elif get_origin(cls) in COMPLEX_PARSE_MAPPING: # For complex types, hashmap, dict etc
         return COMPLEX_PARSE_MAPPING[get_origin(cls)](cls, json_obj, game)
@@ -249,7 +351,12 @@ def dump_dataclass(obj: object) -> dict[str , Any]:
 
     json_obj: dict = {"@c": getattr(obj, "C")}
 
-    for python_var_name, conflict_var_name in getattr(obj,"MAPPING").items():
+    if issubclass(type(obj), GameObject):
+        mapping = type(obj).get_mapping()
+    else:
+        mapping = getattr(type(obj), "MAPPING")
+
+    for python_var_name, conflict_var_name in mapping.items():
         json_obj[conflict_var_name] = dump_any(getattr(obj, python_var_name))
 
     return json_obj
@@ -289,3 +396,18 @@ class GameObject:
         if not hasattr(self, "MAPPING"):
             raise ValueError(f"{type(self).__name__} has no MAPPING implemented")
         return hash(tuple(self.__getattribute__(key) for key in self.MAPPING.keys()))
+
+    _mapping = {}
+    @classmethod
+    def get_mapping(cls):
+        if not hasattr(cls, "MAPPING"):
+            raise ValueError(f"{cls.__name__} has no MAPPING implemented")
+
+        cls._mapping = cls.MAPPING
+        for c in cls.__bases__:
+            if c is GameObject:
+                continue
+            if issubclass(c, GameObject):
+                cls._mapping = {**cls._mapping,
+                                **c.get_mapping()}
+        return cls._mapping

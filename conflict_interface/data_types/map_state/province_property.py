@@ -6,7 +6,7 @@ from conflict_interface.data_types.map_state.morale_factors import MoraleFactors
 from conflict_interface.data_types.map_state.revolt_suppression_property import RevoltSuppressionProperty
 from conflict_interface.data_types.mod_state import SpecialUnit
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
-from conflict_interface.data_types.custom_types import LinkedList, ArrayList
+from conflict_interface.data_types.custom_types import LinkedList, ArrayList, EmptyList
 
 
 @dataclass
@@ -28,11 +28,11 @@ class ProvinceProperty(GameObject):
         target_morale: The morale that will be reached over time.
     """
     C = "ultshared.UltProvinceProperties"
-    possible_upgrades: LinkedList[ModableUpgrade]
-    queueable_upgrades: LinkedList[ModableUpgrade]
+    possible_upgrades: Union[EmptyList[ModableUpgrade], LinkedList[ModableUpgrade], ArrayList[ModableUpgrade]]
+    queueable_upgrades: Union[EmptyList[ModableUpgrade], LinkedList[ModableUpgrade], ArrayList[ModableUpgrade]]
 
-    possible_productions: Union[ArrayList[SpecialUnit], LinkedList[SpecialUnit]]
-    queueable_productions: Union[ArrayList[SpecialUnit], LinkedList[SpecialUnit]]
+    possible_productions: Union[EmptyList[SpecialUnit], LinkedList[SpecialUnit], ArrayList[SpecialUnit]]
+    queueable_productions: Union[EmptyList[SpecialUnit], LinkedList[SpecialUnit], ArrayList[SpecialUnit]]
 
     revolt_chance: int
     uprising_chance: int

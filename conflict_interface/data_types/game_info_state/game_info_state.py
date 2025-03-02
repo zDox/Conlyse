@@ -1,10 +1,14 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from math import floor
 
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
+
+from conflict_interface.data_types.state import State
+
 
 # TODO GameFeature should only be a abstract class. There exist multiple gameFeatures
 
@@ -54,7 +58,7 @@ class GameFeatures(GameObject):
     }
 
 @dataclass
-class GameInfoState(GameObject):
+class GameInfoState(State):
     """
     Represents the state of a game with detailed information about the game.
 
@@ -65,7 +69,7 @@ class GameInfoState(GameObject):
     mapping for various operations.
 
     Attributes:
-        STATE_ID (int): Identifier for the current state of the game.
+        STATE_TYPE (int): Identifier for the current state of the game.
         day_of_game: Current day within the game.
         start_of_game: Starting date and time of the game.
         next_day_time: Date and time when the next game day begins.
@@ -100,11 +104,11 @@ class GameInfoState(GameObject):
         admin_time_forward_allowed: Boolean indicating if admin can forward time.
     """
     C = "ultshared.UltGameInfoState"
-    STATE_ID = 12
+    STATE_TYPE = 12
     day_of_game: int
-    start_of_game: datetime
-    next_day_time: datetime
-    next_heal_time: datetime
+    start_of_game: int
+    next_day_time: DateTimeMillisecondsInt
+    next_heal_time: DateTimeMillisecondsInt
     gold_round: bool
     demo_game: bool
     password: str
@@ -128,7 +132,7 @@ class GameInfoState(GameObject):
     military_score: int
     military_boost_score: int
     game_image_path: str
-    end_of_game: datetime
+    end_of_game: DateTimeMillisecondsInt
     game_ended: bool
     victory_points_modifier: int
     coalition_victory_points_modifier: int

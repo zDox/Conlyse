@@ -16,11 +16,3 @@ from .research_state import *
 from .configuration_state import *
 from .game_state import *
 from .static_map_data import *
-
-
-
-
-# Extra Classes
-from .common import *
-from .custom_types import *
-from .game_object import *

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Union
 
 from .sea_province import SeaProvince
@@ -15,6 +14,7 @@ from conflict_interface.data_types.common import RegionType
 from conflict_interface.data_types.static_map_data import StaticMapData
 from ..custom_types import HashMap, HashSet
 from ..game_object import GameObject
+from ..state import State
 
 
 @dataclass
@@ -86,7 +86,7 @@ class Map(GameObject):
             self.get_province(province.province_id).update(province)
 
 @dataclass
-class MapState(GameObject):
+class MapState(State):
     """
     Represents the state of a map within a game.
 
@@ -94,22 +94,15 @@ class MapState(GameObject):
     provinces within the context of the game.
     """
     C = "ultshared.UltMapState"
-    STATE_ID = 3
+    STATE_TYPE = 3
     map: Map
     # Provinces which are owned by the current player
     properties: HashMap[int, ProvinceProperty]
-
-    state_type: int  # should be the same as STATE_ID
-    time_stamp: datetime
-    state_id: str  # Is not the STATE_ID above
 
     change_set: bool
 
     MAPPING = {
         "map": "map",
         "properties": "properties",
-        "state_type": "stateType",
-        "time_stamp": "timeStamp",
-        "state_id": "stateID",
         "change_set": "changeSet"
     }
