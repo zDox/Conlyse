@@ -137,7 +137,7 @@ class GameInterface:
         # Execute any queued actions
         game_state: GameState = self.action_handler.create_game_state_action()
         self.game_state.states.update(game_state.states)
-
+        pprint(self.game_state.action_results)
         return self.game_state
 
     """

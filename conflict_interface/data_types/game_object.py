@@ -4,6 +4,7 @@ from dataclasses import is_dataclass
 from dataclasses import MISSING as DATACLASS_MISSING
 
 from enum import Enum
+from pprint import pprint
 from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union, TypeVar, Type
 from typing import get_type_hints
 from datetime import UTC
@@ -355,6 +356,7 @@ def dump_dataclass(obj: object) -> dict[str , Any]:
         mapping = type(obj).get_mapping()
     else:
         mapping = getattr(type(obj), "MAPPING")
+    print(issubclass(type(obj), GameObject), type(obj), mapping)
 
     for python_var_name, conflict_var_name in mapping.items():
         json_obj[conflict_var_name] = dump_any(getattr(obj, python_var_name))

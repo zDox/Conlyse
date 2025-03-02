@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from conflict_interface.data_types.game_object import GameObject
 
-class Action:
+
+class Action(GameObject):
     language = "en"
     action_request_id = ""
 

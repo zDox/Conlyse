@@ -170,6 +170,7 @@ class GameApi:
             "userAuth": self.auth.auth,
             "lastCallDuration": 0,
         }
+        print(dumps(data, indent=2))
         self.request_id += 1
         response = self.session.post(self.game_server_address,
                                      headers=headers,

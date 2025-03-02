@@ -11,8 +11,8 @@ class MoraleFactors(GameObject):
     max_morale: int
     day_distance: Optional[float]
     building_influence: Optional[HashMap[str, int]]
-    war_countries: int
-    war_influence: int
+    war_countries: Optional[int]
+    war_influence: Optional[int]
     capital_distance_influence: Optional[int]
     neighbour_influence: Optional[int]
     enemy_neighbour_influence: Optional[int]

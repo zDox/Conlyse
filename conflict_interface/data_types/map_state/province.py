@@ -274,6 +274,8 @@ class Province(GameObject):
                 slot=0,
                 upgrade=upgrade,
             ))
+        elif upgrade is None:
+            raise ActionException(f"Upgrade None cannot be built in Province {self.province_id}.")
         else:
             raise ActionException(f"Upgrade {upgrade.id} is not available for province {self.province_id}.")
 

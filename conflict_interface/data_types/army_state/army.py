@@ -127,12 +127,12 @@ class Army(GameObject):
         token_feature: How the army consumes tokens on mobilization.
     """
     C = "a"
-    patrol_radius: int
     next_attack_time: Optional[DateTimeMillisecondsInt]
     estimated_arrival_time: Optional[DateTimeMillisecondsInt]
     spy_reveal_time: Optional[DateTimeMillisecondsInt]
     last_damage_taken_time: Optional[DateTimeMillisecondsInt]
 
+    patrol_radius: int = -1
     id: int = None
     size: int = 1
     health: float = 1.0
