@@ -356,7 +356,6 @@ def dump_dataclass(obj: object) -> dict[str , Any]:
         mapping = type(obj).get_mapping()
     else:
         mapping = getattr(type(obj), "MAPPING")
-    print(issubclass(type(obj), GameObject), type(obj), mapping)
 
     for python_var_name, conflict_var_name in mapping.items():
         json_obj[conflict_var_name] = dump_any(getattr(obj, python_var_name))
