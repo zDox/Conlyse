@@ -2,20 +2,21 @@ Army State
 ===================================================
 
 .. automodule:: conflict_interface.data_types.army_state.army_state
-   :members:
-   :show-inheritance:
-   :undoc-members:
-   :noindex:
+    :members:
 
 
 Army State Data Types
-=====================
+---------------------
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
+
     conflict_interface.data_types.army_state.army
     conflict_interface.data_types.army_state.unit
 
 Army State Actions
-==================
+------------------
+.. toctree::
+    :maxdepth: 1
+
     conflict_interface.data_types.army_state.army_action
 

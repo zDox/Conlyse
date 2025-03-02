@@ -11,8 +11,5 @@ class ArmyAction(Action):
     armies: LinkedList[Army]
 
     MAPPING = {
-        **Action.MAPPING,
         "armies": "armies",
-        "action_request_id": "requestID",
-        "language": "language"
     }

@@ -190,14 +190,57 @@ class Province(GameObject):
             self._properties = self.game.game_state.states.map_state.properties.get(self.province_id)
             return self._properties
 
+    def get_possible_upgrade(self, **filters) -> ModableUpgrade | None:
+        """
+        Return the first upgrade that matches the given filters.
+        """
+        if not self.is_owner():
+            return None
+        else:
+            upgrades = self.get_possible_upgrades(**filters)
+            if upgrades:
+                return upgrades[0]
+            else:
+                return None
+
     def get_possible_upgrades(self, **filters) -> list[ModableUpgrade]:
+        """
+        Returns the list of possible upgrades that match the specified filters for the
+        current object if the user is an owner. If the user is not an owner, an empty
+        list is returned.
+
+        Arguments:
+            **filters: Arbitrary keyword arguments representing filtering criteria
+                       where the key is the attribute of a possible upgrade and the
+                       value is the expected value for the filtering.
+
+        Returns:
+            list[ModableUpgrade]: A list of upgrades that match the filter criteria, or
+                                  an empty list if the user is not the owner.
+        """
         if not self.is_owner():
             return []
         else:
             return [mu for mu in self.properties.possible_upgrades
                     if all(getattr(mu, key) == value for key, value in filters.items())]
 
-    def get_possible_productions(self, **filters) -> list[ModableUpgrade]:
+    def get_possible_productions(self, **filters) -> list[SpecialUnit]:
+        """
+        Gets a filtered list of possible productions based on the provided filters.
+
+        If the instance is not owned, an empty list is returned.
+
+        Parameters:
+            filters: Arbitrary keyword arguments used as filters. The filters
+                     must match the attributes of `SpecialUnit`. Each key-value
+                     pair in the filters represents the attribute name and the desired
+                     value for filtering.
+
+        Returns:
+            list[SpecialUnit]: A list of `SpecialUnit` objects that match
+            the given filters. Returns an empty list if the instance is not
+            owned or if no items match the filters.
+        """
         if not self.is_owner():
             return []
         else:
@@ -206,7 +249,24 @@ class Province(GameObject):
 
     @requires_ownership
     def build_upgrade(self, upgrade: ModableUpgrade):
-        self.check_ownership()
+        """
+        Applies an upgrade to a province if the upgrade is available in the
+        current province's list of possible upgrades.
+
+        This method checks if the given upgrade is among the possible upgrades
+        for the current province and applies it using the game's update action.
+        If the upgrade is not available, an exception is raised.
+
+        @requires_ownership Decorator to ensure that the caller has ownership
+        rights over the province before executing the method.
+
+        Args:
+            upgrade (ModableUpgrade): The upgrade intended to be built in the province.
+
+        Raises:
+            ActionException: When the specified upgrade is not available for
+            the province.
+        """
         if upgrade in self.properties.possible_upgrades:
             self.game.do_action(UpdateProvinceAction(
                 province_ids=Vector([self.province_id]),
@@ -219,7 +279,13 @@ class Province(GameObject):
 
     @requires_ownership
     def cancel_construction(self):
-        self.check_ownership()
+        """
+        Cancels the ongoing construction of a building in the given province. If no production is currently
+        associated with the province, the method will log a warning and take no further action.
+
+        @requires_ownership Decorator to ensure that the caller has ownership
+        rights over the province before executing the method.
+        """
         if self.production is None:
             logger.warning(f"Trying to cancel construction but Province {self.province_id} has no production.")
             return
@@ -231,18 +297,40 @@ class Province(GameObject):
         ))
 
     @requires_ownership
-    def cancel_mobilization(self, province_id):
-        self.check_ownership()
+    def cancel_mobilization(self):
+        """
+        Cancels the mobilization process for a specific province. This function ensures
+        that any ongoing production or mobilization in the specified province is
+        terminated.
+
+        @requires_ownership Decorator to ensure that the caller has ownership
+        rights over the province before executing the method.
+        """
         # TODO Check if province is mobilizing something
         self.game.do_action(UpdateProvinceAction(
-            province_ids=Vector([province_id]),
+            province_ids=Vector([self.province_id]),
             mode=UpdateProvinceActionModes.CANCEL_PRODUCING,
             slot=0,
         ))
 
     @requires_ownership
     def mobilize_unit(self, unit: SpecialUnit):
-        self.check_ownership()
+        """
+            Mobilizes a specific unit in this province.
+
+            This method checks if the provided unit is available for production in the province.
+
+
+            @requires_ownership Decorator to ensure that the caller has ownership
+            rights over the province before executing the method.
+
+            Parameters:
+                unit (SpecialUnit): The unit to mobilize in this province.
+
+            Raises:
+                ActionException: Indicates that the specified unit is not available
+                for deployment in the province.
+        """
         if unit in self.properties.possible_productions:
             self.game.do_action(UpdateProvinceAction(
                 province_ids=Vector([self.province_id]),

@@ -16,6 +16,6 @@ if __name__ == "__main__":
     city = next(iter(game.get_my_provinces(name="Madrid").values()))
     pprint(city)
     arms_lvl_1 = game.get_upgrade_type_by_name_and_tier('Arms Industry', 1)
-    modable_upgrade = city.get_possible_upgrades(id=arms_lvl_1.id)[0]
+    modable_upgrade = city.get_possible_upgrade(id=arms_lvl_1.id)
     city.build_upgrade(modable_upgrade)
     game.update()
