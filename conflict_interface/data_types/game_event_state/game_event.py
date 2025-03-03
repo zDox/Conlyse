@@ -10,7 +10,7 @@ from conflict_interface.data_types.game_event_state.sender import Sender
 
 
 @dataclass
-class GameEvent:
+class GameEvent(GameObject):
     filter_id: int
     sender_id: int
     produce_push_notification: bool
@@ -54,7 +54,6 @@ class ProvinceLostEvent(GameEvent):
     capital: bool
 
     MAPPING = {
-        **GameEvent.MAPPING,
         "province_id": "provinceID",
         "capital": "capital",
     }
@@ -66,7 +65,6 @@ class ProvinceEnteredEvent(GameEvent):
     province_id: int
 
     MAPPING = {
-        **GameEvent.MAPPING,
         "entering_army": "enteringArmy",
         "province_id": "provinceID",
     }
@@ -82,7 +80,6 @@ class ArmyDamageDealtEvent(GameEvent):
     location_id: int
 
     MAPPING = {
-        **GameEvent.MAPPING,
         "attacking_army_name": "attackingArmyName",
         "defending_army_name": "defendingArmyName",
         "attacking_army_id": "attackingArmyID",
@@ -100,7 +97,6 @@ class MilitaryExperienceGainedEvent(GameEvent):
 
 
     MAPPING = {
-        **GameEvent.MAPPING,
         "xp": "xp",
         "unit_type_id": "unitTypeID",
         "amount": "amount",
@@ -118,7 +114,6 @@ class ArmyDestroyedEvent(GameEvent):
     location_id: int
 
     MAPPING = {
-        **GameEvent.MAPPING,
         "win": "win",
         "enemy_army_name": "enemyArmyName",
         "army_id": "armyID",
