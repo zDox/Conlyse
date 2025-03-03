@@ -1,7 +1,5 @@
 import enum
 
-from deepdiff import DeepDiff
-
 
 def compare_dicts(default, changed, max_depth=10):
     """
@@ -197,15 +195,3 @@ def recur_list_value_compare(list1, list2, depth, path, max_depth):
                 good = False
 
     return good
-
-
-def deepdiff(original, changed):
-    diff = DeepDiff(original, changed, ignore_order=True, ignore_numeric_type_changes=True)
-    if "dictionary_item_added" in diff:
-        del diff["dictionary_item_added"]
-    if diff != {}:
-        if "values_changed" in diff:
-            for key, value in diff["values_changed"].items():
-                diff_ = DeepDiff(value["old_value"],value["new_value"], ignore_order=True, ignore_numeric_type_changes=True)
-                print(f"Difference in key {key}: {diff_}")
-    return diff
