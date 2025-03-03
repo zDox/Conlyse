@@ -1,11 +1,8 @@
 import logging
-from time import sleep
 
-from conflict_interface.data_types import ModableUpgrade
 from conflict_interface import HubInterface
 
 import creds
-from pprint import pprint
 
 from conflict_interface.logger_config import setup_library_logger
 
