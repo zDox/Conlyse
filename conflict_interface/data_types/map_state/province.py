@@ -288,9 +288,11 @@ class Province(GameObject):
         @requires_ownership Decorator to ensure that the caller has ownership
         rights over the province before executing the method.
         """
+        """
         if self.production is None:
             logger.warning(f"Trying to cancel construction but Province {self.province_id} has no production.")
             return
+        """
 
         self.game.do_action(UpdateProvinceAction(
             province_ids=Vector([self.province_id]),

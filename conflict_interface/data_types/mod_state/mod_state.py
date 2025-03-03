@@ -80,7 +80,7 @@ class ModState(State):
     astar_config: AStarConfig
     noob_bonus_config: NoobBonusConfig
     frontend_config: ModStateFrontendConfig
-    rank_cache: RankCache
+    rank_cache: Optional[RankCache]
     mission_types: HashMap[int, MissionType]
     token_types: HashMap[int, TokenType]
     rank_types: HashMap[int, RankType]

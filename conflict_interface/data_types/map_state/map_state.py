@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Optional
 from typing import Union
 
 from .sea_province import SeaProvince
@@ -52,7 +53,7 @@ class Map(GameObject):
     use_population: bool
     use_minimal_localization: bool
     localized_player_profiles: bool
-    regions: HashMap[RegionType, Region]
+    regions: Optional[HashMap[RegionType, Region]]
     overlap_x: int
     locations: HashSet[Union[Province, SeaProvince]]
     population_factor: int

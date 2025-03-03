@@ -179,4 +179,6 @@ class GameState(State):
             return None, None
         return state_ids, time_stamps
 
-
+    def update(self, new_state: "GameState"):
+        self.action_results = new_state.action_results
+        self.states.update(new_state.states)
