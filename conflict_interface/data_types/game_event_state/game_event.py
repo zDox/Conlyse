@@ -3,7 +3,6 @@ from typing import Optional
 
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.army_state.army import Army
-from conflict_interface.data_types.army_state.army_action import ArmyAction
 from conflict_interface.data_types.custom_types import ArraysArrayList
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_event_state.sender import Sender
@@ -127,4 +126,183 @@ class NewspaperArticleEvent(GameEvent):
     C = "ultshared.gameevents.UltNewspaperArticleGameEvent"
     pass
 
+@dataclass
+class ArmyAttackedEvent(GameEvent):
+    C = "ultshared.gameevents.UltArmyAttackedGameEvent"
+    pass
+
+@dataclass
+class AirCrashEvent(GameEvent):
+    C = "ultshared.gameevents.UltAirCrashGameEvent"
+    pass
+
+@dataclass
+class MessageReceivedEvent(GameEvent):
+    C = "ultshared.gameevents.UltMessageReceivedGameEvent"
+    pass
+
+@dataclass
+class ProvinceWonEvent(GameEvent):
+    C = "ultshared.gameevents.UltProvinceWonGameEvent"
+    pass
+
+@dataclass
+class RelationChangeEvent(GameEvent):
+    C = "ultshared.gameevents.UltRelationChangeGameEvent"
+    pass
+
+@dataclass
+class ResourceShortageEvent(GameEvent):
+    C = "ultshared.gameevents.UltResourceShortageGameEvent"
+    pass
+
+@dataclass
+class SpyInfoEvent(GameEvent):
+    C = "ultshared.gameevents.UltSpyInfoGameEvent"
+    pass
+
+@dataclass
+class TradeOfferEvent(GameEvent):
+    C = "ultshared.gameevents.UltTradeOfferGameEvent"
+    pass
+
+@dataclass
+class TradeProcessedEvent(GameEvent):
+    C = "ultshared.gameevents.UltTradeProcessedGameEvent"
+    pass
+
+@dataclass
+class UnitProducedEvent(GameEvent):
+    C = "ultshared.gameevents.UltUnitProducedGameEvent"
+    pass
+
+@dataclass
+class UnitTrainedEvent(GameEvent):
+    C = "ultshared.gameevents.UltUnitTrainedGameEvent"
+    pass
+
+@dataclass
+class UpgradeBuiltEvent(GameEvent):
+    C = "ultshared.gameevents.UltUpgradeBuiltGameEvent"
+    pass
+
+@dataclass
+class WarDeclaredEvent(GameEvent):
+    C = "ultshared.gameevents.UltWarDeclaredGameEvent"
+    pass
+
+@dataclass
+class ResearchCompletedEvent(GameEvent):
+    C = "ultshared.gameevents.UltResearchCompletedGameEvent"
+    pass
+
+@dataclass
+class ResourcesLootedEvent(GameEvent):
+    C = "ultshared.gameevents.UltResourcesLootedGameEvent"
+    pass
+
+@dataclass
+class ResourcesLostEvent(GameEvent):
+    C = "ultshared.gameevents.UltResourcesLostGameEvent"
+    pass
+
+@dataclass
+class ArmyDamageReceivedEvent(GameEvent):
+    C = "ultshared.gameevents.UltArmyDamageReceivedGameEvent"
+    pass
+
+@dataclass
+class ProvinceDamageReceivedEvent(GameEvent):
+    C = "ultshared.gameevents.UltProvinceDamageReceivedGameEvent"
+    pass
+
+@dataclass
+class OwnAllianceMembershipEvent(GameEvent):
+    C = "ultshared.gameevents.UltOwnAllianceMembershipEvent"
+    pass
+
+@dataclass
+class OtherAllianceMembershipEvent(GameEvent):
+    C = "ultshared.gameevents.UltOtherAllianceMembershipEvent"
+    pass
+
+@dataclass
+class MissileMissedTargetEvent(GameEvent):
+    C = "ultshared.gameevents.UltMissileMissedTargetGameEvent"
+    pass
+
+@dataclass
+class PatrolCancelledEvent(GameEvent):
+    C = "ultshared.gameevents.UltPatrolCancelledGameEvent"
+    pass
+
+@dataclass
+class AircraftRebaseEvent(GameEvent):
+    C = "ultshared.gameevents.UltAircraftRebaseGameEvent"
+    pass
+
+@dataclass
+class PremiumSpyCatchEvent(GameEvent):
+    C = "ultshared.gameevents.UltPremiumSpyCatchGameEvent"
+    pass
+
+@dataclass
+class PremiumSpyCorruptionMissionEvent(GameEvent):
+    C = "ultshared.gameevents.UltPremiumSpyCorruptionMissionGameEvent"
+    pass
+
+@dataclass
+class PremiumSpySabotageMissionEvent(GameEvent):
+    C = "ultshared.gameevents.UltPremiumSpySabotageMissionGameEvent"
+    pass
+
+@dataclass
+class PremiumSpyDamageUpgradeEvent(GameEvent):
+    C = "ultshared.gameevents.UltPremiumSpyDamageUpgradeGameEvent"
+    pass
+
+@dataclass
+class PremiumSpyDecreaseMoralEvent(GameEvent):
+    C = "ultshared.gameevents.UltPremiumSpyDecreaseMoralGameEvent"
+    pass
+
+@dataclass
+class PremiumSpyDestroyResourceEvent(GameEvent):
+    C = "ultshared.gameevents.UltPremiumSpyDestroyResourceGameEvent"
+    pass
+
+@dataclass
+class UpgradeDemolishedEvent(GameEvent):
+    C = "ultshared.gameevents.UltUpgradeDemolishedGameEvent"
+    pass
+
+@dataclass
+class ArmyDisbandedEvent(GameEvent):
+    C = "ultshared.gameevents.UltArmyDisbandedGameEvent"
+    pass
+
+@dataclass
+class UnitsExpiredEvent(GameEvent):
+    C = "ultshared.gameevents.UltUnitsExpiredGameEvent"
+    pass
+
+@dataclass
+class NuclearImpactEvent(GameEvent):
+    C = "ultshared.gameevents.UltNuclearImpactGameEvent"
+    pass
+
+@dataclass
+class QuestDoneEvent(GameEvent):
+    C = "ultshared.gameevents.UltQuestDoneGameEvent"
+    pass
+
+@dataclass
+class CoalitionMessageEvent(GameEvent):
+    C = "ultshared.gameevents.UltCoalitionMessageGameEvent"
+    pass
+
+@dataclass
+class MissionEvent(GameEvent):
+    C = "ultshared.gameevents.UltMissionGameEvent"
+    pass
 

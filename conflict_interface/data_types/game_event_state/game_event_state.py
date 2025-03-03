@@ -12,7 +12,18 @@ class GameEventState(State):
     STATE_TYPE = 24
     game_events: ArrayList[Union[
         ProvinceEnteredEvent, ProvinceLostEvent, NewspaperArticleEvent,
-        ArmyDestroyedEvent, ArmyDamageDealtEvent, MilitaryExperienceGainedEvent
+        ArmyDestroyedEvent, ArmyDamageDealtEvent, MilitaryExperienceGainedEvent,
+        ArmyAttackedEvent, AirCrashEvent,  MessageReceivedEvent, ProvinceWonEvent,
+        RelationChangeEvent, ResourceShortageEvent, SpyInfoEvent,
+        TradeOfferEvent, TradeProcessedEvent, UnitProducedEvent, UnitTrainedEvent,
+        UnitTrainedEvent, UpgradeBuiltEvent, WarDeclaredEvent, ResearchCompletedEvent,
+        ResourcesLootedEvent, ResourcesLostEvent, ArmyDamageReceivedEvent,
+        ProvinceDamageReceivedEvent, OwnAllianceMembershipEvent, OtherAllianceMembershipEvent,
+        MissileMissedTargetEvent, PatrolCancelledEvent, AircraftRebaseEvent,
+        PremiumSpyCatchEvent, PremiumSpyCorruptionMissionEvent, PremiumSpyDamageUpgradeEvent,
+        PremiumSpyDecreaseMoralEvent, PremiumSpyDestroyResourceEvent, UpgradeDemolishedEvent,
+        ArmyDisbandedEvent, UnitsExpiredEvent, NuclearImpactEvent, QuestDoneEvent,
+        CoalitionMessageEvent, MissionEvent
     ]]
     MAPPING = {
         "game_events": "gameEvents",
