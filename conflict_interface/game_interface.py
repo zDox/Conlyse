@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from functools import wraps
-from pprint import pprint
 from typing import Any
 
 from requests import Session
@@ -14,13 +13,16 @@ from .data_types.action import Action
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
 from .data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
+from .data_types.game_api_types.login_action import LoginAction
 from .data_types.game_object import parse_game_object
 from .data_types.game_state import GameState
-from .data_types.map_state import Province, ProvinceStateID
+from .data_types.map_state import Province
+from .data_types import ProvinceStateID
 from .data_types.mod_state import UnitType
 from .data_types import UpgradeType
 from .data_types.newspaper_state.article import Article
 from .data_types.player_state import PlayerProfile
+from .data_types.research_state.research_type import ResearchType
 from .data_types.resource_state import ResourceProfile, ResourceEntry
 from .data_types.static_map_data import StaticMapData
 from .game_api import GameApi
@@ -90,7 +92,10 @@ class GameInterface:
                     random_team_country_selection=False,
                 )
                 logger.debug(f"Loading game with player id: {self.player_id}")
-                self.game_state = self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+                login_action: LoginAction = DEFAULT_LOGIN_ACTION
+                login_action.system_information.client_version = self.game_api.client_version
+                login_action.system_information.os_name = self.game_api.device_details.os
+                self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
@@ -123,7 +128,7 @@ class GameInterface:
             None
         """
         self.player_id = self.action_handler.activate_game(country_id, team_id, random_country_team)
-        self.game_state = self.action_handler.que_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+        self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
 
     def update(self) -> GameState:
         """
@@ -136,8 +141,7 @@ class GameInterface:
         """
         # Execute any queued actions
         game_state: GameState = self.action_handler.create_game_state_action()
-        self.game_state.states.update(game_state.states)
-        pprint(self.game_state.action_results)
+        self.game_state.update(game_state)
         return self.game_state
 
     """
@@ -157,6 +161,10 @@ class GameInterface:
         """
         return self.game_api.client_time(self.game_state.states.game_info_state.time_scale)
 
+    """
+    ActionHandler related functions
+    """
+
     def do_action(self,action: Action, execute_immediately=False):
         """
         Uses the action handler to execute an action immediately or queue it for later.
@@ -168,11 +176,18 @@ class GameInterface:
         :returns: The response from the server
         """
         if execute_immediately:
-            return self.action_handler.immediate_action(action)
+            game_state, action_uid = self.action_handler.immediate_action(action)
+            if self.game_state:
+                self.game_state.update(game_state)
+            else:
+                self.game_state = game_state
+            return action_uid
         else:
             return self.action_handler.que_action(action)
 
 
+    def get_action_results(self) -> dict[int, int]:
+        return self.action_handler.get_action_results()
 
     """
     PlayerState(1)
@@ -323,6 +338,11 @@ class GameInterface:
 
     def get_unit_types(self, **filters) -> dict[int, UnitType]:
         return {unit_type_id: unit_type
-                for unit_type_id, unit_type in self.game_state.states.mod_state.unit_types.items()
+                for unit_type_id, unit_type in self.game_state.states.mod_state.all_unit_types.items()
                 if all(getattr(unit_type, key, None) == value for key, value in filters.items())}
 
+    def get_unit_type_by_name_and_tier(self, name, tier):
+        pass
+
+    def get_research_type(self, research_id) -> ResearchType | None:
+        return self.game_state.states.mod_state.research_types.get(research_id)

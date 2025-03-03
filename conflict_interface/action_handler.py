@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from pprint import pprint
 from typing import TYPE_CHECKING
 
 from conflict_interface.data_types import GameState
@@ -13,6 +12,7 @@ from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.data_types.game_object import parse_game_object
 from conflict_interface.game_api import GameApi
 from conflict_interface.logger_config import get_logger
+from conflict_interface.utils.bidict import Bidict
 from conflict_interface.utils.exceptions import GameActivationException
 
 if TYPE_CHECKING:
@@ -38,22 +38,31 @@ class ActionHandler:
 
     The class also has a que_action method to add actions to the que
 
-    :ivar actions: A linked list of minor actions to be executed (the que)
+    :ivar queue: A list of minor actions to be executed (the que)
     :ivar action_request_id: The current action request id it is incremented for each action needed for the req
     :ivar game_api: Reference to the game api
     :ivar game: Reference to the game interface
     :ivar language: The language of the game / the requests
     :ivar game_state: Reference to the current game state if available
+    :ivar action_counter: Counter for the number of actions queued or executed immedeatily. Used for later
+                            determining the action result.
+    :ivar action_request_id_to_action_uid: A bidirectional mapping between unique action IDs and their corresponding action request IDs.
     """
+
     def __init__(self, game: GameInterface):
-        self.actions: LinkedList[Action] = LinkedList()
+        self.queue: list[tuple[int, Action]] = []
+        self.past_actions: list[tuple[int, Action]] = []
         self.action_request_id = 0
         self.game_api: GameApi = game.get_api()
         self.game = game
         self.language = "en"  # TODO: Make this dynamic
         self.game_state: GameState | None= None
+        self.action_counter = 0
+        self.action_request_id_to_action_uid: Bidict[str, int] = Bidict()
+        self.action_results: dict[int, int] = {}
 
-    def que_action(self, action: Action):
+
+    def que_action(self, action: Action) -> int:
         """
         Add a minor action to the action que
 
@@ -68,10 +77,12 @@ class ActionHandler:
             raise ValueError(f"GameStateAction {action} should not be added to the que but executed directly")
         if isinstance(action, GameActivationAction):
             raise ValueError(f"GameActivationAction {action} should not be added to the que but executed directly")
+        action_uid = self.action_counter
+        self.queue.append((action_uid, action))
+        self.action_counter += 1
+        return action_uid
 
-        self.actions.append(action)
-
-    def immediate_action(self, action: Action):
+    def immediate_action(self, action: Action) -> tuple[GameState, int]:
         """
         Execute a minor action immediately
         this is done by creating a game state action with only the provided action and executing it
@@ -88,7 +99,9 @@ class ActionHandler:
         if isinstance(action, GameActivationAction):
             raise ValueError(f"GameActivationAction {action} should not be added to the que but executed directly")
 
-        return self.create_game_state_action(use_queue=False, custom_actions=LinkedList([action]))
+        action_uid = self.action_counter
+        self.action_counter += 1
+        return self.create_game_state_action(use_queue=False, custom_actions=[(action_uid, action)]), action_uid
 
     def execute_action(self, action):
         """
@@ -110,7 +123,7 @@ class ActionHandler:
         json_action = dump_any(action)
         return self.game_api.make_game_server_request(json_action)
 
-    def create_game_state_action(self, use_queue: bool=True, custom_actions: LinkedList=None) -> GameState:
+    def create_game_state_action(self, use_queue: bool=True, custom_actions: list[tuple[int, Action]]=None) -> GameState:
         """
         Create a game state action and execute it
         This is used to send multiple minor actions in one request
@@ -126,20 +139,25 @@ class ActionHandler:
 
         :return: The response game state object
         """
-        if custom_actions is not None and not isinstance(custom_actions, LinkedList):
-            raise ValueError(f"custom_actions must be a LinkedList, not {type(custom_actions)}")
+        if custom_actions is not None and not isinstance(custom_actions, list):
+            raise ValueError(f"custom_actions must be a list, not {type(custom_actions)}")
 
         if use_queue:
-            actions = self.actions
+            actions_list = self.queue
+            self.queue = []
         else:
             if custom_actions is None:
-                actions = LinkedList()
+                actions_list = []
             else:
-                actions = custom_actions
+                actions_list = custom_actions
+        self.past_actions = actions_list
 
-        for action in actions:
+        actions = LinkedList()
+        for (action_uid, action) in actions_list:
             action.action_request_id = "actionReq-" + str(self.action_request_id)
             action.language = self.language
+            actions.append(action)
+            self.action_request_id_to_action_uid[action.action_request_id] =  action_uid
             self.action_request_id += 1
 
         if self.game_state is not None:
@@ -158,6 +176,17 @@ class ActionHandler:
         )
         response_json = self.execute_action(game_state_action)
         self.game_state = parse_game_object(GameState, response_json["result"], self.game)
+
+        # Set the action results
+        for action_request_id, action_result in self.game_state.action_results.items():
+            action_uid = self.action_request_id_to_action_uid[action_request_id]
+            action_uid = int(action_uid)
+            self.action_results[action_uid] = action_result
+
+        if logger.isEnabledFor(logging.DEBUG):
+            action_result_names = [f"{type(action).__name__}: {self.get_action_results().get(action_uid)}"
+                                   for action_uid, action in self.past_actions]
+            logger.debug(f"Action results of last GameState: {','.join(action_result_names) if len(action_result_names) > 0 else 'None'}")
         return self.game_state
 
     def activate_game(self, os, device, selected_player_id=0, selected_team_id=0,
@@ -186,3 +215,6 @@ class ActionHandler:
             pass
         self.game_api.player_id = response_json["result"]
         return response_json["result"]
+
+    def get_action_results(self) -> dict[int, int]:
+        return self.action_results

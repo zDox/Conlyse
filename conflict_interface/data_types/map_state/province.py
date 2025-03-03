@@ -1,19 +1,18 @@
 from functools import wraps
 from typing import Optional
 
-
 from dataclasses import dataclass
-from enum import Enum
+
+from conflict_interface.data_types.map_state.province_enums import ProvinceStateID
+from conflict_interface.data_types.map_state.province_enums import ResourceProductionType
+from conflict_interface.data_types.map_state.static_province import StaticProvince
 
 from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.custom_types import ArrayList, Vector
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.custom_types import HashSet
-from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.data_types.common.enums.region_type import RegionType
-from conflict_interface.data_types.resource_state.resource_types import ResourceType
 from conflict_interface.data_types.map_state.terrain_type import TerrainType
 from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceAction
 from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionModes
@@ -28,48 +27,6 @@ from conflict_interface.utils.exceptions import ActionException
 
 logger = get_logger()
 
-class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
-    """
-    Enumeration for representing different types of administrative areas.
-
-    Attributes:
-        OCCUPIED_PROVINCE: Represents a province under occupation.
-        MAINLAND_PROVINCE: Represents a province within the mainland.
-        OCCUPIED_CITY: Represents a city under occupation.
-        ANNEXED_CITY: Represents a city annexed to a different territory.
-        MAINLAND_CITY: Represents a city within the mainland.
-    """
-    NONE = 0
-    OCCUPIED_PROVINCE = 51
-    MAINLAND_PROVINCE = 52
-    OCCUPIED_CITY = 53
-    ANNEXED_CITY = 54
-    MAINLAND_CITY = 55
-
-
-class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
-    NONE = ResourceType.NONE.value + 1
-    SUPPLY = ResourceType.SUPPLY.value + 1
-    COMPONENT = ResourceType.COMPONENT.value + 1
-    MANPOWER = ResourceType.MANPOWER.value + 1
-    RARE_MATERIAL = ResourceType.RARE_MATERIAL.value + 1
-    FUEL = ResourceType.FUEL.value + 1
-    ELECTRONIC = ResourceType.ELECTRONIC.value + 1
-    CONVENTIONAL_WARHEAD = ResourceType.CONVENTIONAL_WARHEAD.value + 1
-    CHEMICAL_WARHEAD = ResourceType.CHEMICAL_WARHEAD.value + 1
-    NUCLEAR_WARHEAD = ResourceType.NUCLEAR_WARHEAD.value + 1
-    DEPLOYABLE_GEAR = ResourceType.DEPLOYABLE_GEAR.value + 1
-    MONEY = ResourceType.MONEY.value + 1
-    CITY_CLAIM = ResourceType.CITY_CLAIM.value + 1
-    PHARMACEUTICAL = ResourceType.PHARMACEUTICAL.value + 1
-
-    def to_py(self, type):
-        if type != ResourceType:
-            raise ValueError(f"type ({type}) must be ResourceType")
-        if self.value == 0:
-            return ResourceType(0)
-        return ResourceType(self.value-1)
-
 
 def requires_ownership(func):
     """Decorator to ensure certain methods are executed only if ownership is verified."""
@@ -80,7 +37,6 @@ def requires_ownership(func):
             return func(self, *args, **kwargs)
         else:
             raise ActionException(f"Current player does not own province {self.province_id}. Action denied.")
-
 
     return wrapper
 
@@ -134,7 +90,6 @@ class Province(GameObject):
     last_battle: Optional[int]
     impacts: Optional[ArrayList[Impact]]
 
-
     production: Optional[ProvinceProduction]
     productions: Optional[ProductionList[ProvinceProduction]]
 
@@ -169,8 +124,8 @@ class Province(GameObject):
         "last_battle": "lb",
         "impacts": "ims",
         "costal": "co",
-        "production": "bi", # TODO why the fuck bi??
-        "productions": "cos" # TODO what the heck cos??
+        "production": "bi",  # TODO why the fuck bi??
+        "productions": "cos"  # TODO what the heck cos??
 
     }
 
@@ -224,6 +179,118 @@ class Province(GameObject):
             return [mu for mu in self.properties.possible_upgrades
                     if all(getattr(mu, key) == value for key, value in filters.items())]
 
+    @requires_ownership
+    def is_upgrade_buildable(self, upgrade: ModableUpgrade) -> bool:
+        """
+        Determine if an upgrade can be built in the current province.
+
+        Args:
+            upgrade (ModableUpgrade): The upgrade to check.
+
+        Returns:
+            bool: True if the upgrade can be built, False otherwise.
+        """
+        # TODO Check if player has necessary resources
+        slot_0 = self.productions[0]
+        if slot_0 is not None:
+            return False
+        elif upgrade is None:
+            return False
+        elif upgrade not in self.properties.possible_upgrades:
+            return False
+        return True
+
+    @requires_ownership
+    def build_upgrade(self, upgrade: ModableUpgrade):
+        """
+        Applies an upgrade to a province if the upgrade is available in the
+        current province's list of possible upgrades.
+
+        This method checks if the given upgrade is among the possible upgrades
+        for the current province and applies it using the game's update action.
+        If the upgrade is not available, an exception is raised.
+
+        @requires_ownership Decorator to ensure that the caller has ownership
+        rights over the province before executing the method.
+
+        Args:
+            upgrade (ModableUpgrade): The upgrade intended to be built in the province.
+
+        Raises:
+            ActionException: When the specified upgrade is not available for
+            the province.
+        """
+        slot_0 = self.productions[0]
+        if slot_0 is not None:
+            raise ActionException(f"Province {self.province_id} is already building {slot_0.upgrade.id}.")
+
+        if upgrade is None:
+            raise ActionException(f"Upgrade None cannot be built in Province {self.province_id}.")
+        elif upgrade in self.properties.possible_upgrades:
+            self.game.do_action(UpdateProvinceAction(
+                province_ids=Vector([self.province_id]),
+                mode=UpdateProvinceActionModes.UPGRADE,
+                slot=0,
+                upgrade=upgrade,
+            ))
+        else:
+            raise ActionException(f"Upgrade {upgrade.id} is not available for province {self.province_id}.")
+
+    @requires_ownership
+    def cancel_construction(self):
+        """
+        Cancels the ongoing construction of a building in the given province. If no production is currently
+        associated with the province, the method will log a warning and take no further action.
+
+        @requires_ownership Decorator to ensure that the caller has ownership
+        rights over the province before executing the method.
+        """
+        """
+        if self.production is None:
+            logger.warning(f"Trying to cancel construction but Province {self.province_id} has no production.")
+            return
+        """
+
+        self.game.do_action(UpdateProvinceAction(
+            province_ids=Vector([self.province_id]),
+            mode=UpdateProvinceActionModes.CANCEL_BUILDING,
+            slot=0
+        ))
+
+    @requires_ownership
+    def is_unit_mobilizable(self, unit: SpecialUnit) -> bool:
+        """
+        Determine if an upgrade can be built in the current province.
+
+        Args:
+            unit (SpecialUnit): The upgrade to check.
+
+        Returns:
+            bool: True if the upgrade can be built, False otherwise.
+        """
+        # TODO Check if player has necessary resources
+        slot_0 = self.productions[3]
+        if slot_0 is not None:
+            return False
+        elif unit is None:
+            return False
+        elif unit not in self.properties.possible_productions:
+            return False
+        return True
+
+    def get_possible_production(self, **filters) -> SpecialUnit | None:
+        """
+        Return the first unit that matches the given filters.
+        """
+        if not self.is_owner():
+            return None
+        else:
+            productions = self.get_possible_productions(**filters)
+            if productions:
+                return productions[0]
+            else:
+                return None
+
     def get_possible_productions(self, **filters) -> list[SpecialUnit]:
         """
         Gets a filtered list of possible productions based on the provided filters.
@@ -248,74 +315,6 @@ class Province(GameObject):
                     if all(getattr(mu, key) == value for key, value in filters.items())]
 
     @requires_ownership
-    def build_upgrade(self, upgrade: ModableUpgrade):
-        """
-        Applies an upgrade to a province if the upgrade is available in the
-        current province's list of possible upgrades.
-
-        This method checks if the given upgrade is among the possible upgrades
-        for the current province and applies it using the game's update action.
-        If the upgrade is not available, an exception is raised.
-
-        @requires_ownership Decorator to ensure that the caller has ownership
-        rights over the province before executing the method.
-
-        Args:
-            upgrade (ModableUpgrade): The upgrade intended to be built in the province.
-
-        Raises:
-            ActionException: When the specified upgrade is not available for
-            the province.
-        """
-        if upgrade in self.properties.possible_upgrades:
-            self.game.do_action(UpdateProvinceAction(
-                province_ids=Vector([self.province_id]),
-                mode=UpdateProvinceActionModes.UPGRADE,
-                slot=0,
-                upgrade=upgrade,
-            ))
-        elif upgrade is None:
-            raise ActionException(f"Upgrade None cannot be built in Province {self.province_id}.")
-        else:
-            raise ActionException(f"Upgrade {upgrade.id} is not available for province {self.province_id}.")
-
-    @requires_ownership
-    def cancel_construction(self):
-        """
-        Cancels the ongoing construction of a building in the given province. If no production is currently
-        associated with the province, the method will log a warning and take no further action.
-
-        @requires_ownership Decorator to ensure that the caller has ownership
-        rights over the province before executing the method.
-        """
-        if self.production is None:
-            logger.warning(f"Trying to cancel construction but Province {self.province_id} has no production.")
-            return
-
-        self.game.do_action(UpdateProvinceAction(
-            province_ids=Vector([self.province_id]),
-            mode=UpdateProvinceActionModes.CANCEL_BUILDING,
-            slot=0
-        ))
-
-    @requires_ownership
-    def cancel_mobilization(self):
-        """
-        Cancels the mobilization process for a specific province. This function ensures
-        that any ongoing production or mobilization in the specified province is
-        terminated.
-
-        @requires_ownership Decorator to ensure that the caller has ownership
-        rights over the province before executing the method.
-        """
-        # TODO Check if province is mobilizing something
-        self.game.do_action(UpdateProvinceAction(
-            province_ids=Vector([self.province_id]),
-            mode=UpdateProvinceActionModes.CANCEL_PRODUCING,
-            slot=0,
-        ))
-
-    @requires_ownership
     def mobilize_unit(self, unit: SpecialUnit):
         """
             Mobilizes a specific unit in this province.
@@ -330,10 +329,14 @@ class Province(GameObject):
                 unit (SpecialUnit): The unit to mobilize in this province.
 
             Raises:
-                ActionException: Indicates that the specified unit is not available
-                for deployment in the province.
+                ActionException:
         """
-        if unit in self.properties.possible_productions:
+        slot_0 = self.productions[3]
+        if slot_0 is not None:
+            raise ActionException(f"Province {self.province_id} is already mobalizing {slot_0.upgrade.id}.")
+        if unit is None:
+            raise ActionException(f"Unit None cannot be mobilized in Province {self.province_id}.")
+        elif unit in self.properties.possible_productions:
             self.game.do_action(UpdateProvinceAction(
                 province_ids=Vector([self.province_id]),
                 mode=UpdateProvinceActionModes.DEPLOYMENT_TARGET,
@@ -343,6 +346,25 @@ class Province(GameObject):
         else:
             raise ActionException(f"Unit {unit.unit.unit_type_id} is not available for province {self.province_id}.")
 
+    @requires_ownership
+    def cancel_mobilization(self):
+        """
+        Cancels the mobilization process for a specific province. This function ensures
+        that any ongoing production or mobilization in the specified province is
+        terminated.
+
+        @requires_ownership Decorator to ensure that the caller has ownership
+        rights over the province before executing the method.
+        """
+        if self.productions[3] is None:
+            logger.warning(f"Trying to cancel mobilization but Province {self.province_id} has no production.")
+            return
+
+        self.game.do_action(UpdateProvinceAction(
+            province_ids=Vector([self.province_id]),
+            mode=UpdateProvinceActionModes.CANCEL_PRODUCING,
+            slot=0,
+        ))
 
     def set_static_province(self, obj):
         for static_field in StaticProvince.__annotations__.keys():
@@ -355,26 +377,3 @@ class Province(GameObject):
 
     def __hash__(self):
         return hash(self.province_id)
-
-@dataclass
-class StaticProvince(GameObject):
-    """
-    Represents a static province within a game context.
-
-    Attributes:
-        id: Unique identifier for the province within the game system.
-        terrain_type: Type of terrain associated with the province.
-        center_coordinate: Geographic center of the province as a point.
-        region: List of regions related to the province.
-    """
-    id: int
-    terrain_type: TerrainType
-    center_coordinate: Point
-    region: list[RegionType] = None
-
-    MAPPING = {
-        "id": "id",
-        "terrain_type": "tt",
-        "center_coordinate": "c",
-        "region": "rg",
-    }
