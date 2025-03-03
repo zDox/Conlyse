@@ -3,7 +3,7 @@ from typing import Optional
 
 from dataclasses import dataclass
 
-from conflict_interface.data_types import ProvinceStateID
+from conflict_interface.data_types.map_state.province_enums import ProvinceStateID
 from conflict_interface.data_types.map_state.province_enums import ResourceProductionType
 from conflict_interface.data_types.map_state.static_province import StaticProvince
 

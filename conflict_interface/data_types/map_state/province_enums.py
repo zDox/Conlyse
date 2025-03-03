@@ -1,25 +1,9 @@
 from enum import Enum
 from enum import Enum
 
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
-from conflict_interface.data_types import ResourceType
 
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
+from conflict_interface.data_types.resource_state.resource_types import ResourceType
+
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
 
 

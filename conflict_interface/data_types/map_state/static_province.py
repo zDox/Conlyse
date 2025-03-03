@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from conflict_interface.data_types import GameObject
-from conflict_interface.data_types import TerrainType
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.map_state.terrain_type import TerrainType
 from conflict_interface.data_types.common import RegionType
 from conflict_interface.data_types.point import Point
 
