@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from conflict_interface.data_types import GameObject, LinkedList
+from conflict_interface.data_types.custom_types import LinkedList
 from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.army_state.army import Army
 

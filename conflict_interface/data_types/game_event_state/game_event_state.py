@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from typing import Union
 
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.custom_types import ArrayList
+from conflict_interface.data_types.game_event_state.game_event import *
 from conflict_interface.data_types.state import State
 
 
@@ -8,4 +10,21 @@ from conflict_interface.data_types.state import State
 class GameEventState(State):
     C = "ultshared.gameevents.UltGameEventState"
     STATE_TYPE = 24
-    MAPPING = {}
+    game_events: ArrayList[Union[
+        ProvinceEnteredEvent, ProvinceLostEvent, NewspaperArticleEvent,
+        ArmyDestroyedEvent, ArmyDamageDealtEvent, MilitaryExperienceGainedEvent,
+        ArmyAttackedEvent, AirCrashEvent,  MessageReceivedEvent, ProvinceWonEvent,
+        RelationChangeEvent, ResourceShortageEvent, SpyInfoEvent,
+        TradeOfferEvent, TradeProcessedEvent, UnitProducedEvent, UnitTrainedEvent,
+        UnitTrainedEvent, UpgradeBuiltEvent, WarDeclaredEvent, ResearchCompletedEvent,
+        ResourcesLootedEvent, ResourcesLostEvent, ArmyDamageReceivedEvent,
+        ProvinceDamageReceivedEvent, OwnAllianceMembershipEvent, OtherAllianceMembershipEvent,
+        MissileMissedTargetEvent, PatrolCancelledEvent, AircraftRebaseEvent,
+        PremiumSpyCatchEvent, PremiumSpyCorruptionMissionEvent, PremiumSpyDamageUpgradeEvent,
+        PremiumSpyDecreaseMoralEvent, PremiumSpyDestroyResourceEvent, UpgradeDemolishedEvent,
+        ArmyDisbandedEvent, UnitsExpiredEvent, NuclearImpactEvent, QuestDoneEvent,
+        CoalitionMessageEvent, MissionEvent
+    ]]
+    MAPPING = {
+        "game_events": "gameEvents",
+    }
