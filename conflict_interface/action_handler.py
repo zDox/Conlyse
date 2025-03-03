@@ -38,7 +38,7 @@ class ActionHandler:
 
     The class also has a que_action method to add actions to the que
 
-    :ivar actions: A linked list of minor actions to be executed (the que)
+    :ivar queue: A list of minor actions to be executed (the que)
     :ivar action_request_id: The current action request id it is incremented for each action needed for the req
     :ivar game_api: Reference to the game api
     :ivar game: Reference to the game interface
@@ -184,7 +184,7 @@ class ActionHandler:
             self.action_results[action_uid] = action_result
 
         if logger.isEnabledFor(logging.DEBUG):
-            action_result_names = [f"{type(action).__name__}: {self.get_action_result(action_uid)}"
+            action_result_names = [f"{type(action).__name__}: {self.get_action_results().get(action_uid)}"
                                    for action_uid, action in self.past_actions]
             logger.debug(f"Action results of last GameState: {','.join(action_result_names) if len(action_result_names) > 0 else 'None'}")
         return self.game_state
@@ -218,6 +218,3 @@ class ActionHandler:
 
     def get_action_results(self) -> dict[int, int]:
         return self.action_results
-
-    def get_action_result(self, action_uid: int) -> int:
-        return self.action_results[action_uid]

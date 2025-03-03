@@ -185,8 +185,6 @@ class GameInterface:
         else:
             return self.action_handler.que_action(action)
 
-    def get_action_result(self, action_uid) -> int:
-        return self.action_handler.get_action_result(action_uid)
 
     def get_action_results(self) -> dict[int, int]:
         return self.action_handler.get_action_results()
