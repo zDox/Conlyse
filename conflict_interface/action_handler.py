@@ -179,9 +179,7 @@ class ActionHandler:
 
         # Set the action results
         for action_request_id, action_result in self.game_state.action_results.items():
-            action_uid = self.action_request_id_to_action_uid.get_value(action_request_id)
-            if action_uid is None:
-                raise ValueError(f"Action request id {action_request_id} not found in action request id to action uid mapping")
+            action_uid = self.action_request_id_to_action_uid[action_request_id]
             action_uid = int(action_uid)
             self.action_results[action_uid] = action_result
 

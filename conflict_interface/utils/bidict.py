@@ -37,17 +37,20 @@ class Bidict(Generic[TKey, TValue]):
         key = self.reverse.pop(value)
         self.forward.pop(key)
 
-    def get_key(self, value: TValue) -> Optional[TKey]:
+    def get_key(self, value: TValue, raise_exception=False) -> Optional[TKey]:
         """
         Retrieve a key given its value.
         """
-        return self.reverse.get(value)
+        if raise_exception:
+            return self.reverse[value]
+        else:
+            return self.reverse.get(value)
 
-    def get_value(self, key: TKey) -> Optional[TValue]:
+    def __getitem__(self, key: TKey) -> Optional[TValue]:
         """
         Retrieve a value given its key.
         """
-        return self.forward.get(key)
+        return self.forward[key]
 
 
     def __repr__(self) -> str:

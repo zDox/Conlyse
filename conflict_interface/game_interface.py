@@ -16,7 +16,8 @@ from .data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from .data_types.game_api_types.login_action import LoginAction
 from .data_types.game_object import parse_game_object
 from .data_types.game_state import GameState
-from .data_types.map_state import Province, ProvinceStateID
+from .data_types.map_state import Province
+from .data_types import ProvinceStateID
 from .data_types.mod_state import UnitType
 from .data_types import UpgradeType
 from .data_types.newspaper_state.article import Article

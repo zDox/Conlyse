@@ -2,17 +2,17 @@ from functools import wraps
 from typing import Optional
 
 from dataclasses import dataclass
-from enum import Enum
+
+from conflict_interface.data_types import ProvinceStateID
+from conflict_interface.data_types.map_state.province_enums import ResourceProductionType
+from conflict_interface.data_types.map_state.static_province import StaticProvince
 
 from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.custom_types import ArrayList, Vector
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.custom_types import HashSet
-from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.data_types.common.enums.region_type import RegionType
-from conflict_interface.data_types.resource_state.resource_types import ResourceType
 from conflict_interface.data_types.map_state.terrain_type import TerrainType
 from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceAction
 from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionModes
@@ -26,49 +26,6 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import ActionException
 
 logger = get_logger()
-
-
-class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
-    """
-    Enumeration for representing different types of administrative areas.
-
-    Attributes:
-        OCCUPIED_PROVINCE: Represents a province under occupation.
-        MAINLAND_PROVINCE: Represents a province within the mainland.
-        OCCUPIED_CITY: Represents a city under occupation.
-        ANNEXED_CITY: Represents a city annexed to a different territory.
-        MAINLAND_CITY: Represents a city within the mainland.
-    """
-    NONE = 0
-    OCCUPIED_PROVINCE = 51
-    MAINLAND_PROVINCE = 52
-    OCCUPIED_CITY = 53
-    ANNEXED_CITY = 54
-    MAINLAND_CITY = 55
-
-
-class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
-    NONE = ResourceType.NONE.value + 1
-    SUPPLY = ResourceType.SUPPLY.value + 1
-    COMPONENT = ResourceType.COMPONENT.value + 1
-    MANPOWER = ResourceType.MANPOWER.value + 1
-    RARE_MATERIAL = ResourceType.RARE_MATERIAL.value + 1
-    FUEL = ResourceType.FUEL.value + 1
-    ELECTRONIC = ResourceType.ELECTRONIC.value + 1
-    CONVENTIONAL_WARHEAD = ResourceType.CONVENTIONAL_WARHEAD.value + 1
-    CHEMICAL_WARHEAD = ResourceType.CHEMICAL_WARHEAD.value + 1
-    NUCLEAR_WARHEAD = ResourceType.NUCLEAR_WARHEAD.value + 1
-    DEPLOYABLE_GEAR = ResourceType.DEPLOYABLE_GEAR.value + 1
-    MONEY = ResourceType.MONEY.value + 1
-    CITY_CLAIM = ResourceType.CITY_CLAIM.value + 1
-    PHARMACEUTICAL = ResourceType.PHARMACEUTICAL.value + 1
-
-    def to_py(self, type):
-        if type != ResourceType:
-            raise ValueError(f"type ({type}) must be ResourceType")
-        if self.value == 0:
-            return ResourceType(0)
-        return ResourceType(self.value - 1)
 
 
 def requires_ownership(func):
@@ -420,27 +377,3 @@ class Province(GameObject):
 
     def __hash__(self):
         return hash(self.province_id)
-
-
-@dataclass
-class StaticProvince(GameObject):
-    """
-    Represents a static province within a game context.
-
-    Attributes:
-        id: Unique identifier for the province within the game system.
-        terrain_type: Type of terrain associated with the province.
-        center_coordinate: Geographic center of the province as a point.
-        region: List of regions related to the province.
-    """
-    id: int
-    terrain_type: TerrainType
-    center_coordinate: Point
-    region: list[RegionType] = None
-
-    MAPPING = {
-        "id": "id",
-        "terrain_type": "tt",
-        "center_coordinate": "c",
-        "region": "rg",
-    }
