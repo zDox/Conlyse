@@ -7,9 +7,9 @@ from conflict_interface.data_types.game_object import GameObject
 class ResearchAction(GameObject):
     """
     Represents a research action.
-
     Attributes:
-
+        research_id (int): The identifier of the research type
+        cancel (bool): Whether the research action should be cancelled
     """
     C = "ultshared.action.UltResearchAction"
 

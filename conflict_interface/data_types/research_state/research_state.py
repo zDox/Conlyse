@@ -1,3 +1,4 @@
+from itertools import count
 from typing import Optional
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
@@ -43,4 +44,24 @@ class ResearchState(State):
                "completed_researches": "completedResearches",
                "unlocked_max_levels": "unlockedMaxLevels",
                "unlocked_items": "unlockedItems",
-               }
+    }
+
+    def empty_slots(self) -> int:
+        return sum(slot is None for slot in self.current_researches)
+
+    def has_completed_research(self, research_id: int) -> bool:
+        return any(research.research_type_id == research_id for research in self.completed_researches.values())
+
+    def is_researchable(self, research_id: int) -> bool:
+        # TODO check if has necessary resources
+        research_type = self.game.get_research_type(research_id)
+
+        if self.empty_slots() == 0:
+            return False
+        elif any(research.research_type_id == research_id for research in self.completed_researches.values()):
+            return False
+
+        if all(self.has_completed_research(required_research_id) for required_research_id in research_type.required_researches.keys()):
+            return True
+        else:
+            return False
