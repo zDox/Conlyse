@@ -12,7 +12,7 @@ from conflict_interface.data_types.game_object import GameObject
 class UpdateProvinceActionModes(Enum, metaclass=DefaultEnumMeta):
     PROVINCE = 0
     UPGRADE = 1 # Building an upgrade in Province
-    SPECIAL_UNIT = 2
+    SPECIAL_UNIT = 2 # Mobilizing a unit in Province
     CANCEL_PRODUCING = 3
     CANCEL_BUILDING = 4
     DEPLOYMENT_TARGET = 5

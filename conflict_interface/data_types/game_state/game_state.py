@@ -1,3 +1,4 @@
+from typing import cast
 from dataclasses import dataclass
 from typing import Optional
 
@@ -146,10 +147,18 @@ class States(GameObject):
         if new_fields is None:
             return
         for field in self.__annotations__.keys():
-            attr = getattr(self, field)
-            if not callable(getattr(attr, "update", None)):
+            state = getattr(self, field)
+            if state is None:
                 continue
-            getattr(self, field).update(getattr(new_fields, field, None))
+            if not issubclass(type(state), State):
+                continue
+            state = cast(State, state)
+            state.time_stamp = getattr(state, "time_stamp")
+            state.state_id = getattr(state, "state_id")
+
+            if not callable(getattr(state, "update", None)):
+                continue
+            getattr(self, field).update(state)
 
 
 @dataclass

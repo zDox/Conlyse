@@ -176,7 +176,6 @@ class GameApi:
         response = self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data))
-
         response.raise_for_status()
         if not type(response.json()["result"]) is int:
             if "timeStamp" in response.json()["result"]:

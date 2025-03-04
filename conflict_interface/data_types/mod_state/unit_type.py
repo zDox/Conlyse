@@ -240,7 +240,6 @@ class UnitType(GameObject):
             self._factions = set()
             research = self.get_required_research_type()
             if research:
-                print(research.faction_specific_config.factions)
                 self._factions.update(research.faction_specific_config.factions)
         return self._factions
 

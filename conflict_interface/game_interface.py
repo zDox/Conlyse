@@ -338,6 +338,9 @@ class GameInterface:
     def get_upgrade_type_by_name_and_tier(self, name, tier) -> UpgradeType | None:
         return next(iter(self.get_upgrade_types(upgrade_identifier=name, tier=tier).values()), None)
 
+    def get_unit_type(self, unit_type_id: int) -> UnitType | None:
+        return self.game_state.states.mod_state.all_unit_types.get(unit_type_id)
+
     def get_unit_types(self, **filters) -> dict[int, UnitType]:
         return {unit_type_id: unit_type
                 for unit_type_id, unit_type in self.game_state.states.mod_state.all_unit_types.items()
@@ -346,12 +349,10 @@ class GameInterface:
     def get_unit_type_by_name_and_tier(self, name, tier, faction: Faction = None) -> UnitType | None:
         if faction is None:
             faction = self.get_my_player().faction
-        print(faction)
         candidates = self.get_unit_types(type_name=name, tier=tier)
         for candidate in candidates.values():
             if candidate.has_faction(faction):
                 return candidate
-            pprint(candidate)
         return None
 
     def get_research_type(self, research_id) -> ResearchType | None:
