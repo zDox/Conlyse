@@ -92,7 +92,11 @@ class Province(GameObject):
 
     production: Optional[ProvinceProduction]
     productions: Optional[ProductionList[ProvinceProduction]]
+    production_slots: Optional[ProductionList[ProvinceProduction]]
 
+    construction: Optional[ProvinceProduction]
+    constructions: Optional[ProductionList[ProvinceProduction]]
+    construction_slots: Optional[ProductionList[ProvinceProduction]]
     costal: bool = False
     money_production: int = 0
     morale: int = 70
@@ -124,8 +128,12 @@ class Province(GameObject):
         "last_battle": "lb",
         "impacts": "ims",
         "costal": "co",
-        "production": "bi",  # TODO why the fuck bi??
-        "productions": "cos"  # TODO what the heck cos??
+        "construction": "bi",  # TODO why the fuck bi??
+        "constructions": "cos",  # TODO what the heck cos??
+        "production": "pi",
+        "productions": "prs",
+        "construction_slots": "cs",
+        "production_slots": "ps",
 
     }
 
@@ -331,9 +339,13 @@ class Province(GameObject):
             Raises:
                 ActionException:
         """
-        slot_0 = self.productions[3]
-        if slot_0 is not None:
-            raise ActionException(f"Province {self.province_id} is already mobalizing {slot_0.upgrade.id}.")
+        print(self.productions)
+        slot_3 = self.productions[3]
+        for slot in self.productions:
+            if slot:
+                print(self.game.get_upgrade_type(slot.upgrade.id))
+        if slot_3 is not None:
+            raise ActionException(f"Province {self.province_id} is already mobalizing {slot_3.upgrade.id}.")
         if unit is None:
             raise ActionException(f"Unit None cannot be mobilized in Province {self.province_id}.")
         elif unit in self.properties.possible_productions:
