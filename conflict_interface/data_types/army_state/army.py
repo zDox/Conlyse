@@ -259,14 +259,3 @@ class Army(GameObject):
         "token_feature": "tok",
         "patrol_radius": "patrolRadius"
     }
-
-    def find_path(self, position: Point) -> [Command]:
-        # Find Path for an army in the current game to a position
-        raise NotImplementedError
-
-    def find_path_to_province(self, province_id: int) -> [Command]:
-        # Find path for an army in the current game to a province
-        raise NotImplementedError
-
-    def command_army(self, command: list[Command]):
-        raise NotImplementedError

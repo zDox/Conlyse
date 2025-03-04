@@ -1,9 +1,15 @@
+import base64
 from dataclasses import dataclass
+from typing import Union
 
+from conflict_interface.data_types.map_state.b64_decoder import decode_border
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.terrain_type import TerrainType
 from conflict_interface.data_types.common import RegionType
 from conflict_interface.data_types.point import Point
+
+
+
 
 
 @dataclass
@@ -20,11 +26,27 @@ class StaticProvince(GameObject):
     id: int
     terrain_type: TerrainType
     center_coordinate: Point
+    borders_base_64: str
+    border_type_64: str
     region: list[RegionType] = None
+
+    _encoded_borders: list[Point] = None
 
     MAPPING = {
         "id": "id",
         "terrain_type": "tt",
         "center_coordinate": "c",
         "region": "rg",
+        "borders_base_64": "b",
+        "border_type_64": "bt",
     }
+
+    @property
+    def borders(self) -> list[Point]:
+        if self._encoded_borders is None:
+            self._encoded_borders = decode_border(self.borders_base_64)
+        return self._encoded_borders
+
+
+
+

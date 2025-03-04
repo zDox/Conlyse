@@ -3,19 +3,21 @@ from __future__ import annotations
 from typing import Optional
 from typing import Union
 
-from .sea_province import SeaProvince
 
 
 
 from dataclasses import dataclass
 
-from .province import Province, ProvinceProperty
-from .region import Region
+from conflict_interface.data_types.point import Point
+from conflict_interface.data_types.map_state.province import Province
+from conflict_interface.data_types.map_state.region import Region
+from conflict_interface.data_types.map_state.sea_province import SeaProvince
+from conflict_interface.data_types.custom_types import HashMap, HashSet
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.common import RegionType
+from conflict_interface.data_types.map_state.province_property import ProvinceProperty
+from conflict_interface.data_types.state import State
 from conflict_interface.data_types.static_map_data import StaticMapData
-from ..custom_types import HashMap, HashSet
-from ..game_object import GameObject
-from ..state import State
 
 
 @dataclass
@@ -57,6 +59,9 @@ class Map(GameObject):
     overlap_x: int
     locations: HashSet[Union[Province, SeaProvince]]
     population_factor: int
+
+    static_map_data: StaticMapData = None
+
     MAPPING = {
         "is_reduced": "isReduced",
         "version": "version",
@@ -79,12 +84,17 @@ class Map(GameObject):
                 return location
 
     def set_static_map_data(self, static_map_data: StaticMapData):
+        self.static_map_data = static_map_data
         for province in static_map_data.locations:
             self.get_province(province.id).set_static_province(province)
+
+    def get_connections(self) -> list[dict[str, Union[int, Point]]]:
+        return self.static_map_data.connections
 
     def update(self, new_state):
         for province in new_state.provinces:
             self.get_province(province.province_id).update(province)
+
 
 @dataclass
 class MapState(State):
