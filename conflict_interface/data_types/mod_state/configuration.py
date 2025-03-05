@@ -15,7 +15,7 @@ from conflict_interface.data_types.custom_types import UnmodifiableMap
 from conflict_interface.data_types.custom_types import UnmodifiableSet
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.boost import Boost
-from conflict_interface.data_types.player_state.player_profile import Faction
+from conflict_interface.data_types.player_state.faction import Faction
 
 
 @dataclass

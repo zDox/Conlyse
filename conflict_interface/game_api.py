@@ -176,16 +176,18 @@ class GameApi:
         response = self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data))
+        response_json = response.json()
         response.raise_for_status()
-        if not type(response.json()["result"]) is int:
-            if "timeStamp" in response.json()["result"]:
-                self.update_server_time(response.json()["result"]["timeStamp"])
-            else:
-                raise Exception(response.json()["result"])
+        if not type(response_json["result"]) is int:
+            if "timeStamp" in response_json["result"]:
+                self.update_server_time(response_json["result"]["timeStamp"])
         else:
             self.update_server_time(0)
-            
-        return response.json()
+
+        if "result" in response_json and type(response_json["result"]) is dict:
+            if response_json["result"].get("@c") == "ultshared.UltAuthentificationException":
+                raise Exception(f"Authentfication failed while sending parameters {parameters} to game server.")
+        return response_json
 
 
     def client_time(self, time_scale) -> datetime:

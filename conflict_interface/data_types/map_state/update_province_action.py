@@ -8,6 +8,16 @@ from conflict_interface.data_types.custom_types import Vector, DefaultEnumMeta
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.data_types.game_object import GameObject
 
+class UpdateProvinceActionResult(Enum):
+    Ok = 0
+    NoProduction = 1
+    NoConstruction = 2
+    InsufficientResources = 3
+    AlreadyConstructingUpgrade = 4
+    AlreadyMobilizingUnit = 5
+    UpgradeNotAvailable = 6
+    UnitNotAvailable = 7
+    NotDemolishable = 8
 
 class UpdateProvinceActionModes(Enum, metaclass=DefaultEnumMeta):
     PROVINCE = 0

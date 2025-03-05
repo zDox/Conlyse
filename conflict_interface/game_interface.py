@@ -13,6 +13,7 @@ from .data_types import AuthDetails
 from .data_types.action import Action
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
+from .data_types.custom_types import Vector
 from .data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from .data_types.game_api_types.login_action import LoginAction
 from .data_types.game_object import parse_game_object
@@ -23,7 +24,7 @@ from .data_types.mod_state import UnitType
 from .data_types import UpgradeType
 from .data_types.newspaper_state.article import Article
 from .data_types.player_state import PlayerProfile
-from .data_types.player_state.player_profile import Faction
+from .data_types.player_state.faction import Faction
 from .data_types.research_state.research_type import ResearchType
 from .data_types.resource_state import ResourceProfile, ResourceEntry
 from .data_types.static_map_data import StaticMapData
@@ -236,7 +237,7 @@ class GameInterface:
                 for article_id, article in self.game_state.states.newspaper_state.articles
                 if self.relative_time_since_start(article.time_stamp).days + 1 == day}
 
-    def get_current_articles(self) -> ArrayList[Article]:
+    def get_current_articles(self) -> Vector[Article]:
         return self.game_state.states.newspaper_state.articles
 
     """
@@ -357,3 +358,20 @@ class GameInterface:
 
     def get_research_type(self, research_id) -> ResearchType | None:
         return self.game_state.states.mod_state.research_types.get(research_id)
+
+    def get_research_types(self, **filters) -> dict[int, ResearchType]:
+        return {research_id: research_type
+                for research_id, research_type in self.game_state.states.mod_state.research_types.items()
+                if all(getattr(research_type, key, None) == value for key, value in filters.items())}
+
+    def get_research_type_by_name_and_tier(self, name, tier, faction: Faction = None) -> ResearchType | None:
+        if faction is None:
+            faction = self.get_my_player().faction
+
+        for research_id, research_type in self.get_research_types().items():
+            if research_type.name.endswith(faction.code):
+                if research_type.name == name + " " + faction.code:
+                    return research_type
+            else:
+                if research_type.name == name:
+                    return research_type
