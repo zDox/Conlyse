@@ -134,6 +134,9 @@ class GameApi:
         match = re.search(r'clientVersion=(\d+)', response.text)
         if match:
             self.client_version = int(match.group(1))
+            if self.client_version != 188:
+                logger.warning(f"Client version is {self.client_version} \
+                        which is not supported by this library.")
         else:
             raise GameJoinException(f"Could not find client_version \
                     in request {response.text}")
@@ -173,7 +176,6 @@ class GameApi:
         response = self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data))
-
         response.raise_for_status()
         if not type(response.json()["result"]) is int:
             if "timeStamp" in response.json()["result"]:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from functools import wraps
+from pprint import pprint
 from typing import Any
 
 from requests import Session
@@ -22,6 +23,7 @@ from .data_types.mod_state import UnitType
 from .data_types import UpgradeType
 from .data_types.newspaper_state.article import Article
 from .data_types.player_state import PlayerProfile
+from .data_types.player_state.player_profile import Faction
 from .data_types.research_state.research_type import ResearchType
 from .data_types.resource_state import ResourceProfile, ResourceEntry
 from .data_types.static_map_data import StaticMapData
@@ -199,7 +201,7 @@ class GameInterface:
     def get_player(self, player_id) -> PlayerProfile | None:
         return self.game_state.states.player_state.players.get(player_id)
 
-    def get_my_player(self):
+    def get_my_player(self) -> PlayerProfile:
         return self.get_player(self.player_id)
 
 
@@ -336,13 +338,22 @@ class GameInterface:
     def get_upgrade_type_by_name_and_tier(self, name, tier) -> UpgradeType | None:
         return next(iter(self.get_upgrade_types(upgrade_identifier=name, tier=tier).values()), None)
 
+    def get_unit_type(self, unit_type_id: int) -> UnitType | None:
+        return self.game_state.states.mod_state.all_unit_types.get(unit_type_id)
+
     def get_unit_types(self, **filters) -> dict[int, UnitType]:
         return {unit_type_id: unit_type
                 for unit_type_id, unit_type in self.game_state.states.mod_state.all_unit_types.items()
                 if all(getattr(unit_type, key, None) == value for key, value in filters.items())}
 
-    def get_unit_type_by_name_and_tier(self, name, tier):
-        pass
+    def get_unit_type_by_name_and_tier(self, name, tier, faction: Faction = None) -> UnitType | None:
+        if faction is None:
+            faction = self.get_my_player().faction
+        candidates = self.get_unit_types(type_name=name, tier=tier)
+        for candidate in candidates.values():
+            if candidate.has_faction(faction):
+                return candidate
+        return None
 
     def get_research_type(self, research_id) -> ResearchType | None:
         return self.game_state.states.mod_state.research_types.get(research_id)

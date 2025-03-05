@@ -15,6 +15,7 @@ from conflict_interface.data_types.custom_types import UnmodifiableMap
 from conflict_interface.data_types.custom_types import UnmodifiableSet
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.boost import Boost
+from conflict_interface.data_types.player_state.player_profile import Faction
 
 
 @dataclass
@@ -773,7 +774,7 @@ class TokenSensitivityConfig(GameObject):
 class FactionSpecificConfig(GameObject):
     C = "ultshared.modding.configuration.UltFactionSpecificConfig"
 
-    factions: HashSet[int]
+    factions: HashSet[Faction]
 
     MAPPING = {
         "factions": "factions",

@@ -175,7 +175,13 @@ class ActionHandler:
             actions=actions
         )
         response_json = self.execute_action(game_state_action)
-        self.game_state = parse_game_object(GameState, response_json["result"], self.game)
+        if response_json["result"]["@c"] not in (GameState.C, "ultshared.UltAutoGameState"):
+            raise ValueError(f"Action {response_json['result']} is not a GameState")
+        game_state = parse_game_object(GameState, response_json["result"], self.game)
+        if self.game_state:
+            self.game_state.update(game_state)
+        else:
+            self.game_state = game_state
 
         # Set the action results
         for action_request_id, action_result in self.game_state.action_results.items():

@@ -1,6 +1,7 @@
 
 
 from dataclasses import dataclass
+from typing import Set
 from typing import Union
 
 from conflict_interface.data_types.custom_types import HashMap
@@ -30,6 +31,7 @@ from conflict_interface.data_types.mod_state.configuration import RenderConfig
 from conflict_interface.data_types.mod_state.configuration import StackingConfig
 from conflict_interface.data_types.mod_state.configuration import TokenSensitivityConfig
 from conflict_interface.data_types.mod_state.configuration import UnitTypeFrontEndConfig
+from conflict_interface.data_types.player_state.player_profile import Faction
 from conflict_interface.data_types.research_state.research_type import ResearchType
 
 
@@ -110,6 +112,7 @@ class UnitType(GameObject):
 
     _tier: int = None
     _is_max_tier: int = None
+    _factions: Set[Faction] = None
 
 
     MAPPING = {
@@ -186,20 +189,20 @@ class UnitType(GameObject):
         Returns the name of the unit, including its tier if applicable.
         Tier 1 units at maximum tier will not have the tier displayed.
         """
-        if self.get_tier() == 1 and self.is_maximum_tier():
+        if self.tier == 1 and self.is_maximum_tier():
             return self.unit_name
         else:
-            return f"{self.unit_name} Lvl. {self.get_tier()}"
+            return f"{self.unit_name} Lvl. {self.tier}"
 
-
-    def get_tier(self):
+    @property
+    def tier(self):
         """
         Returns the tier of the unit, calculating it if necessary.
         If there are no required researches, defaults to Tier 1.
         """
         if self._tier is None:
             required_research = self.get_required_research_type()
-            self._tier = max(1, required_research.get_tier() if required_research else 1)
+            self._tier = max(1, required_research.tier if required_research else 1)
         return self._tier
 
     def is_maximum_tier(self):
@@ -218,7 +221,7 @@ class UnitType(GameObject):
         If multiple researches are required, it retrieves the first one.
         """
         if self.required_researches:
-            research_key = self.required_researches[0]
+            research_key = list(self.required_researches)[0]
             return self.game.game_state.states.mod_state.research_types.get(research_key)
         return None
 
@@ -228,5 +231,17 @@ class UnitType(GameObject):
         If the tier is greater than 1 and the unit is at its maximum tier, it returns "max".
         Otherwise, it simply returns the tier.
         """
-        tier = self.get_tier()
+        tier = self.tier
         return "max" if tier > 1 and self.is_maximum_tier() else tier
+
+    @property
+    def factions(self):
+        if self._factions is None:
+            self._factions = set()
+            research = self.get_required_research_type()
+            if research:
+                self._factions.update(research.faction_specific_config.factions)
+        return self._factions
+
+    def has_faction(self, faction: Faction):
+        return faction in self.factions

@@ -28,3 +28,6 @@ class ModableUpgrade(GameObject):
     }
 
     __hash__ = GameObject.__hash__
+
+    def debug_str(self):
+        return f"{self.game.get_upgrade_type(self.id).upgrade_name}({self.id})"
