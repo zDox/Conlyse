@@ -1,11 +1,10 @@
-from typing import Optional
-
-from .army import Army
-
 from dataclasses import dataclass
+from typing import Optional
+from typing import override
 
-from ..custom_types import HashMap
-from ..game_object import GameObject, parse_game_object
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.army_state.army import Army
+from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.state import State
 
 
@@ -32,18 +31,22 @@ class ArmyState(State):
         "change_set": "changeSet"
     }
 
-    def update(self, new_state):
+    @override
+    def update(self, other: GameObject):
         """
         Update the current state with the new state
 
-        :param new_state: The new state to update with (dict)
+        :param other: The new state to update with (dict)
         :return: None
         """
-        return
-        if new_state is None:
+        if not isinstance(other, ArmyState):
+            raise ValueError("UPDATE ERROR: Cannot update ArmyState with object of type: " + str(type(other)))
+
+        if other is None:
             return
-        for new_army in new_state.armies.values():
+        for new_army in other.armies.values():
             if new_army.removed:
                 self.armies.pop(new_army.id)
                 continue
-            self.armies[new_army.id] = new_army
+            else:
+                self.armies[new_army.id] = new_army
