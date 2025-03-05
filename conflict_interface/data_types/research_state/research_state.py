@@ -9,7 +9,9 @@ from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
 
+from conflict_interface.data_types.research_state.research_action import ResearchActionResult
 from conflict_interface.data_types.state import State
+from conflict_interface.utils.exceptions import ActionException
 
 
 @dataclass
@@ -52,16 +54,24 @@ class ResearchState(State):
     def has_completed_research(self, research_id: int) -> bool:
         return any(research.research_type_id == research_id for research in self.completed_researches.values())
 
-    def is_researchable(self, research_id: int) -> bool:
-        # TODO check if has necessary resources
+    def get_researchability(self, research_id: int) -> ResearchActionResult:
         research_type = self.game.get_research_type(research_id)
+        # TODO check if has necessary resources
 
         if self.empty_slots() == 0:
-            return False
+            return ResearchActionResult.FullResearchSlots
         elif any(research.research_type_id == research_id for research in self.completed_researches.values()):
-            return False
+            return ResearchActionResult.AlreadyCompleted
 
-        if all(self.has_completed_research(required_research_id) for required_research_id in research_type.required_researches.keys()):
-            return True
+        elif any(not self.has_completed_research(required_research_id) for required_research_id in research_type.required_researches.keys()):
+            return ResearchActionResult.InsufficientRequirements
+        return ResearchActionResult.Ok
+
+    def is_researchable(self, research_id: int) -> bool:
+        return self.get_researchability(research_id) == ResearchActionResult.Ok
+
+    def research(self, research_id: int) -> tuple[Optional[int], ResearchActionResult]:
+        if self.is_researchable(research_id):
+            return self.game.do_action(ResearchAction(research_id, cancel=False)), ResearchActionResult.Ok
         else:
-            return False
+            return None, self.get_researchability(research_id)

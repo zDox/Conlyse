@@ -357,3 +357,20 @@ class GameInterface:
 
     def get_research_type(self, research_id) -> ResearchType | None:
         return self.game_state.states.mod_state.research_types.get(research_id)
+
+    def get_research_types(self, **filters) -> dict[int, ResearchType]:
+        return {research_id: research_type
+                for research_id, research_type in self.game_state.states.mod_state.research_types.items()
+                if all(getattr(research_type, key, None) == value for key, value in filters.items())}
+
+    def get_research_type_by_name_and_tier(self, name, tier, faction: Faction = None) -> ResearchType | None:
+        if faction is None:
+            faction = self.get_my_player().faction
+
+        for research_id, research_type in self.get_research_types().items():
+            if research_type.name.endswith(faction.code):
+                if research_type.name == name + " " + faction.code:
+                    return research_type
+            else:
+                if research_type.name == name:
+                    return research_type

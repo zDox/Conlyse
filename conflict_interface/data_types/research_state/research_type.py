@@ -61,6 +61,10 @@ class ResearchType(GameObject):
         "costs": "costs",
         "faction_specific_config": "factionSpecificConfig",
     }
+
+    def debug_str(self) -> str:
+        return f"{self.name} Lvl.{self.tier}({self.item_id})"
+
     @property
     def tier(self):
         """
@@ -129,3 +133,6 @@ class ResearchType(GameObject):
         """
         replacing_research_id = self.get_replacing_research()
         return self.game.game_state.states.mod_state.research_types.get(replacing_research_id)
+
+    def research(self) -> int:
+        return self.game.game_state.states.research_state.research(self.item_id)

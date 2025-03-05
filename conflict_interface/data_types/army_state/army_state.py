@@ -39,6 +39,7 @@ class ArmyState(State):
         :param new_state: The new state to update with (dict)
         :return: None
         """
+        return
         if new_state is None:
             return
         for new_army in new_state.armies.values():

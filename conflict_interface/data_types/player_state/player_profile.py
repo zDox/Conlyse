@@ -18,6 +18,16 @@ class Faction(Enum, metaclass=DefaultEnumMeta):
     EASTERN = 2
     EUROPEAN = 3
 
+    @property
+    def code(self):
+        if self.WESTERN:
+            return "US"
+        elif self.EASTERN:
+            return "RU"
+        elif self.EUROPEAN:
+            return "EU"
+        raise ValueError("No code for faction NONE")
+
 
 """
 Not implemented function (graphics)
