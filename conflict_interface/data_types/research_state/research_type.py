@@ -62,9 +62,6 @@ class ResearchType(GameObject):
         "faction_specific_config": "factionSpecificConfig",
     }
 
-    def debug_str(self) -> str:
-        return f"{self.name} Lvl.{self.tier}({self.item_id})"
-
     @property
     def tier(self):
         """

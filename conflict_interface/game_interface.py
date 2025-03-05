@@ -13,6 +13,7 @@ from .data_types import AuthDetails
 from .data_types.action import Action
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
+from .data_types.custom_types import Vector
 from .data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from .data_types.game_api_types.login_action import LoginAction
 from .data_types.game_object import parse_game_object
@@ -23,7 +24,7 @@ from .data_types.mod_state import UnitType
 from .data_types import UpgradeType
 from .data_types.newspaper_state.article import Article
 from .data_types.player_state import PlayerProfile
-from .data_types.player_state.player_profile import Faction
+from .data_types.player_state.faction import Faction
 from .data_types.research_state.research_type import ResearchType
 from .data_types.resource_state import ResourceProfile, ResourceEntry
 from .data_types.static_map_data import StaticMapData
@@ -236,7 +237,7 @@ class GameInterface:
                 for article_id, article in self.game_state.states.newspaper_state.articles
                 if self.relative_time_since_start(article.time_stamp).days + 1 == day}
 
-    def get_current_articles(self) -> ArrayList[Article]:
+    def get_current_articles(self) -> Vector[Article]:
         return self.game_state.states.newspaper_state.articles
 
     """

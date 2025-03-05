@@ -31,7 +31,7 @@ from conflict_interface.data_types.mod_state.configuration import RenderConfig
 from conflict_interface.data_types.mod_state.configuration import StackingConfig
 from conflict_interface.data_types.mod_state.configuration import TokenSensitivityConfig
 from conflict_interface.data_types.mod_state.configuration import UnitTypeFrontEndConfig
-from conflict_interface.data_types.player_state.player_profile import Faction
+from conflict_interface.data_types.player_state.faction import Faction
 from conflict_interface.data_types.research_state.research_type import ResearchType
 
 
