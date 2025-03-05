@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Union
+from typing import override
 
 from conflict_interface.data_types.custom_types import ArrayList, Vector
 from conflict_interface.data_types.game_object import GameObject

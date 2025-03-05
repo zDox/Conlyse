@@ -7,7 +7,10 @@ from typing import Union
 
 
 from dataclasses import dataclass
+from typing import get_type_hints
+from typing import override
 
+from conflict_interface.data_types.map_state.province import logger
 from conflict_interface.data_types.point import Point
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.data_types.map_state.region import Region
@@ -62,6 +65,8 @@ class Map(GameObject):
 
     static_map_data: StaticMapData = None
 
+    _provinces: dict[int, Union[Province, SeaProvince]] = None
+
     MAPPING = {
         "is_reduced": "isReduced",
         "version": "version",
@@ -91,9 +96,29 @@ class Map(GameObject):
     def get_connections(self) -> list[dict[str, Union[int, Point]]]:
         return self.static_map_data.connections
 
-    def update(self, new_state):
-        for province in new_state.provinces:
-            self.get_province(province.province_id).update(province)
+    @override
+    def update(self, other: GameObject):
+        if not isinstance(other, Map):
+            raise ValueError("UPDATE ERROR: Cannot update Map with object of type: " + str(type(other)))
+
+        for key in self.get_mapping().keys():
+            if getattr(other, key) is None:
+                continue
+            elif issubclass(get_type_hints(type(self))[key], GameObject):
+                if getattr(self, key) is None:
+                    setattr(self, key, getattr(other, key))
+                getattr(self, key).update(getattr(other, key))
+            elif key not in ("locations", ):
+                setattr(self, key, getattr(other, key))
+
+        if other.locations is not None:
+            for location in other.locations:
+                if location.province_id in self._provinces.keys():
+                    self._provinces[location.province_id].update(location)
+                else:
+                    logger.warning(f"New province found: {location.province_id}")
+                    self.locations.add(location)
+                    self._provinces[location.province_id] = location
 
 
 @dataclass
@@ -117,3 +142,21 @@ class MapState(State):
         "properties": "properties",
         "change_set": "changeSet"
     }
+
+    @override
+    def update(self, other: GameObject):
+        if not isinstance(other, MapState):
+            raise ValueError("UPDATE ERROR: Cannot update MapState with object of type: " + str(type(other)))
+
+        if other.map is not None:
+            self.map.update(other.map)
+
+        if other.properties is not None:
+            for province_id, prop in other.properties.items():
+                if province_id in self.properties:
+                    if self.properties[province_id] is None:
+                        self.properties[province_id] = prop
+                    self.properties[province_id].update(prop)
+                else:
+                    self.properties[province_id] = prop
+
