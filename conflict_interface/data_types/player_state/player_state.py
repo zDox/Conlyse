@@ -1,4 +1,4 @@
-
+from typing import override
 
 from conflict_interface.data_types.custom_types import DefaultEnumMeta, HashMap
 from conflict_interface.data_types.game_object import GameObject
@@ -41,16 +41,7 @@ class PlayerState(State):
     # TODO: Implement this method
     def get_players(self, terra_incognita_feature: bool,
                     visibility_mode=VisibilityMode.ALL):
-
-        if not terra_incognita_feature:
-            return self.players
-        match terra_incognita_feature:
-            case VisibilityMode.ONLY_VISIBLE:
-                return self.get_visible_players()
-            case VisibilityMode.ALL_REDUCED_INFORMATION:
-                return self.get_reduced_players()
-            case _:
-                return self.players
+        raise NotImplementedError()
 
     def reset_exploration_caches(self):
         raise NotImplementedError()
@@ -97,3 +88,29 @@ class PlayerState(State):
                                               and include_human)):
                     filtered_players.append(value)
         return filtered_players
+
+    @override
+    def update(self, other: GameObject):
+        if not isinstance(other, PlayerState):
+            raise TypeError("UPDATE ERROR: Cannot update PlayerState with object of type: "
+                            f"{type(other)}")
+
+        if not other.players is None:
+            # iterate through playerprofiles and update them
+            for player_id, player in other.players.items():
+                if player_id in self.players:
+                    if self.players[player_id] is None:
+                        self.players[player_id] = player
+                    self.players[player_id].update(player)
+                else:
+                    self.players[player_id] = player
+
+        if not other.teams is None:
+            # iterate through teamprofiles and update them
+            for team_id, team in other.teams.items():
+                if team_id in self.teams:
+                    if self.teams[team_id] is None:
+                        self.teams[team_id] = team
+                    self.teams[team_id].update(team)
+                else:
+                    self.teams[team_id] = team

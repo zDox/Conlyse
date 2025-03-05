@@ -124,6 +124,8 @@ class Province(GameObject):
     region: RegionType = RegionType.NONE
     _properties: ProvinceProperty = None  # If player owns the province
 
+    static_data: StaticProvince = None
+
     MAPPING = {
         "province_id": "id",
         "name": "n",
@@ -404,8 +406,7 @@ class Province(GameObject):
         ))
 
     def set_static_province(self, obj):
-        for static_field in StaticProvince.__annotations__.keys():
-            setattr(self, static_field, getattr(obj, static_field))
+        self.static_data = obj
 
     def update(self, new_province):
         for updateable_key in Province.updateable_keys:

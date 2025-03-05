@@ -23,6 +23,8 @@ class SeaProvince(GameObject):
     legal_owner: Optional[int]
     resource_production: Optional[int]
 
+    static_data = None
+
     def __hash__(self):
         return hash(self.province_id)
 
@@ -41,4 +43,4 @@ class SeaProvince(GameObject):
     }
 
     def set_static_province(self, obj):
-        pass
+        self.static_data = obj

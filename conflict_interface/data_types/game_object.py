@@ -412,3 +412,25 @@ class GameObject:
                 cls._mapping = {**cls._mapping,
                                 **c.get_mapping()}
         return cls._mapping
+
+    def update(self, other: GameObject):
+        """
+        Updates the current object with the values of another object.
+        """
+        if other is None:
+            return
+
+        if not issubclass(type(other), GameObject):
+            raise ValueError(f"Can't update {type(self)} with {type(other)} not a game object")
+        if type(self) != type(other):
+            raise ValueError(f"Can't update {type(self)} with {type(other)} not of the same type")
+        for key in self.get_mapping().keys():
+            if getattr(other, key) is None:
+                continue
+            elif issubclass(get_type_hints(type(self))[key], GameObject):
+                if getattr(self, key) is None:
+                    setattr(self, key, getattr(other, key))
+
+                getattr(self, key).update(getattr(other, key))
+            else:
+                setattr(self, key, getattr(other, key))
