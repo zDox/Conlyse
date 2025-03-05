@@ -10,6 +10,7 @@ class ResearchActionResult(Enum):
     FullResearchSlots = 1
     AlreadyCompleted = 2
     InsufficientRequirements = 3
+    NotAvailable = 4
 
 
 @dataclass

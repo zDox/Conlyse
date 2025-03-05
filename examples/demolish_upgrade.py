@@ -1,5 +1,4 @@
 import logging
-from pprint import pprint
 
 from conflict_interface import HubInterface
 
@@ -12,6 +11,7 @@ if __name__ == "__main__":
     interface = HubInterface()
     interface.login(creds.username, creds.password)
     game = interface.join_game(9709744)
-    research_type = game.get_research_type_by_name_and_tier("UAV", 1)
-    print(research_type.cancel_research())
+    city = next(iter(game.get_my_provinces(name="Rabat").values()))
+    arms_lvl_1 = game.get_upgrade_type_by_name_and_tier('Arms Industry', 3)
+    city.demolish_upgrade(arms_lvl_1.id)
     game.update()

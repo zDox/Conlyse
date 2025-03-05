@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from conflict_interface.data_types.map_state.province_enums import ProvinceStateID
 from conflict_interface.data_types.map_state.province_enums import ResourceProductionType
 from conflict_interface.data_types.map_state.static_province import StaticProvince
+from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionResult
 
 from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.custom_types import ArrayList, Vector
@@ -95,7 +96,7 @@ class Province(GameObject):
 
     victory_points: int
     owner_id: int
-    upgrades: HashSet[ModableUpgrade]
+    upgrades_set: HashSet[ModableUpgrade]
 
     stationary_army: Optional[int]
     base_production: int
@@ -123,6 +124,7 @@ class Province(GameObject):
     center_coordinate: Point = None
     region: RegionType = RegionType.NONE
     _properties: ProvinceProperty = None  # If player owns the province
+    _upgrades: dict[int, ModableUpgrade] = None
 
     MAPPING = {
         "province_id": "id",
@@ -136,7 +138,7 @@ class Province(GameObject):
         "money_production": "tp",
         "legal_owner": "lo",
         "victory_points": "plv",
-        "upgrades": "us",
+        "upgrades_set": "us",
         "stationary_army": "sa",
         "base_production": "bp",
         "core_ids": "ci",
@@ -171,6 +173,16 @@ class Province(GameObject):
             self._properties = self.game.game_state.states.map_state.properties.get(self.province_id)
             return self._properties
 
+    @property
+    def upgrades(self) -> dict[int, ModableUpgrade]:
+        if not self._upgrades:
+            self._upgrades = {
+                upgrade.id: upgrade
+                for upgrade in self.upgrades_set
+            }
+        return self._upgrades
+
+    @requires_ownership
     def get_possible_upgrade(self, **filters) -> ModableUpgrade | None:
         """
         Return the first upgrade that matches the given filters.
@@ -184,6 +196,7 @@ class Province(GameObject):
             else:
                 return None
 
+    @requires_ownership
     def get_possible_upgrades(self, **filters) -> list[ModableUpgrade]:
         """
         Returns the list of possible upgrades that match the specified filters for the
@@ -206,7 +219,7 @@ class Province(GameObject):
                     if all(getattr(mu, key) == value for key, value in filters.items())]
 
     @requires_ownership
-    def is_upgrade_buildable(self, upgrade: ModableUpgrade) -> bool:
+    def get_upgrade_buildability(self, upgrade: ModableUpgrade) -> UpdateProvinceActionResult:
         """
         Determine if an upgrade can be built in the current province.
 
@@ -214,76 +227,116 @@ class Province(GameObject):
             upgrade (ModableUpgrade): The upgrade to check.
 
         Returns:
-            bool: True if the upgrade can be built, False otherwise.
+            UpdateProvinceActionResult: UpdateProvinceActionResult.Ok if the upgrade can be built,
+                otherwise the reason why it can't be built.
         """
         # TODO Check if player has necessary resources
         slot_0 = self.construction
         if slot_0 is not None:
-            return False
-        elif upgrade is None:
-            return False
+            return UpdateProvinceActionResult.AlreadyConstructingUpgrade
         elif upgrade not in self.properties.possible_upgrades:
-            return False
-        return True
+            return UpdateProvinceActionResult.UpgradeNotAvailable
+        return UpdateProvinceActionResult.Ok
 
     @requires_ownership
-    def build_upgrade(self, upgrade: ModableUpgrade):
+    def is_upgrade_buildable(self, upgrade: ModableUpgrade) -> bool:
+        return self.get_upgrade_buildability(upgrade) == UpdateProvinceActionResult.Ok
+
+    @requires_ownership
+    def build_upgrade(self, upgrade: ModableUpgrade) -> tuple[Optional[int], UpdateProvinceActionResult]:
         """
-        Applies an upgrade to a province if the upgrade is available in the
-        current province's list of possible upgrades.
+        Performs the action of building an upgrade in the current province if the upgrade
+        is buildable. This operation checks the prerequisites for the upgrade and triggers
+        the game action to update the province state with the specified upgrade.
 
-        This method checks if the given upgrade is among the possible upgrades
-        for the current province and applies it using the game's update action.
-        If the upgrade is not available, an exception is raised.
+        Parameters:
+            upgrade (ModableUpgrade): The upgrade to be built in the province.
 
-        @requires_ownership Decorator to ensure that the caller has ownership
-        rights over the province before executing the method.
-
-        Args:
-            upgrade (ModableUpgrade): The upgrade intended to be built in the province.
-
-        Raises:
-            ActionException: When the specified upgrade is not available for
-            the province.
+        Returns:
+            tuple[Optional[int], UpdateProvinceActionResult]: A tuple where the first element
+            is the identifier of the successful action if applicable (otherwise None), and
+            the second element is the result status indicating success or the reason for
+            inability to build the upgrade.
         """
-        if self.construction is not None:
-            raise ActionException(f"Province {self.debug_str()} is already building {self.construction.upgrade.debug_str()}.")
-
-        if upgrade is None:
-            raise ActionException(f"Upgrade None cannot be built in Province {self.debug_str()}.")
-        elif upgrade in self.properties.possible_upgrades:
-            self.game.do_action(UpdateProvinceAction(
+        if self.is_upgrade_buildable(upgrade):
+            return self.game.do_action(UpdateProvinceAction(
                 province_ids=Vector([self.province_id]),
                 mode=UpdateProvinceActionModes.UPGRADE,
                 slot=0,
                 upgrade=upgrade,
-            ))
+            )), UpdateProvinceActionResult.Ok
         else:
-            raise ActionException(f"Upgrade {upgrade.id} is not available for province {self.debug_str()}.")
+            return None, self.get_upgrade_buildability(upgrade)
 
     @requires_ownership
-    def cancel_construction(self):
+    def cancel_construction(self) -> tuple[Optional[int], UpdateProvinceActionResult]:
         """
-        Cancels the ongoing construction of a building in the given province. If no production is currently
-        associated with the province, the method will log a warning and take no further action.
+            Cancel ongoing construction in the current province if any construction
+            exists. If no construction is present, the function immediately returns
+            a specific result indicating no ongoing production. If construction
+            exists, it invokes the game's action system to handle the cancellation
+            and returns the outcome.
 
-        @requires_ownership Decorator to ensure that the caller has ownership
-        rights over the province before executing the method.
+            Parameters:
+                self (Province): Represents the current province instance where the
+                cancel construction action will be applied.
+
+            Returns:
+                tuple[Optional[int], UpdateProvinceActionResult]: A tuple where the
+                first element is the unique action id or None, indicating the Action was
+                a failure. The second element is the result enumerating the
+                outcome of the cancellation attempt.
         """
 
         if self.construction is None:
-            logger.warning(f"Trying to cancel construction but Province {self.debug_str()} has no production.")
-            return
+            return None, UpdateProvinceActionResult.NoProduction
 
-
-        self.game.do_action(UpdateProvinceAction(
+        return self.game.do_action(UpdateProvinceAction(
             province_ids=Vector([self.province_id]),
             mode=UpdateProvinceActionModes.CANCEL_BUILDING,
             slot=0
-        ))
+        )), UpdateProvinceActionResult.Ok
+
+
+    def is_demolishable(self, upgrade_id: int) -> bool:
+        """
+        Determines if a specific upgrade can be demolished.
+        Args:
+            upgrade_id (int): The unique identifier for the upgrade.
+
+        Returns:
+            bool: True if the upgrade can be demolished, False otherwise.
+        """
+        upgrade = self.upgrades.get(upgrade_id)
+        if upgrade:
+            return True
+        return False
 
     @requires_ownership
-    def is_unit_mobilizable(self, unit: SpecialUnit) -> bool:
+    def demolish_upgrade(self, upgrade_id: int) -> tuple[Optional[int], UpdateProvinceActionResult]:
+        """
+        Demolishes an upgrade, if eligible, within the associated province. This method checks whether the specified
+        upgrade can be demolished and performs the required game action.
+
+        :param: upgrade_id (int): The unique identifier of the upgrade to be demolished.
+
+        :return: tuple[Optional[int], UpdateProvinceActionResult]
+            A tuple containing the optional unique action id and the result of the operation.
+        """
+
+        if not isinstance(upgrade_id, int):
+            raise ValueError("upgrade_id must be an integer")
+        if self.is_demolishable(upgrade_id):
+            upgrade = self.upgrades.get(upgrade_id)
+            return self.game.do_action(UpdateProvinceAction(province_ids=Vector([self.province_id]),
+                                                            mode=UpdateProvinceActionModes.DEMOLISH_UPGRADE,
+                                                            slot=0,
+                                                            upgrade=upgrade)), UpdateProvinceActionResult.Ok
+        return None, UpdateProvinceActionResult.NotDemolishable
+
+
+    @requires_ownership
+    def get_unit_mobilizability(self, unit: SpecialUnit) -> UpdateProvinceActionResult:
         """
         Determine if an upgrade can be built in the current province.
 
@@ -295,13 +348,19 @@ class Province(GameObject):
         """
         # TODO Check if player has necessary resources
         if self.production is not None:
-            return False
-        elif unit is None:
-            return False
+            return UpdateProvinceActionResult.AlreadyMobilizingUnit
         elif unit not in self.properties.possible_productions:
-            return False
-        return True
+            return UpdateProvinceActionResult.UnitNotAvailable
+        return UpdateProvinceActionResult.Ok
 
+    @requires_ownership
+    def is_unit_mobilizable(self, unit: SpecialUnit) -> bool:
+        """
+        Returns True if the unit is available for mobilization in the province, False otherwise.
+        """
+        return self.get_unit_mobilizability(unit) == UpdateProvinceActionResult.Ok
+
+    @requires_ownership
     def get_possible_production_by_unit_type_id(self, unit_type_id: int) -> SpecialUnit | None:
         """
         Returns the possible production corresponding to the given unit type id.
@@ -314,7 +373,7 @@ class Province(GameObject):
             if production.unit.unit_type_id == unit_type_id:
                 return production
 
-
+    @requires_ownership
     def get_possible_production(self, **filters) -> SpecialUnit | None:
         """
         Return the first unit that matches the given filters.
@@ -328,6 +387,7 @@ class Province(GameObject):
             else:
                 return None
 
+    @requires_ownership
     def get_possible_productions(self, **filters) -> list[SpecialUnit]:
         """
         Gets a filtered list of possible productions based on the provided filters.
@@ -369,19 +429,16 @@ class Province(GameObject):
             ActionException:
         """
         unit = self.get_possible_production_by_unit_type_id(unit_type_id)
-        if self.production is not None:
-            raise ActionException(f"Province {self.debug_str()} is already mobilizing {self.production.upgrade.debug_str()}).")
-        if unit is None:
-            raise ActionException(f"Unit None cannot be mobilized in Province {self.debug_str()}).")
-        elif unit in self.properties.possible_productions:
-            self.game.do_action(UpdateProvinceAction(
+
+        if self.is_unit_mobilizable(unit):
+            return self.game.do_action(UpdateProvinceAction(
                 province_ids=Vector([self.province_id]),
                 mode=UpdateProvinceActionModes.SPECIAL_UNIT,
                 slot=0,
                 upgrade=unit,
-            ))
+            )), UpdateProvinceActionResult.Ok
         else:
-            raise ActionException(f"Unit {unit.debug_str()} is not available for province {self.debug_str()}.")
+            return None, self.get_unit_mobilizability(unit)
 
     @requires_ownership
     def cancel_mobilization(self):
@@ -394,14 +451,13 @@ class Province(GameObject):
         rights over the province before executing the method.
         """
         if self.production is None:
-            logger.warning(f"Trying to cancel mobilization but Province {self.debug_str()} has no production.")
-            return
+            return None, UpdateProvinceActionResult.NoProduction
 
-        self.game.do_action(UpdateProvinceAction(
+        return self.game.do_action(UpdateProvinceAction(
             province_ids=Vector([self.province_id]),
             mode=UpdateProvinceActionModes.CANCEL_PRODUCING,
             slot=0,
-        ))
+        )), UpdateProvinceActionResult.Ok
 
     def set_static_province(self, obj):
         for static_field in StaticProvince.__annotations__.keys():
