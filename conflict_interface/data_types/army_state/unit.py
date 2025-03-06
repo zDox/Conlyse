@@ -66,14 +66,14 @@ class Unit(GameObject):
     C = "u"
     id: int
     unit_type_id: int
-    health: float
-    size: int
-    kills: int
-    camoflage_replacement_unit: bool
-    on_sea: bool
-    at_airfield: bool
-    hit_points: float
-    max_hit_points: int
+    health: float = 0
+    size: int = 0
+    kills: int = 0
+    camoflage_replacement_unit: bool = False
+    on_sea: bool = False
+    at_airfield: bool = False
+    hit_points: float = 0
+    max_hit_points: int = 0
 
     MAPPING = {
         "id": "id",

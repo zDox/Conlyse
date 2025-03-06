@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime, UTC, timedelta
 from functools import wraps
+from pprint import pprint
 
 from requests import Session, Response
 from lxml import html
