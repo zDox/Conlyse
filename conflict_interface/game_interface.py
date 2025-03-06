@@ -4,6 +4,7 @@ from datetime import datetime
 from functools import wraps
 from pprint import pprint
 from typing import Any
+from typing import Optional
 
 from requests import Session
 
@@ -251,6 +252,13 @@ class GameInterface:
                 res[province.province_id] = province
         return res
 
+    def get_provinces_by_name(self, name) -> Optional[Province]:
+        province = self.get_provinces(name=name)
+        if province:
+            return next(iter(province.values()))
+        else:
+            return None
+
     # TODO fix (changed to HashSet)
     def get_province(self, province_id) -> Province:
         return self.game_state.states.map_state.map.locations.get(province_id)
@@ -310,19 +318,24 @@ class GameInterface:
     """
 
     @country_selected
-    def get_armies(self) -> dict[int, Army]:
-        return self.game_state.states.army_state.armies
+    def get_armies(self, **filters) -> dict[int, Army]:
+        return {
+            army_id: army
+            for army_id, army in self.game_state.states.army_state.armies.items()
+            if all(getattr(army, key) == value for key, value in filters.items())
+        }
 
     @country_selected
-    def get_my_armies(self) -> dict[int, Army]:
-        return {army.id: army
-                for army in self.game_state.states.army_state.armies.values()
-                if army.owner_id == self.player_id}
+    def get_my_armies(self, **filters) -> dict[int, Army]:
+        return self.get_armies(owner_id=self.player_id, **filters)
 
     @country_selected
     def get_army(self, army_id: int) -> Army:
         return self.game_state.states.army_state.armies.get(army_id)
 
+    @country_selected
+    def get_army_by_number(self, army_number: int) -> Army:
+        return next(iter(self.get_my_armies(army_number=army_number).values()), None)
     """
     ModState(11)
     """

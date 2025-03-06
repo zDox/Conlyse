@@ -65,7 +65,6 @@ class Province(GameObject):
         morale: Morale of the province, with a default value of 70.
         legal_owner: ID of the legal owner of the province or -1 if no legal owner.
         terrain_type: Type of terrain in the province. Defaults to None until set.
-        center_coordinate: Coordinates representing the central location of the province. Defaults to None until set.
         region: Region to which the province belongs. Defaults to RegionType.NONE.
         properties: Properties associated with the province, need to be owned by the current player. Defaults to None.
         construction (Optional[ProvinceProduction]): Upgrade that is currently being constructed in this province.
@@ -117,12 +116,8 @@ class Province(GameObject):
     money_production: int = 0
     morale: int = 70
     legal_owner: int = -1
-
-    # Data from Static supplier
     name: str = ""
-    terrain_type: TerrainType = None
-    center_coordinate: Point = None
-    region: RegionType = RegionType.NONE
+
     _properties: ProvinceProperty = None  # If player owns the province
     _upgrades: dict[int, ModableUpgrade] = None
 
