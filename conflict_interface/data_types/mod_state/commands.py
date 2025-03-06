@@ -14,7 +14,29 @@ from conflict_interface.data_types.point import Point
 @dataclass
 class GotoCommand(GameObject):
     """
-    Command that tells a army to move
+    Represents a command for an Army to move from one position to another.
+
+
+    Attributes:
+        start_position (Point): The initial position where the movement starts.
+        target_position (Point): The destination position where the movement ends.
+        speed (float): The speed at which the object moves.
+        location_id (int): Optional identifier for the location, defaults to None.
+        on_water (bool): Boolean flag indicating if the object moves on water,
+            defaults to False.
+        start_time (DateTimeMillisecondsInt): Timestamp for when the movement starts,
+            defaults to None.
+        arrival_time (DateTimeMillisecondsInt): Timestamp for when the movement ends,
+            defaults to None.
+        speed_factor (float): A multiplier for the speed of the object, defaults to 0.
+            This parameter may be recalibrated.
+        in_air (bool): Boolean flag indicating if the object moves through the air,
+            defaults to False.
+
+    Class Attributes:
+        C (str): The command identifier for 'GotoCommand'.
+        MAPPING (dict): A dictionary mapping the attribute names to their
+            shortened serialized representations.
     """
     C = "gc"
 

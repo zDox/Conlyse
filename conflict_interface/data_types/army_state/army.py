@@ -298,7 +298,8 @@ class Army(GameObject):
                 return None, ArmyActionResult.OutOfRange
         else:
             return self.set_commands([
-                GotoCommand(self.position, point, None, None, None, None, None, None, None)]), ArmyActionResult.Ok
+                GotoCommand(self.position, self.position, self.base_speed, None, self.on_sea, None, None, None, None),
+                GotoCommand(self.position, point, self.base_speed, None, self.on_sea, None, None, None, None)]), ArmyActionResult.Ok
 
     def cancel_commands(self) -> tuple[Optional[int], ArmyActionResult]:
         if self.commands:

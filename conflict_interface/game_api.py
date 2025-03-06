@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime, UTC, timedelta
 from functools import wraps
+from pprint import pprint
 
 from requests import Session, Response
 from lxml import html
@@ -178,6 +179,7 @@ class GameApi:
                                      data=dumps(data))
         response_json = response.json()
         response.raise_for_status()
+        pprint(data)
         if not type(response_json["result"]) is int:
             if "timeStamp" in response_json["result"]:
                 self.update_server_time(response_json["result"]["timeStamp"])
