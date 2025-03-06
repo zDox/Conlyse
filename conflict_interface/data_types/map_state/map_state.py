@@ -101,6 +101,9 @@ class Map(GameObject):
     def get_connections(self) -> list[dict[str, Union[int, Point]]]:
         return self.static_map_data.connections
 
+    def get_graph(self) -> dict[Point, list[Point]]:
+        return self.static_map_data.graph
+
     def get_province_id_from_point(self, point_to_check: Point) -> int:
         static_map = self.game.game_state.states.map_state.map.static_map_data
         sh_point = shapely_point(point_to_check.x, point_to_check.y)

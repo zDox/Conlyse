@@ -22,6 +22,9 @@ class StaticMapData(GameObject):
     connections_b64: str
 
     _encoded_connections: list[dict[str, Union[int, Point]]] = None
+    _graph: dict[Point, list[Point]] = None
+    _point_to_province: dict[Point, int] = None
+    _province_to_points: dict[int, list[Point]] = None
     _str_tree: STRtree = None
     _polygons: list[Polygon] = None
 
@@ -33,14 +36,19 @@ class StaticMapData(GameObject):
     @property
     def connections(self) -> list[dict[str, Union[int, Point]]]:
         if self._encoded_connections is None:
-            self._encoded_connections = decode_connections(self.connections_b64)
+            self.init_graph()
         return self._encoded_connections
 
     @property
     def graph(self) -> dict[Point, list[Point]]:
+        if self._graph is None:
+            self.init_graph()
+        return self._graph
+
+    def init_graph(self):
         if self._encoded_connections is None:
             self._encoded_connections = decode_connections(self.connections_b64)
-        return graph(self._encoded_connections)[0]
+        self._graph, self._province_to_points,self._point_to_province = graph(self._encoded_connections)
 
     @property
     def str_tree(self) -> tuple[STRtree, list[Polygon]]:
@@ -50,13 +58,13 @@ class StaticMapData(GameObject):
 
     def get_province(self, point: Point) -> int:
         if self._encoded_connections is None:
-            self._encoded_connections = decode_connections(self.connections_b64)
-        return graph(self._encoded_connections)[2].get(point)
+            self.init_graph()
+        return self._point_to_province.get(point)
 
     def get_points(self, province: int) -> list[Point]:
         if self._encoded_connections is None:
-            self._encoded_connections = decode_connections(self.connections_b64)
-        return graph(self._encoded_connections)[1].get(province)
+            self.init_graph()
+        return self._province_to_points.get(province)
 
 
 def compute_str_tree(locations: ArrayList[StaticProvince]) -> tuple[STRtree, list[Polygon]]:
