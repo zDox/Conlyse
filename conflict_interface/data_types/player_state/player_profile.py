@@ -1,23 +1,14 @@
 from typing import Optional
 
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
 from conflict_interface.data_types.game_object import GameObject
 
 from dataclasses import dataclass
-from enum import Enum
 
+from conflict_interface.data_types.player_state.faction import Faction
 from conflict_interface.data_types.point import Point
 
 LAST_LOGIN_INACTIVE = 0
 GUEST_PLAYER_ID = 0
-
-
-class Faction(Enum, metaclass=DefaultEnumMeta):
-    NONE = 0
-    WESTERN = 1
-    EASTERN = 2
-    EUROPEAN = 3
-
 
 """
 Not implemented function (graphics)

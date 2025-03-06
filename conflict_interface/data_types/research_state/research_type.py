@@ -6,7 +6,7 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.mod_state.configuration import ConflictCondition
 from conflict_interface.data_types.mod_state.configuration import FactionSpecificConfig
 from conflict_interface.data_types.research_state.faction_specific_research_config import FactionSpecificResearchConfig
-from conflict_interface.data_types.research_state.research_requirement_config import ResearchRequirementConfig
+from conflict_interface.data_types.research_state.research_action import ResearchActionResult
 
 
 @dataclass
@@ -61,6 +61,7 @@ class ResearchType(GameObject):
         "costs": "costs",
         "faction_specific_config": "factionSpecificConfig",
     }
+
     @property
     def tier(self):
         """
@@ -129,3 +130,28 @@ class ResearchType(GameObject):
         """
         replacing_research_id = self.get_replacing_research()
         return self.game.game_state.states.mod_state.research_types.get(replacing_research_id)
+
+    def research(self) -> tuple[int | None, ResearchActionResult]:
+        """
+        Researches the current research type. Use the method in ResearchState to perform the action.
+
+        Returns:
+            tuple[int | None, ResearchActionResult]: A tuple containing the result of the
+            research operation. The first element is a unique action id. The second
+            element is an instance of ResearchActionResult providing additional details about
+            the research action.
+        """
+        return self.game.game_state.states.research_state.research(self.item_id)
+
+    def cancel_research(self) -> tuple[int | None, ResearchActionResult]:
+        """
+        Cancels the research for the current research type.
+        Use the method in ResearchState to perform the action.
+
+        Returns
+        -------
+        tuple[int | None, ResearchActionResult]
+            A tuple containing the unique action id if a research action will/was performed and
+            the Result of the ResearchAction.
+        """
+        return self.game.game_state.states.research_state.cancel_research(self.item_id)

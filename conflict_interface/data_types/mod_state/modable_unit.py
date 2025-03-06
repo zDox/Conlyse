@@ -27,6 +27,3 @@ class SpecialUnit(GameObject):
         "condition": "c",
         "e": "e",
     }
-
-    def debug_str(self):
-        return f"{self.game.get_unit_type(self.unit.unit_type_id).type_name}({self.unit.unit_type_id})"
