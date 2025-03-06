@@ -74,8 +74,8 @@ class RetreatCommand(GameObject):
 @dataclass
 class AttackCommand(GameObject):
     C = "ac"
-    target_unit_id: int
-    target_position: Point
+    target_unit_id: Optional[int]
+    target_position: Optional[Point]
     user_given: bool
 
     MAPPING = {

@@ -17,8 +17,8 @@ if __name__ == "__main__":
     game_id = 9758559
     pprint(f"Joining new game:  {game_id}")
     game = interface.join_game(game_id)
-    city = game.get_provinces_by_name("Maun")
-    infantry = game.get_army_by_number(8)
+    city = game.get_provinces_by_name("Johannesburg")
+    army = game.get_army_by_number(2)
     target = city.static_data.center_coordinate
-    infantry.set_waypoint(target)
+    army.set_waypoint(target)
     game.update()

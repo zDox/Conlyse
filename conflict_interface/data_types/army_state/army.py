@@ -7,9 +7,11 @@ from conflict_interface.data_types.army_state.army_action import ArmyActionResul
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import DefaultEnumMeta, LinkedList, UnitList
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.mod_state.commands import AttackCommand
 from conflict_interface.data_types.mod_state.commands import GotoCommand
 from conflict_interface.data_types.mod_state.commands import PatrolCommand
 from conflict_interface.data_types.mod_state.commands import PatrolType
+from conflict_interface.data_types.mod_state.commands import SplitArmyCommand
 from conflict_interface.data_types.mod_state.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
         TokenFeature
@@ -182,10 +184,10 @@ class Army(GameObject):
     terrain_type_str: TerrainTypeStr = None
 
     air_parameters: Optional[AirParameters] = None
-    anti_air_parameters: AntiAirParameters = None
+    anti_air_parameters: Optional[AntiAirParameters] = None
 
     carriable: bool = False
-    carrier_feature: CarrierFeature = None
+    carrier_feature: Optional[CarrierFeature] = None
 
     last_location_ids: list[int] = None
     end_of_unit_walk: bool = None # No idea what this is. Might be a boolean.
@@ -193,7 +195,7 @@ class Army(GameObject):
     hit_points: float = None
     max_hit_points: int = None
 
-    missile_carrier_feature: MissileCarrierFeature = None
+    missile_carrier_feature: Optional[MissileCarrierFeature] = None
     entrenched: bool = False
 
     next_anti_air_attack: DateTimeMillisecondsInt = None
@@ -204,8 +206,8 @@ class Army(GameObject):
     defence: float = None
     army_moral: float = None
 
-    radar_signature_feature: RadarSignatureFeature = None
-    token_feature: TokenFeature = None
+    radar_signature_feature: Optional[RadarSignatureFeature] = None
+    token_feature: Optional[TokenFeature] = None
 
     MAPPING = {
         "id": "id",
@@ -266,6 +268,10 @@ class Army(GameObject):
     }
 
     def update_values(self):
+        """
+        Sets some of the values of the army to None. This is necessary because otherwise the GameApi raises an error.
+        This is conflict of nations fault and nothing that we can do about it.
+        """
         self.air_parameters = None
         self.anti_air_parameters = None
         self.estimated_arrival_time = None
@@ -273,33 +279,166 @@ class Army(GameObject):
         self.token_feature = None
         self.next_attack_time = None
 
-    def set_commands(self, commands: list[Command]):
+    def set_command(self, command: Command) -> int:
+        """
+        Sets a single command for further processing. Converts the provided command
+        into a list and delegates the operation to set_commands for execution.
+
+        Args:
+            command (Command): The command to be processed.
+
+        Returns:
+            int: Unique action id.
+        """
+        return self.set_commands([command])
+
+    def set_commands(self, commands: list[Command]) -> int:
+        """
+        Update the commands for the current instance and trigger the necessary updates.
+
+        Parameters:
+            commands (list[Command]): A list of Command objects to be assigned.
+
+        Returns:
+            int: Unique action id.
+        """
         self.update_values()
         self.commands = LinkedList(commands)
-        self.game.do_action(ArmyAction(LinkedList([self])))
+        return self.game.do_action(ArmyAction(LinkedList([self])))
+
+    def add_command(self, command: Command) -> int:
+        """
+        Add a command to the command queue, associates it with the game's action list,
+        and returns the unique action id.
+
+        Args:
+            command (Command): The command to be added to the command queue.
+
+        Returns:
+            int: Unique action id.
+        """
+        self.update_values()
+        self.commands.append(command)
+        return self.game.do_action(ArmyAction(LinkedList([self])))
 
     def patrol(self, target: Point) -> tuple[Optional[int], ArmyActionResult]:
+        """
+        Patrols a specified target point using an aircraft. Function is only available for aircraft.
+        Returns ArmyActionResult.Ok if successful, otherwise ArmyActionResult.NotAircraft if the current
+        Army is not an aircraft or ArmyActionResult.OutOfRange if the target is outside the range of the aircraft.
+
+        Parameters:
+            target (Point): The target location that the aircraft should patrol.
+
+        Returns:
+        tuple[Optional[int], ArmyActionResult]
+            A tuple containing an optional unique action id and the result of the operation
+            (ArmyActionResult).
+        """
         if self.airplane:
             if self.is_in_range(target):
-                return self.set_commands([PatrolCommand(target, True, PatrolType.guard, None)]), ArmyActionResult.Ok
+                return self.set_command(PatrolCommand(target, True, PatrolType.guard, None)), ArmyActionResult.Ok
             else:
                 return None, ArmyActionResult.OutOfRange
         else:
-            return None, ArmyActionResult.NotAircraft
+            return None, ArmyActionResult.InvalidCommandForUnitTypes
 
     def is_in_range(self, point: Point) -> bool:
-        return self.position.distance(point) <= self.range
+        """
+        Determines whether a given point is within the range of the current army.
+
+        For objects such as airplanes, this method checks if the distance between
+        the current position and the specified point is within the specified range.
+        For non-airplane armies, the range check is ignored, and returns True.
+
+        Args:
+            point (Point): The point to be checked against the current position.
+
+        Returns:
+            bool: True if the point is within range, False otherwise.
+        """
+        if self.airplane:
+            return self.position.distance(point) <= self.range
+        else:
+            return True
 
     def set_waypoint(self, point: Point) -> tuple[Optional[int], ArmyActionResult]:
+        """
+        Sets a waypoint for the army unit to move to.
+
+        Parameters:
+            point (Point): The target waypoint to navigate to.
+
+        Returns:
+            tuple[Optional[int], ArmyActionResult]: A tuple containing an optional unique action id
+            and result status. Returns ArmyActionResult.Ok if successful, otherwise ArmyActionResult.OutOfRange if
+            the army is an airplane and the target point is outside the range of the aircraft.
+        """
         if self.airplane:
             if self.is_in_range(point):
-                return self.set_commands(GotoCommand(self.position, point, None, None, None, None, None, None, None)), ArmyActionResult.Ok
+                return self.set_command(GotoCommand(self.position, point, None, None, None, None, None, None, None)), ArmyActionResult.Ok
             else:
                 return None, ArmyActionResult.OutOfRange
         else:
             return self.set_commands([
                 GotoCommand(self.position, self.position, self.base_speed, None, self.on_sea, None, None, None, None),
                 GotoCommand(self.position, point, self.base_speed, None, self.on_sea, None, None, None, None)]), ArmyActionResult.Ok
+
+    def add_waypoint(self, point: Point):
+        """
+        Adds a waypoint to the current command queue. This method modifies the command
+        queue by appending a new GotoCommand if the last command in the queue is a
+        GotoCommand. If the last command is not a GotoCommand and not a SplitCommand, it does not modify the
+        queue and returns an indication of an invalid command queue.
+
+        Parameters:
+            point (Point): The target waypoint to be added to the command queue.
+
+        Returns:
+            Tuple[None, ArmyActionResult]:
+        """
+        if self.commands:
+            last_command = self.commands[-1]
+            if isinstance(last_command, GotoCommand):
+                return self.add_command(GotoCommand(last_command.target_position, point, self.base_speed, None, self.on_sea, None, None, None, None)), ArmyActionResult.Ok
+            else:
+                return None, ArmyActionResult.InvalidCommandQueue
+        else:
+            return self.set_waypoint(point)
+
+    def attack_point(self, point: Point) -> tuple[Optional[int], ArmyActionResult]:
+        if self.airplane:
+            if self.is_in_range(point):
+                return self.set_command(AttackCommand(None, point, True)), ArmyActionResult.Ok
+            else:
+                return None, ArmyActionResult.OutOfRange
+        else:
+            return self.set_command(AttackCommand(None, point, True)), ArmyActionResult.Ok
+
+    def attack_army(self, army: "Army") -> tuple[Optional[int], ArmyActionResult]:
+        if self.airplane:
+            if self.is_in_range(army.position):
+                return self.set_command(AttackCommand(army.id, None, True)), ArmyActionResult.Ok
+            else:
+                return None, ArmyActionResult.OutOfRange
+        else:
+            return self.set_command(AttackCommand(army.id, None, True)), ArmyActionResult.Ok
+
+    def split_army(self, point: Point, units: list[Unit]) -> tuple[Optional[int], ArmyActionResult]:
+        if self.airplane:
+            return None, ArmyActionResult.InvalidCommandForUnitTypes
+
+        splitted_units = [unit for unit in self.units if unit in units]
+        goto_command = GotoCommand(self.position, point, None, None, None, None, None, None, None)
+        new_army = Army(units=LinkedList(splitted_units))
+        splitted_command = SplitArmyCommand(splitted_army=new_army)
+        for unit in splitted_units:
+            self.units.remove(unit)
+        return self.set_command(splitted_command), ArmyActionResult.Ok
+
+            
+                
+
 
     def cancel_commands(self) -> tuple[Optional[int], ArmyActionResult]:
         if self.commands:
