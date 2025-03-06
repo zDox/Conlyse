@@ -11,8 +11,6 @@ from dataclasses import dataclass
 from typing import get_type_hints
 from typing import override
 
-from lxml.html.defs import general_block_tags
-
 from conflict_interface.data_types.map_state.province import logger
 from conflict_interface.data_types.point import Point
 from conflict_interface.data_types.map_state.province import Province

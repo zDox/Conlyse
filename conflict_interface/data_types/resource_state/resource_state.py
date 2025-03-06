@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 from conflict_interface.data_types.resource_state.resource_types import ResourceType
 from conflict_interface.data_types.custom_types import AskListInner
@@ -29,6 +30,7 @@ class OrderActionResult(Enum):
     AMOUNT_TO_LOW = 7
     AMOUNT_TO_HIGH = 8
     RESOURCE_ENTRY_MISSING = 9
+    NOT_ENOUGH_MONEY = 10
 
 @dataclass
 class ResourceState(State):
@@ -50,7 +52,7 @@ class ResourceState(State):
         "asks": "asks",
         "prices": "prices",
     }
-    def get_order(self, buy: bool , resource_type: ResourceType = -1, piece_price: float = -1, amount: int = -1, order_id: int = -1):
+    def get_order(self, buy: bool , resource_type: ResourceType = -1, piece_price: float = -1, amount: int = -1, order_id: int = -1) -> Optional[Order]:
         for inner in self.bids if buy else self.asks:
             for order in inner:
                 if order.order_id == order_id or (order.resource_type == resource_type and order.limit == piece_price and order.amount == amount):
@@ -59,27 +61,34 @@ class ResourceState(State):
         logger.warning(f"Order not found for resource_type: {resource_type}, piece_price: {piece_price}, amount: {amount}, buy: {buy}")
         return None
 
-    def cancel_order(self, order: Order):
+    def cancel_order(self, order: Order) -> tuple[Optional[int], OrderActionResult]:
         if order is None:
             return None, OrderActionResult.ORDER_NOT_FOUND
 
         action = OrderAction(order = order, cancel=True)
         return self.game.do_action(action), OrderActionResult.OK
 
-    def create_ask(self, resource_type: ResourceType, piece_price: float, amount: int): # Offer to Sell resource to anyone
-        resource_enty = self.game.get_resource_entry(resource_type)
-        if resource_enty is None:
-            return None, OrderActionResult.RESOURCE_ENTRY_MISSING
+    def check_sell_trade_allowed(self, resource_type: ResourceType, piece_price: float, amount: int) -> OrderActionResult:
+        resource_entry = self.game.get_resource_entry(resource_type)
+        if resource_entry is None:
+            return OrderActionResult.RESOURCE_ENTRY_MISSING
 
-        if piece_price > resource_enty.max_price:
-            return None, OrderActionResult.PRICE_TO_HIGH
-        elif piece_price < resource_enty.min_price:
-            return None, OrderActionResult.PRICE_TO_LOW
+        if piece_price > resource_entry.max_price:
+            return OrderActionResult.PRICE_TO_HIGH
+        elif piece_price < resource_entry.min_price:
+            return OrderActionResult.PRICE_TO_LOW
 
         if amount < 1:
-            return None, OrderActionResult.AMOUNT_TO_LOW
-        if amount > resource_enty.get_resource_amount():
-            return None, OrderActionResult.AMOUNT_TO_HIGH
+            return OrderActionResult.AMOUNT_TO_LOW
+        if amount > resource_entry.get_resource_amount():
+            return OrderActionResult.AMOUNT_TO_HIGH
+
+        return OrderActionResult.OK
+
+    def create_ask(self, resource_type: ResourceType, piece_price: float, amount: int) -> tuple[Optional[int], OrderActionResult]: # Offer to Sell resource to anyone
+        result = self.check_sell_trade_allowed(resource_type, piece_price, amount)
+        if result != OrderActionResult.OK:
+            return None, result
 
         order = Order(
             buy=False,
@@ -96,16 +105,23 @@ class ResourceState(State):
             is_owner = None
         )
         action = OrderAction(order = order, cancel=False)
-        return self.game.do_action(action), OrderActionResult.OK
+        return self.game.do_action(action), result
 
-    def create_bid(self, resource_type: ResourceType, piece_price: float, amount: int): # Ask to Buy resource from anyone
+    def check_buy_trade_allowed(self, resource_type: ResourceType, piece_price: float, amount: int) -> OrderActionResult:
         resource_entry = self.game.get_resource_entry(resource_type)
         money_entry = self.game.get_resource_entry(ResourceType.MONEY)
         if resource_entry is None:
-            return None, OrderActionResult.RESOURCE_ENTRY_MISSING
+            return OrderActionResult.RESOURCE_ENTRY_MISSING
 
         if amount*piece_price > money_entry.get_resource_amount():
-            return None, OrderActionResult.AMOUNT_TO_HIGH
+            return OrderActionResult.NOT_ENOUGH_MONEY
+
+        return OrderActionResult.OK
+
+    def create_bid(self, resource_type: ResourceType, piece_price: float, amount: int) -> tuple[Optional[int], OrderActionResult]: # Ask to Buy resource from anyone
+        result = self.check_buy_trade_allowed(resource_type, piece_price, amount)
+        if result != OrderActionResult.OK:
+            return None, result
 
         order = Order(
             buy=True,
@@ -123,4 +139,4 @@ class ResourceState(State):
         )
 
         action = OrderAction(order = order, cancel=False)
-        return self.game.do_action(action), OrderActionResult.OK
+        return self.game.do_action(action), result
