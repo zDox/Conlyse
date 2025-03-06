@@ -1,12 +1,7 @@
 from __future__ import annotations
-from __future__ import annotations
-from __future__ import annotations
-from __future__ import annotations
-
 import base64
 from collections import defaultdict
 from typing import Union
-
 
 from conflict_interface.data_types.point import Point
 
@@ -74,10 +69,12 @@ def decode_connections(encoded_str: str) -> list[dict[str, Union[int, Point]]]:
     return connections
 
 
-def graph(connections: list[dict[str, Union[int, Point]]]):
+def graph(connections: list[dict[str, Union[int, Point]]]) -> (
+        tuple)[dict[Point, list[Point]], dict[int, list[Point]], dict[Point, int]]:
+
     adjacency_list = defaultdict(list)
-    province_to_point = {}
-    point_to_province = {}
+    province_to_point: dict[int, list[Point]] = {}
+    point_to_province: dict[Point, int] = {}
 
     for connection in connections:
         p1 = connection["p1"]
@@ -87,8 +84,15 @@ def graph(connections: list[dict[str, Union[int, Point]]]):
         adjacency_list[p1].append(p2)
         adjacency_list[p2].append(p1)
 
-        province_to_point[province] = p1
+        # add p1,p2 to province_to_point
+        if province not in province_to_point:
+            province_to_point[province] = []
+        province_to_point[province].append(p1)
+        province_to_point[province].append(p2)
+
+
         point_to_province[p1] = province
         point_to_province[p2] = province
 
     return adjacency_list, province_to_point, point_to_province
+

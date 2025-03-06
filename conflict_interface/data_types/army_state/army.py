@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
+import numpy as np
+
 from conflict_interface.data_types.army_state.army_action import ArmyAction
 from conflict_interface.data_types.army_state.army_action import ArmyActionResult
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
@@ -305,3 +307,21 @@ class Army(GameObject):
             return self.set_commands([]), ArmyActionResult.Ok
         else:
             return None, ArmyActionResult.NoActiveCommand
+
+    def get_next_connections(self) -> list[Point]:
+        map_ = self.game.game_state.states.map_state.map
+        relevant_points = map_.static_map_data.get_points(map_.get_province_id_from_point(self.position))
+        adj = map_.static_map_data.graph
+
+        for point in relevant_points:
+            if point.distance(self.position) <= 0.1:
+                return adj[point]
+
+        for point in relevant_points:
+            for adj_point in adj[point]:
+                vector_pos_to_point = self.position - point
+                vector_a_to_b = adj_point - point
+                if vector_pos_to_point.cross(vector_a_to_b) <= 0.1:
+                    if 0 < vector_pos_to_point.dot(vector_a_to_b) < vector_a_to_b.dot(vector_a_to_b):
+                        return [adj_point, point]
+

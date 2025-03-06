@@ -24,6 +24,9 @@ from conflict_interface.data_types.state import State
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.utils.helper import safe_issubclass
 
+from shapely.geometry import Point as shapely_point
+import numpy as np
+
 
 @dataclass
 class Map(GameObject):
@@ -97,6 +100,55 @@ class Map(GameObject):
 
     def get_connections(self) -> list[dict[str, Union[int, Point]]]:
         return self.static_map_data.connections
+
+    def get_province_id_from_point(self, point_to_check: Point) -> int:
+        static_map = self.game.game_state.states.map_state.map.static_map_data
+        sh_point = shapely_point(point_to_check.x, point_to_check.y)
+        tree, polygons = static_map.str_tree
+
+        province_id = None
+        candidate_indices = tree.query(sh_point)
+        for idx in candidate_indices:
+            polygon = polygons[idx]
+            if polygon.contains(sh_point):
+                province_id = static_map.locations[idx].id
+                break
+
+        return province_id
+
+    def get_closest_point_on_nearest_connection(self, point_to_check: Point) -> Point:
+
+        static_map = self.game.game_state.states.map_state.map.static_map_data
+        province_id = self.get_province_id_from_point(point_to_check)
+        relevant_points = static_map.get_points(province_id)
+        adj = static_map.graph
+
+        min_dist = float("inf")
+        closest = None
+
+        for start in relevant_points:
+            for end in adj[start]:
+                pos = np.array([point_to_check.x, point_to_check.y])
+                a = np.array([start.x, start.y])
+                b = np.array([end.x, end.y])
+
+                ab = b - a
+                ap = pos - a
+
+                ab_norm = np.dot(ap, ab) / np.dot(ab, ab)
+
+                ab_norm = max(0, min(1, ab_norm))
+
+                c = a + ab * ab_norm
+
+                d = np.linalg.norm(pos - c)
+
+                if d < min_dist:
+                    min_dist = d
+                    c_x, c_y = c
+                    closest = Point(float(c_x), float(c_y))
+
+        return closest
 
     @override
     def update(self, other: GameObject):
