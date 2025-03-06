@@ -42,6 +42,9 @@ class ArmyState(State):
         if not isinstance(other, ArmyState):
             raise ValueError("UPDATE ERROR: Cannot update ArmyState with object of type: " + str(type(other)))
 
+        if other == self:
+            raise ValueError("UPDATE ERROR: Cannot update ArmyState with itself")
+
         if other is None:
             return
         for new_army in other.armies.values():
