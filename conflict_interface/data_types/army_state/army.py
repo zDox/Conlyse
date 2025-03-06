@@ -134,10 +134,10 @@ class Army(GameObject):
         token_feature: How the army consumes tokens on mobilization.
     """
     C = "a"
-    next_attack_time: Optional[DateTimeMillisecondsInt]
-    estimated_arrival_time: Optional[DateTimeMillisecondsInt]
-    spy_reveal_time: Optional[DateTimeMillisecondsInt]
-    last_damage_taken_time: Optional[DateTimeMillisecondsInt]
+    next_attack_time: Optional[DateTimeMillisecondsInt] = None
+    estimated_arrival_time: Optional[DateTimeMillisecondsInt] = None
+    spy_reveal_time: Optional[DateTimeMillisecondsInt] = None
+    last_damage_taken_time: Optional[DateTimeMillisecondsInt] = None
 
     patrol_radius: int = -1
     id: int = None
@@ -424,16 +424,40 @@ class Army(GameObject):
         else:
             return self.set_command(AttackCommand(army.id, None, True)), ArmyActionResult.Ok
 
-    def split_army(self, point: Point, units: list[Unit]) -> tuple[Optional[int], ArmyActionResult]:
+    def split_army(self, point: Point, split_units_count: list[tuple[int, int]]) -> tuple[Optional[int], ArmyActionResult]:
+        """
+        Splits the current army and assigns a new command to the newly created army.
+
+        This function manages splitting specified units from the current army and
+        delegating their movement via a new command. Units will only be split if
+        they are present in the current army and if they meet the required count.
+        The result includes the updated command and a result status indicating
+        success or error in operations.
+
+        Args:
+            point (Point): Destination point for the new army's movement.
+            units (list[tuple[int, int]]): List of tuples, where each tuple
+                contains the unit type ID at index 0 and the count of units to split at index 1.
+
+        Returns:
+            tuple[Optional[int], ArmyActionResult]: A tuple containing optional
+                unique action ID (can be None if the operation fails) and a
+                corresponding ArmyActionResult.
+        """
         if self.airplane:
             return None, ArmyActionResult.InvalidCommandForUnitTypes
 
-        splitted_units = [unit for unit in self.units if unit in units]
+        splitted_units = []
+        for unit_id, unit_count in split_units_count:
+            for my_unit in self.units:
+                if my_unit.unit_type_id == unit_id:
+                    if my_unit.size >= unit_count:
+                        splitted_units.append(Unit(0, unit_id, size=unit_count))
+
+
         goto_command = GotoCommand(self.position, point, None, None, None, None, None, None, None)
-        new_army = Army(units=LinkedList(splitted_units))
+        new_army = Army(units=UnitList(splitted_units),commands=LinkedList([goto_command]))
         splitted_command = SplitArmyCommand(splitted_army=new_army)
-        for unit in splitted_units:
-            self.units.remove(unit)
         return self.set_command(splitted_command), ArmyActionResult.Ok
 
             
