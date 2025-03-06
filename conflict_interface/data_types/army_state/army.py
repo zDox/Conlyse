@@ -407,6 +407,22 @@ class Army(GameObject):
             return self.set_waypoint(point)
 
     def attack_point(self, point: Point) -> tuple[Optional[int], ArmyActionResult]:
+        """
+        Attacks a specified point via the current army.
+
+        Args:
+            point (Point): The target location on the grid or map to be attacked.
+
+        Returns:
+            tuple[Optional[int], ArmyActionResult]: A tuple consisting of:
+                - An integer identifier for the unique action if applicable, or None
+                  if the action cannot proceed.
+                - An ArmyActionResult enum value indicating the result of the action,
+                  such as if it was successful or if the point is out of range.
+
+        Raises:
+            None
+        """
         if self.airplane:
             if self.is_in_range(point):
                 return self.set_command(AttackCommand(None, point, True)), ArmyActionResult.Ok
@@ -416,6 +432,16 @@ class Army(GameObject):
             return self.set_command(AttackCommand(None, point, True)), ArmyActionResult.Ok
 
     def attack_army(self, army: "Army") -> tuple[Optional[int], ArmyActionResult]:
+        """
+        Attacks an enemy army. One needs to specify the target army.
+
+        Args:
+            army (Army): The target army.
+
+        Returns:
+            tuple[Optional[int], ArmyActionResult]: A tuple containing an optional integer representing the
+                unique action id and a corresponding ArmyActionResult indicating success or failure.
+        """
         if self.airplane:
             if self.is_in_range(army.position):
                 return self.set_command(AttackCommand(army.id, None, True)), ArmyActionResult.Ok
@@ -444,8 +470,6 @@ class Army(GameObject):
                 unique action ID (can be None if the operation fails) and a
                 corresponding ArmyActionResult.
         """
-        if self.airplane:
-            return None, ArmyActionResult.InvalidCommandForUnitTypes
 
         splitted_units = []
         for unit_id, unit_count in split_units_count:
@@ -454,9 +478,8 @@ class Army(GameObject):
                     if my_unit.size >= unit_count:
                         splitted_units.append(Unit(0, unit_id, size=unit_count))
 
-
         goto_command = GotoCommand(self.position, point, None, None, None, None, None, None, None)
-        new_army = Army(units=UnitList(splitted_units),commands=LinkedList([goto_command]))
+        new_army = Army(units=UnitList(splitted_units),owner_id=self.owner_id, position=self.position, commands=LinkedList([goto_command]))
         splitted_command = SplitArmyCommand(splitted_army=new_army)
         return self.set_command(splitted_command), ArmyActionResult.Ok
 
@@ -465,6 +488,14 @@ class Army(GameObject):
 
 
     def cancel_commands(self) -> tuple[Optional[int], ArmyActionResult]:
+        """
+        Cancels the current active commands for the army.
+
+        Returns:
+            tuple[Optional[int], ArmyActionResult]
+                A tuple where the first element is the optional unique action id, or None if there were
+                no active commands. The second element indicates the ArmyActionResult.
+        """
         if self.commands:
             return self.set_commands([]), ArmyActionResult.Ok
         else:
