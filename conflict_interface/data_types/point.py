@@ -2,6 +2,9 @@ from dataclasses import dataclass
 from math import sqrt, atan2
 from copy import deepcopy
 
+import numpy as np
+from shapely.geometry import Point as shapely_point
+
 from conflict_interface.data_types.game_object import GameObject
 
 
@@ -21,11 +24,8 @@ class Point(GameObject):
     def get_y(self):
         return self.y
 
-    @staticmethod
-    def distance(point1, point2):
-        dx = point1.x - point2.x
-        dy = point1.y - point2.y
-        return sqrt(dx**2 + dy**2)
+    def distance(self, point: "Point"):
+        return sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
 
     @staticmethod
     def angle_between(point1, point2):
@@ -189,3 +189,6 @@ class Point(GameObject):
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
+
+    def __sub__(self, other):
+        return Point(self.x - other.x, self.y - other.y)

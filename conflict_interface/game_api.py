@@ -186,7 +186,7 @@ class GameApi:
 
         if "result" in response_json and type(response_json["result"]) is dict:
             if response_json["result"].get("@c") == "ultshared.UltAuthentificationException":
-                raise Exception(f"Authentfication failed while sending parameters {parameters} to game server.")
+                raise Exception(f"Authentfication failed while sending parameters {dumps(data, indent=2)} to game server.")
         return response_json
 
 

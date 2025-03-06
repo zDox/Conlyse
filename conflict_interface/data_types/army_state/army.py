@@ -2,9 +2,16 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
+import numpy as np
+
+from conflict_interface.data_types.army_state.army_action import ArmyAction
+from conflict_interface.data_types.army_state.army_action import ArmyActionResult
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import DefaultEnumMeta, LinkedList, UnitList
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.mod_state.commands import GotoCommand
+from conflict_interface.data_types.mod_state.commands import PatrolCommand
+from conflict_interface.data_types.mod_state.commands import PatrolType
 from conflict_interface.data_types.mod_state.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
         TokenFeature
@@ -176,14 +183,14 @@ class Army(GameObject):
     terrain_type: TerrainType = None
     terrain_type_str: TerrainTypeStr = None
 
-    air_parameters: AirParameters = None
+    air_parameters: Optional[AirParameters] = None
     anti_air_parameters: AntiAirParameters = None
 
     carriable: bool = False
     carrier_feature: CarrierFeature = None
 
     last_location_ids: list[int] = None
-    end_of_unit_walk: bool = False
+    end_of_unit_walk: bool = None # No idea what this is. Might be a boolean.
 
     hit_points: float = None
     max_hit_points: int = None
@@ -191,8 +198,8 @@ class Army(GameObject):
     missile_carrier_feature: MissileCarrierFeature = None
     entrenched: bool = False
 
-    next_anti_air_attack: int = None
-    last_anti_air_attack: int = None
+    next_anti_air_attack: DateTimeMillisecondsInt = None
+    last_anti_air_attack: DateTimeMillisecondsInt = None
     last_anti_air_attack_distance: float = None
     strength: float = None
 
@@ -259,3 +266,62 @@ class Army(GameObject):
         "token_feature": "tok",
         "patrol_radius": "patrolRadius"
     }
+
+    def update_values(self):
+        self.air_parameters = None
+        self.anti_air_parameters = None
+        self.estimated_arrival_time = None
+        self.radar_signature_feature = None
+        self.token_feature = None
+        self.next_attack_time = None
+
+    def set_commands(self, commands: list[Command]):
+        self.update_values()
+        self.commands = LinkedList(commands)
+        self.game.do_action(ArmyAction(LinkedList([self])))
+
+    def patrol(self, target: Point) -> tuple[Optional[int], ArmyActionResult]:
+        if self.airplane:
+            if self.is_in_range(target):
+                return self.set_commands([PatrolCommand(target, True, PatrolType.guard, None)]), ArmyActionResult.Ok
+            else:
+                return None, ArmyActionResult.OutOfRange
+        else:
+            return None, ArmyActionResult.NotAircraft
+
+    def is_in_range(self, point: Point) -> bool:
+        return self.position.distance(point) <= self.range
+
+    def set_waypoint(self, point: Point) -> tuple[Optional[int], ArmyActionResult]:
+        if self.airplane:
+            if self.is_in_range(point):
+                return self.set_commands(GotoCommand(self.position, point, None, None, None, None, None, None, None)), ArmyActionResult.Ok
+            else:
+                return None, ArmyActionResult.OutOfRange
+        else:
+            return self.set_commands([
+                GotoCommand(self.position, point, None, None, None, None, None, None, None)]), ArmyActionResult.Ok
+
+    def cancel_commands(self) -> tuple[Optional[int], ArmyActionResult]:
+        if self.commands:
+            return self.set_commands([]), ArmyActionResult.Ok
+        else:
+            return None, ArmyActionResult.NoActiveCommand
+
+    def get_next_connections(self) -> list[Point]:
+        map_ = self.game.game_state.states.map_state.map
+        relevant_points = map_.static_map_data.get_points(map_.get_province_id_from_point(self.position))
+        adj = map_.static_map_data.graph
+
+        for point in relevant_points:
+            if point.distance(self.position) <= 0.1:
+                return adj[point]
+
+        for point in relevant_points:
+            for adj_point in adj[point]:
+                vector_pos_to_point = self.position - point
+                vector_a_to_b = adj_point - point
+                if vector_pos_to_point.cross(vector_a_to_b) <= 0.1:
+                    if 0 < vector_pos_to_point.dot(vector_a_to_b) < vector_a_to_b.dot(vector_a_to_b):
+                        return [adj_point, point]
+

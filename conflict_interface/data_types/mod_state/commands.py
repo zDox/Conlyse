@@ -80,11 +80,13 @@ class PatrolCommand(GameObject):
     target_position: Point
     approaching: bool
     patrol_type: PatrolType
+    air_field: Optional[str]
 
     MAPPING = {
         "target_position": "targetPos",
         "approaching": "approaching",
         "patrol_type": "type",
+        "air_field": "airField",
     }
 
 
