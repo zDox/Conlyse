@@ -21,11 +21,8 @@ class Point(GameObject):
     def get_y(self):
         return self.y
 
-    @staticmethod
-    def distance(point1, point2):
-        dx = point1.x - point2.x
-        dy = point1.y - point2.y
-        return sqrt(dx**2 + dy**2)
+    def distance(self, point: "Point"):
+        return sqrt((self.x - point.x)**2 + (self.y - point.y)**2)
 
     @staticmethod
     def angle_between(point1, point2):

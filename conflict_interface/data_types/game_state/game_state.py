@@ -144,21 +144,17 @@ class States(GameObject):
         :param new_fields: The new fields to update with (dict)
         :return: None
         """
-        if new_fields is None:
-            return
-        for field in self.__annotations__.keys():
-            state = getattr(self, field)
-            if state is None:
+        for state in self.__annotations__.keys():
+            new_state = getattr(new_fields, state)
+            if new_state is None:
                 continue
-            if not issubclass(type(state), State):
+            if getattr(self, state) is None:
+                setattr(self, state, new_state)
                 continue
-            state = cast(State, state)
-            state.time_stamp = getattr(state, "time_stamp")
-            state.state_id = getattr(state, "state_id")
 
-            if not callable(getattr(state, "update", None)):
-                continue
-            getattr(self, field).update(state)
+            getattr(self, state).update(new_state)
+
+
 
 
 @dataclass

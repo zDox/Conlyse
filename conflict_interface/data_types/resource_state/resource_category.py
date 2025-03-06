@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
-from .resource_entry import ResourceEntry
-from ..custom_types import HashMap
-from ..game_object import GameObject, parse_any
+from conflict_interface.data_types.resource_state.resource_types import ResourceType
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.resource_state.resource_entry import ResourceEntry
+from conflict_interface.data_types.game_object import parse_any
 
 
 def parse_resource_entries(obj):
@@ -21,7 +23,7 @@ class ResourceCategory(GameObject):
     daily_upgrade_consumption: float
     daily_population_consumption: float
     min_consumption: float
-    resources: HashMap[int, ResourceEntry]
+    resources: HashMap[ResourceType, ResourceEntry]
 
     MAPPING = {
         "category_id": "categoryID",

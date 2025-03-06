@@ -4,12 +4,14 @@ from datetime import datetime
 from functools import wraps
 from pprint import pprint
 from typing import Any
+from typing import Optional
 
 from requests import Session
 
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
 from .action_handler import ActionHandler
 from .data_types import AuthDetails
+from .data_types import ResourceType
 from .data_types.action import Action
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
@@ -133,7 +135,7 @@ class GameInterface:
         self.player_id = self.action_handler.activate_game(country_id, team_id, random_country_team)
         self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
 
-    def update(self) -> GameState:
+    def update(self):
         """
         Updates the current state of the game by requesting the latest information
         from the game API. Integrates new data into the existing state and returns
@@ -143,9 +145,7 @@ class GameInterface:
             States: The updated current state of the game.
         """
         # Execute any queued actions
-        game_state: GameState = self.action_handler.create_game_state_action()
-        self.game_state.update(game_state)
-        return self.game_state
+        self.action_handler.create_game_state_action()
 
     """
     Utility functions
@@ -252,6 +252,13 @@ class GameInterface:
                 res[province.province_id] = province
         return res
 
+    def get_provinces_by_name(self, name) -> Optional[Province]:
+        province = self.get_provinces(name=name)
+        if province:
+            return next(iter(province.values()))
+        else:
+            return None
+
     # TODO fix (changed to HashSet)
     def get_province(self, province_id) -> Province:
         return self.game_state.states.map_state.map.locations.get(province_id)
@@ -277,7 +284,7 @@ class GameInterface:
         return self.get_player_resource_profile(self.player_id)
 
     @country_selected
-    def get_resource_entry(self, resource_id) -> ResourceEntry | None:
+    def get_resource_entry(self, resource_id: ResourceType) -> ResourceEntry | None:
         my_resource_profile = self.get_my_resource_profile()
         if my_resource_profile:
             for category in my_resource_profile.categories.values():
@@ -311,19 +318,24 @@ class GameInterface:
     """
 
     @country_selected
-    def get_armies(self) -> dict[int, Army]:
-        return self.game_state.states.army_state.armies
+    def get_armies(self, **filters) -> dict[int, Army]:
+        return {
+            army_id: army
+            for army_id, army in self.game_state.states.army_state.armies.items()
+            if all(getattr(army, key) == value for key, value in filters.items())
+        }
 
     @country_selected
-    def get_my_armies(self) -> dict[int, Army]:
-        return {army.id: army
-                for army in self.game_state.states.army_state.armies.values()
-                if army.owner_id == self.player_id}
+    def get_my_armies(self, **filters) -> dict[int, Army]:
+        return self.get_armies(owner_id=self.player_id, **filters)
 
     @country_selected
     def get_army(self, army_id: int) -> Army:
         return self.game_state.states.army_state.armies.get(army_id)
 
+    @country_selected
+    def get_army_by_number(self, army_number: int) -> Army:
+        return next(iter(self.get_my_armies(army_number=army_number).values()), None)
     """
     ModState(11)
     """

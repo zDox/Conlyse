@@ -10,7 +10,7 @@ from typing import get_type_hints
 from datetime import UTC
 
 from conflict_interface.data_types.custom_types import *
-
+from conflict_interface.utils.helper import safe_issubclass
 
 if TYPE_CHECKING:
     from conflict_interface.game_interface import GameInterface
@@ -427,7 +427,7 @@ class GameObject:
         for key in self.get_mapping().keys():
             if getattr(other, key) is None:
                 continue
-            elif issubclass(get_type_hints(type(self))[key], GameObject):
+            elif safe_issubclass(get_type_hints(type(self))[key], GameObject):
                 if getattr(self, key) is None:
                     setattr(self, key, getattr(other, key))
 

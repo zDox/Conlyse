@@ -3,7 +3,7 @@ import logging
 from pprint import pprint
 
 from conflict_interface import HubInterface
-from conflict_interface.data_types import Point
+from conflict_interface.data_types import ResourceType
 from conflict_interface.logger_config import setup_library_logger
 
 if __name__ == "__main__":
@@ -12,13 +12,16 @@ if __name__ == "__main__":
     with open('../tests/credentials.json') as f:
         creds = json.load(f)
 
+
     interface.login(creds["TEST_ACCOUNT_USERNAME"], creds["TEST_ACCOUNT_PASSWORD"])
     print("Starting example")
-    game_id = 9758559
+    game_id = 9709744
     pprint(f"Joining new game:  {game_id}")
     game = interface.join_game(game_id)
-    city = game.get_provinces_by_name("East London")
-    infantry = game.get_army_by_number(7)
-    target = Point(x=7778, y=4818)
-    infantry.set_waypoint(target)
+
+    resource_state = game.game_state.states.resource_state
+
+    print(resource_state.create_ask(ResourceType.SUPPLY, 15, 10000))
+    print(resource_state.create_bid(ResourceType.SUPPLY, 15, 10000))
     game.update()
+
