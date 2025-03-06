@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from math import floor
 
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.resource_state.resource_types import ResourceType
 
@@ -22,7 +23,7 @@ class ResourceEntry(GameObject):
     production: float
 
     amount_zero: float
-    time_zero: int
+    time_zero: DateTimeMillisecondsInt
     rate: float  # in unit per second
     lack_zero: float
     consumed_zero: float

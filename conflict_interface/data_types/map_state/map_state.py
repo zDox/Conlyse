@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Optional
 from typing import Union
 
@@ -9,6 +10,8 @@ from typing import Union
 from dataclasses import dataclass
 from typing import get_type_hints
 from typing import override
+
+from lxml.html.defs import general_block_tags
 
 from conflict_interface.data_types.map_state.province import logger
 from conflict_interface.data_types.point import Point
@@ -21,6 +24,7 @@ from conflict_interface.data_types.common import RegionType
 from conflict_interface.data_types.map_state.province_property import ProvinceProperty
 from conflict_interface.data_types.state import State
 from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.utils.helper import safe_issubclass
 
 
 @dataclass
@@ -98,13 +102,16 @@ class Map(GameObject):
 
     @override
     def update(self, other: GameObject):
+        if self._provinces is None:
+            self._provinces = defaultdict()
+
         if not isinstance(other, Map):
             raise ValueError("UPDATE ERROR: Cannot update Map with object of type: " + str(type(other)))
 
         for key in self.get_mapping().keys():
             if getattr(other, key) is None:
                 continue
-            elif issubclass(get_type_hints(type(self))[key], GameObject):
+            elif safe_issubclass(get_type_hints(type(self))[key], GameObject):
                 if getattr(self, key) is None:
                     setattr(self, key, getattr(other, key))
                 getattr(self, key).update(getattr(other, key))
