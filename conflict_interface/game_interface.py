@@ -10,6 +10,7 @@ from requests import Session
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
 from .action_handler import ActionHandler
 from .data_types import AuthDetails
+from .data_types import ResourceType
 from .data_types.action import Action
 from .data_types.army_state.army import Army
 from .data_types.custom_types import ArrayList
@@ -133,7 +134,7 @@ class GameInterface:
         self.player_id = self.action_handler.activate_game(country_id, team_id, random_country_team)
         self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
 
-    def update(self) -> GameState:
+    def update(self):
         """
         Updates the current state of the game by requesting the latest information
         from the game API. Integrates new data into the existing state and returns
@@ -143,9 +144,7 @@ class GameInterface:
             States: The updated current state of the game.
         """
         # Execute any queued actions
-        game_state: GameState = self.action_handler.create_game_state_action()
-        self.game_state.update(game_state)
-        return self.game_state
+        self.action_handler.create_game_state_action()
 
     """
     Utility functions
@@ -277,7 +276,7 @@ class GameInterface:
         return self.get_player_resource_profile(self.player_id)
 
     @country_selected
-    def get_resource_entry(self, resource_id) -> ResourceEntry | None:
+    def get_resource_entry(self, resource_id: ResourceType) -> ResourceEntry | None:
         my_resource_profile = self.get_my_resource_profile()
         if my_resource_profile:
             for category in my_resource_profile.categories.values():
