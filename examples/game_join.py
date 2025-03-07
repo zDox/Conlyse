@@ -4,16 +4,17 @@ from conflict_interface import HubInterface
 from conflict_interface.data_types.hub_types import HubGameState
 
 
-import creds
 from pprint import pprint
 
 from conflict_interface.logger_config import setup_library_logger
+from examples.helper_functions import load_credentials
 
 if __name__ == "__main__":
     print("Starting game join example with specific country")
     setup_library_logger(logging.DEBUG)
     interface = HubInterface()
-    interface.login(creds.username, creds.password)
+    username, password, email, proxy_url = load_credentials()
+    interface.login(username, password)
     games = interface.get_global_games(scenario_id=5975, # World war 3 1x speed
                                        state=HubGameState.READY_TO_JOIN)
     selected_game = next(iter(games.values()))

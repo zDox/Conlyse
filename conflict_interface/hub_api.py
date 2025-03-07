@@ -2,25 +2,35 @@ import base64
 import hashlib
 import json
 from collections import defaultdict
-
 from datetime import datetime
 from functools import wraps
-from typing import Any, cast
+from typing import Any
 
 import lxml
 from fake_useragent import UserAgent
 from lxml import html
-from requests import Session, Response
+from requests import Response
+from requests import Session
 
 from conflict_interface.data_types import AuthDetails
 from conflict_interface.data_types.hub_types.ajax_request import AjaxRequest
 from conflict_interface.data_types.hub_types.hub_result_code import HubResultCode
-from conflict_interface.data_types.hub_types.identification_text import INVALID_USER_OR_PASSWORD_TEXT, \
-    EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT
-from conflict_interface.utils.exceptions import AuthenticationFailed, RestrictedAction, MissingParameter, \
-    JoiningGameFailed, GameFull, InvalidCountry, InvalidParameterValue, MaxJoinedGamesExceeded, TooManyMessage, \
-    TooManyGameJoinsTooFrequently, NotEnoughTickets, GameJoiningFailedOldGame, AuthenticationException
+from conflict_interface.data_types.hub_types.identification_text import EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT
+from conflict_interface.data_types.hub_types.identification_text import INVALID_USER_OR_PASSWORD_TEXT
 from conflict_interface.logger_config import get_logger
+from conflict_interface.utils.exceptions import AuthenticationException
+from conflict_interface.utils.exceptions import AuthenticationFailed
+from conflict_interface.utils.exceptions import GameFull
+from conflict_interface.utils.exceptions import GameJoiningFailedOldGame
+from conflict_interface.utils.exceptions import InvalidCountry
+from conflict_interface.utils.exceptions import InvalidParameterValue
+from conflict_interface.utils.exceptions import JoiningGameFailed
+from conflict_interface.utils.exceptions import MaxJoinedGamesExceeded
+from conflict_interface.utils.exceptions import MissingParameter
+from conflict_interface.utils.exceptions import NotEnoughTickets
+from conflict_interface.utils.exceptions import RestrictedAction
+from conflict_interface.utils.exceptions import TooManyGameJoinsTooFrequently
+from conflict_interface.utils.exceptions import TooManyMessage
 
 logger = get_logger()
 

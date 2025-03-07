@@ -1,16 +1,17 @@
 import logging
-
-from conflict_interface import HubInterface
-
-import creds
 from pprint import pprint
 
+
+from conflict_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
+from examples.helper_functions import load_credentials
 
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
+    username, password, email, proxy_url = load_credentials()
+
     interface = HubInterface()
-    interface.login(creds.username, creds.password)
+    interface.login(username, password)
     city_name = "Hargeisa"
     game_id = 9709963
     print(f"Starting Cancel construction example on {city_name} in game {game_id}")

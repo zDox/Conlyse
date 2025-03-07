@@ -1,17 +1,16 @@
 from copy import deepcopy
-from dataclasses import fields, dataclass, is_dataclass, make_dataclass
-from datetime import datetime
+from dataclasses import fields
 from functools import wraps
-from typing import cast, TypedDict, overload, get_type_hints, Optional, Type, Dict, TypeVar
+from typing import cast
 
 from conflict_interface.data_types import HubGame
 from conflict_interface.data_types.game_object import parse_any
-from conflict_interface.data_types.hub_types.hub_game import HubGameProperties, HubGameState
+from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.game_interface import GameInterface
 from conflict_interface.hub_api import HubApi
+from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import AuthenticationException
 
-from conflict_interface.logger_config import get_logger
 logger = get_logger()
 
 # Decorator to check if the user is authenticated
