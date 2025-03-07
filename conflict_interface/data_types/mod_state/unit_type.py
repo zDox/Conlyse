@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from typing import Set
 from typing import Union
 
+from conflict_interface.data_types.resource_state.resource_types import ResourceType
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
+from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import AirMobileConfig
 from conflict_interface.data_types.mod_state.configuration import ArmyBoostConfig
@@ -45,13 +49,13 @@ class UnitType(GameObject):
     stats_column_id: int
     unit_pack: int
     ranking_factor: float
-    build_time: int
-    costs: HashMap[int, float]
-    daily_costs: HashMap[int, float]
+    build_time: TimeDeltaMillisecondsInt
+    costs: HashMap[ResourceType, float]
+    daily_costs: HashMap[ResourceType, float]
     speeds: HashMap[int, float]
     hit_points: HashMap[int, float]
     damage_types: HashMap[int, float]
-    damage_area: HashMap[int, float]
+    damage_area: HashMap[int, float] # Corresponds to the damage weight in other mentioned documents
     strength: HashMap[int, float]
     defense: HashMap[int, float]
     ranges: HashMap[int, float]

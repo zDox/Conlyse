@@ -133,7 +133,7 @@ class ResearchState(State):
         return any(research.research_type_id == research_id for research in self.current_researches)
 
 
-    def cancel_research(self, research_id: int):
+    def cancel_research(self, research_id: int) -> tuple[Optional[int], ResearchActionResult]:
         """
         Cancels an ongoing research process for the specified research ID.
 

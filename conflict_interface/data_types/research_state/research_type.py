@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
+from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
+from conflict_interface.data_types.resource_state.resource_types import ResourceType
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.mod_state.configuration import ConflictCondition
@@ -16,8 +20,8 @@ class ResearchType(GameObject):
     identifier: str
     set: int
     set_order_id: int
-    costs: HashMap[int, int]
-    build_time: int
+    costs: HashMap[ResourceType, int]
+    build_time: TimeDeltaSecondsInt
     day_available: int
     replaced_research: int
     required_researches: HashMap[int, int]

@@ -16,3 +16,6 @@ if __name__ == "__main__":
     research_type = game.get_research_type(2300)
     print(research_type)
     pprint(research_type.tier)
+    next_research = game.get_research_type(research_type.get_replacing_research())
+    pprint(next_research)
+    print(next_research.tier)

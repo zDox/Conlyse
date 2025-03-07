@@ -91,8 +91,6 @@ def parse_date_time_milliseconds(json_obj):
         raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
 def parse_time_delta_milliseconds(json_obj):
-    if len(str(json_obj)) < 13:
-        raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits")
     if type(json_obj) is str:
         return TimeDeltaMillisecondsStr(seconds=int(json_obj) / 1000)
     elif type(json_obj) is int:
@@ -111,8 +109,6 @@ def parse_date_time_seconds(json_obj):
         raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
 def parse_time_delta_seconds(json_obj):
-    if len(str(json_obj)) != 10 and str(json_obj) != "0":
-        raise ValueError(f"Expected int with exactly 10 digits, got {len(str(json_obj))} digits")
     if type(json_obj) is str:
         return TimeDeltaSecondsStr(seconds=int(json_obj))
     elif type(json_obj) is int:
