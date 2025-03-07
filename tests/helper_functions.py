@@ -4,14 +4,15 @@ from conflict_interface import HubInterface
 from conflict_interface.data_types import GameState
 from conflict_interface.data_types.hub_types import HubGameState
 
-TEST_KEYS = ["TEST_ACCOUNT_USERNAME", "TEST_ACCOUNT_PASSWORD", "TEST_ACCOUNT_EMAIL"]
+TEST_KEYS = ["TEST_ACCOUNT_USERNAME", "TEST_ACCOUNT_PASSWORD", "TEST_ACCOUNT_EMAIL", "TEST_PROXY_URL"]
 
-def load_credentials() -> tuple[str, str, str]:
+def load_credentials() -> tuple[str, str, str, str]:
 
 
     if all(os.getenv(key) is not None for key in TEST_KEYS):
         # All credential details are already loaded as environment variables
-        return os.getenv("TEST_ACCOUNT_USERNAME"), os.getenv("TEST_ACCOUNT_PASSWORD"), os.getenv("TEST_ACCOUNT_EMAIL")
+        return (os.getenv("TEST_ACCOUNT_USERNAME"), os.getenv("TEST_ACCOUNT_PASSWORD"), os.getenv("TEST_ACCOUNT_EMAIL"),
+                os.getenv("TEST_PROXY_URL"))
 
     if not os.path.exists("credentials.json"):
         raise Exception("credentials.json file is missing")
@@ -25,7 +26,8 @@ def load_credentials() -> tuple[str, str, str]:
     if missing_keys:
         raise Exception(f"Missing test keys in credentials.json: {', '.join(missing_keys)}")
 
-    return credentials["TEST_ACCOUNT_USERNAME"], credentials["TEST_ACCOUNT_PASSWORD"], credentials["TEST_ACCOUNT_EMAIL"]
+    return (credentials["TEST_ACCOUNT_USERNAME"], credentials["TEST_ACCOUNT_PASSWORD"], credentials["TEST_ACCOUNT_EMAIL"],
+            credentials["TEST_PROXY_URL"])
 
 def get_new_game_id(interface: HubInterface) -> int:
     games = interface.get_global_games(state=HubGameState.READY_TO_JOIN,

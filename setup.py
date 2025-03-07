@@ -36,7 +36,7 @@ setup(
     ],
     packages=["conflict_interface"],
     include_package_data=True,
-    install_requires=["requests", "fake_useragent", "lxml", "numpy", "shapely"],
+    install_requires=["requests", "requests[socks]", "fake_useragent", "lxml", "numpy", "shapely"],
     extras_require =
     {
         "dev": [

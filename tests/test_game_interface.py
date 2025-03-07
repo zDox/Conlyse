@@ -7,7 +7,7 @@ from tests.helper_functions import load_credentials, get_test_game_id
 class GameInterfaceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.username, cls.password, cls.email = load_credentials()
+        cls.username, cls.password, cls.email, cls.proxy_url = load_credentials()
         cls.random_prefix = "test_"
 
     def setUp(self):

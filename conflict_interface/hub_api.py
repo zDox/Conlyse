@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+from collections import defaultdict
 
 from datetime import datetime
 from functools import wraps
@@ -54,7 +55,7 @@ class HubApi:
     DEFAULT_KEY_CODE = "uberCon"
     HOST = "https://www.conflictnations.com/"
 
-    def __init__(self):
+    def __init__(self, proxy: dict = None):
         self.session = Session()
         self.user_agent = UserAgent(platforms='desktop').random
         self.session.headers = {
@@ -62,6 +63,17 @@ class HubApi:
                 "Accept-Language": 'en-US,en;q=0.9',
         }
         self.auth = None
+
+        if proxy:
+            self.proxy = proxy
+        else:
+            self.proxy = defaultdict()
+
+    def set_proxy(self, proxy: dict):
+        self.proxy = proxy
+
+    def unset_proxy(self):
+        self.proxy = defaultdict()
 
     def send_ajax_request(self, request: AjaxRequest) -> Response:
         """
@@ -108,7 +120,7 @@ class HubApi:
         request.current_request += 1
 
         logger.debug(f"Sending AJAX request to {url}")
-        response = self.session.request(request.method, url, params=params)
+        response = self.session.request(request.method, url, params=params, proxies=self.proxy)
         return response
 
     @protected
@@ -176,6 +188,7 @@ class HubApi:
             params=params,
             headers=headers,
             data=data_string,
+            proxies=self.proxy,
         )
         response.raise_for_status()
 
@@ -325,7 +338,7 @@ class HubApi:
         Raises:
             HTTPError: If the GET request to the main page fails.
         """
-        response = self.session.get(self.HOST)
+        response = self.session.get(self.HOST, proxies=self.proxy)
         response.raise_for_status()
         parsed_html = lxml.html.fromstring(response.text)
         form = parsed_html.get_element_by_id("sg_reg_form_0")
@@ -413,7 +426,7 @@ class HubApi:
         form_data["sg[reg][email]"] = email
         form_data["sg[reg][password]"] = password
 
-        res = self.session.post(self.HOST+form_action, data=form_data)
+        res = self.session.post(self.HOST+form_action, data=form_data, proxies=self.proxy)
 
         self.load_authentication_from_response(res)
 
@@ -450,7 +463,7 @@ class HubApi:
             'pass': password,
         }
 
-        response = self.session.post(self.HOST, params=params, data=data)
+        response = self.session.post(self.HOST, params=params, data=data, proxies=self.proxy)
 
         response.raise_for_status()
         self.load_authentication_from_response(response)
@@ -540,3 +553,7 @@ class HubApi:
         }, "joinGame")
         # TODO Error handling
         return res
+
+    def get_public_ip(self) -> str:
+        ip = self.session.get('https://api.ipify.org', proxies=self.proxy).text
+        return ip

@@ -1,5 +1,6 @@
 import json
 import re
+from collections import defaultdict
 from datetime import datetime, UTC, timedelta
 from functools import wraps
 from pprint import pprint
@@ -60,7 +61,7 @@ class GameApi:
         return wrap
 
     def __init__(self, session: Session, auth_details: AuthDetails,
-                 game_id: int):
+                 game_id: int, proxy: dict = None,):
         self.session = session
         self.game_id = game_id
         self.player_id = 0
@@ -74,6 +75,16 @@ class GameApi:
 
         self.last_update_time = None
         self.server_time_offset = None
+        if proxy:
+            self.proxy = proxy
+        else:
+            self.proxy = defaultdict()
+
+    def set_proxy(self, proxy: dict):
+        self.proxy = proxy
+
+    def unset_proxy(self):
+        self.proxy = defaultdict()
 
     def load_game_php(self):
         """
@@ -92,7 +103,7 @@ class GameApi:
         }
 
         response = self.session.get('https://www.conflictnations.com/play.php',
-                                    params=params, headers=headers)
+                                    params=params, headers=headers, proxies=self.proxy)
 
         response.raise_for_status()
 
@@ -128,7 +139,7 @@ class GameApi:
                     image/avif,image/webp,image/apng,*/*;q=0.8,application/\
                     signed-exchange;v=b3;q=0.7',
         }
-        response = self.session.get(self.index_html_url, headers=headers)
+        response = self.session.get(self.index_html_url, headers=headers, proxies=self.proxy)
 
         response.raise_for_status()
 
@@ -176,7 +187,8 @@ class GameApi:
         self.request_id += 1
         response = self.session.post(self.game_server_address,
                                      headers=headers,
-                                     data=dumps(data))
+                                     data=dumps(data),
+                                     proxies=self.proxy)
         response_json = response.json()
         response.raise_for_status()
         if not type(response_json["result"]) is int:
@@ -233,6 +245,7 @@ class GameApi:
             url,
             params=params,
             headers=headers,
+            proxies=self.proxy
         )
 
         response.raise_for_status()

@@ -10,7 +10,7 @@ random_prefix = "test_"
 class HubInterfaceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.username, cls.password, cls.email = load_credentials()
+        cls.username, cls.password, cls.email, cls.proxy_url = load_credentials()
 
     def setUp(self):
         self.interface = HubInterface()
@@ -59,6 +59,23 @@ class HubInterfaceTests(unittest.TestCase):
         self.interface.login(self.username, self.password)
         try:
             game = self.interface.join_game(get_new_game_id(self.interface), guest=True)
+        except Exception as e:
+            self.fail(f"join_game() raised an exception unexpectedly: {e}")
+        self.assertIsNotNone(game)
+
+    def test_game_join_with_proxy(self):
+        proxy = {
+            "http": self.proxy_url,
+            "https": self.proxy_url,
+        }
+        proxy_interface = HubInterface()
+        ip_without_proxy = proxy_interface.get_public_ip()
+        proxy_interface.set_proxy(proxy)
+        ip_with_proxy = proxy_interface.get_public_ip()
+        self.assertNotEqual(ip_without_proxy, ip_with_proxy)
+        proxy_interface.login(self.username, self.password)
+        try:
+            game = proxy_interface.join_game(get_new_game_id(proxy_interface), guest=True)
         except Exception as e:
             self.fail(f"join_game() raised an exception unexpectedly: {e}")
         self.assertIsNotNone(game)

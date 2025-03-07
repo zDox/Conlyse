@@ -11,7 +11,7 @@ class HubApiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Load shared credentials once for the class
-        cls.username, cls.password, cls.email = load_credentials()
+        cls.username, cls.password, cls.email, cls.proxy_url = load_credentials()
 
     def setUp(self):
         self.hub_api = HubApi()
