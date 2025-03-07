@@ -37,14 +37,13 @@ from .utils.exceptions import CountryUnselectedException, GameActivationExceptio
 logger = get_logger()
 
 class GameInterface:
-    def __init__(self, game_id: int, guest: bool, session: Session, auth_details: AuthDetails):
+    def __init__(self, game_id: int, guest: bool, session: Session, auth_details: AuthDetails, proxy: dict = None):
         self.game_id = game_id
-        self.game_api: GameApi = GameApi(session, auth_details, self.game_id)
+        self.game_api: GameApi = GameApi(session, auth_details, self.game_id, proxy=proxy)
         self.player_id = 0
         self.game_state: GameState | None = None
         self.action_handler = ActionHandler(self)
         self.guest: bool = guest
-
 
     @staticmethod
     def country_selected(func):
@@ -69,6 +68,12 @@ class GameInterface:
                 raise CountryUnselectedException("Country not selected.")
 
         return wrap
+
+    def set_proxy(self, proxy: dict):
+        self.game_api.set_proxy(proxy)
+
+    def unset_proxy(self):
+        self.game_api.unset_proxy()
 
     def load_game(self):
         """

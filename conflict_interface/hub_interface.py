@@ -27,9 +27,18 @@ def protected(func):
 
 
 class HubInterface:
-    def __init__(self):
-        self.api: HubApi = HubApi()
+    def __init__(self, proxy: dict = None):
+        self.api: HubApi = HubApi(proxy)
         self.auth = False
+
+    def set_proxy(self, proxy: dict):
+        self.api.set_proxy(proxy)
+
+    def unset_proxy(self):
+        self.api.unset_proxy()
+
+    def get_public_ip(self) -> str:
+        return self.api.get_public_ip()
 
     def login(self, username: str, password: str):
         """
@@ -154,7 +163,7 @@ class HubInterface:
             logger.info(f"User is not in game {game_id}. Requesting first join...")
             self.api.request_first_join(game_id)
         logger.info(f"Joining game {game_id} as guest={guest}...")
-        game_interface = GameInterface(game_id, guest, deepcopy(self.api.session), deepcopy(self.api.auth))
+        game_interface = GameInterface(game_id, guest, deepcopy(self.api.session), deepcopy(self.api.auth), self.api.proxy)
         game_interface.load_game()
         return game_interface
 

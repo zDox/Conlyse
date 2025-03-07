@@ -13,6 +13,6 @@ if __name__ == "__main__":
     interface = HubInterface()
     interface.login(creds.username, creds.password)
 
-    game = interface.join_game(9748894)
+    game = interface.join_game(9758559)
 
     pprint(game.get_my_cities())
