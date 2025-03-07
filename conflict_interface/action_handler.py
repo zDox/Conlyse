@@ -44,7 +44,7 @@ class ActionHandler:
     :ivar game: Reference to the game interface
     :ivar language: The language of the game / the requests
     :ivar game_state: Reference to the current game state if available
-    :ivar action_counter: Counter for the number of actions queued or executed immedeatily. Used for later
+    :ivar action_counter: Counter for the number of actions queued or executed immediately. Used for later
                             determining the action result.
     :ivar action_request_id_to_action_uid: A bidirectional mapping between unique action IDs and their corresponding action request IDs.
     """

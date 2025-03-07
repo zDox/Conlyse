@@ -1,22 +1,22 @@
-import json
 import re
 from collections import defaultdict
-from datetime import datetime, UTC, timedelta
-from functools import wraps
-from pprint import pprint
-
-from requests import Session, Response
-from lxml import html
-from typing import Any
-from collections.abc import MutableMapping
-from hashlib import sha1
 from dataclasses import dataclass
-from json import loads, dumps
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
+from functools import wraps
+from hashlib import sha1
+from json import dumps
+from json import loads
 from time import time
+
+from lxml import html
+from requests import Session
 
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.logger_config import get_logger
-from conflict_interface.utils.exceptions import CountryUnselectedException, GameActivationException, GameJoinException
+from conflict_interface.utils.exceptions import CountryUnselectedException
+from conflict_interface.utils.exceptions import GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
 
 logger = get_logger()

@@ -1,6 +1,3 @@
-import enum
-
-
 def compare_dicts(default, changed, max_depth=10):
     """
     Compares two dictionaries, returning True if they match within constraints

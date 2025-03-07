@@ -2,13 +2,14 @@ import logging
 
 from conflict_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
-from examples import creds
+from examples.helper_functions import load_credentials
 
 if __name__ == "__main__":
     print("Starting start of game example")
     setup_library_logger(logging.DEBUG)
     interface = HubInterface()
-    interface.login(creds.username, creds.password)
+    username, password, email, proxy_url = load_credentials()
+    interface.login(username, password)
     for game_info in interface.get_global_games().values():
         if game_info.day_of_game != 1:
             continue

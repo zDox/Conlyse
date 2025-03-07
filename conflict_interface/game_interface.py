@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from functools import wraps
-from pprint import pprint
 from typing import Any
 from typing import Optional
 
@@ -14,7 +13,6 @@ from .data_types import AuthDetails
 from .data_types import ResourceType
 from .data_types.action import Action
 from .data_types.army_state.army import Army
-from .data_types.custom_types import ArrayList
 from .data_types.custom_types import Vector
 from .data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from .data_types.game_api_types.login_action import LoginAction
