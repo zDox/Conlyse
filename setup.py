@@ -1,3 +1,4 @@
+from setuptools import find_packages
 from setuptools import setup
 # To use a consistent encoding
 from codecs import open
@@ -32,7 +33,7 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Operating System :: OS Independent"
     ],
-    packages=["conflict_interface"],
+    packages=find_packages(),
     include_package_data=True,
     install_requires=["requests", "requests[socks]", "fake_useragent", "lxml", "numpy", "shapely"],
     extras_require =

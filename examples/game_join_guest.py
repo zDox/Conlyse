@@ -9,6 +9,7 @@ from pprint import pprint
 
 from examples.helper_functions import load_credentials
 
+
 if __name__ == "__main__":
     print("Starting game join example as guest")
     setup_library_logger(logging.DEBUG)
@@ -24,3 +25,5 @@ if __name__ == "__main__":
 
     print("Selected country:", game.get_player(game.player_id).nation_name)
     game.update()
+
+    HubGameState.READY_TO_JOIN
