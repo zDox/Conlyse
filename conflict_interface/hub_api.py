@@ -11,6 +11,7 @@ from fake_useragent import UserAgent
 from lxml import html
 from requests import Response
 from requests import Session
+from urllib.parse import quote
 
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.data_types.hub_types.ajax_request import AjaxRequest
@@ -107,30 +108,31 @@ class HubApi:
             NotImplementedError: When the `buffer_request` flag in the `AjaxRequest` is set to
             True, indicating a request to buffer responses, which is not implemented.
         """
-        tstamp = int(datetime.now().timestamp() * 1000)  # Convert to milliseconds
-        url = request.host + "/index.php?eID=ajax"
-        url += "&action=" + request.action
-        url += "&L=" + str(request.language_id)
-        url += "&ref=" + request.callback_obj_name + "&req=" + request.name
+        url = request.host + "/index.php"
+        parameters = {
+            "eID": "ajax",
+            "action": request.action,
+            "L": str(request.language_id),
+            "ref": request.callback_obj_name,
+            "req": request.name,
+            "reqID": str(request.current_request),
+        }
+
         if request.is_polling:
-            url += "&poll=1"
+            parameters["poll"] = "1"
         if request.evaluate_response:
-            url += "&eval_response=1"
-        params = ""
+            parameters["eval_response"] = "1"
+
         for i in range(len(request.keys)):
             if request.keys[i] is not None and request.values[i] is not None:
-                params += "&" + request.keys[i] + "=" + str(request.values[i])
-                if request.keys[i] in ["eventID", "code", "tstamp", "ses_id", "gid", "mid"]:
-                    url += "&" + request.keys[i] + "=" + str(request.values[i])
+                parameters[request.keys[i]] = str(request.values[i])
         if request.buffer_request:
             raise NotImplementedError("Buffer request not implemented yet")
 
-        url += "&reqID=" + str(request.current_request)
-        url += "&" + str(tstamp)
         request.current_request += 1
 
         logger.debug(f"Sending AJAX request to {url}")
-        response = self.session.request(request.method, url, params=params, proxies=self.proxy)
+        response = self.session.request(request.method, url, params=parameters, proxies=self.proxy)
         return response
 
     @protected
