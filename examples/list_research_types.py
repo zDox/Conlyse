@@ -1,9 +1,10 @@
 import logging
 
-from conflict_interface import HubInterface
+
 
 from pprint import pprint
 
+from conflict_interface.hub_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
 from examples.helper_functions import load_credentials
 
