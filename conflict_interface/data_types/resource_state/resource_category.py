@@ -7,13 +7,6 @@ from conflict_interface.data_types.resource_state.resource_entry import Resource
 from conflict_interface.data_types.game_object import parse_any
 
 
-def parse_resource_entries(obj):
-    if obj is None:
-        return {}
-
-    return {int(resource_id): parse_any(ResourceEntry, resource) for resource_id, resource in obj.items()}
-
-
 @dataclass
 class ResourceCategory(GameObject):
     C = "rc"
@@ -34,3 +27,6 @@ class ResourceCategory(GameObject):
         "min_consumption": "minConsumption",
         "resources": "resourceEntries",
     }
+
+    def get_resource_entry(self, resource_id: ResourceType) -> ResourceEntry:
+        return self.resources[resource_id]

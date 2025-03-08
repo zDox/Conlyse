@@ -1,14 +1,8 @@
 
 
 from dataclasses import dataclass
-from enum import Enum
 
 from conflict_interface.data_types.game_object import GameObject
-
-
-class MissileType(Enum):
-    BALLISTIC = 1
-    CRUISE = 2
 
 
 @dataclass

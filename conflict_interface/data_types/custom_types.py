@@ -1,5 +1,9 @@
 from enum import EnumMeta
 from datetime import datetime, timedelta
+from typing import TypeVar
+
+K = TypeVar("K")
+V = TypeVar("V")
 
 
 class UnitList(list):
@@ -48,7 +52,7 @@ class HashSet(set):
 class UnmodifiableSet(set):
     C = "java.util.Collections$UnmodifiableSet"
 
-class HashMap(dict):
+class HashMap(dict[K, V]):
     C = "java.util.HashMap"
 
 

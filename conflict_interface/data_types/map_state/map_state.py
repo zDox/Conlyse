@@ -27,6 +27,7 @@ from conflict_interface.utils.helper import safe_issubclass
 from shapely.geometry import Point as shapely_point
 import numpy as np
 
+ProvinceType = Union[Province, SeaProvince]
 
 @dataclass
 class Map(GameObject):
@@ -65,12 +66,12 @@ class Map(GameObject):
     localized_player_profiles: bool
     regions: Optional[HashMap[RegionType, Region]]
     overlap_x: int
-    locations: HashSet[Union[Province, SeaProvince]]
+    locations: HashSet[ProvinceType]
     population_factor: int
 
     static_map_data: StaticMapData = None
 
-    _provinces: dict[int, Union[Province, SeaProvince]] = None
+    _provinces: dict[int, ProvinceType] = None
 
     MAPPING = {
         "is_reduced": "isReduced",
@@ -87,16 +88,19 @@ class Map(GameObject):
         "locations": "locations",
         "population_factor": "populationFactor"
     }
-    # TODO Precompute dictionary
-    def get_province(self, province_id):
-        for location in self.locations:
-            if location.province_id == province_id:
-                return location
+
+    @property
+    def provinces(self) -> dict[int, ProvinceType]:
+        if self._provinces is None:
+            self._provinces = dict()
+            for location in self.locations:
+                self._provinces[location.id] = location
+        return self._provinces
 
     def set_static_map_data(self, static_map_data: StaticMapData):
         self.static_map_data = static_map_data
         for province in static_map_data.locations:
-            self.get_province(province.id).set_static_province(province)
+            self.provinces.get(province.id).set_static_province(province)
 
     def get_connections(self) -> list[dict[str, Union[int, Point]]]:
         return self.static_map_data.connections
@@ -174,11 +178,11 @@ class Map(GameObject):
         if other.locations is not None:
             for location in other.locations:
                 if location.province_id in self._provinces.keys():
-                    self._provinces[location.province_id].update(location)
+                    self._provinces[location.id].update(location)
                 else:
-                    logger.warning(f"New province found: {location.province_id}")
+                    logger.warning(f"New province found: {location.id}")
                     self.locations.add(location)
-                    self._provinces[location.province_id] = location
+                    self._provinces[location.id] = location
 
 
 @dataclass

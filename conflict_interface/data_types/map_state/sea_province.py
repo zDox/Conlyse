@@ -12,7 +12,7 @@ class SeaProvince(GameObject):
     Rivers, CostalRegions and HighSea provinces are SeaProvinces.
     """
     C = "ultshared.UltSeaProvince"
-    province_id: int
+    id: int
     name: str
     center_coordinate: Point
     terrain_type: TerrainType
@@ -26,10 +26,10 @@ class SeaProvince(GameObject):
     static_data = None
 
     def __hash__(self):
-        return hash(self.province_id)
+        return hash(self.id)
 
     MAPPING = {
-        "province_id": "id",
+        "id": "id",
         "name": "n",
         "center_coordinate": "c",
         "terrain_type": "tt",
