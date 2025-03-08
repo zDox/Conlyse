@@ -1,5 +1,5 @@
 """Module containing the data types"""
-__all__ = ["mod_state", "resource_state", "map_state", "newspaper_state", "player_state", "army_state", "foreign_affairs_state", "research_state", "game_info_state", "game_event_state"]
+__all__ = ["mod_state", "resource_state", "map_state", "newspaper_state", "player_state", "army_state", "foreign_affairs_state", "research_state", "game_info_state", "game_event_state", "hub_types"]
 
 from . import mod_state
 from . import resource_state
@@ -11,3 +11,4 @@ from . import foreign_affairs_state
 from . import research_state
 from . import game_info_state
 from . import game_event_state
+from . import hub_types
