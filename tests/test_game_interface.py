@@ -1,6 +1,6 @@
 import unittest
 
-from conflict_interface import HubInterface
+from conflict_interface.hub_interface import HubInterface
 from tests.helper_functions import load_credentials, get_test_game_id
 
 

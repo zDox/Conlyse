@@ -1,42 +1,42 @@
-
-
 from dataclasses import dataclass
+from typing import Optional
 from typing import Set
 from typing import Union
 
-from conflict_interface.data_types.resource_state.resource_types import ResourceType
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
-from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import AirMobileConfig
+from conflict_interface.data_types.mod_state.configuration import AirplaneConfig
+from conflict_interface.data_types.mod_state.configuration import AntiAirConfig
 from conflict_interface.data_types.mod_state.configuration import ArmyBoostConfig
+from conflict_interface.data_types.mod_state.configuration import CarrierConfig
 from conflict_interface.data_types.mod_state.configuration import ConflictCondition
+from conflict_interface.data_types.mod_state.configuration import ControllableConfig
 from conflict_interface.data_types.mod_state.configuration import ConvertToResourceConfig
 from conflict_interface.data_types.mod_state.configuration import DiplomaticAggressionConfig
 from conflict_interface.data_types.mod_state.configuration import DisbandConfig
+from conflict_interface.data_types.mod_state.configuration import DummyMissileCarrierConfig
 from conflict_interface.data_types.mod_state.configuration import DummyMissileConfig
 from conflict_interface.data_types.mod_state.configuration import DummyScoutConfig
 from conflict_interface.data_types.mod_state.configuration import LaunchTargetConfig
 from conflict_interface.data_types.mod_state.configuration import LimitedMobilizationConfig
-from conflict_interface.data_types.mod_state.configuration import MissileCarrierConfig, DummyMissileCarrierConfig
-from conflict_interface.data_types.mod_state.configuration import \
-        MissileConfig, SortingConfig, SoundConfig, AirplaneConfig, \
-        ControllableConfig, CarrierConfig, AntiAirConfig, ScoutConfig, \
-        TokenProducerConfig, TokenConsumerConfig
-
-
-from typing import Optional
-
+from conflict_interface.data_types.mod_state.configuration import MissileCarrierConfig
+from conflict_interface.data_types.mod_state.configuration import MissileConfig
 from conflict_interface.data_types.mod_state.configuration import RadarConfig
 from conflict_interface.data_types.mod_state.configuration import RadarSignatureConfig
 from conflict_interface.data_types.mod_state.configuration import RenderConfig
+from conflict_interface.data_types.mod_state.configuration import ScoutConfig
+from conflict_interface.data_types.mod_state.configuration import SortingConfig
+from conflict_interface.data_types.mod_state.configuration import SoundConfig
 from conflict_interface.data_types.mod_state.configuration import StackingConfig
+from conflict_interface.data_types.mod_state.configuration import TokenConsumerConfig
+from conflict_interface.data_types.mod_state.configuration import TokenProducerConfig
 from conflict_interface.data_types.mod_state.configuration import TokenSensitivityConfig
 from conflict_interface.data_types.mod_state.configuration import UnitTypeFrontEndConfig
 from conflict_interface.data_types.player_state.faction import Faction
 from conflict_interface.data_types.research_state.research_type import ResearchType
+from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
 
 
 @dataclass

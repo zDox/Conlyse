@@ -1,6 +1,3 @@
-from dataclasses import dataclass
-from typing import Optional
-
 from conflict_interface.data_types.game_object import GameObject
 
 

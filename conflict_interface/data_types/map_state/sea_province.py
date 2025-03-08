@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from .terrain_type import TerrainType
-from ..game_object import GameObject
-from ..point import Point
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.map_state.map_state_enums import TerrainType
+from conflict_interface.data_types.point import Point
 
 
 @dataclass
@@ -25,9 +25,6 @@ class SeaProvince(GameObject):
 
     static_data = None
 
-    def __hash__(self):
-        return hash(self.province_id)
-
     MAPPING = {
         "province_id": "id",
         "name": "n",
@@ -44,3 +41,5 @@ class SeaProvince(GameObject):
 
     def set_static_province(self, obj):
         self.static_data = obj
+
+    __hash__ = GameObject.__hash__

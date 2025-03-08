@@ -1,15 +1,10 @@
-import base64
 from dataclasses import dataclass
-from typing import Union
 
-from conflict_interface.data_types.map_state.b64_decoder import decode_border
+from conflict_interface.data_types.common.enums.region_type import RegionType
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.map_state.terrain_type import TerrainType
-from conflict_interface.data_types.common import RegionType
+from conflict_interface.data_types.map_state.b64_decoder import decode_border
+from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.point import Point
-
-
-
 
 
 @dataclass

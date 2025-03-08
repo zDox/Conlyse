@@ -1,1 +1,3 @@
-from .enums import RegionType
+__all__ = ["enums"]
+
+from . import enums

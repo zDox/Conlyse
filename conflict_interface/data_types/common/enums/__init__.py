@@ -1,1 +1,3 @@
-from .region_type import RegionType
+__all__ = ["region_type"]
+
+from . import region_type

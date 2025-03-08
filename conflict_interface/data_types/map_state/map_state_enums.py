@@ -1,10 +1,7 @@
 from enum import Enum
-from enum import Enum
-
-
-from conflict_interface.data_types.resource_state.resource_types import ResourceType
 
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
+from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
 
 
 class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
@@ -42,9 +39,57 @@ class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
     CITY_CLAIM = ResourceType.CITY_CLAIM.value + 1
     PHARMACEUTICAL = ResourceType.PHARMACEUTICAL.value + 1
 
-    def to_py(self, type):
-        if type != ResourceType:
-            raise ValueError(f"type ({type}) must be ResourceType")
-        if self.value == 0:
-            return ResourceType(0)
-        return ResourceType(self.value - 1)
+
+class RevoltSuppressionProperty(Enum):
+    DEFENSE = "DEFENSE"
+
+
+class ImpactType(Enum, metaclass=DefaultEnumMeta):
+    NORMAL = 0
+    DAMAGE_AIR = 1
+    SEA = 2
+    BUILDING = 3
+    ATOMIC = 4
+
+
+class SeaType(Enum):
+    HIGH_SEA = "HIGHSEA"
+    COASTAL = "COASTAL"
+
+
+class TerrainType(Enum, metaclass=DefaultEnumMeta):
+    """
+    The type of terrain a province is.
+    """
+    NONE = 0
+    PLAINS = 10
+    HILLS = 11
+    MOUNTAIN = 12
+    FOREST = 13
+    URBAN = 14
+    JUNGLE = 15
+    TUNDRA = 16
+    DESERT = 17
+    SEA = 18
+    HIGHSEA = 19
+    COASTAL = 20
+    SUBURBAN = 21
+
+
+class TerrainTypeStr(Enum, metaclass=DefaultEnumMeta):
+    """
+    The type of terrain a province is.
+    """
+    NONE = "NONE"
+    PLAINS = "PLAINS"
+    HILLS = "HILLS"
+    MOUNTAIN = "MOUNTAIN"
+    FOREST = "FOREST"
+    URBAN = "URBAN"
+    JUNGLE = "JUNGLE"
+    TUNDRA = "TUNDRA"
+    DESERT = "DESERT"
+    SEA = "SEA"
+    HIGHSEA = "HIGHSEA"
+    COASTAL = "COASTAL"
+    SUBURBAN = "SUBURBAN"

@@ -1,18 +1,23 @@
 from __future__ import annotations
 
-from dataclasses import is_dataclass
 from dataclasses import MISSING as DATACLASS_MISSING
-
-from enum import Enum
-from pprint import pprint
-from typing import TYPE_CHECKING, Any, cast, get_origin, get_args, Union, TypeVar, Type
-from typing import get_type_hints
+from dataclasses import is_dataclass
 from datetime import UTC
+from enum import Enum
+from typing import Any
+from typing import TYPE_CHECKING
+from typing import Type
+from typing import TypeVar
+from typing import Union
+from typing import cast
+from typing import get_args
+from typing import get_origin
+from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import *
 from conflict_interface.utils.helper import safe_issubclass
 
-if TYPE_CHECKING:
+if TYPE_CHECKING: # The one place where this is needed for type hinting
     from conflict_interface.game_interface import GameInterface
 
 """
@@ -409,7 +414,7 @@ class GameObject:
                                 **c.get_mapping()}
         return cls._mapping
 
-    def update(self, other: GameObject):
+    def update(self, other):
         """
         Updates the current object with the values of another object.
         """

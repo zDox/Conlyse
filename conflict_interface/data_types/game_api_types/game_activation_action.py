@@ -1,9 +1,5 @@
 from dataclasses import dataclass
 
-from conflict_interface.data_types import GameObject
-from conflict_interface.data_types.action import Action
-
-
 @dataclass
 class GameActivationAction:
     C = "ultshared.action.UltActivateGameAction"

@@ -1,19 +1,6 @@
-from typing import Optional
-
-from conflict_interface.data_types.game_object import GameObject
-
 from dataclasses import dataclass
 
-
-"""
-Not implemented
-getPrimaryColor
-getInGameAlliance
-getFlagImageURL
-getFlagImageID
-getFlagImageTag
-getFlagImage
-"""
+from conflict_interface.data_types.game_object import GameObject
 
 
 @dataclass
@@ -48,17 +35,5 @@ class TeamProfile(GameObject):
     def get_team_id(self):
         return self.team_id
 
-    def get_team_name(self):
-        return self.name
-
-    def get_description(self):
-        return self.description
-
-    def get_leader_id(self):
-        return self.leader_id
-
     def is_disbanded(self):
         return self.disbanded
-
-    def get_victory_points(self):
-        return self.victory_points
