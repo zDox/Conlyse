@@ -1,6 +1,5 @@
 from datetime import datetime
 from functools import wraps
-from typing import Any
 from typing import Optional
 
 from requests import Session
@@ -9,20 +8,23 @@ from conflict_interface.action_handler import ActionHandler
 from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.army_state.army import Army
 from conflict_interface.data_types.authentication import AuthDetails
-from conflict_interface.data_types.custom_types import Vector
+from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state_enums import ForeignAffairRelationTypes
 from conflict_interface.data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from conflict_interface.data_types.game_api_types.login_action import LoginAction
+from conflict_interface.data_types.game_event_state.game_event import GameEvent
 from conflict_interface.data_types.game_object import parse_game_object
 from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.data_types.map_state.map import ProvinceType
 from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
-from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.data_types.mod_state.unit_type import UnitType
 from conflict_interface.data_types.mod_state.upgrade_type import UpgradeType
 from conflict_interface.data_types.newspaper_state.article import Article
 from conflict_interface.data_types.player_state.faction import Faction
 from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
+from conflict_interface.data_types.research_state.research_state import ResearchState
 from conflict_interface.data_types.research_state.research_type import ResearchType
+from conflict_interface.data_types.research_state.reserach import Research
 from conflict_interface.data_types.resource_state.resource_entry import ResourceEntry
 from conflict_interface.data_types.resource_state.resource_profile import ResourceProfile
 from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
@@ -249,7 +251,7 @@ class GameInterface:
         for province in self.game_state.states.map_state.map.provinces.values():
             if all([hasattr(province, key) and getattr(province, key) == val
                     for key, val in filters.items()]):
-                res[province.province_id] = province
+                res[province.id] = province
         return res
 
     def get_provinces_by_name(self, name) -> Optional[ProvinceType]:

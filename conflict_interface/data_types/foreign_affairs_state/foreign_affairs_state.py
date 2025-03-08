@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
