@@ -145,7 +145,7 @@ class Province(GameObject):
     updateable_keys = ["province_state_id", "adjacent_to_water",
                        "resource_production", "money_production",
                        "victory_points", "owner_id", "legal_owner",
-                       "moral", "buildings"]
+                       "morale", "upgrades_set"]
 
     def is_owner(self):
         return self.owner_id == self.game.player_id
