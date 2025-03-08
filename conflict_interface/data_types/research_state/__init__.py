@@ -1,1 +1,3 @@
-from .research_state import ResearchState
+__all__ = ["research_action_result"]
+
+from . import research_action_result

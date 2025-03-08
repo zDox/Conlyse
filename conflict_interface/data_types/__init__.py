@@ -1,18 +1,13 @@
-from .authentication import AuthDetails
-from conflict_interface.data_types.hub_types.hub_game import HubGame
+"""Module containing the data types"""
+__all__ = ["mod_state", "resource_state", "map_state", "newspaper_state", "player_state", "army_state", "foreign_affairs_state", "research_state", "game_info_state", "game_event_state"]
 
-
-# States
-from .player_state import *
-from .newspaper_state import *
-from .map_state import *
-from .resource_state import *
-from .foreign_affairs_state import *
-from .army_state import *
-from .spy_state import *
-from .mod_state import *
-from .game_info_state import *
-from .research_state import *
-from .configuration_state import *
-from .game_state import *
-from .static_map_data import *
+from . import mod_state
+from . import resource_state
+from . import map_state
+from . import newspaper_state
+from . import player_state
+from . import army_state
+from . import foreign_affairs_state
+from . import research_state
+from . import game_info_state
+from . import game_event_state

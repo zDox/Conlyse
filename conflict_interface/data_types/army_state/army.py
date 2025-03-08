@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from conflict_interface.data_types.army_state.army_action import ArmyAction
-from conflict_interface.data_types.army_state.army_action import ArmyActionResult
+from conflict_interface.data_types.army_state.army_action_result import ArmyActionResult
 from conflict_interface.data_types.army_state.army_enums import Aggressiveness
 from conflict_interface.data_types.army_state.army_enums import FightStatus
 from conflict_interface.data_types.army_state.army_enums import ForcedMarch
@@ -23,10 +23,9 @@ from conflict_interface.data_types.mod_state.anti_air_parameters import AntiAirP
 
 from conflict_interface.data_types.army_state.unit import Unit
 
-from conflict_interface.data_types.map_state.terrain_type import TerrainType, TerrainTypeStr
+from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
+from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.point import Point
-
-ARMY_CLOSE_COMBAT_RANGE = 5
 
 @dataclass
 class Battle(GameObject):
@@ -36,7 +35,6 @@ class Battle(GameObject):
     MAPPING = {
         "attacker_ids": "a"
     }
-
 
 @dataclass
 class Army(GameObject):
@@ -138,7 +136,7 @@ class Army(GameObject):
     pre_fight_size: int = None
     pre_fight_type: int = None
 
-    range: int = ARMY_CLOSE_COMBAT_RANGE
+    range: int = 5
     base_speed: float = None
 
 
@@ -428,9 +426,9 @@ class Army(GameObject):
         success or error in operations.
 
         Args:
-            point (Point): Destination point for the new army's movement.
-            units (list[tuple[int, int]]): List of tuples, where each tuple
+            split_units_count: List of tuples, where each tuple
                 contains the unit type ID at index 0 and the count of units to split at index 1.
+            point (Point): Destination point for the new army's movement.
 
         Returns:
             tuple[Optional[int], ArmyActionResult]: A tuple containing optional
@@ -484,4 +482,3 @@ class Army(GameObject):
                 if vector_pos_to_point.cross(vector_a_to_b) <= 0.1:
                     if 0 < vector_pos_to_point.dot(vector_a_to_b) < vector_a_to_b.dot(vector_a_to_b):
                         return [adj_point, point]
-

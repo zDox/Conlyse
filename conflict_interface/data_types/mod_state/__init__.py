@@ -1,10 +1,3 @@
-from .mod_state import ModState
-from .air_parameters import AirParameters
-from .anti_air_parameters import AntiAirParameters
-from .commands import Command
-from .unit_feature import UnitFeature
-from .unit_type import UnitType
-from .upgrade_enums import UpgradeFeature
-from .upgrade_type import UpgradeType
-from .moddable_upgrade import ModableUpgrade
-from .modable_unit import SpecialUnit
+__all__ = ["mod_state_enums"]
+
+from . import mod_state_enums

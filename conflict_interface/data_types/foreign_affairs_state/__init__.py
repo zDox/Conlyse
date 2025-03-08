@@ -1,1 +1,3 @@
-from .foreign_affairs_state import ForeignAffairsState
+__all__ = ['foreign_affairs_state_enums']
+
+from . import foreign_affairs_state_enums

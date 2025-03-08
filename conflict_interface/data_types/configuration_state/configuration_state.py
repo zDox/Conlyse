@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 from conflict_interface.data_types.state import State
 
-
 @dataclass
 class ConfigurationState(State):
     C = "ultshared.UltConfigurationState"

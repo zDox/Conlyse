@@ -3,7 +3,7 @@ from math import floor
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.resource_state.resource_types import ResourceType
+from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
 
 
 

@@ -1,10 +1,5 @@
 from enum import Enum
-from enum import Enum
-from enum import Enum
-from enum import Enum
 
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
 
 
@@ -43,6 +38,6 @@ class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
     PREMIUM = 2
 
 
-class MissileType(Enum):
+class MissileType(Enum, metaclass=DefaultEnumMeta):
     BALLISTIC = 1
     CRUISE = 2

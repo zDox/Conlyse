@@ -1,6 +1,3 @@
-
-
-
 from dataclasses import dataclass
 
 from conflict_interface.data_types.army_state.unit import Unit

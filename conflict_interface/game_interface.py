@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime
 from functools import wraps
 from typing import Any
@@ -7,36 +5,33 @@ from typing import Optional
 
 from requests import Session
 
+from conflict_interface.action_handler import ActionHandler
+from conflict_interface.data_types.action import Action
+from conflict_interface.data_types.army_state.army import Army
+from conflict_interface.data_types.authentication import AuthDetails
+from conflict_interface.data_types.custom_types import Vector
+from conflict_interface.data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
+from conflict_interface.data_types.game_api_types.login_action import LoginAction
+from conflict_interface.data_types.game_object import parse_game_object
+from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
+from conflict_interface.data_types.map_state.province import Province
+from conflict_interface.data_types.mod_state.unit_type import UnitType
+from conflict_interface.data_types.mod_state.upgrade_type import UpgradeType
+from conflict_interface.data_types.newspaper_state.article import Article
+from conflict_interface.data_types.player_state.faction import Faction
+from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
-from .action_handler import ActionHandler
-from .data_types import AuthDetails
-from .data_types import ResearchState
-from .data_types import ResourceType
-from .data_types.action import Action
-from .data_types.army_state.army import Army
-from .data_types.custom_types import HashMap
-from .data_types.custom_types import Vector
-from .data_types.foreign_affairs_state.foreign_affairs_state import ForeignAffairRelationTypes
-from .data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
-from .data_types.game_api_types.login_action import LoginAction
-from .data_types.game_event_state.game_event import GameEvent
-from .data_types.game_object import parse_game_object
-from .data_types.game_state import GameState
-from .data_types.map_state import Province
-from .data_types import ProvinceStateID
-from .data_types.map_state.map_state import ProvinceType
-from .data_types.mod_state import UnitType
-from .data_types import UpgradeType
-from .data_types.newspaper_state.article import Article
-from .data_types.player_state import PlayerProfile
-from .data_types.player_state.faction import Faction
-from .data_types.research_state.research_state import Research
-from .data_types.research_state.research_type import ResearchType
-from .data_types.resource_state import ResourceProfile, ResourceEntry
-from .data_types.static_map_data import StaticMapData
-from .game_api import GameApi
-from .logger_config import get_logger
-from .utils.exceptions import CountryUnselectedException, GameActivationException, GameActivationErrorCodes
+from conflict_interface.data_types.research_state.research_type import ResearchType
+from conflict_interface.data_types.resource_state.resource_entry import ResourceEntry
+from conflict_interface.data_types.resource_state.resource_profile import ResourceProfile
+from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
+from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.game_api import GameApi
+from conflict_interface.logger_config import get_logger
+from conflict_interface.utils.exceptions import CountryUnselectedException
+from conflict_interface.utils.exceptions import GameActivationErrorCodes
+from conflict_interface.utils.exceptions import GameActivationException
 
 logger = get_logger()
 

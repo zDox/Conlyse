@@ -1,16 +1,8 @@
 from dataclasses import dataclass
-from enum import Enum
 
 from conflict_interface.data_types.custom_types import DateTimeSecondsInt
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
+from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 
-
-class HubGameState(Enum, metaclass=DefaultEnumMeta):
-    UNDEFINED = "undefined"
-    NONE = "none"
-    READY_TO_JOIN = "readytojoin"
-    RUNNING = "running"
-    FINISHED = "finished"
 
 @dataclass
 class HubGameProperties:

@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
-from enum import Enum
 from typing import Optional
+from conflict_interface.data_types.resource_state.order_action_result import OrderActionResult
 
-from conflict_interface.data_types.resource_state.resource_types import ResourceType
+from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
 from conflict_interface.data_types.custom_types import AskListInner
 from conflict_interface.data_types.custom_types import AskListOuter
 from conflict_interface.data_types.custom_types import BidListInner
@@ -19,18 +17,6 @@ from conflict_interface.logger_config import get_logger
 
 logger = get_logger()
 
-class OrderActionResult(Enum):
-    OK = 0
-    ORDER_NOT_FOUND = 1
-    NOT_BUYABLE_ORDER = 2
-    NOT_SELLABLE_ORDER = 3
-    CANT_CANCEL_FOREIGN_ORDER = 4
-    PRICE_TO_HIGH = 5
-    PRICE_TO_LOW = 6
-    AMOUNT_TO_LOW = 7
-    AMOUNT_TO_HIGH = 8
-    RESOURCE_ENTRY_MISSING = 9
-    NOT_ENOUGH_MONEY = 10
 
 @dataclass
 class ResourceState(State):

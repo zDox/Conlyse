@@ -3,8 +3,8 @@ from dataclasses import fields
 from functools import wraps
 from typing import cast
 
-from conflict_interface.data_types import HubGame
 from conflict_interface.data_types.game_object import parse_any
+from conflict_interface.data_types.hub_types.hub_game import HubGame
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.game_interface import GameInterface
 from conflict_interface.hub_api import HubApi

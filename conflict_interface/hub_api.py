@@ -12,7 +12,7 @@ from lxml import html
 from requests import Response
 from requests import Session
 
-from conflict_interface.data_types import AuthDetails
+from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.data_types.hub_types.ajax_request import AjaxRequest
 from conflict_interface.data_types.hub_types.hub_result_code import HubResultCode
 from conflict_interface.data_types.hub_types.identification_text import EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT

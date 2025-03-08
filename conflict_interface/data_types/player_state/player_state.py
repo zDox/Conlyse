@@ -11,15 +11,6 @@ from conflict_interface.data_types.player_state.player_profile import PlayerProf
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
 from conflict_interface.data_types.state import State
 
-"""
-Not implemented
-resetExplorationCaches
-getVisiblePlayers
-getReducedPlayers
-getMaxTeamSize
-"""
-
-
 class VisibilityMode(Enum, metaclass=DefaultEnumMeta):
     ALL = 1
     ONLY_VISIBLE = 2
@@ -64,9 +55,6 @@ class PlayerState(State):
         return [player for player in self.players.values()
                 if player.get_team_id() == team_id
                 and not player.is_computer_player()]
-
-    def get_current_team_limit(a, b):
-        return a // b + 1
 
     def get_team(self, team_id):
         return self.teams.get(team_id)
