@@ -5,6 +5,7 @@ from conflict_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
 from examples.helper_functions import load_credentials
 
+
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     interface = HubInterface()
