@@ -32,7 +32,7 @@ def requires_ownership(func):
         if self.is_owner():
             return func(self, *args, **kwargs)
         else:
-            raise ActionException(f"Current player does not own province {self.province_id}. Action denied.")
+            raise ActionException(f"Current player does not own province {self.id}. Action denied.")
 
     return wrapper
 
@@ -47,7 +47,7 @@ class Province(GameObject):
     its state dynamically during gameplay.
 
     Attributes:
-        province_id: Identifier for the province.
+        id: Identifier for the province.
         province_state_id: State ID representing the current status of the province. E.x. if the province is occupied
         name: Name of the province.
         adjacent_to_water: Indicates whether the province is situated adjacent to a water body.
@@ -75,7 +75,7 @@ class Province(GameObject):
 
     """
     C = "p"
-    province_id: int
+    id: int
 
     # Data from GameServer
     province_state_id: ProvinceStateID
@@ -115,7 +115,7 @@ class Province(GameObject):
     static_data: StaticProvince = None
 
     MAPPING = {
-        "province_id": "id",
+        "id": "id",
         "name": "n",
         "adjacent_to_water": "c",
         "owner_id": "o",
@@ -155,7 +155,7 @@ class Province(GameObject):
         if self._properties:
             return self._properties
         else:
-            self._properties = self.game.game_state.states.map_state.properties.get(self.province_id)
+            self._properties = self.game.game_state.states.map_state.properties.get(self.id)
             return self._properties
 
     @property
@@ -245,7 +245,7 @@ class Province(GameObject):
         """
         if self.is_upgrade_buildable(upgrade):
             return self.game.do_action(UpdateProvinceAction(
-                province_ids=Vector([self.province_id]),
+                province_ids=Vector([self.id]),
                 mode=UpdateProvinceActionModes.UPGRADE,
                 slot=0,
                 upgrade=upgrade,
@@ -277,7 +277,7 @@ class Province(GameObject):
             return None, UpdateProvinceActionResult.NoProduction
 
         return self.game.do_action(UpdateProvinceAction(
-            province_ids=Vector([self.province_id]),
+            province_ids=Vector([self.id]),
             mode=UpdateProvinceActionModes.CANCEL_BUILDING,
             slot=0
         )), UpdateProvinceActionResult.Ok
@@ -313,7 +313,7 @@ class Province(GameObject):
             raise ValueError("upgrade_id must be an integer")
         if self.is_demolishable(upgrade_id):
             upgrade = self.upgrades.get(upgrade_id)
-            return self.game.do_action(UpdateProvinceAction(province_ids=Vector([self.province_id]),
+            return self.game.do_action(UpdateProvinceAction(province_ids=Vector([self.id]),
                                                             mode=UpdateProvinceActionModes.DEMOLISH_UPGRADE,
                                                             slot=0,
                                                             upgrade=upgrade)), UpdateProvinceActionResult.Ok
@@ -417,7 +417,7 @@ class Province(GameObject):
 
         if self.is_unit_mobilizable(unit):
             return self.game.do_action(UpdateProvinceAction(
-                province_ids=Vector([self.province_id]),
+                province_ids=Vector([self.id]),
                 mode=UpdateProvinceActionModes.SPECIAL_UNIT,
                 slot=0,
                 upgrade=unit,
@@ -439,7 +439,7 @@ class Province(GameObject):
             return None, UpdateProvinceActionResult.NoProduction
 
         return self.game.do_action(UpdateProvinceAction(
-            province_ids=Vector([self.province_id]),
+            province_ids=Vector([self.id]),
             mode=UpdateProvinceActionModes.CANCEL_PRODUCING,
             slot=0,
         )), UpdateProvinceActionResult.Ok
@@ -453,4 +453,4 @@ class Province(GameObject):
                     getattr(new_province, updateable_key))
 
     def __hash__(self):
-        return hash(self.province_id)
+        return hash(self.id)

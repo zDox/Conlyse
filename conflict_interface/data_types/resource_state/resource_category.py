@@ -25,3 +25,6 @@ class ResourceCategory(GameObject):
         "min_consumption": "minConsumption",
         "resources": "resourceEntries",
     }
+
+    def get_resource_entry(self, resource_id: ResourceType) -> ResourceEntry:
+        return self.resources[resource_id]

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
@@ -50,6 +51,12 @@ class ForeignAffairRelations(GameObject):
         "players": "players",
         "end_of_honor_period": "endOfHonorPeriod",
     }
+
+    def get_relation(self, sender_id: int, receiver_id: int) -> Optional[ForeignAffairRelationTypes]:
+        relations = self.neighbor_relations.get(sender_id-1)
+        if relations is None:
+            return None
+        return relations.get(receiver_id-1, ForeignAffairRelationTypes.PEACE)
 
 
 @dataclass
