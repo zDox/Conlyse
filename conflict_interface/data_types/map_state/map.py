@@ -171,7 +171,7 @@ class Map(GameObject):
 
         if other.locations is not None:
             for location in other.locations:
-                if location.province_id in self._provinces.keys():
+                if location.id in self._provinces.keys():
                     self._provinces[location.id].update(location)
                 else:
                     logger.warning(f"New province found: {location.id}")
