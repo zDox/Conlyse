@@ -138,7 +138,11 @@ class GameInterface:
         Returns:
             None
         """
-        self.player_id = self.action_handler.activate_game(country_id, team_id, random_country_team)
+        self.player_id = self.action_handler.activate_game(os=self.game_api.device_details.os,
+                                                           device=self.game_api.device_details.device,
+                                                           selected_player_id=country_id,
+                                                           selected_team_id=team_id,
+                                                           random_team_country_selection=random_country_team)
         self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
 
     def update(self):
