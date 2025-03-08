@@ -190,9 +190,7 @@ class GameInterface:
         """
         if execute_immediately:
             game_state, action_uid = self.action_handler.immediate_action(action)
-            if self.game_state:
-                self.game_state.update(game_state)
-            else:
+            if not self.game_state:
                 self.game_state = game_state
             return action_uid
         else:
