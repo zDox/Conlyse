@@ -1,9 +1,7 @@
-from dataclasses import dataclass
-from math import sqrt, atan2
 from copy import deepcopy
-
-import numpy as np
-from shapely.geometry import Point as shapely_point
+from dataclasses import dataclass
+from math import atan2
+from math import sqrt
 
 from conflict_interface.data_types.game_object import GameObject
 

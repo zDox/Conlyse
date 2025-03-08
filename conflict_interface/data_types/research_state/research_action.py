@@ -1,16 +1,6 @@
 from dataclasses import dataclass
-from enum import Enum
 
 from conflict_interface.data_types.action import Action
-from conflict_interface.data_types.game_object import GameObject
-
-
-class ResearchActionResult(Enum):
-    Ok = 0
-    FullResearchSlots = 1
-    AlreadyCompleted = 2
-    InsufficientRequirements = 3
-    NotAvailable = 4
 
 
 @dataclass

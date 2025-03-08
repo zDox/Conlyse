@@ -1,6 +1,4 @@
-# Always prefer setuptools over distutils
 from setuptools import setup
-
 # To use a consistent encoding
 from codecs import open
 from os import path
@@ -39,20 +37,14 @@ setup(
     install_requires=["requests", "requests[socks]", "fake_useragent", "lxml", "numpy", "shapely"],
     extras_require =
     {
-        "dev": [
-            "sphinx",
-            "setuptools",
-            "recommonmark",
-            "sphinx_rtd_theme",
-        ],
         "docs": [
             "sphinx",
             "setuptools",
             "recommonmark",
             "sphinx_rtd_theme",
         ],
-        "tests": [
-            "deepdiff",
+        "dev": [
+            "setuptools",
         ]
     },
 )

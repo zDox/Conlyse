@@ -2,20 +2,17 @@ from dataclasses import dataclass
 from math import floor
 from typing import List
 from typing import Optional
-from typing import Union
 
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import ConflictCondition
 from conflict_interface.data_types.mod_state.configuration import ConstructionSpeedupConfig
 from conflict_interface.data_types.mod_state.configuration import FactorySpeedUpConfig
-from conflict_interface.data_types.mod_state.configuration import FreeformConfig
-from conflict_interface.data_types.mod_state.configuration import HealArmiesModFeatureConfig
 from conflict_interface.data_types.mod_state.configuration import HealArmiesUpgradeFeatureConfig
 from conflict_interface.data_types.mod_state.configuration import UpgradeTypeFreeformConfig
 from conflict_interface.data_types.mod_state.configuration import VictoryPointsGenerationConfig
+from conflict_interface.data_types.mod_state.mod_state_enums import UpgradeFeature
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
-from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.mod_state.upgrade_enums import UpgradeFeature
 from conflict_interface.data_types.research_state.research_requirement_config import ResearchRequirementConfig
 
 

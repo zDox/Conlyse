@@ -1,1 +1,0 @@
-from .map_info_state import MapInfoState

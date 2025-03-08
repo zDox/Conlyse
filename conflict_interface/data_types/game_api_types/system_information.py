@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from conflict_interface.data_types import GameObject
+from conflict_interface.data_types.game_object import GameObject
 
 
 @dataclass

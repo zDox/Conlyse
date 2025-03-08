@@ -3,25 +3,26 @@ import unittest
 
 from requests import Session
 
-from conflict_interface.data_types import ForeignAffairsState
-from conflict_interface.data_types import GameInfoState
-from conflict_interface.data_types import GameState
-from conflict_interface.data_types import MapState
-from conflict_interface.data_types import ModState
-from conflict_interface.data_types import NewspaperState
-from conflict_interface.data_types import PlayerState
-from conflict_interface.data_types import ResearchState
-from conflict_interface.data_types import ResourceState
 from conflict_interface.data_types.army_state.army_state import ArmyState
-from conflict_interface.data_types.game_event_state import GameEventState
+from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state import ForeignAffairsState
+from conflict_interface.data_types.game_event_state.game_event_state import GameEventState
+from conflict_interface.data_types.game_info_state.game_info_state import GameInfoState
 from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.data_types.game_object import parse_game_object
+from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.data_types.map_state.map_state import MapState
+from conflict_interface.data_types.mod_state.mod_state import ModState
+from conflict_interface.data_types.newspaper_state.newspaper_state import NewspaperState
+from conflict_interface.data_types.player_state.player_state import PlayerState
+from conflict_interface.data_types.research_state.research_state import ResearchState
+from conflict_interface.data_types.resource_state.resource_state import ResourceState
 from conflict_interface.game_interface import GameInterface
 from tests.compare_dicts import compare_dicts
 
 
 class ParseDumpTests(unittest.TestCase):
-    test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState, ResearchState, GameInfoState, GameEventState]
+    test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState,
+                   ResearchState, GameInfoState, GameEventState]
     test_files = ["full_test_data_4.json"]
 
     def test_load_json(self):
@@ -71,24 +72,6 @@ class ParseDumpTests(unittest.TestCase):
 
                     errors = compare_dicts(states, dumped_states)
                     self.assertTrue(errors, msg=f"Failed for {state}")
-
-    """
-    def test_deep_compare(self):
-     for file in ParseDumpTests.test_files:
-         for state in ParseDumpTests.test_states:
-             with self.subTest(file=file, state = state):
-                 with open(file, "r", encoding="utf-8") as f:
-                     data = json.load(f)
-
-                 game = GameInterface(9709744, False, Session(), None)
-
-                 states = data["result"]["states"][str(state.STATE_TYPE)]
-
-                 parsed_state = parse_game_object(state, states, game)
-                 dumped_states = dump_any(parsed_state)
-
-                 self.assertEqual(deepdiff(states, dumped_states), {}, msg=f"Deepdiff Failed for {state}")
-"""
 
 if __name__ == "__main__":
     unittest.main()

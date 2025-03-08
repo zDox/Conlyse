@@ -7,11 +7,6 @@ from typing import get_origin
 # Helper functions for parsing a mapped value
 
 
-def timestamp_to_datetime(timestamp):
-    return datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S") \
-            if timestamp else None
-
-
 def unix_to_datetime(timestamp):
     if timestamp is None:
         return None

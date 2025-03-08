@@ -1,16 +1,14 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
-from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
-from conflict_interface.data_types.resource_state.resource_types import ResourceType
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
-from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.configuration import ConflictCondition
 from conflict_interface.data_types.mod_state.configuration import FactionSpecificConfig
 from conflict_interface.data_types.research_state.faction_specific_research_config import FactionSpecificResearchConfig
-from conflict_interface.data_types.research_state.research_action import ResearchActionResult
+from conflict_interface.data_types.research_state.research_action_result import ResearchActionResult
+from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
 
 
 @dataclass

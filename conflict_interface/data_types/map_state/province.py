@@ -1,27 +1,22 @@
+from dataclasses import dataclass
 from functools import wraps
 from typing import Optional
 
-from dataclasses import dataclass
-
-from conflict_interface.data_types.map_state.province_enums import ProvinceStateID
-from conflict_interface.data_types.map_state.province_enums import ResourceProductionType
-from conflict_interface.data_types.map_state.static_province import StaticProvince
-from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionResult
-
-from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
-from conflict_interface.data_types.custom_types import ArrayList, Vector
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.custom_types import HashSet
 from conflict_interface.data_types.custom_types import ProductionList
-from conflict_interface.data_types.common.enums.region_type import RegionType
-from conflict_interface.data_types.map_state.terrain_type import TerrainType
-from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceAction
-from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionModes
+from conflict_interface.data_types.custom_types import Vector
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.impact import Impact
+from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
+from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
+from conflict_interface.data_types.map_state.map_state_enums import ResourceProductionType
 from conflict_interface.data_types.map_state.province_production import ProvinceProduction
 from conflict_interface.data_types.map_state.province_property import ProvinceProperty
-from conflict_interface.data_types.point import Point
-
+from conflict_interface.data_types.map_state.static_province import StaticProvince
+from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceAction
+from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionModes
+from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import ActionException
@@ -61,12 +56,8 @@ class Province(GameObject):
         money_production: Amount of money produced by the province.
         victory_points: The number of victory points attributed to the province.
         owner_id: ID of the player who currently owns the province.
-        upgrades: Upgrades applied to the province.
         morale: Morale of the province, with a default value of 70.
         legal_owner: ID of the legal owner of the province or -1 if no legal owner.
-        terrain_type: Type of terrain in the province. Defaults to None until set.
-        region: Region to which the province belongs. Defaults to RegionType.NONE.
-        properties: Properties associated with the province, need to be owned by the current player. Defaults to None.
         construction (Optional[ProvinceProduction]): Upgrade that is currently being constructed in this province.
             This is the upgrade that is visible to the owner of the province
         constructions (ProductionList[Optional[ProvinceProduction]]): The List has 4 entries. In slot 0 is the upgrade that is

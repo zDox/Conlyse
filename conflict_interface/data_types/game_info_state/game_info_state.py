@@ -1,5 +1,4 @@
 from datetime import timedelta
-from math import floor
 from typing import Union
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
@@ -9,8 +8,6 @@ from conflict_interface.data_types.game_object import GameObject
 from dataclasses import dataclass
 
 from conflict_interface.data_types.state import State
-
-
 
 
 @dataclass

@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Union
 
 from conflict_interface.data_types.custom_types import ArrayList

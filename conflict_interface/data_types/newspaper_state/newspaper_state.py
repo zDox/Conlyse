@@ -1,13 +1,7 @@
-from __future__ import annotations
-
-from typing import Union
-from typing import override
-
-from conflict_interface.data_types.custom_types import ArrayList, Vector
-from conflict_interface.data_types.game_object import GameObject
-
 from dataclasses import dataclass
+from typing import Union
 
+from conflict_interface.data_types.custom_types import Vector
 from conflict_interface.data_types.newspaper_state.article import Article
 from conflict_interface.data_types.newspaper_state.ranking import Ranking
 from conflict_interface.data_types.newspaper_state.report_article import ReportArticle
