@@ -98,7 +98,7 @@ class HubInterface:
 
         result = self.api.register_user(username, email, password)
         if not result:
-            raise Exception(f"Registration failed. Check {username} or {email} is already taken.")
+            raise Exception(f"Registration failed.")
         else:
             self.auth = True
             logger.info("Registration successful for user " + username)

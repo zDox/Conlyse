@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime
 from functools import wraps
 from typing import Any
+from urllib.parse import urlencode
 
 import lxml
 from fake_useragent import UserAgent
@@ -18,6 +19,8 @@ from conflict_interface.data_types.hub_types.ajax_request import AjaxRequest
 from conflict_interface.data_types.hub_types.hub_result_code import HubResultCode
 from conflict_interface.data_types.hub_types.identification_text import EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT
 from conflict_interface.data_types.hub_types.identification_text import INVALID_USER_OR_PASSWORD_TEXT
+from conflict_interface.data_types.hub_types.identification_text import SUCCESSFUL_REGISTRATION_DETAILS_TEXT
+from conflict_interface.data_types.hub_types.identification_text import TEMP_IP_REGISTRATION_BAN
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import AuthenticationException
 from conflict_interface.utils.exceptions import AuthenticationFailed
@@ -86,6 +89,9 @@ class HubApi:
     def unset_proxy(self):
         self.proxy = defaultdict()
 
+    def set_certificate(self, file_path):
+        self.session.verify = file_path
+
     def send_ajax_request(self, request: AjaxRequest) -> Response:
         """
         Sends an AJAX request based on the parameters defined in the given `AjaxRequest` object.
@@ -109,7 +115,7 @@ class HubApi:
             True, indicating a request to buffer responses, which is not implemented.
         """
         url = request.host + "/index.php"
-        parameters = {
+        query_params = {
             "eID": "ajax",
             "action": request.action,
             "L": str(request.language_id),
@@ -119,20 +125,26 @@ class HubApi:
         }
 
         if request.is_polling:
-            parameters["poll"] = "1"
+            query_params["poll"] = "1"
         if request.evaluate_response:
-            parameters["eval_response"] = "1"
+            query_params["eval_response"] = "1"
 
+        body_data = {}
         for i in range(len(request.keys)):
             if request.keys[i] is not None and request.values[i] is not None:
-                parameters[request.keys[i]] = str(request.values[i])
+                body_data[request.keys[i]] = str(request.values[i])
+
         if request.buffer_request:
             raise NotImplementedError("Buffer request not implemented yet")
 
         request.current_request += 1
 
         logger.debug(f"Sending AJAX request to {url}")
-        response = self.session.request(request.method, url, params=parameters, proxies=self.proxy)
+        response = self.session.request(method=request.method,
+                                        url=url,
+                                        params=query_params,
+                                        data=body_data,
+                                        proxies=self.proxy)
         return response
 
     @protected
@@ -310,7 +322,7 @@ class HubApi:
         else:
             return True
 
-    def check_registration_details(self) -> Response:
+    def check_registration_details(self, values: str) -> bool:
         """
         Checks the registration details by creating an AjaxRequest object with specific
         parameters and sending the AJAX request. It is unknown if it has a use case
@@ -331,9 +343,19 @@ class HubApi:
             action="registration_details",
             language_id=0,
             keys=["Ip", "Ipv", "titleID", "values", "submit_id"],
-            values=["110", "1", "2000", "", "sg_reg_form_0"],
+            values=["110", "1", "2000", values, "sg_reg_form_0"],
         )
-        return self.send_ajax_request(rm)
+        response = self.send_ajax_request(rm)
+        if response.text.endswith(SUCCESSFUL_REGISTRATION_DETAILS_TEXT):
+            return True
+        else:
+            logger.info("Registration details check failed. Got response: " + response.text)
+            return False
+
+
+    @staticmethod
+    def check_temp_ip_ban(response_text: str) -> bool:
+        return TEMP_IP_REGISTRATION_BAN in response_text
 
     def load_main_page(self) -> tuple[str, dict]:
         """
@@ -399,7 +421,7 @@ class HubApi:
             raise AuthenticationException("Could not get session token")
         return res["sessionToken"]
 
-    def register_user(self, username: str, email: str, password: str):
+    def register_user(self, username: str, email: str, password: str) -> bool:
         """
         Registers a new user by submitting the registration form data to the server.
         The process involves loading the main page to bypass the Cross-Site
@@ -422,9 +444,12 @@ class HubApi:
         email_ok = self.check_email_available(email)
         if not username_ok:
             logger.info(f"Trying to register username {username} which is already taken")
+            return False
         if not email_ok:
             logger.info(f"Trying to register with email {email} which is already taken")
-        if not username_ok or not email_ok:
+            return False
+        if len(username) >= 20:
+            logger.info(f"Trying to register username {username} which is too long. Maximum are 20 characters.")
             return False
 
         """
@@ -438,11 +463,18 @@ class HubApi:
         form_data["sg[reg][email]"] = email
         form_data["sg[reg][password]"] = password
 
+        reg_details_res = self.check_registration_details(values=urlencode(form_data))
+        if not reg_details_res:
+            return False
+
         res = self.session.post(self.HOST+form_action, data=form_data, proxies=self.proxy)
-
+        if HubApi.check_temp_ip_ban(res.text):
+            logger.info("Temp IP ban detected, waiting 10 minutes")
+            return False
         self.load_authentication_from_response(res)
+        return True
 
-    def login(self, username, password):
+    def login(self, username, password) -> bool:
         """
         Logs a user into the system by sending authentication data to the server. Verifies the credentials
         via self.check_login() and sends a POST request to authenticate. Updates the
