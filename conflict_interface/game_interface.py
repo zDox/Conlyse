@@ -651,5 +651,5 @@ class GameInterface:
     def default_event_handler(self, game_interface):
         pass
 
-    def set_event_handler(self, event_handler: Function):
+    def set_event_handler(self, event_handler: Callable):
         self.game_event_handler = event_handler
