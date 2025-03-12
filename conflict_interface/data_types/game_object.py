@@ -7,7 +7,6 @@ from enum import Enum
 from typing import Any
 from typing import TYPE_CHECKING
 from typing import Type
-from typing import TypeVar
 from typing import Union
 from typing import cast
 from typing import get_args
@@ -354,7 +353,8 @@ def dump_dataclass(obj: object) -> dict[str , Any]:
     json_obj: dict = {"@c": getattr(obj, "C")}
 
     if issubclass(type(obj), GameObject):
-        mapping = type(obj).get_mapping()
+        obj = cast(GameObject, obj)
+        mapping = obj.get_mapping()
     else:
         mapping = getattr(type(obj), "MAPPING")
 

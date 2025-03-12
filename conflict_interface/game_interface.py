@@ -1,5 +1,7 @@
+from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
+from symtable import Function
 from typing import Optional
 
 from requests import Session
@@ -45,6 +47,9 @@ class GameInterface:
         self.game_state: GameState | None = None
         self.action_handler = ActionHandler(self)
         self.guest: bool = guest
+        self.game_event_handler: Callable = self.default_event_handler
+
+
 
     @staticmethod
     def country_selected(func):
@@ -165,7 +170,7 @@ class GameInterface:
 
     def client_time(self) -> datetime:
         """
-        Retrieves the current client time adjusted for the game's time scale.
+        Retrieves the current client time adjusted for the game's timescale.
 
         Returns
         -------
@@ -181,7 +186,7 @@ class GameInterface:
     def do_action(self,action: Action, execute_immediately=False):
         """
         Uses the action handler to execute an action immediately or queue it for later.
-        Queuing is done to reduce the load on the server by only sending requests bundeld together roughly every 5 minutes.
+        Queuing is done to reduce the load on the server by only sending requests bundled together roughly every 5 minutes.
 
         :param action: The action to be executed
         :param execute_immediately: Whether the action should be executed immediately or queued defaults to False
@@ -638,3 +643,13 @@ class GameInterface:
     @country_selected
     def get_resource_entry(self, resource_id: ResourceType) -> ResourceEntry | None:
         return self.get_my_resource_profile().get_resource_entry(resource_id)
+
+    """
+    Event Handler
+    """
+
+    def default_event_handler(self):
+        pass
+
+    def set_event_handler(self, event_handler: Function):
+        self.game_event_handler = event_handler
