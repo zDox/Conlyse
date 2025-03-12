@@ -230,6 +230,7 @@ class DummyMissileCarrierConfig(GameObject):
 
 @dataclass
 class MissileCarrierFeature(GameObject):
+    C ="ultshared.warfare.UltMissileCarrierFeature"
     missile_carrier_config: MissileCarrierConfig
     inventory: HashMap[int, int]
 
