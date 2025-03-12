@@ -648,7 +648,7 @@ class GameInterface:
     Event Handler
     """
 
-    def default_event_handler(self):
+    def default_event_handler(self, game_interface):
         pass
 
     def set_event_handler(self, event_handler: Function):
