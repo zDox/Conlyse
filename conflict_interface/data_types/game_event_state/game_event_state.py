@@ -1,4 +1,5 @@
 from typing import Union
+from typing import override
 
 from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.game_event_state.game_event import *
@@ -28,3 +29,8 @@ class GameEventState(State):
     MAPPING = {
         "game_events": "gameEvents",
     }
+
+    @override
+    def update(self, other):
+        super().update(other)
+        self.game.game_event_handler()
