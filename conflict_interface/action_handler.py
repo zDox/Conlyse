@@ -3,13 +3,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.custom_types import LinkedList
 from conflict_interface.data_types.game_api_types.game_activation_action import GameActivationAction
 from conflict_interface.data_types.game_api_types.game_state_action import GameStateAction
 from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.data_types.game_object import parse_game_object
+from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.game_api import GameApi
 
 from conflict_interface.logger_config import get_logger
@@ -17,7 +17,7 @@ from conflict_interface.utils.bidict import Bidict
 from conflict_interface.utils.exceptions import GameActivationException
 
 if TYPE_CHECKING:
-    from conflict_interface.game_interface import GameInterface
+    from conflict_interface.interface.online_interface import OnlineInterface
 
 logger = get_logger()
 
@@ -50,7 +50,7 @@ class ActionHandler:
     :ivar action_request_id_to_action_uid: A bidirectional mapping between unique action IDs and their corresponding action request IDs.
     """
 
-    def __init__(self, game: GameInterface):
+    def __init__(self, game: OnlineInterface):
         self.queue: list[tuple[int, Action]] = []
         self.past_actions: list[tuple[int, Action]] = []
         self.action_request_id = 0

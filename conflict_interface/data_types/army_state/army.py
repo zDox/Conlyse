@@ -269,7 +269,7 @@ class Army(GameObject):
         """
         self.update_values()
         self.commands = LinkedList(commands)
-        return self.game.do_action(ArmyAction(LinkedList([self])))
+        return self.game.online.do_action(ArmyAction(LinkedList([self])))
 
     def add_command(self, command: Command) -> int:
         """
@@ -284,7 +284,7 @@ class Army(GameObject):
         """
         self.update_values()
         self.commands.append(command)
-        return self.game.do_action(ArmyAction(LinkedList([self])))
+        return self.game.online.do_action(ArmyAction(LinkedList([self])))
 
     def patrol(self, target: Point) -> tuple[Optional[int], ArmyActionResult]:
         """
@@ -341,13 +341,20 @@ class Army(GameObject):
         """
         if self.airplane:
             if self.is_in_range(point):
-                return self.set_command(GotoCommand(self.position, point, None, None, None, None, None, None, None)), ArmyActionResult.Ok
+                return self.set_command(GotoCommand(start_position = self.position,
+                                                    target_position = point)), ArmyActionResult.Ok
             else:
                 return None, ArmyActionResult.OutOfRange
         else:
             return self.set_commands([
-                GotoCommand(self.position, self.position, self.base_speed, None, self.on_sea, None, None, None, None),
-                GotoCommand(self.position, point, self.base_speed, None, self.on_sea, None, None, None, None)]), ArmyActionResult.Ok
+                GotoCommand(start_position = self.position,
+                            target_position = self.position,
+                            speed = self.base_speed,
+                            on_water = self.on_sea),
+                GotoCommand(start_position = self.position,
+                            target_position = point,
+                            speed = self.base_speed,
+                            on_water = self.on_sea)]), ArmyActionResult.Ok
 
     def add_waypoint(self, point: Point):
         """
@@ -365,7 +372,11 @@ class Army(GameObject):
         if self.commands:
             last_command = self.commands[-1]
             if isinstance(last_command, GotoCommand):
-                return self.add_command(GotoCommand(last_command.target_position, point, self.base_speed, None, self.on_sea, None, None, None, None)), ArmyActionResult.Ok
+                return self.add_command(GotoCommand(start_position = last_command.target_position,
+                                                    target_position = point,
+                                                    speed = self.base_speed,
+                                                    on_water = self.on_sea,
+                                                    )), ArmyActionResult.Ok
             else:
                 return None, ArmyActionResult.InvalidCommandQueue
         else:
@@ -436,19 +447,37 @@ class Army(GameObject):
                 corresponding ArmyActionResult.
         """
 
-        splitted_units = []
+        split_units = []
         for unit_id, unit_count in split_units_count:
             for my_unit in self.units:
                 if my_unit.unit_type_id == unit_id:
                     if my_unit.size >= unit_count:
-                        splitted_units.append(Unit(0, unit_id, size=unit_count))
+                        split_units.append(Unit(0, unit_id, size=unit_count))
 
-        goto_command = GotoCommand(self.position, point, None, None, None, None, None, None, None)
-        new_army = Army(units=UnitList(splitted_units),owner_id=self.owner_id, position=self.position, commands=LinkedList([goto_command]))
-        splitted_command = SplitArmyCommand(splitted_army=new_army)
-        return self.set_command(splitted_command), ArmyActionResult.Ok
+        goto_command = GotoCommand(self.position, point)
+        new_army = Army(units=UnitList(split_units),owner_id=self.owner_id, position=self.position, commands=LinkedList([goto_command]))
+        split_command = SplitArmyCommand(splitted_army=new_army)
+        return self.set_command(split_command), ArmyActionResult.Ok
 
-            
+    def split_and_move_unit(self, unit_type_name: str, amount: int, target_province_name: str) -> tuple[int | None, ArmyActionResult]:
+        type_ids = [x.unit_type_id  for x in self.units]
+        amounts = [x.size for x in self.units]
+
+        tuples = []
+        for i in range(len(type_ids)):
+            if self.game.get_unit_type(type_ids[i]).type_name == unit_type_name:
+                if amounts[i] >= amount:
+                    tuples.append((type_ids[i], amount))
+                else:
+                    return None, ArmyActionResult.InvalidCommandForUnitTypes
+            else:
+                tuples.append((type_ids[i], 0))
+
+        result = self.split_army(
+            self.game.get_provinces_by_name(target_province_name).static_data.center_coordinate,
+            tuples
+        )
+        return result
                 
 
 

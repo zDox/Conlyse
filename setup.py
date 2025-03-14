@@ -35,7 +35,7 @@ setup(
     ],
     packages=find_packages(),
     include_package_data=True,
-    install_requires=["requests", "requests[socks]", "fake_useragent", "lxml", "numpy", "shapely"],
+    install_requires=["requests", "requests[socks]", "fake_useragent", "lxml", "numpy", "shapely", "jsonpatch"],
     extras_require =
     {
         "docs": [

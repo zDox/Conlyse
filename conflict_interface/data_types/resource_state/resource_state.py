@@ -52,7 +52,7 @@ class ResourceState(State):
             return None, OrderActionResult.ORDER_NOT_FOUND
 
         action = OrderAction(order = order, cancel=True)
-        return self.game.do_action(action), OrderActionResult.OK
+        return self.game.online.do_action(action), OrderActionResult.OK
 
     def check_sell_trade_allowed(self, resource_type: ResourceType, piece_price: float, amount: int) -> OrderActionResult:
         resource_entry = self.game.get_resource_entry(resource_type)
@@ -91,7 +91,7 @@ class ResourceState(State):
             is_owner = None
         )
         action = OrderAction(order = order, cancel=False)
-        return self.game.do_action(action), result
+        return self.game.online.do_action(action), result
 
     def check_buy_trade_allowed(self, resource_type: ResourceType, piece_price: float, amount: int) -> OrderActionResult:
         resource_entry = self.game.get_resource_entry(resource_type)
@@ -125,4 +125,4 @@ class ResourceState(State):
         )
 
         action = OrderAction(order = order, cancel=False)
-        return self.game.do_action(action), result
+        return self.game.online.do_action(action), result

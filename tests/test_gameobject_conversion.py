@@ -16,7 +16,9 @@ from conflict_interface.data_types.newspaper_state.newspaper_state import Newspa
 from conflict_interface.data_types.player_state.player_state import PlayerState
 from conflict_interface.data_types.research_state.research_state import ResearchState
 from conflict_interface.data_types.resource_state.resource_state import ResourceState
-from conflict_interface.game_interface import GameInterface
+from conflict_interface.interface.game_interface import GameInterface
+from conflict_interface.interface.online_interface import OnlineInterface
+from conflict_interface.interface.replay_interface import ReplayInterface
 from tests.compare_dicts import compare_dicts
 
 
@@ -42,7 +44,7 @@ class ParseDumpTests(unittest.TestCase):
                 with open(file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                game = GameInterface(9709744, False, Session(), None)
+                game = ReplayInterface(9709744, 0)
 
                 states = data["result"]
                 parsed_state = parse_game_object(GameState, states, game)
@@ -56,7 +58,7 @@ class ParseDumpTests(unittest.TestCase):
                     with open(file, "r", encoding="utf-8") as f:
                         data = json.load(f)
 
-                    game = GameInterface(9709744, False, Session(), None)
+                    game = ReplayInterface(9709744, 0) # TODO player id
 
                     states = data["result"]["states"][str(state.STATE_TYPE)]
 

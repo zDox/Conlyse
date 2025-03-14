@@ -97,7 +97,7 @@ class ResearchState(State):
             performed), and the result of the research attempt (researchability state).
         """
         if self.is_researchable(research_id):
-            return self.game.do_action(ResearchAction(research_id, cancel=False)), ResearchActionResult.Ok
+            return self.game.online.do_action(ResearchAction(research_id, cancel=False)), ResearchActionResult.Ok
         else:
             return None, self.get_researchability(research_id)
 
@@ -130,6 +130,6 @@ class ResearchState(State):
          - The second element is ResearchActionResult, indicating the result of the cancellation attempt.
         """
         if self.is_researching(research_id):
-            return self.game.do_action(ResearchAction(research_id, cancel=True)), ResearchActionResult.Ok
+            return self.game.online.do_action(ResearchAction(research_id, cancel=True)), ResearchActionResult.Ok
         else:
             return None, ResearchActionResult.NotAvailable

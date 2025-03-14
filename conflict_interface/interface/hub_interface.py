@@ -6,8 +6,8 @@ from typing import cast
 from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.hub_types.hub_game import HubGame
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
-from conflict_interface.game_interface import GameInterface
 from conflict_interface.hub_api import HubApi
+from conflict_interface.interface.online_interface import OnlineInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import AuthenticationException
 
@@ -156,13 +156,17 @@ class HubInterface:
         self.api.request_first_join(game_id)
 
     @protected
-    def join_game(self, game_id: int, guest=False) -> GameInterface:
+    def join_game(self, game_id: int, guest=False) -> OnlineInterface:
         # If user is not already in first game join it the first time
         if not self.is_in_game(game_id) and not guest:
             logger.info(f"User is not in game {game_id}. Requesting first join...")
             self.api.request_first_join(game_id)
         logger.info(f"Joining game {game_id} as guest={guest}...")
-        game_interface = GameInterface(game_id, guest, deepcopy(self.api.session), deepcopy(self.api.auth), self.api.proxy)
+        game_interface = OnlineInterface(game_id = game_id,
+                                         session = deepcopy(self.api.session),
+                                         auth_details = deepcopy(self.api.auth),
+                                         proxy = self.api.proxy,
+                                         guest = guest)
         game_interface.load_game()
         return game_interface
 

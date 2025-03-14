@@ -43,14 +43,14 @@ class GotoCommand(GameObject):
 
     start_position: Point
     target_position: Point
-    speed: float
+    speed: float = None
 
     location_id: int = None
-    on_water: bool = False
+    on_water: bool = None
     start_time: DateTimeMillisecondsInt = None
     arrival_time: DateTimeMillisecondsInt = None
-    speed_factor: float = 0 # TODO Need to check what it should really be
-    in_air: bool = False
+    speed_factor: float = None # TODO Need to check what it should really be
+    in_air: bool = None
 
     MAPPING = {
         "start_time": "st",
