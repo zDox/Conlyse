@@ -244,7 +244,7 @@ class Province(GameObject):
             inability to build the upgrade.
         """
         if self.is_upgrade_buildable(upgrade):
-            return self.game.do_action(UpdateProvinceAction(
+            return self.game.online.do_action(UpdateProvinceAction(
                 province_ids=Vector([self.id]),
                 mode=UpdateProvinceActionModes.UPGRADE,
                 slot=0,
@@ -276,7 +276,7 @@ class Province(GameObject):
         if self.construction is None:
             return None, UpdateProvinceActionResult.NoProduction
 
-        return self.game.do_action(UpdateProvinceAction(
+        return self.game.online.do_action(UpdateProvinceAction(
             province_ids=Vector([self.id]),
             mode=UpdateProvinceActionModes.CANCEL_BUILDING,
             slot=0
@@ -313,7 +313,7 @@ class Province(GameObject):
             raise ValueError("upgrade_id must be an integer")
         if self.is_demolishable(upgrade_id):
             upgrade = self.upgrades.get(upgrade_id)
-            return self.game.do_action(UpdateProvinceAction(province_ids=Vector([self.id]),
+            return self.game.online.do_action(UpdateProvinceAction(province_ids=Vector([self.id]),
                                                             mode=UpdateProvinceActionModes.DEMOLISH_UPGRADE,
                                                             slot=0,
                                                             upgrade=upgrade)), UpdateProvinceActionResult.Ok
@@ -416,7 +416,7 @@ class Province(GameObject):
         unit = self.get_possible_production_by_unit_type_id(unit_type_id)
 
         if self.is_unit_mobilizable(unit):
-            return self.game.do_action(UpdateProvinceAction(
+            return self.game.online.do_action(UpdateProvinceAction(
                 province_ids=Vector([self.id]),
                 mode=UpdateProvinceActionModes.SPECIAL_UNIT,
                 slot=0,
@@ -438,7 +438,7 @@ class Province(GameObject):
         if self.production is None:
             return None, UpdateProvinceActionResult.NoProduction
 
-        return self.game.do_action(UpdateProvinceAction(
+        return self.game.online.do_action(UpdateProvinceAction(
             province_ids=Vector([self.id]),
             mode=UpdateProvinceActionModes.CANCEL_PRODUCING,
             slot=0,

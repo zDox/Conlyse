@@ -1,6 +1,6 @@
 import unittest
 
-from conflict_interface.hub_interface import HubInterface
+from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.utils.exceptions import AuthenticationException
 from tests.helper_functions import get_new_game_id
 from tests.helper_functions import load_credentials

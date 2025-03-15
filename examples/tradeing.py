@@ -1,8 +1,8 @@
 import logging
 from pprint import pprint
 
-from conflict_interface import HubInterface
-from conflict_interface.data_types import ResourceType
+from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
+from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
 from examples.helper_functions import load_credentials
 

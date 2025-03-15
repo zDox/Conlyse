@@ -17,7 +17,7 @@ from conflict_interface.data_types.custom_types import *
 from conflict_interface.utils.helper import safe_issubclass
 
 if TYPE_CHECKING: # The one place where this is needed for type hinting
-    from conflict_interface.game_interface import GameInterface
+    from conflict_interface.interface.game_interface import GameInterface
 
 """
 Parsing: Json -> Python
