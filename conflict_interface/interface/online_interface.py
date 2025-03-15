@@ -25,8 +25,9 @@ logger = get_logger()
 
 class OnlineInterface(GameInterface):
     def __init__(self, game_id: int, session: CloudScraper, auth_details: AuthDetails, guest: bool = False, proxy: dict = None):
-        super().__init__(game_id=game_id)
+        super().__init__()
         self.replay: Replay | None = None
+        self.game_id = game_id
         self.game_api: GameApi = GameApi(session, auth_details, self.game_id, proxy=proxy)
         self.game_event_handler: Callable = self.default_event_handler
         self.guest: bool = guest

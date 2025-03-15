@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from functools import wraps
 from typing import Optional
 from typing import TYPE_CHECKING
@@ -31,14 +32,16 @@ from conflict_interface.utils.exceptions import CountryUnselectedException
 logger = get_logger()
 
 class GameInterface:
-    def __init__(self, game_id: int):
-        self.game_id = game_id
+    def __init__(self):
         self.player_id = 0
         self.game_state: GameState | None = None
 
     @property
     def online(self) -> OnlineInterface:
         raise TypeError("This is not an online interface")
+
+    def client_time(self) -> datetime:
+        pass
 
     @staticmethod
     def country_selected(func):
