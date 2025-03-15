@@ -2,6 +2,7 @@ import logging
 
 
 from pprint import pprint
+from time import sleep
 
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
@@ -17,4 +18,6 @@ if __name__ == "__main__":
     game = interface.join_game(9758559)
     game.record_replay("test.zip")
 
+    sleep(5)
+    game.update()
     pprint(game.get_my_cities())
