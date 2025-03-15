@@ -9,7 +9,6 @@ from typing import Literal
 import jsonpatch
 from zipfile import ZipFile
 
-from deepdiff.serialization import json_loads
 from jsonpatch import JsonPatch
 
 from conflict_interface.data_types.game_object import dump_date_time_str
@@ -130,7 +129,7 @@ class Replay:
 
     def _get_patch(self, time_stamp: int) -> JsonPatch:
         with self.zipfile.open(f"{PATCH_FOLDER}/patch_{time_stamp}.json") as f:
-                return JsonPatch.from_string(json_loads(f.read().decode('utf-8')))
+                return JsonPatch.from_string(json.loads(f.read().decode('utf-8')))
 
     def _write_patch(self, time_stamp: int, patch: JsonPatch):
         filename = f"{PATCH_FOLDER}/patch_{time_stamp}.json"
