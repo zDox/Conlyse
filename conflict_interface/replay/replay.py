@@ -2,6 +2,7 @@ import json
 import zipfile
 import os
 from collections import defaultdict
+from datetime import UTC
 from datetime import datetime
 from time import time
 from typing import Literal
@@ -11,14 +12,15 @@ from zipfile import ZipFile
 
 from jsonpatch import JsonPatch
 
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsStr
 from conflict_interface.data_types.game_object import dump_date_time_str
 
 
 class CorruptReplay(Exception):
     pass
-VERSION = 2
+VERSION = 3
 INFORMATION_FILE = "information.json"
-MANDATORY_KEYS = ["version", "game_id", "player_id"]
+MANDATORY_KEYS = ["version", "game_id", "player_id", "start_time"]
 PATCH_FOLDER = "patches"
 ACTION_FOLDER = "actions"
 
@@ -36,6 +38,7 @@ class Replay:
         self.game_id = game_id
         self.player_id = player_id
         self.zipfile: ZipFile | None = None
+        self.start_time: datetime | None = None
 
     def __enter__(self):
         if self.mode == 'w':
@@ -45,23 +48,32 @@ class Replay:
             raise FileNotFoundError(f"Replay file {self.filename} not found")
 
         self.zipfile = ZipFile(self.filename, self.mode, zipfile.ZIP_DEFLATED)
-        if self.mode in 'a':
+        if self.mode == 'a':
             self._load_existing_replay()
-        elif self.mode in 'w':
+            self._load_till_uptodate()
+        elif self.mode == 'w':
             self._create_new_replay()
+        elif self.mode == 'r':
+            self._load_existing_replay()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.zipfile:
             self.zipfile.close()
 
-    def _create_new_replay(self):
-        information = {"version": VERSION, "game_id": self.game_id, "player_id": self.player_id}
-        self.zipfile.mkdir(PATCH_FOLDER)
-        self.zipfile.mkdir(ACTION_FOLDER)
-
+    def _write_information(self):
+        information = {"version": VERSION,
+                       "game_id": self.game_id,
+                       "player_id": self.player_id,
+                       "start_time": self.start_time,}
         with self.zipfile.open(INFORMATION_FILE, 'w') as f:
             f.write(json.dumps(information, indent=4).encode('utf-8'))
+
+    def _create_new_replay(self):
+        self.zipfile.mkdir(PATCH_FOLDER)
+        self.zipfile.mkdir(ACTION_FOLDER)
+        self._write_information()
+
 
     def _has_folder(self, folder_name: str) -> bool:
         """Check if the zip file contains a folder with the given name."""
@@ -84,6 +96,7 @@ class Replay:
             raise CorruptReplay(f"Unsupported version {content['version']}")
 
         self.game_id, self.player_id = content["game_id"], content["player_id"]
+        self.start_time = datetime.fromtimestamp(float(content["start_time"]/1000))
 
     def _load_existing_replay(self):
         self._load_information()
@@ -106,6 +119,7 @@ class Replay:
 
         self.time_stamps = sorted(int(p.removeprefix("patch_").removesuffix(".json")) for p in patches)
 
+    def _load_till_uptodate(self):
         for time_stamp in self.time_stamps:
             patch = self._get_patch(time_stamp)
             patch.apply(self.game_state, in_place=True)
@@ -126,6 +140,8 @@ class Replay:
         with self.zipfile.open(filename, 'w') as f:
             f.write(json.dumps(game_state, indent=4).encode('utf-8'))
         self.set_time_stamp(filename, datetime.now())
+        self.start_time = time_stamp
+        self._write_information()
 
     def _get_patch(self, time_stamp: int) -> JsonPatch:
         with self.zipfile.open(f"{PATCH_FOLDER}/patch_{time_stamp}.json") as f:
@@ -143,7 +159,7 @@ class Replay:
 
     def load_game_state(self, time_stamp: datetime) -> dict:
         # TODO Make it working
-        target_time_stamp = int(dump_date_time_str(time_stamp))
+        target_time_stamp = int(time_stamp.timestamp() * 1000)
         relevant_patch = next((t for t in self.time_stamps if t > target_time_stamp), self.time_stamps[-1] if self.time_stamps else None)
 
         if relevant_patch is None:

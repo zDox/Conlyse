@@ -15,7 +15,7 @@ with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
 # noinspection PyPackageRequirements
 setup(
     name="conflict-interface",
-    version="0.1.0",
+    version="0.1.1",
     description="Conflict of Nations Interface",
     long_description=long_description,
     long_description_content_type="text/markdown",

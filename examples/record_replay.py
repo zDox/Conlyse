@@ -22,5 +22,5 @@ if __name__ == "__main__":
     game.record_replay("test.zip")
 
     while True:
-        sleep(60)
         game.update()
+        sleep(5)

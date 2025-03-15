@@ -48,7 +48,7 @@ class ArmyState(State):
         if other is None:
             return
         for new_army in other.armies.values():
-            if new_army.removed:
+            if new_army.removed and new_army.id in self.armies:
                 self.armies.pop(new_army.id)
                 continue
             else:
