@@ -163,7 +163,7 @@ class HubInterface:
             self.api.request_first_join(game_id)
         logger.info(f"Joining game {game_id} as guest={guest}...")
         game_interface = OnlineInterface(game_id = game_id,
-                                         session = deepcopy(self.api.session),
+                                         session = self.api.session,
                                          auth_details = deepcopy(self.api.auth),
                                          proxy = self.api.proxy,
                                          guest = guest)

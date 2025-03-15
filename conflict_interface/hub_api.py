@@ -2,17 +2,15 @@ import base64
 import hashlib
 import json
 from collections import defaultdict
-from datetime import datetime
 from functools import wraps
 from typing import Any
 from urllib.parse import urlencode
 
 import lxml
+from cloudscraper import CloudScraper
 from fake_useragent import UserAgent
 from lxml import html
 from requests import Response
-from requests import Session
-from urllib.parse import quote
 
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.data_types.hub_types.ajax_request import AjaxRequest
@@ -70,7 +68,7 @@ class HubApi:
     HOST = "https://www.conflictnations.com/"
 
     def __init__(self, proxy: dict = None):
-        self.session = Session()
+        self.session = CloudScraper.create_scraper()
         self.user_agent = UserAgent(platforms='desktop').random
         self.session.headers = {
                 "User-Agent": self.user_agent,

@@ -10,6 +10,7 @@ from json import dumps
 from json import loads
 from time import time
 
+from cloudscraper import CloudScraper
 from lxml import html
 from requests import Session
 
@@ -60,7 +61,7 @@ class GameApi:
 
         return wrap
 
-    def __init__(self, session: Session, auth_details: AuthDetails,
+    def __init__(self, session: CloudScraper, auth_details: AuthDetails,
                  game_id: int, proxy: dict = None,):
         self.session = session
         self.game_id = game_id
