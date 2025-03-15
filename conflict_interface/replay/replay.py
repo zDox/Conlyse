@@ -3,18 +3,25 @@ import zipfile
 import os
 from collections import defaultdict
 from datetime import datetime
+from time import time
 from typing import Literal
 
 import jsonpatch
+from zipfile import ZipFile
+
+from deepdiff.serialization import json_loads
+from jsonpatch import JsonPatch
 
 from conflict_interface.data_types.game_object import dump_date_time_str
 
 
 class CorruptReplay(Exception):
     pass
-
+VERSION = 2
 INFORMATION_FILE = "information.json"
 MANDATORY_KEYS = ["version", "game_id", "player_id"]
+PATCH_FOLDER = "patches"
+ACTION_FOLDER = "actions"
 
 
 class Replay:
@@ -29,7 +36,7 @@ class Replay:
         self.time_stamps: list[int] = []
         self.game_id = game_id
         self.player_id = player_id
-        self.zipfile = None
+        self.zipfile: ZipFile | None = None
 
     def __enter__(self):
         if self.mode == 'w':
@@ -38,8 +45,8 @@ class Replay:
         elif self.mode in ('r', 'a') and not os.path.exists(self.filename):
             raise FileNotFoundError(f"Replay file {self.filename} not found")
 
-        self.zipfile = zipfile.ZipFile(self.filename, self.mode, zipfile.ZIP_DEFLATED)
-        if self.mode in ('r', 'a'):
+        self.zipfile = ZipFile(self.filename, self.mode, zipfile.ZIP_DEFLATED)
+        if self.mode in 'a':
             self._load_existing_replay()
         elif self.mode in 'w':
             self._create_new_replay()
@@ -50,10 +57,19 @@ class Replay:
             self.zipfile.close()
 
     def _create_new_replay(self):
-        with zipfile.ZipFile(self.filename, 'w', zipfile.ZIP_DEFLATED) as zf:
-            information = {"version": 1, "game_id": self.game_id, "player_id": self.player_id}
-            with zf.open(INFORMATION_FILE, 'w') as f:
-                f.write(json.dumps(information, indent=4).encode('utf-8'))
+        information = {"version": VERSION, "game_id": self.game_id, "player_id": self.player_id}
+        self.zipfile.mkdir(PATCH_FOLDER)
+        self.zipfile.mkdir(ACTION_FOLDER)
+
+        with self.zipfile.open(INFORMATION_FILE, 'w') as f:
+            f.write(json.dumps(information, indent=4).encode('utf-8'))
+
+    def _has_folder(self, folder_name: str) -> bool:
+        """Check if the zip file contains a folder with the given name."""
+        return any(name.startswith(f"{folder_name}/") for name in self.zipfile.namelist())
+
+    def _has_patch(self, time_stamp: int) -> bool:
+        return any(f"{PATCH_FOLDER}/patch_{time_stamp}.json" == filename for filename in self.zipfile.namelist())
 
     def _load_information(self):
         if INFORMATION_FILE not in self.zipfile.namelist():
@@ -65,54 +81,91 @@ class Replay:
         if missing_keys:
             raise CorruptReplay(f"Missing keys in information file: {', '.join(missing_keys)}")
 
-        if content["version"] != 1:
+        if content["version"] != VERSION:
             raise CorruptReplay(f"Unsupported version {content['version']}")
 
         self.game_id, self.player_id = content["game_id"], content["player_id"]
 
     def _load_existing_replay(self):
         self._load_information()
+        if not self._has_folder(PATCH_FOLDER):
+            raise CorruptReplay(f"Replay file {self.filename} is missing patch folder")
+        if not self._has_folder(ACTION_FOLDER):
+            raise CorruptReplay(f"Replay file {self.filename} is missing action folder")
+
         initials = [name for name in self.zipfile.namelist() if name.startswith("initial_state")]
-        patches = sorted([f for f in self.zipfile.namelist() if f.startswith('patch_')])
+        patches = sorted([f.removeprefix(f"{PATCH_FOLDER}/") for f in self.zipfile.namelist()
+                          if f.startswith(f'{PATCH_FOLDER}/patch_')])
 
         if len(initials) > 1:
             raise CorruptReplay(f"Multiple initial states detected in {self.filename}")
-        if not initials and patches:
-            raise CorruptReplay(f"No initial state found in {self.filename}, but patches exist")
+        if len(initials) == 0:
+            raise CorruptReplay(f"No initial state found in {self.filename}.")
 
-        if initials:
-            self.initial_filename = initials[0]
-            with self.zipfile.open(initials[0]) as f:
-                self.game_state = json.load(f)
+        self.initial_filename = initials[0]
+        self._load_initial_game_state()
+
         self.time_stamps = sorted(int(p.removeprefix("patch_").removesuffix(".json")) for p in patches)
 
+        for time_stamp in self.time_stamps:
+            patch = self._get_patch(time_stamp)
+            patch.apply(self.game_state, in_place=True)
+
+    def _load_initial_game_state(self):
+        t1 = time()
+        with self.zipfile.open(self.initial_filename) as f:
+            self.game_state = json.load(f)
+        print(f"Loaded {self.initial_filename} in {time() - t1:.4f} seconds")
+
+    def set_time_stamp(self, filename: str, time_stamp: datetime):
+        file_info = self.zipfile.getinfo(filename)
+        file_info.date_time = time_stamp.timetuple()[0:6]
+        self.zipfile.getinfo(file_info.filename).date_time = file_info.date_time
+
+    def _write_initial_game_state(self, time_stamp: int, game_state: dict):
+        filename = f"initial_state_{time_stamp}.json"
+        with self.zipfile.open(filename, 'w') as f:
+            f.write(json.dumps(game_state, indent=4).encode('utf-8'))
+        self.set_time_stamp(filename, datetime.now())
+
+    def _get_patch(self, time_stamp: int) -> JsonPatch:
+        with self.zipfile.open(f"{PATCH_FOLDER}/patch_{time_stamp}.json") as f:
+                return JsonPatch.from_string(json_loads(f.read().decode('utf-8')))
+
+    def _write_patch(self, time_stamp: int, patch: JsonPatch):
+        filename = f"{PATCH_FOLDER}/patch_{time_stamp}.json"
+        if self._has_patch(time_stamp):
+            print(patch)
+            return
+        with self.zipfile.open(f"{PATCH_FOLDER}/patch_{time_stamp}.json", "w") as f:
+            f.write(json.dumps(patch.to_string()).encode('utf-8'))
+        self.set_time_stamp(filename, datetime.now())
+
+
     def load_game_state(self, time_stamp: datetime) -> dict:
+        # TODO Make it working
         target_time_stamp = int(dump_date_time_str(time_stamp))
         relevant_patch = next((t for t in self.time_stamps if t > target_time_stamp), self.time_stamps[-1] if self.time_stamps else None)
 
         if relevant_patch is None:
-            self.game_state = self._load_file(self.initial_filename)
+            self._load_initial_game_state()
         else:
-            self.game_state = self._load_file(f"patch_{relevant_patch}.json")
+            self._load_initial_game_state()
         return self.game_state
 
-    def _load_file(self, filename: str) -> dict:
-        with self.zipfile.open(filename) as f:
-            return json.load(f)
-
-    def record_game_state(self, game_state: dict):
+    def record_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
 
-        if game_state["game_id"] != self.game_id or game_state["player_id"] != self.player_id:
-            raise CorruptReplay("Game ID or Player ID mismatch")
+        if game_id != self.game_id or player_id != self.player_id:
+            raise CorruptReplay(f"Game ID or Player ID do not match to Replay {self.filename}")
 
-        time_stamp = game_state["timeStamp"]
-        if self.game_state:
-            patch = jsonpatch.make_patch(self.game_state, game_state)
-            with self.zipfile.open(f'patch_{time_stamp}.json', 'w') as f:
-                f.write(json.dumps(patch.to_string(), indent=4).encode('utf-8'))
+        time_stamp = int(time_stamp.timestamp() * 1000)
+
+        if not self.game_state:
+            self._write_initial_game_state(time_stamp, game_state)
+            self.game_state = game_state
         else:
-            with self.zipfile.open(f'initial_state_{time_stamp}.json', 'w') as f:
-                f.write(json.dumps(game_state, indent=4).encode('utf-8'))
-        self.game_state = game_state
+            patch = jsonpatch.make_patch(self.game_state, game_state)
+            self._write_patch(time_stamp, patch)
+            patch.apply(self.game_state, in_place=True)
