@@ -512,7 +512,7 @@ class HubApi:
         return True
 
     def logout(self):
-        self.session = Session()
+        self.session = CloudScraper.create_scraper()
         self.user_agent = UserAgent(platforms='desktop').random
         self.session.headers = {
                 "User-Agent": self.user_agent,
