@@ -13,11 +13,14 @@ if __name__ == "__main__":
 
     interface = HubInterface()
     username, password, email, proxy_url = load_credentials()
-    interface.login(username, password)
+    interface.login("user9913153", "c7z#76XJ8$$!5Zdf")
 
-    game = interface.join_game(9758559)
+
+
+
+    game = interface.join_game(9812061)
     game.record_replay("test.zip")
 
-    sleep(5)
-    game.update()
-    pprint(game.get_my_cities())
+    while True:
+        sleep(60)
+        game.update()

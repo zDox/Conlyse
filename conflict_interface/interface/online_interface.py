@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Callable
 from typing import override
 
+from cloudscraper import CloudScraper
 from requests import Session
 
 from conflict_interface.action_handler import ActionHandler
@@ -23,7 +24,7 @@ from conflict_interface.utils.exceptions import GameActivationException
 logger = get_logger()
 
 class OnlineInterface(GameInterface):
-    def __init__(self, game_id: int, session: Session, auth_details: AuthDetails, guest: bool = False, proxy: dict = None):
+    def __init__(self, game_id: int, session: CloudScraper, auth_details: AuthDetails, guest: bool = False, proxy: dict = None):
         super().__init__(game_id=game_id)
         self.replay: Replay | None = None
         self.game_api: GameApi = GameApi(session, auth_details, self.game_id, proxy=proxy)
@@ -123,9 +124,12 @@ class OnlineInterface(GameInterface):
         # Execute any queued actions
         self.action_handler.create_game_state_action()
         if self.replay:
-            self.replay.record_game_state(game_id = self.game_id,
-                                          player_id = self.player_id,
-                                          game_state = dump_any(self.game_state))
+            with self.replay as r:
+                r.record_game_state(
+                    time_stamp = self.client_time(),
+                    game_id = self.game_id,
+                    player_id = self.player_id,
+                    game_state = dump_any(self.game_state))
     """
     Utility functions
     """
@@ -181,7 +185,12 @@ class OnlineInterface(GameInterface):
 
     def record_replay(self, replay_filename):
         if not os.path.exists(replay_filename):
-            self.replay = Replay.new_replay(filename=replay_filename, game_id=self.game_id, player_id=self.player_id)
-        else:
-            self.replay = Replay(replay_filename)
-        self.replay.record_game_state(self.game_id, self.player_id, dump_any(self.game_state))
+            with Replay(filename=replay_filename, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
+                r.record_game_state(time_stamp = self.client_time(),
+                                    game_id = self.game_id,
+                                    player_id = self.player_id,
+                                    game_state = dump_any(self.game_state))
+
+        self.replay = Replay(replay_filename, mode="a")
+
+

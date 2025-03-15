@@ -25,17 +25,12 @@ setup(
     license="MIT",
     classifiers=[
         "Intended Audience :: Developers",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.12",
         "Operating System :: OS Independent"
     ],
     packages=find_packages(),
     include_package_data=True,
-    install_requires=["requests", "requests[socks]", "fake_useragent", "lxml", "numpy", "shapely", "jsonpatch"],
+    install_requires=["requests", "requests[socks]", "fake_useragent", "lxml", "numpy", "shapely", "jsonpatch", "cloudscraper"],
     extras_require =
     {
         "docs": [

@@ -46,7 +46,7 @@ class UnmodifiableCollection(list):
     C = "java.util.Collections$UnmodifiableCollection"
 
 
-class HashSet(set):
+class HashSet(list):
     C = "java.util.HashSet"
 
 class UnmodifiableSet(set):
