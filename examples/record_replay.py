@@ -1,8 +1,9 @@
 import logging
-
+from copy import deepcopy
 
 from pprint import pprint
 from time import sleep
+from time import time
 
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
@@ -19,6 +20,12 @@ if __name__ == "__main__":
 
 
     game = interface.join_game(9812061)
+
+    t1 = time()
+
+    copy = deepcopy(game.game_state)
+    print(time() - t1)
+
     game.record_replay("test.zip")
 
     while True:

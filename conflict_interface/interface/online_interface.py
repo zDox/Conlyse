@@ -1,5 +1,6 @@
 import os.path
 from datetime import datetime
+from time import time
 from typing import Callable
 from typing import override
 
@@ -24,7 +25,12 @@ from conflict_interface.utils.exceptions import GameActivationException
 logger = get_logger()
 
 class OnlineInterface(GameInterface):
-    def __init__(self, game_id: int, session: CloudScraper, auth_details: AuthDetails, guest: bool = False, proxy: dict = None):
+    def __init__(self, game_id: int,
+                 session: CloudScraper,
+                 auth_details: AuthDetails,
+                 guest: bool = False,
+                 proxy: dict = None,
+                 replay_filename: str = None):
         super().__init__()
         self.replay: Replay | None = None
         self.game_id = game_id
@@ -32,6 +38,19 @@ class OnlineInterface(GameInterface):
         self.game_event_handler: Callable = self.default_event_handler
         self.guest: bool = guest
         self.action_handler = ActionHandler(self)
+
+        self._handle_replay_init(replay_filename)
+
+    def _handle_replay_init(self, filename: str):
+        if not os.path.exists(filename):
+            with Replay(filename=filename, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
+                r.record_game_state(time_stamp = self.client_time(),
+                                    game_id = self.game_id,
+                                    player_id = self.player_id,
+                                    game_state = dump_any(self.game_state))
+
+        self.replay = Replay(filename, mode="a")
+
 
     @override
     @property
@@ -80,7 +99,6 @@ class OnlineInterface(GameInterface):
                     raise e
 
                 self.game_state = self.action_handler.create_game_state_action(use_queue=False)
-
         static_map_data = parse_game_object(StaticMapData, self.game_api.get_static_map_data(), self)
 
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
@@ -185,13 +203,4 @@ class OnlineInterface(GameInterface):
         self.game_event_handler = event_handler
 
     def record_replay(self, replay_filename):
-        if not os.path.exists(replay_filename):
-            with Replay(filename=replay_filename, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
-                r.record_game_state(time_stamp = self.client_time(),
-                                    game_id = self.game_id,
-                                    player_id = self.player_id,
-                                    game_state = dump_any(self.game_state))
-
-        self.replay = Replay(replay_filename, mode="a")
-
-
+        self._handle_replay_init
