@@ -4,7 +4,6 @@ from typing import Callable
 from typing import override
 
 from cloudscraper import CloudScraper
-from requests import Session
 
 from conflict_interface.action_handler import ActionHandler
 from conflict_interface.data_types.action import Action
@@ -24,7 +23,12 @@ from conflict_interface.utils.exceptions import GameActivationException
 logger = get_logger()
 
 class OnlineInterface(GameInterface):
-    def __init__(self, game_id: int, session: CloudScraper, auth_details: AuthDetails, guest: bool = False, proxy: dict = None):
+    def __init__(self, game_id: int,
+                 session: CloudScraper,
+                 auth_details: AuthDetails,
+                 guest: bool = False,
+                 proxy: dict = None,
+                 replay_filename: str = None):
         super().__init__()
         self.replay: Replay | None = None
         self.game_id = game_id
@@ -32,6 +36,23 @@ class OnlineInterface(GameInterface):
         self.game_event_handler: Callable = self.default_event_handler
         self.guest: bool = guest
         self.action_handler = ActionHandler(self)
+
+        self.replay_filename = replay_filename
+
+    def _handle_replay_init(self, static_map_data: dict):
+        if not os.path.exists(self.replay_filename):
+            with Replay(filename=self.replay_filename, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
+                r.record_game_state(time_stamp = self.client_time(),
+                                    game_id = self.game_id,
+                                    player_id = self.player_id,
+                                    game_state = dump_any(self.game_state))
+                r.record_static_map_data(
+                                    game_id = self.game_id,
+                                    player_id = self.player_id,
+                                    static_map_data = static_map_data)
+
+        self.replay = Replay(self.replay_filename, mode="a")
+
 
     @override
     @property
@@ -81,7 +102,12 @@ class OnlineInterface(GameInterface):
 
                 self.game_state = self.action_handler.create_game_state_action(use_queue=False)
 
-        static_map_data = parse_game_object(StaticMapData, self.game_api.get_static_map_data(), self)
+        json_static_map_data = self.game_api.get_static_map_data()
+
+        if self.replay_filename:
+            self._handle_replay_init(json_static_map_data)
+
+        static_map_data = parse_game_object(StaticMapData, json_static_map_data, self)
 
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
@@ -183,15 +209,3 @@ class OnlineInterface(GameInterface):
 
     def set_event_handler(self, event_handler: Callable):
         self.game_event_handler = event_handler
-
-    def record_replay(self, replay_filename):
-        if not os.path.exists(replay_filename):
-            with Replay(filename=replay_filename, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
-                r.record_game_state(time_stamp = self.client_time(),
-                                    game_id = self.game_id,
-                                    player_id = self.player_id,
-                                    game_state = dump_any(self.game_state))
-
-        self.replay = Replay(replay_filename, mode="a")
-
-

@@ -20,6 +20,7 @@ class CorruptReplay(Exception):
     pass
 VERSION = 3
 INFORMATION_FILE = "information.json"
+STATIC_MAP_DATA_FILE = "static_map_data.json"
 MANDATORY_KEYS = ["version", "game_id", "player_id", "start_time"]
 PATCH_FOLDER = "patches"
 ACTION_FOLDER = "actions"
@@ -39,6 +40,7 @@ class Replay:
         self.player_id = player_id
         self.zipfile: ZipFile | None = None
         self.start_time: datetime | None = None
+        self.static_map_data: dict | None = defaultdict()
 
     def __enter__(self):
         if self.mode == 'w':
@@ -57,9 +59,15 @@ class Replay:
             self._load_existing_replay()
         return self
 
+    def open(self):
+        self.__enter__()
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.zipfile:
             self.zipfile.close()
+
+    def close(self):
+        self.__exit__(None, None, None)
 
     def _write_information(self):
         information = {"version": VERSION,
@@ -96,7 +104,8 @@ class Replay:
             raise CorruptReplay(f"Unsupported version {content['version']}")
 
         self.game_id, self.player_id = content["game_id"], content["player_id"]
-        self.start_time = datetime.fromtimestamp(float(content["start_time"]/1000))
+        if content["start_time"]:
+            self.start_time = datetime.fromtimestamp(float(content["start_time"]/1000))
 
     def _load_existing_replay(self):
         self._load_information()
@@ -116,6 +125,7 @@ class Replay:
 
         self.initial_filename = initials[0]
         self._load_initial_game_state()
+        self._load_static_map_data()
 
         self.time_stamps = sorted(int(p.removeprefix("patch_").removesuffix(".json")) for p in patches)
 
@@ -130,6 +140,10 @@ class Replay:
             self.game_state = json.load(f)
         print(f"Loaded {self.initial_filename} in {time() - t1:.4f} seconds")
 
+    def _load_static_map_data(self):
+        with self.zipfile.open(STATIC_MAP_DATA_FILE) as f:
+            self.static_map_data = json.load(f)
+
     def set_time_stamp(self, filename: str, time_stamp: datetime):
         file_info = self.zipfile.getinfo(filename)
         file_info.date_time = time_stamp.timetuple()[0:6]
@@ -141,7 +155,6 @@ class Replay:
             f.write(json.dumps(game_state, indent=4).encode('utf-8'))
         self.set_time_stamp(filename, datetime.now())
         self.start_time = time_stamp
-        self._write_information()
 
     def _get_patch(self, time_stamp: int) -> JsonPatch:
         with self.zipfile.open(f"{PATCH_FOLDER}/patch_{time_stamp}.json") as f:
@@ -168,6 +181,9 @@ class Replay:
             self._load_initial_game_state()
         return self.game_state
 
+    def get_static_map_data(self) -> dict:
+        return self.static_map_data
+
     def record_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
@@ -184,3 +200,17 @@ class Replay:
             patch = jsonpatch.make_patch(self.game_state, game_state)
             self._write_patch(time_stamp, patch)
             patch.apply(self.game_state, in_place=True)
+
+    def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int,):
+        if self.mode not in ("w", "a"):
+            raise IOError("Replay is not in write or append mode")
+
+        if game_id != self.game_id or player_id != self.player_id:
+            raise CorruptReplay(f"Game ID or Player ID do not match to Replay {self.filename}")
+        print("Recording Static Map Data")
+        if STATIC_MAP_DATA_FILE in self.zipfile.namelist():
+            return
+
+        with self.zipfile.open(STATIC_MAP_DATA_FILE, 'w') as f:
+            f.write(json.dumps(static_map_data, indent=4).encode('utf-8'))
+        self.set_time_stamp(STATIC_MAP_DATA_FILE, datetime.now())
