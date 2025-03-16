@@ -91,6 +91,7 @@ class Replay:
         return any(f"{PATCH_FOLDER}/patch_{time_stamp}.json" == filename for filename in self.zipfile.namelist())
 
     def _load_information(self):
+        print("Loading information")
         if INFORMATION_FILE not in self.zipfile.namelist():
             raise CorruptReplay("Information file is missing")
         with self.zipfile.open(INFORMATION_FILE, 'r') as f:
@@ -104,8 +105,9 @@ class Replay:
             raise CorruptReplay(f"Unsupported version {content['version']}")
 
         self.game_id, self.player_id = content["game_id"], content["player_id"]
+        print(f"Content: {content}")
         if content["start_time"]:
-            self.start_time = datetime.fromtimestamp(float(content["start_time"]/1000))
+            self.start_time = datetime.fromtimestamp(float(content["start_time"]/1000), tz=UTC)
 
     def _load_existing_replay(self):
         self._load_information()

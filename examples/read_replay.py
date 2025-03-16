@@ -5,5 +5,7 @@ from conflict_interface.replay.replay import Replay
 
 if __name__ == "__main__":
     t1 = time()
-    itf = ReplayInterface("test.zip")
-    print(time() - t1)
+    replay = Replay("test.zip", 'r')
+    replay.open()
+    print(replay.start_time)
+    replay.close()
