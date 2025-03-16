@@ -14,3 +14,4 @@ if __name__ == "__main__":
     game = itf.join_game(9812061, replay_filename="test.zip")
     sleep(5)
     game.update()
+    print(game.client_time().timestamp())
