@@ -1,11 +1,9 @@
 import os.path
 from datetime import datetime
-from time import time
 from typing import Callable
 from typing import override
 
 from cloudscraper import CloudScraper
-from requests import Session
 
 from conflict_interface.action_handler import ActionHandler
 from conflict_interface.data_types.action import Action

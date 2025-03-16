@@ -59,9 +59,15 @@ class Replay:
             self._load_existing_replay()
         return self
 
+    def open(self):
+        self.__enter__()
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.zipfile:
             self.zipfile.close()
+
+    def close(self):
+        self.__exit__(None, None, None)
 
     def _write_information(self):
         information = {"version": VERSION,
@@ -98,7 +104,8 @@ class Replay:
             raise CorruptReplay(f"Unsupported version {content['version']}")
 
         self.game_id, self.player_id = content["game_id"], content["player_id"]
-        self.start_time = datetime.fromtimestamp(float(content["start_time"]/1000))
+        if content["start_time"]:
+            self.start_time = datetime.fromtimestamp(float(content["start_time"]/1000))
 
     def _load_existing_replay(self):
         self._load_information()
@@ -148,7 +155,6 @@ class Replay:
             f.write(json.dumps(game_state, indent=4).encode('utf-8'))
         self.set_time_stamp(filename, datetime.now())
         self.start_time = time_stamp
-        self._write_information()
 
     def _get_patch(self, time_stamp: int) -> JsonPatch:
         with self.zipfile.open(f"{PATCH_FOLDER}/patch_{time_stamp}.json") as f:

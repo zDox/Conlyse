@@ -12,11 +12,20 @@ class ReplayInterface(GameInterface):
     def __init__(self, filename: str):
         super().__init__()
         self.replay = Replay(filename, 'r')
-        self.replay.__enter__()
+        self.game_state: GameState | None = None
+        self.player_id: int | None = None
+        self.current_time: datetime | None = None
+
+
+    def open(self):
+        self.replay.open()
         self.game_state = parse_any(GameState, self.replay.load_game_state(datetime.now()), self)
         self.game_state.states.map_state.map.set_static_map_data(parse_any(StaticMapData, self.replay.get_static_map_data(), self))
         self.player_id = self.replay.player_id
         self.current_time = self.replay.start_time
+
+    def close(self):
+        self.replay.close()
 
     @override
     def client_time(self) -> datetime:
