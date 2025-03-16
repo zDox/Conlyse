@@ -1,4 +1,5 @@
 from datetime import datetime
+from time import time
 from typing import override
 
 from conflict_interface.data_types.game_object import parse_any
@@ -19,10 +20,14 @@ class ReplayInterface(GameInterface):
 
     def open(self):
         self.replay.open()
-        self.game_state = parse_any(GameState, self.replay.load_game_state(datetime.now()), self)
+        t1 = time()
+        self.game_state = parse_any(GameState, self.replay.game_state, self)
+        print(f"{time() - t1} seconds")
+        t2 = time()
         self.game_state.states.map_state.map.set_static_map_data(parse_any(StaticMapData, self.replay.get_static_map_data(), self))
         self.player_id = self.replay.player_id
         self.current_time = self.replay.start_time
+        print(f"Static: {time() - t2} seconds")
 
     def close(self):
         self.replay.close()
@@ -32,4 +37,5 @@ class ReplayInterface(GameInterface):
         return self.current_time
 
     def set_client_time(self, time_stamp: datetime) -> None:
-        self.current_time = time_stamp
+        self.replay.jump_to(time_stamp)
+        self.game_state.update(re)

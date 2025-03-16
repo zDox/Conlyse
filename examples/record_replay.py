@@ -12,6 +12,6 @@ if __name__ == "__main__":
     itf = HubInterface()
     itf.login(username, password)
     game = itf.join_game(9812061, replay_filename="replay.db")
-    sleep(5)
-    game.update()
-    print(game.client_time().timestamp())
+    while True:
+        game.update()
+        sleep(5)

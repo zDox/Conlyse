@@ -5,7 +5,6 @@ from conflict_interface.replay.replay import Replay
 
 if __name__ == "__main__":
     t1 = time()
-    replay = ReplayInterface("test.zip")
+    replay = ReplayInterface("replay.db")
     replay.open()
-    print(replay.get_my_resource_amounts())
     replay.close()
