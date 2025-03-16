@@ -2,6 +2,7 @@ from datetime import timedelta
 from typing import Union
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
+from conflict_interface.data_types.custom_types import DateTimeSecondsInt
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
 
@@ -71,7 +72,7 @@ class GameInfoState(State):
     C = "ultshared.UltGameInfoState"
     STATE_TYPE = 12
     day_of_game: int
-    start_of_game: int
+    start_of_game: DateTimeSecondsInt
     next_day_time: DateTimeMillisecondsInt
     next_heal_time: DateTimeMillisecondsInt
     gold_round: bool

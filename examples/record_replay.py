@@ -19,14 +19,7 @@ if __name__ == "__main__":
 
 
 
-    game = interface.join_game(9812061)
-
-    t1 = time()
-
-    copy = deepcopy(game.game_state)
-    print(time() - t1)
-
-    game.record_replay("test.zip")
+    game = interface.join_game(9812061, replay_filename="test.zip")
 
     while True:
         game.update()

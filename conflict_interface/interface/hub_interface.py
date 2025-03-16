@@ -156,7 +156,7 @@ class HubInterface:
         self.api.request_first_join(game_id)
 
     @protected
-    def join_game(self, game_id: int, guest=False) -> OnlineInterface:
+    def join_game(self, game_id: int, guest=False, replay_filename: str = None) -> OnlineInterface:
         # If user is not already in first game join it the first time
         if not self.is_in_game(game_id) and not guest:
             logger.info(f"User is not in game {game_id}. Requesting first join...")
@@ -166,7 +166,8 @@ class HubInterface:
                                          session = self.api.session,
                                          auth_details = deepcopy(self.api.auth),
                                          proxy = self.api.proxy,
-                                         guest = guest)
+                                         guest = guest,
+                                         replay_filename = replay_filename)
         game_interface.load_game()
         return game_interface
 

@@ -39,17 +39,21 @@ class OnlineInterface(GameInterface):
         self.guest: bool = guest
         self.action_handler = ActionHandler(self)
 
-        self._handle_replay_init(replay_filename)
+        self.replay_filename = replay_filename
 
-    def _handle_replay_init(self, filename: str):
-        if not os.path.exists(filename):
-            with Replay(filename=filename, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
+    def _handle_replay_init(self, static_map_data: dict):
+        if not os.path.exists(self.replay_filename):
+            with Replay(filename=self.replay_filename, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
                 r.record_game_state(time_stamp = self.client_time(),
                                     game_id = self.game_id,
                                     player_id = self.player_id,
                                     game_state = dump_any(self.game_state))
+                r.record_static_map_data(
+                                    game_id = self.game_id,
+                                    player_id = self.player_id,
+                                    static_map_data = static_map_data)
 
-        self.replay = Replay(filename, mode="a")
+        self.replay = Replay(self.replay_filename, mode="a")
 
 
     @override
@@ -99,7 +103,13 @@ class OnlineInterface(GameInterface):
                     raise e
 
                 self.game_state = self.action_handler.create_game_state_action(use_queue=False)
-        static_map_data = parse_game_object(StaticMapData, self.game_api.get_static_map_data(), self)
+
+        json_static_map_data = self.game_api.get_static_map_data()
+
+        if self.replay_filename:
+            self._handle_replay_init(json_static_map_data)
+
+        static_map_data = parse_game_object(StaticMapData, json_static_map_data, self)
 
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
@@ -201,6 +211,3 @@ class OnlineInterface(GameInterface):
 
     def set_event_handler(self, event_handler: Callable):
         self.game_event_handler = event_handler
-
-    def record_replay(self, replay_filename):
-        self._handle_replay_init

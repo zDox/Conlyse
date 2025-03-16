@@ -118,6 +118,7 @@ class Replay:
 
         self.initial_filename = initials[0]
         self._load_initial_game_state()
+        self._load_static_map_data()
 
         self.time_stamps = sorted(int(p.removeprefix("patch_").removesuffix(".json")) for p in patches)
 
