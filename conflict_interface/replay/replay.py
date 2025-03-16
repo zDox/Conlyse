@@ -1,29 +1,25 @@
 import json
-import zipfile
+import sqlite3
 import os
+import zlib
 from collections import defaultdict
-from datetime import UTC
-from datetime import datetime
+from datetime import UTC, datetime
 from time import time
 from typing import Literal
 
 import jsonpatch
-from zipfile import ZipFile
-
 from jsonpatch import JsonPatch
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsStr
-from conflict_interface.data_types.game_object import dump_date_time_str
+from conflict_interface.data_types.game_object import dump_date_time_str  # Assuming this exists in your codebase
 
 
 class CorruptReplay(Exception):
     pass
+
+
 VERSION = 3
-INFORMATION_FILE = "information.json"
-STATIC_MAP_DATA_FILE = "static_map_data.json"
 MANDATORY_KEYS = ["version", "game_id", "player_id", "start_time"]
-PATCH_FOLDER = "patches"
-ACTION_FOLDER = "actions"
 
 
 class Replay:
@@ -33,14 +29,13 @@ class Replay:
 
         self.filename = filename
         self.mode = mode
-        self.initial_filename: str | None = None
-        self.game_state: dict = defaultdict()
-        self.time_stamps: list[int] = []
+        self.game_state = defaultdict(dict)  # Defaultdict for consistency with your original
+        self.time_stamps = []
         self.game_id = game_id
         self.player_id = player_id
-        self.zipfile: ZipFile | None = None
-        self.start_time: datetime | None = None
-        self.static_map_data: dict | None = defaultdict()
+        self.conn = None  # SQLite connection
+        self.start_time = None
+        self.static_map_data = defaultdict(dict)  # Defaultdict for consistency
 
     def __enter__(self):
         if self.mode == 'w':
@@ -49,170 +44,203 @@ class Replay:
         elif self.mode in ('r', 'a') and not os.path.exists(self.filename):
             raise FileNotFoundError(f"Replay file {self.filename} not found")
 
-        self.zipfile = ZipFile(self.filename, self.mode, zipfile.ZIP_DEFLATED)
-        if self.mode == 'a':
+        self.conn = sqlite3.connect(self.filename)
+        if self.mode == 'w':
+            self._create_tables()
+            self._write_information()
+        elif self.mode == 'a':
             self._load_existing_replay()
             self._load_till_uptodate()
-        elif self.mode == 'w':
-            self._create_new_replay()
         elif self.mode == 'r':
             self._load_existing_replay()
         return self
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.conn:
+            self.conn.close()
+
     def open(self):
         self.__enter__()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.zipfile:
-            self.zipfile.close()
 
     def close(self):
         self.__exit__(None, None, None)
 
+    def _create_tables(self):
+        """Create SQLite tables for metadata, initial state, patches, actions, and static map data."""
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS information (
+                version INTEGER,
+                game_id INTEGER,
+                player_id INTEGER,
+                start_time TEXT
+            )
+        """)
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS initial_state (
+                data BLOB  -- Compressed JSON
+            )
+        """)
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS patches (
+                timestamp INTEGER PRIMARY KEY,
+                patch TEXT  -- Uncompressed JSON patch
+            )
+        """)
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS actions (
+                timestamp INTEGER PRIMARY KEY,
+                action TEXT  -- Uncompressed JSON action
+            )
+        """)
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS static_map_data (
+                data BLOB  -- Compressed JSON
+            )
+        """)
+        self.conn.commit()
+
     def _write_information(self):
-        information = {"version": VERSION,
-                       "game_id": self.game_id,
-                       "player_id": self.player_id,
-                       "start_time": self.start_time,}
-        with self.zipfile.open(INFORMATION_FILE, 'w') as f:
-            f.write(json.dumps(information, indent=4).encode('utf-8'))
-
-    def _create_new_replay(self):
-        self.zipfile.mkdir(PATCH_FOLDER)
-        self.zipfile.mkdir(ACTION_FOLDER)
-        self._write_information()
-
-
-    def _has_folder(self, folder_name: str) -> bool:
-        """Check if the zip file contains a folder with the given name."""
-        return any(name.startswith(f"{folder_name}/") for name in self.zipfile.namelist())
-
-    def _has_patch(self, time_stamp: int) -> bool:
-        return any(f"{PATCH_FOLDER}/patch_{time_stamp}.json" == filename for filename in self.zipfile.namelist())
+        """Write metadata to the information table."""
+        self.start_time = datetime.now(tz=UTC)
+        self.conn.execute(
+            "INSERT INTO information (version, game_id, player_id, start_time) VALUES (?, ?, ?, ?)",
+            (VERSION, self.game_id, self.player_id, dump_date_time_str(self.start_time))
+        )
+        self.conn.commit()
 
     def _load_information(self):
-        print("Loading information")
-        if INFORMATION_FILE not in self.zipfile.namelist():
-            raise CorruptReplay("Information file is missing")
-        with self.zipfile.open(INFORMATION_FILE, 'r') as f:
-            content = json.load(f)
+        """Load metadata from the information table."""
+        cursor = self.conn.execute("SELECT version, game_id, player_id, start_time FROM information")
+        row = cursor.fetchone()
+        if not row:
+            raise CorruptReplay("Information table is empty")
 
-        missing_keys = [key for key in MANDATORY_KEYS if key not in content]
-        if missing_keys:
-            raise CorruptReplay(f"Missing keys in information file: {', '.join(missing_keys)}")
+        version, game_id, player_id, start_time = row
+        if version != VERSION:
+            raise CorruptReplay(f"Unsupported version {version}")
+        if not all(k in locals() for k in MANDATORY_KEYS):
+            raise CorruptReplay("Missing keys in information table")
 
-        if content["version"] != VERSION:
-            raise CorruptReplay(f"Unsupported version {content['version']}")
-
-        self.game_id, self.player_id = content["game_id"], content["player_id"]
-        print(f"Content: {content}")
-        if content["start_time"]:
-            self.start_time = datetime.fromtimestamp(float(content["start_time"]/1000), tz=UTC)
+        self.game_id = game_id
+        self.player_id = player_id
+        self.start_time = datetime.fromisoformat(start_time) if start_time else None
 
     def _load_existing_replay(self):
+        """Load metadata, initial state, static map data, and patch timestamps."""
         self._load_information()
-        if not self._has_folder(PATCH_FOLDER):
-            raise CorruptReplay(f"Replay file {self.filename} is missing patch folder")
-        if not self._has_folder(ACTION_FOLDER):
-            raise CorruptReplay(f"Replay file {self.filename} is missing action folder")
 
-        initials = [name for name in self.zipfile.namelist() if name.startswith("initial_state")]
-        patches = sorted([f.removeprefix(f"{PATCH_FOLDER}/") for f in self.zipfile.namelist()
-                          if f.startswith(f'{PATCH_FOLDER}/patch_')])
-
-        if len(initials) > 1:
-            raise CorruptReplay(f"Multiple initial states detected in {self.filename}")
-        if len(initials) == 0:
-            raise CorruptReplay(f"No initial state found in {self.filename}.")
-
-        self.initial_filename = initials[0]
+        # Check for initial state
+        cursor = self.conn.execute("SELECT data FROM initial_state")
+        initial_data = cursor.fetchall()
+        if len(initial_data) > 1:
+            raise CorruptReplay("Multiple initial states detected")
+        if len(initial_data) == 0:
+            raise CorruptReplay("No initial state found")
         self._load_initial_game_state()
-        self._load_static_map_data()
 
-        self.time_stamps = sorted(int(p.removeprefix("patch_").removesuffix(".json")) for p in patches)
+        # Load static map data (if present)
+        cursor = self.conn.execute("SELECT data FROM static_map_data")
+        if static_data := cursor.fetchone():
+            self.static_map_data = json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
+
+        # Load patch timestamps
+        cursor = self.conn.execute("SELECT timestamp FROM patches ORDER BY timestamp")
+        self.time_stamps = [row[0] for row in cursor.fetchall()]
 
     def _load_till_uptodate(self):
+        """Apply all patches to bring game_state up to date."""
         for time_stamp in self.time_stamps:
             patch = self._get_patch(time_stamp)
             patch.apply(self.game_state, in_place=True)
 
     def _load_initial_game_state(self):
+        """Load and decompress the initial game state."""
         t1 = time()
-        with self.zipfile.open(self.initial_filename) as f:
-            self.game_state = json.load(f)
-        print(f"Loaded {self.initial_filename} in {time() - t1:.4f} seconds")
-
-    def _load_static_map_data(self):
-        with self.zipfile.open(STATIC_MAP_DATA_FILE) as f:
-            self.static_map_data = json.load(f)
-
-    def set_time_stamp(self, filename: str, time_stamp: datetime):
-        file_info = self.zipfile.getinfo(filename)
-        file_info.date_time = time_stamp.timetuple()[0:6]
-        self.zipfile.getinfo(file_info.filename).date_time = file_info.date_time
+        cursor = self.conn.execute("SELECT data FROM initial_state")
+        compressed_data = cursor.fetchone()[0]
+        self.game_state = json.loads(zlib.decompress(compressed_data).decode('utf-8'))
+        print(f"Loaded initial state in {time() - t1:.4f} seconds")
 
     def _write_initial_game_state(self, time_stamp: int, game_state: dict):
-        filename = f"initial_state_{time_stamp}.json"
-        with self.zipfile.open(filename, 'w') as f:
-            f.write(json.dumps(game_state, indent=4).encode('utf-8'))
-        self.set_time_stamp(filename, datetime.now())
-        self.start_time = time_stamp
+        """Compress and write the initial game state."""
+        compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
+        self.conn.execute("INSERT INTO initial_state (data) VALUES (?)", (compressed_data,))
+        self.conn.commit()
+        self.start_time = datetime.fromtimestamp(time_stamp / 1000, tz=UTC)
 
     def _get_patch(self, time_stamp: int) -> JsonPatch:
-        with self.zipfile.open(f"{PATCH_FOLDER}/patch_{time_stamp}.json") as f:
-                return JsonPatch.from_string(json.loads(f.read().decode('utf-8')))
+        """Retrieve a patch from the database."""
+        cursor = self.conn.execute("SELECT patch FROM patches WHERE timestamp = ?", (time_stamp,))
+        patch_str = cursor.fetchone()
+        if not patch_str:
+            raise CorruptReplay(f"No patch found for timestamp {time_stamp}")
+        return JsonPatch.from_string(json.loads(patch_str[0]))
 
     def _write_patch(self, time_stamp: int, patch: JsonPatch):
-        filename = f"{PATCH_FOLDER}/patch_{time_stamp}.json"
-        if self._has_patch(time_stamp):
-            print(patch)
+        """Write a patch to the database if it doesn’t exist."""
+        cursor = self.conn.execute("SELECT 1 FROM patches WHERE timestamp = ?", (time_stamp,))
+        if cursor.fetchone():
+            print(f"Patch for timestamp {time_stamp} already exists, skipping")
             return
-        with self.zipfile.open(f"{PATCH_FOLDER}/patch_{time_stamp}.json", "w") as f:
-            f.write(json.dumps(patch.to_string()).encode('utf-8'))
-        self.set_time_stamp(filename, datetime.now())
-
+        self.conn.execute(
+            "INSERT INTO patches (timestamp, patch) VALUES (?, ?)",
+            (time_stamp, json.dumps(patch.to_string()))
+        )
+        self.conn.commit()
 
     def load_game_state(self, time_stamp: datetime) -> dict:
-        # TODO Make it working
+        """Load the game state up to a specific timestamp."""
         target_time_stamp = int(time_stamp.timestamp() * 1000)
-        relevant_patch = next((t for t in self.time_stamps if t > target_time_stamp), self.time_stamps[-1] if self.time_stamps else None)
+        relevant_patch = next(
+            (t for t in self.time_stamps if t > target_time_stamp),
+            self.time_stamps[-1] if self.time_stamps else None
+        )
 
+        self._load_initial_game_state()  # Reset to initial state
         if relevant_patch is None:
-            self._load_initial_game_state()
-        else:
-            self._load_initial_game_state()
+            return self.game_state
+
+        cursor = self.conn.execute(
+            "SELECT patch FROM patches WHERE timestamp <= ? ORDER BY timestamp",
+            (target_time_stamp,)
+        )
+        for patch_str in cursor.fetchall():
+            patch = JsonPatch.from_string(json.loads(patch_str[0]))
+            patch.apply(self.game_state, in_place=True)
         return self.game_state
 
     def get_static_map_data(self) -> dict:
+        """Return the static map data."""
         return self.static_map_data
 
     def record_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
+        """Record a game state, either as initial state or a patch."""
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
-
         if game_id != self.game_id or player_id != self.player_id:
-            raise CorruptReplay(f"Game ID or Player ID do not match to Replay {self.filename}")
+            raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
 
-        time_stamp = int(time_stamp.timestamp() * 1000)
-
+        time_stamp_ms = int(time_stamp.timestamp() * 1000)
         if not self.game_state:
-            self._write_initial_game_state(time_stamp, game_state)
+            self._write_initial_game_state(time_stamp_ms, game_state)
             self.game_state = game_state
         else:
             patch = jsonpatch.make_patch(self.game_state, game_state)
-            self._write_patch(time_stamp, patch)
+            self._write_patch(time_stamp_ms, patch)
             patch.apply(self.game_state, in_place=True)
 
-    def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int,):
+    def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int):
+        """Compress and record static map data."""
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
-
         if game_id != self.game_id or player_id != self.player_id:
-            raise CorruptReplay(f"Game ID or Player ID do not match to Replay {self.filename}")
-        print("Recording Static Map Data")
-        if STATIC_MAP_DATA_FILE in self.zipfile.namelist():
-            return
+            raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
 
-        with self.zipfile.open(STATIC_MAP_DATA_FILE, 'w') as f:
-            f.write(json.dumps(static_map_data, indent=4).encode('utf-8'))
-        self.set_time_stamp(STATIC_MAP_DATA_FILE, datetime.now())
+        print("Recording Static Map Data")
+        cursor = self.conn.execute("SELECT 1 FROM static_map_data")
+        if cursor.fetchone():
+            return  # Already recorded
+
+        compressed_data = zlib.compress(json.dumps(static_map_data).encode('utf-8'))
+        self.conn.execute("INSERT INTO static_map_data (data) VALUES (?)", (compressed_data,))
+        self.conn.commit()
