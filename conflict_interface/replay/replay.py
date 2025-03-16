@@ -72,11 +72,12 @@ class Replay:
                 version INTEGER,
                 game_id INTEGER,
                 player_id INTEGER,
-                start_time TEXT
+                start_time INTEGER
             )
         """)
         self.conn.execute("""
-            CREATE TABLE IF NOT EXISTS initial_state (
+            CREATE TABLE IF NOT EXISTS game_state (
+                
                 data BLOB  -- Compressed JSON
             )
         """)
@@ -104,7 +105,7 @@ class Replay:
         self.start_time = datetime.now(tz=UTC)
         self.conn.execute(
             "INSERT INTO information (version, game_id, player_id, start_time) VALUES (?, ?, ?, ?)",
-            (VERSION, self.game_id, self.player_id, dump_date_time_str(self.start_time))
+            (VERSION, self.game_id, self.player_id, int(self.start_time.timestamp() * 1000))
         )
         self.conn.commit()
 
@@ -118,12 +119,10 @@ class Replay:
         version, game_id, player_id, start_time = row
         if version != VERSION:
             raise CorruptReplay(f"Unsupported version {version}")
-        if not all(k in locals() for k in MANDATORY_KEYS):
-            raise CorruptReplay("Missing keys in information table")
 
         self.game_id = game_id
         self.player_id = player_id
-        self.start_time = datetime.fromisoformat(start_time) if start_time else None
+        self.start_time = datetime.fromtimestamp(start_time/1000, tz=UTC) if start_time else None
 
     def _load_existing_replay(self):
         """Load metadata, initial state, static map data, and patch timestamps."""
@@ -236,7 +235,6 @@ class Replay:
         if game_id != self.game_id or player_id != self.player_id:
             raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
 
-        print("Recording Static Map Data")
         cursor = self.conn.execute("SELECT 1 FROM static_map_data")
         if cursor.fetchone():
             return  # Already recorded
