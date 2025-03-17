@@ -93,13 +93,14 @@ class SiegeCommand(GameObject):
 
 class PatrolType(Enum):
     air_mobile_relocation = "AirMobileRelocation"
+    airplane_relocation = "AirplaneRelocation"
     guard = "Guard"
 
 
 @dataclass
 class PatrolCommand(GameObject):
     C = "pc"
-    target_position: Point
+    target_position: Optional[Point]
     approaching: bool
     patrol_type: PatrolType
     air_field: Optional[str]

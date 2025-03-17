@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import typing
 from dataclasses import MISSING as DATACLASS_MISSING
 from dataclasses import is_dataclass
 from datetime import UTC
 from enum import Enum
+from inspect import Attribute
 from typing import Any
 from typing import TYPE_CHECKING
 from typing import Type
@@ -14,6 +16,9 @@ from typing import get_origin
 from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import *
+from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import ReplaceOperation
+from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.helper import safe_issubclass
 
 if TYPE_CHECKING: # The one place where this is needed for type hinting
@@ -435,3 +440,40 @@ class GameObject:
                 getattr(self, key).update(getattr(other, key))
             else:
                 setattr(self, key, getattr(other, key))
+
+    def record(self, other: "GameObject") -> ReplayPatch | None:
+        if other is None:
+            return None
+
+        if not issubclass(type(other), GameObject):
+            raise ValueError(f"Can't update {type(self)} with {type(other)} not a game object")
+
+        if type(self) != type(other):
+            raise ValueError(f"Can't update {type(self)} with {type(other)} not of the same type")
+        rp = ReplayPatch()
+        for key in self.get_mapping().keys():
+            if getattr(other, key) is None:
+                continue
+            python_type = get_type_hints(type(self))[key]
+            print(python_type, key)
+            if safe_issubclass(python_type, GameObject):
+                if getattr(self, key) is None:
+                    rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
+                else:
+                    rp.merge(key, getattr(self, key).record(getattr(other, key)))
+            elif hasattr(python_type, "__origin__") and python_type.__origin__ != typing.Union:
+                if issubclass(python_type.__origin__, list):
+                    for elem in getattr(other, key):
+                        index = -1
+                        for item_index, item in enumerate(getattr(self, key)):
+                            if item.id == elem.id:
+                                index = item_index
+                        if index == -1:
+                            rp.add_op(AddOperation([key, str(index)], dump_any(getattr(other, key))))
+                        else:
+                            rp.replace_op(ReplaceOperation([key, str(index)], dump_any(getattr(other, key))))
+
+            else:
+                if getattr(self, key) != getattr(other, key):
+                    rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
+        return rp

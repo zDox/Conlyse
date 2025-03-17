@@ -101,7 +101,7 @@ class Replay:
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS patches (
                 from_timestamp INTEGER,
-                to_timestamp INTEGER PRIMARY KEY,
+                to_timestamp INTEGER,
                 patch TEXT  -- Uncompressed JSON patch
             )
         """)
@@ -273,8 +273,10 @@ class Replay:
         else:
             if self._last_time is None:
                 raise CorruptReplay("No previous timestamp available for patch range")
+            t1 = time()
             forward_patch = jsonpatch.make_patch(self.game_state, game_state)
             backward_patch = jsonpatch.make_patch(game_state, self.game_state)
+            print(f"Forward and backward patch took: {time() - t1}")
             self._write_patch(self._last_time, time_stamp_ms, forward_patch)
             self._write_patch(time_stamp_ms, self._last_time, backward_patch)
             self._last_time = time_stamp_ms
