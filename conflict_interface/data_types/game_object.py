@@ -6,6 +6,7 @@ from dataclasses import is_dataclass
 from datetime import UTC
 from enum import Enum
 from inspect import Attribute
+from time import time
 from typing import Any
 from typing import TYPE_CHECKING
 from typing import Type
@@ -17,6 +18,7 @@ from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import *
 from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
 from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.helper import safe_issubclass
@@ -79,6 +81,13 @@ def parse_conflict_mapping(cls,json_obj,game):
 
 def parse_conflict_list(cls, json_obj: list, game):
     return cls([parse_any(cls.__args__[0], v, game) for v in json_obj[1]])
+
+def parse_list_to_dict(cls, json_obj: list, game):
+    parsed_data = {}
+    for value in json_obj[1]:
+        item = parse_any(cls.__args__[1], value, game)
+        parsed_data[item.id] = item
+    return cls(parsed_data)
 
 def parse_normal_dict(cls,json_obj,game):
     parsed_data = {}
@@ -173,6 +182,12 @@ def dump_conflict_mapping(obj) -> dict:
 
     return json_obj
 
+def dump_dict_to_list(obj) -> list:
+    if not hasattr(obj, "C"):
+        raise ValueError(f"Object {obj} has no C implemented")
+
+    return [obj.C, [dump_any(v) for v in obj.values()]]
+
 # Registry for direct type mappings
 SIMPLE_PARSE_MAPPING: dict[type,Any] = {
     int: int,
@@ -212,6 +227,7 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     RegularImmutableMap: parse_conflict_mapping,
     EmptyMap: parse_conflict_mapping,
     UnmodifiableMap: parse_conflict_mapping,
+    HashSetMap: parse_list_to_dict,
 
 }
 
@@ -242,6 +258,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     RegularImmutableMap: dump_conflict_mapping,
     EmptyMap: dump_conflict_mapping,
     UnmodifiableMap: dump_conflict_mapping,
+    HashSetMap: dump_dict_to_list,
 
     DateTimeMillisecondsInt: dump_date_time_int,
     DateTimeMillisecondsStr: dump_date_time_str,
@@ -446,34 +463,58 @@ class GameObject:
             return None
 
         if not issubclass(type(other), GameObject):
-            raise ValueError(f"Can't update {type(self)} with {type(other)} not a game object")
+            raise ValueError(f"Can't record {type(self)} with {type(other)} not a game object")
 
         if type(self) != type(other):
-            raise ValueError(f"Can't update {type(self)} with {type(other)} not of the same type")
+            raise ValueError(f"Can't record {type(self)} with {type(other)} not of the same type")
         rp = ReplayPatch()
         for key in self.get_mapping().keys():
             if getattr(other, key) is None:
                 continue
             python_type = get_type_hints(type(self))[key]
-            print(python_type, key)
+            if hasattr(python_type, "__origin__"):
+                if python_type.__origin__ == typing.Union:
+                    python_type = python_type.__args__[0]
             if safe_issubclass(python_type, GameObject):
                 if getattr(self, key) is None:
                     rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
                 else:
-                    rp.merge(key, getattr(self, key).record(getattr(other, key)))
+                    rp.merge([key], getattr(self, key).record(getattr(other, key)))
             elif hasattr(python_type, "__origin__") and python_type.__origin__ != typing.Union:
                 if issubclass(python_type.__origin__, list):
-                    for elem in getattr(other, key):
-                        index = -1
-                        for item_index, item in enumerate(getattr(self, key)):
-                            if item.id == elem.id:
-                                index = item_index
-                        if index == -1:
-                            rp.add_op(AddOperation([key, str(index)], dump_any(getattr(other, key))))
-                        else:
-                            rp.replace_op(ReplaceOperation([key, str(index)], dump_any(getattr(other, key))))
-
-            else:
-                if getattr(self, key) != getattr(other, key):
-                    rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
+                    self_list = getattr(self, key)
+                    other_list = getattr(other, key)
+                    if len(other_list) != 0:
+                        if issubclass(type(other_list[0]), GameObject) and not hasattr(other_list[0], "id"):
+                            if self_list != other_list:
+                                rp.replace_op(ReplaceOperation([key], dump_any(other_list)))
+                            continue
+                        elif isinstance(other_list, ProductionList):
+                            if self_list != other_list:
+                                rp.replace_op(ReplaceOperation([key], dump_any(other_list)))
+                            continue
+                    adder_index = len(self_list)
+                    for index, elem in enumerate(other_list):
+                        if index >= len(self_list):
+                            rp.add_op(AddOperation([key, str(adder_index)], dump_any(elem)))
+                            adder_index += 1
+                        elif issubclass(type(self_list[index]), GameObject):
+                            rp.merge([key, str(index)], self_list[index].record(elem))
+                        elif self_list[index] != elem:
+                            rp.replace_op(ReplaceOperation([key, str(index)], dump_any(elem)))
+                    if len(other_list) < len(self_list):
+                        for index in range(len(other_list), len(self_list)):
+                            rp.remove_op(RemoveOperation([key, str(index)]))
+                elif issubclass(python_type.__origin__, dict):
+                    self_dict = getattr(self, key)
+                    other_dict = getattr(other, key)
+                    for item_key, item_value in other_dict.items():
+                        if item_key not in self_dict:
+                            rp.add_op(AddOperation([key, item_key], dump_any(item_value)))
+                        elif isinstance(self_dict[item_key], GameObject):
+                            rp.merge([key, item_key], self_dict.get(item_key).record(item_value))
+                        elif self_dict.get(item_key) != item_value:
+                            rp.replace_op(ReplaceOperation([key, item_key], dump_any(item_value)))
+            elif getattr(self, key) != getattr(other, key):
+                rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
         return rp

@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from time import time
 
 from conflict_interface.data_types.custom_types import HashSet
+from conflict_interface.data_types.custom_types import HashSetMap
+from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.map_state.province import Province
+from conflict_interface.data_types.map_state.sea_province import SeaProvince
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
@@ -19,15 +22,19 @@ class B:
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     username, password, email, proxy_url = load_credentials()
-    locations = HashSet[Province]
+    locations = HashSetMap[int, Province]
+    print(issubclass(locations.__origin__, dict))
     game = ReplayInterface("replay.db")
     game.open()
     game.close()
     print(game.replay.conn)
     game.replay.conn = None
-    province_a = game.game_state.states.map_state.map
-    province_b = deepcopy(game.game_state.states.map_state.map)
-    province_b.locations[1].morale = 21
-    province_b.morale = 29
+    province_a = game.game_state.states
+    province_b = deepcopy(game.game_state.states)
+    province_b.map_state.map.provinces[9345839] = province_a.map_state.map.provinces[1]
+    t1 = time()
     rp = province_a.record(province_b)
-    print(issubclass(type(province_a.locations).__origin__, list))
+    print(f"Record  {time() - t1} seconds" )
+    # rp.debug_str()
+    for op in rp.operations:
+        print(op.path, op.new_value)

@@ -1,4 +1,4 @@
-
+import typing
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
@@ -12,13 +12,18 @@ from shapely import Point as ShapelyPoint
 from conflict_interface.data_types.common.enums.region_type import RegionType
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import HashSet
+from conflict_interface.data_types.custom_types import HashSetMap
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.data_types.map_state.province import logger
 from conflict_interface.data_types.map_state.region import Region
 from conflict_interface.data_types.map_state.sea_province import SeaProvince
 from conflict_interface.data_types.point import Point
 from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import ReplaceOperation
+from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.helper import safe_issubclass
 
 ProvinceType = Union[Province, SeaProvince]
@@ -60,12 +65,11 @@ class Map(GameObject):
     localized_player_profiles: bool
     regions: Optional[HashMap[RegionType, Region]]
     overlap_x: int
-    locations: HashSet[ProvinceType]
+    provinces: HashSetMap[int, ProvinceType]
     population_factor: int
 
     static_map_data: StaticMapData = None
 
-    _provinces: dict[int, ProvinceType] = None
 
     MAPPING = {
         "is_reduced": "isReduced",
@@ -79,17 +83,9 @@ class Map(GameObject):
         "localized_player_profiles": "localizedPlayerProfiles",
         "regions": "regions",
         "overlap_x": "overlapX",
-        "locations": "locations",
+        "provinces": "locations",
         "population_factor": "populationFactor"
     }
-
-    @property
-    def provinces(self) -> dict[int, ProvinceType]:
-        if self._provinces is None:
-            self._provinces = dict()
-            for location in self.locations:
-                self._provinces[location.id] = location
-        return self._provinces
 
     def set_static_map_data(self, static_map_data: StaticMapData):
         self.static_map_data = static_map_data
@@ -153,8 +149,8 @@ class Map(GameObject):
 
     @override
     def update(self, other: GameObject):
-        if self._provinces is None:
-            self._provinces = defaultdict()
+        if self.provinces is None:
+            self.provinces = {}
 
         if not isinstance(other, Map):
             raise ValueError("UPDATE ERROR: Cannot update Map with object of type: " + str(type(other)))
@@ -166,14 +162,13 @@ class Map(GameObject):
                 if getattr(self, key) is None:
                     setattr(self, key, getattr(other, key))
                 getattr(self, key).update(getattr(other, key))
-            elif key not in ("locations", ):
+            elif key not in ("provinces", ):
                 setattr(self, key, getattr(other, key))
 
-        if other.locations is not None:
-            for location in other.locations:
-                if location.id in self._provinces.keys():
-                    self._provinces[location.id].update(location)
+        if other.provinces is not None:
+            for location in other.provinces:
+                if location.id in self.provinces.keys():
+                    self.provinces[location.id].update(location)
                 else:
                     logger.warning(f"New province found: {location.id}")
-                    self.locations.add(location)
-                    self._provinces[location.id] = location
+                    self.provinces[location.id] = location

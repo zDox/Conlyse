@@ -79,6 +79,7 @@ class ResourceProfile(GameObject):
 
     def get_resource_entry(self, resource_type: ResourceType) -> Optional[ResourceCategory]:
         if not self._resource_type_to_category:
+            self._resource_type_to_category = {}
             for category in self.categories.values():
                 for entry in category.resources.items():
                     self._resource_type_to_category[entry[0]] = category
