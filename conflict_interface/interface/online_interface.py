@@ -1,5 +1,6 @@
 import os.path
 from datetime import datetime
+from time import time
 from typing import Callable
 from typing import override
 
@@ -149,6 +150,7 @@ class OnlineInterface(GameInterface):
             States: The updated current state of the game.
         """
         # Execute any queued actions
+        t1 = time()
         self.action_handler.create_game_state_action()
         if self.replay:
             with self.replay as r:
@@ -157,6 +159,7 @@ class OnlineInterface(GameInterface):
                     game_id = self.game_id,
                     player_id = self.player_id,
                     game_state = dump_any(self.game_state))
+        print(f"Update took: {time() - t1}")
     """
     Utility functions
     """

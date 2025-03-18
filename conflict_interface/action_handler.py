@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from time import time
 from typing import TYPE_CHECKING
 
 from conflict_interface.data_types.action import Action

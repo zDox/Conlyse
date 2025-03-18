@@ -49,6 +49,12 @@ class UnmodifiableCollection(list):
 class HashSet(list):
     C = "java.util.HashSet"
 
+class HashSetMap(dict):
+    """
+    Dictionary in python but HashSet in Conflict. Used for performance of lookups.
+    """
+    C = "java.util.HashSet"
+
 class UnmodifiableSet(set):
     C = "java.util.Collections$UnmodifiableSet"
 

@@ -579,7 +579,7 @@ class EffectsConfig(GameObject):
     }
 
 @dataclass
-class ConflictCondition:
+class ConflictCondition(GameObject):
     C = "ultshared.modding.configuration.UltCondition"
     expression: str
 

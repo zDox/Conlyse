@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import typing
 from dataclasses import MISSING as DATACLASS_MISSING
 from dataclasses import is_dataclass
 from datetime import UTC
 from enum import Enum
+from inspect import Attribute
+from time import time
 from typing import Any
 from typing import TYPE_CHECKING
 from typing import Type
@@ -13,11 +16,19 @@ from typing import get_args
 from typing import get_origin
 from typing import get_type_hints
 
+
 from conflict_interface.data_types.custom_types import *
+from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import RemoveOperation
+from conflict_interface.replay.replay_patch import ReplaceOperation
+from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.helper import safe_issubclass
 
 if TYPE_CHECKING: # The one place where this is needed for type hinting
     from conflict_interface.interface.game_interface import GameInterface
+
+logger = get_logger()
 
 """
 Parsing: Json -> Python
@@ -74,6 +85,13 @@ def parse_conflict_mapping(cls,json_obj,game):
 
 def parse_conflict_list(cls, json_obj: list, game):
     return cls([parse_any(cls.__args__[0], v, game) for v in json_obj[1]])
+
+def parse_list_to_dict(cls, json_obj: list, game):
+    parsed_data = {}
+    for value in json_obj[1]:
+        item = parse_any(cls.__args__[1], value, game)
+        parsed_data[item.id] = item
+    return cls(parsed_data)
 
 def parse_normal_dict(cls,json_obj,game):
     parsed_data = {}
@@ -168,6 +186,12 @@ def dump_conflict_mapping(obj) -> dict:
 
     return json_obj
 
+def dump_dict_to_list(obj) -> list:
+    if not hasattr(obj, "C"):
+        raise ValueError(f"Object {obj} has no C implemented")
+
+    return [obj.C, [dump_any(v) for v in obj.values()]]
+
 # Registry for direct type mappings
 SIMPLE_PARSE_MAPPING: dict[type,Any] = {
     int: int,
@@ -207,6 +231,7 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     RegularImmutableMap: parse_conflict_mapping,
     EmptyMap: parse_conflict_mapping,
     UnmodifiableMap: parse_conflict_mapping,
+    HashSetMap: parse_list_to_dict,
 
 }
 
@@ -237,6 +262,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     RegularImmutableMap: dump_conflict_mapping,
     EmptyMap: dump_conflict_mapping,
     UnmodifiableMap: dump_conflict_mapping,
+    HashSetMap: dump_dict_to_list,
 
     DateTimeMillisecondsInt: dump_date_time_int,
     DateTimeMillisecondsStr: dump_date_time_str,
@@ -256,7 +282,7 @@ def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterfac
         raise ValueError(f"{cls.__name__} has no MAPPING implemented")
     # --End error handling
 
-    var_type_dict = get_type_hints(cls)
+    var_type_dict = cls.get_type_hints_cached()
 
     if issubclass(cls, GameObject):
         mapping = cls.get_mapping()
@@ -383,7 +409,7 @@ class GameObject:
     """
     Base class for all game objects.
     """
-
+    _type_hints = None
     def __init__(self, game: GameInterface):
         """
         Initializes the GameObject with an optional reference
@@ -397,7 +423,7 @@ class GameObject:
     def __hash__(self):
         if not hasattr(self, "MAPPING"):
             raise ValueError(f"{type(self).__name__} has no MAPPING implemented")
-        return hash(tuple(self.__getattribute__(key) for key in self.MAPPING.keys()))
+        return hash(tuple(self.__getattribute__(key) for key in self.get_mapping().keys()))
 
     _mapping = {}
     @classmethod
@@ -428,10 +454,79 @@ class GameObject:
         for key in self.get_mapping().keys():
             if getattr(other, key) is None:
                 continue
-            elif safe_issubclass(get_type_hints(type(self))[key], GameObject):
+            elif safe_issubclass(self.get_type_hints_cached()[key], GameObject):
                 if getattr(self, key) is None:
                     setattr(self, key, getattr(other, key))
 
                 getattr(self, key).update(getattr(other, key))
             else:
                 setattr(self, key, getattr(other, key))
+
+    @classmethod
+    def get_type_hints_cached(cls):
+        if cls._type_hints is None:
+            cls._type_hints = get_type_hints(cls)
+        return cls._type_hints
+
+    def make_replay_patch(self, other: "GameObject") -> ReplayPatch | None:
+        if other is None:
+            return None
+
+        if not isinstance(other, GameObject):
+            raise ValueError(f"Can't record {type(self)} with {type(other)} not a game object")
+
+        if type(self) != type(other):
+            raise ValueError(f"Can't record {type(self)} with {type(other)} not of the same type")
+        rp = ReplayPatch()
+        if hash(other) == hash(self):
+            return rp
+        for key in self.get_mapping().keys():
+            if getattr(other, key) is None:
+                continue
+            python_type = self.get_type_hints_cached()[key]
+            if hasattr(python_type, "__origin__"):
+                if python_type.__origin__ == typing.Union:
+                    python_type = python_type.__args__[0]
+            if safe_issubclass(python_type, GameObject):
+                if getattr(self, key) is None:
+                    rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
+                else:
+                    rp.merge([key], getattr(self, key).make_replay_patch(getattr(other, key)))
+            elif hasattr(python_type, "__origin__") and python_type.__origin__ != typing.Union:
+                if issubclass(python_type.__origin__, list):
+                    self_list = getattr(self, key)
+                    other_list = getattr(other, key)
+                    if len(other_list) != 0:
+                        if isinstance(other_list[0], GameObject) and not hasattr(other_list[0], "id"):
+                            if self_list != other_list:
+                                rp.replace_op(ReplaceOperation([key], dump_any(other_list)))
+                            continue
+                        elif isinstance(other_list, ProductionList):
+                            if self_list != other_list:
+                                rp.replace_op(ReplaceOperation([key], dump_any(other_list)))
+                            continue
+                    adder_index = len(self_list)
+                    for index, elem in enumerate(other_list):
+                        if index >= len(self_list):
+                            rp.add_op(AddOperation([key, adder_index], dump_any(elem)))
+                            adder_index += 1
+                        elif isinstance(self_list[index], GameObject):
+                            rp.merge([key, index], self_list[index].make_replay_patch(elem))
+                        elif self_list[index] != elem:
+                            rp.replace_op(ReplaceOperation([key, index], dump_any(elem)))
+                    if len(other_list) < len(self_list):
+                        for index in range(len(other_list), len(self_list)):
+                            rp.remove_op(RemoveOperation([key, index]))
+                elif issubclass(python_type.__origin__, dict):
+                    self_dict = getattr(self, key)
+                    other_dict = getattr(other, key)
+                    for item_key, item_value in other_dict.items():
+                        if item_key not in self_dict:
+                            rp.add_op(AddOperation([key, item_key], dump_any(item_value)))
+                        elif isinstance(self_dict[item_key], GameObject):
+                            rp.merge([key, item_key], self_dict.get(item_key).make_replay_patch(item_value))
+                        elif self_dict.get(item_key) != item_value:
+                            rp.replace_op(ReplaceOperation([key, item_key], dump_any(item_value)))
+            elif getattr(self, key) != getattr(other, key):
+                rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
+        return rp
