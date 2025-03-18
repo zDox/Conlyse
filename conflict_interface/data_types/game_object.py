@@ -478,8 +478,7 @@ class GameObject:
         if type(self) != type(other):
             raise ValueError(f"Can't record {type(self)} with {type(other)} not of the same type")
         rp = ReplayPatch()
-        if hash(other) == hash(self):
-            return rp
+
         for key in self.get_mapping().keys():
             if getattr(other, key) is None:
                 continue
@@ -520,13 +519,18 @@ class GameObject:
                 elif issubclass(python_type.__origin__, dict):
                     self_dict = getattr(self, key)
                     other_dict = getattr(other, key)
+                    removed_keys = set(self_dict.keys())
                     for item_key, item_value in other_dict.items():
+                        if item_key in removed_keys:
+                            removed_keys.remove(item_key)
                         if item_key not in self_dict:
                             rp.add_op(AddOperation([key, item_key], dump_any(item_value)))
                         elif isinstance(self_dict[item_key], GameObject):
                             rp.merge([key, item_key], self_dict.get(item_key).make_replay_patch(item_value))
                         elif self_dict.get(item_key) != item_value:
                             rp.replace_op(ReplaceOperation([key, item_key], dump_any(item_value)))
+                    for removed_key in removed_keys:
+                        rp.remove_op(RemoveOperation([key, removed_key]))
             elif getattr(self, key) != getattr(other, key):
                 rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
         return rp

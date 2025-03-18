@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 from typing import Union
 
+
 from conflict_interface.logger_config import get_logger
 
 logger = get_logger()
@@ -20,6 +21,8 @@ class ReplaceOperation:
 class RemoveOperation:
     path: list[str] = None
 
+
+Operation = Union[AddOperation, ReplaceOperation, RemoveOperation, None]
 
 class ReplayPatch:
     def __init__(self):
@@ -52,4 +55,3 @@ class ReplayPatch:
         print(f"Add: {','.join(add_str)}")
         print(f"Replace: {','.join(replace_str)}")
         print(f"Remove: {','.join(remove_str)}")
-
