@@ -52,6 +52,12 @@ class Replay:
             return None
         return datetime.fromtimestamp(self._current_time / 1000, tz=UTC)
 
+    @property
+    def last_time(self) -> datetime | None:
+        if self._last_time is None:
+            return None
+        return datetime.fromtimestamp(self._last_time / 1000, tz=UTC)
+
     def __enter__(self):
         if self.mode == 'w':
             if self.game_id is None or self.player_id is None:
@@ -148,7 +154,6 @@ class Replay:
         if static_data := cursor.fetchone():
             self.static_map_data = json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
 
-        self._load_till_uptodate()
 
     def _load_till_uptodate(self):
         self._jump_to(self._last_time)
@@ -164,6 +169,7 @@ class Replay:
 
         if target == self._current_time:
             return
+        print(target, self._current_time)
 
         if target < self._start_time:
             raise ValueError(f"Cannot jump to {target} before start time {self._start_time}")
@@ -174,7 +180,8 @@ class Replay:
             cursor = self.conn.execute("""
                         SELECT from_timestamp, to_timestamp, patch 
                         FROM patches 
-                        WHERE to_timestamp <= ? AND from_timestamp >= ? 
+                        WHERE to_timestamp <= ? AND from_timestamp >= ?
+                        AND from_timestamp < to_timestamp 
                         ORDER BY from_timestamp ASC
                     """, (target, self._current_time))
             patches = cursor.fetchall()
@@ -193,7 +200,8 @@ class Replay:
             cursor = self.conn.execute("""
                         SELECT from_timestamp, to_timestamp, patch 
                         FROM patches 
-                        WHERE to_timestamp <= ? AND from_timestamp >= ? 
+                        WHERE to_timestamp <= ? AND from_timestamp >= ?
+                        AND from_timestamp > to_timestamp 
                         ORDER BY from_timestamp DESC
                     """, (target, self._current_time))
             patches = cursor.fetchall()
@@ -204,23 +212,22 @@ class Replay:
                 patch = JsonPatch.from_string(json.loads(patch_str))
                 patch.apply(self.game_state, in_place=True)
                 self._current_time = to_ts
-                if to_ts == target:
-                    continue
 
 
     def jump_to(self, target: datetime) -> dict:
         target = int(target.timestamp() * 1000)
+        print(f"Searching for target {target}")
         cursor = self.conn.execute("""
                 SELECT to_timestamp 
                 FROM patches 
-                WHERE to_timestamp <= ? 
-                ORDER BY to_timestamp DESC 
-                LIMIT 1;
+                WHERE to_timestamp <= ?
+                ORDER BY to_timestamp DESC
             """, (target,))
 
         result = cursor.fetchone()
-
+        print(f"Jump res {result}")
         target = result[0] if result else self._start_time
+        print(f"Jumping to {target}")
         self._jump_to(target)
         return self.game_state
 
@@ -282,6 +289,7 @@ class Replay:
             self._last_time = time_stamp_ms
         self.game_state = game_state
         self._write_information()
+
     def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int):
         """Compress and record static map data."""
         if self.mode not in ("w", "a"):

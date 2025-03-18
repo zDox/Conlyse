@@ -40,4 +40,4 @@ class ReplayInterface(GameInterface):
 
     def set_client_time(self, time_stamp: datetime) -> None:
         self.replay.jump_to(time_stamp)
-        self.game_state.update()
+        self.game_state = parse_any(GameState, self.replay.game_state, self)

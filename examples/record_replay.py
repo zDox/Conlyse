@@ -14,4 +14,4 @@ if __name__ == "__main__":
     game = itf.join_game(9812061, replay_filename="replay.db")
     while True:
         game.update()
-        sleep(5)
+        sleep(10)
