@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import DateTimeSecondsInt
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
@@ -107,6 +108,15 @@ class HubGameProperties:
         'map_reference': 'mapReference',
         'state': 'state',
     }
+
+    _type_hints = None
+
+    @classmethod
+    def get_type_hints_cached(cls):
+        if cls._type_hints is None:
+            cls._type_hints = get_type_hints(cls)
+        return cls._type_hints
+
 @dataclass
 class HubGame:
     C = "hup.model.games.Game"
@@ -118,4 +128,11 @@ class HubGame:
     MAPPING = {
         "properties": "properties"
     }
+    _type_hints = None
+
+    @classmethod
+    def get_type_hints_cached(cls):
+        if cls._type_hints is None:
+            cls._type_hints = get_type_hints(cls)
+        return cls._type_hints
 
