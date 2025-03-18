@@ -16,7 +16,10 @@ from typing import get_args
 from typing import get_origin
 from typing import get_type_hints
 
+from django.db.migrations.operations.base import Operation
+
 from conflict_interface.data_types.custom_types import *
+from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
@@ -25,6 +28,8 @@ from conflict_interface.utils.helper import safe_issubclass
 
 if TYPE_CHECKING: # The one place where this is needed for type hinting
     from conflict_interface.interface.game_interface import GameInterface
+
+logger = get_logger()
 
 """
 Parsing: Json -> Python
@@ -525,5 +530,27 @@ class GameObject:
                 rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
         return rp
 
-    def apply_patch(self, rp: ReplayPatch) :
-        pass
+    def apply_patch(self, rp: ReplayPatch):
+        passing_operations = {}
+
+        for op in rp.operations:
+            if not hasattr(self, op.path[0]):
+                logger.warning(f"{self.__class__} has no attribute '{op.path[0]}'")
+                continue
+            attr_key = op.path[0]
+            if issubclass(self.get_type_hints_cached()[attr_key], GameObject):
+                   if not attr_key in passing_operations:
+                       passing_operations[attr_key] = []
+                   op.path.pop(0)
+                   passing_operations[attr_key].append(op)
+                   continue
+
+            if isinstance(op, ReplaceOperation):
+                self.apply_replace(op)
+            elif isinstance(op, AddOperation):
+                self.apply_add(op)
+            elif isinstance(op, RemoveOperation):
+                self.apply_remove(op)
+
+    def apply_replace(self, op: Operation):
+        if
