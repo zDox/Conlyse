@@ -23,7 +23,6 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     username, password, email, proxy_url = load_credentials()
     locations = HashSetMap[int, Province]
-    print(issubclass(locations.__origin__, dict))
     game = ReplayInterface("replay.db")
     game.open()
     game.close()
@@ -33,8 +32,8 @@ if __name__ == "__main__":
     province_b = deepcopy(game.game_state.states)
     province_b.map_state.map.provinces[9345839] = province_a.map_state.map.provinces[1]
     t1 = time()
-    rp = province_a.record(province_b)
-    print(f"Record  {time() - t1} seconds" )
+    rp = province_a.make_replay_patch(province_b)
+    print(f"Replay Patch took  {time() - t1} seconds" )
     # rp.debug_str()
     for op in rp.operations:
         print(op.path, op.new_value)

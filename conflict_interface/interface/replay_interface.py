@@ -19,15 +19,17 @@ class ReplayInterface(GameInterface):
 
 
     def open(self):
-        self.replay.open()
         t1 = time()
-        self.game_state = parse_any(GameState, self.replay.game_state, self)
-        print(f"{time() - t1} seconds")
+        self.replay.open()
+        print(f"Loading Game State from disk took {time() - t1} seconds")
         t2 = time()
+        self.game_state = parse_any(GameState, self.replay.game_state, self)
+        print(f"GameState parse took {time() - t2} seconds")
+        t3 = time()
         self.game_state.states.map_state.map.set_static_map_data(parse_any(StaticMapData, self.replay.get_static_map_data(), self))
         self.player_id = self.replay.player_id
         self.current_time = self.replay.start_time
-        print(f"Static: {time() - t2} seconds")
+        print(f"Static: {time() - t3} seconds")
 
     def close(self):
         self.replay.close()
@@ -38,4 +40,4 @@ class ReplayInterface(GameInterface):
 
     def set_client_time(self, time_stamp: datetime) -> None:
         self.replay.jump_to(time_stamp)
-        self.game_state.update(re)
+        self.game_state.update()

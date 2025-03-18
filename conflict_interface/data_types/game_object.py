@@ -278,7 +278,7 @@ def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterfac
         raise ValueError(f"{cls.__name__} has no MAPPING implemented")
     # --End error handling
 
-    var_type_dict = get_type_hints(cls)
+    var_type_dict = cls.get_type_hints_cached()
 
     if issubclass(cls, GameObject):
         mapping = cls.get_mapping()
@@ -405,7 +405,7 @@ class GameObject:
     """
     Base class for all game objects.
     """
-
+    _type_hints = None
     def __init__(self, game: GameInterface):
         """
         Initializes the GameObject with an optional reference
@@ -450,7 +450,7 @@ class GameObject:
         for key in self.get_mapping().keys():
             if getattr(other, key) is None:
                 continue
-            elif safe_issubclass(get_type_hints(type(self))[key], GameObject):
+            elif safe_issubclass(self.get_type_hints_cached()[key], GameObject):
                 if getattr(self, key) is None:
                     setattr(self, key, getattr(other, key))
 
@@ -458,11 +458,17 @@ class GameObject:
             else:
                 setattr(self, key, getattr(other, key))
 
-    def record(self, other: "GameObject") -> ReplayPatch | None:
+    @classmethod
+    def get_type_hints_cached(cls):
+        if cls._type_hints is None:
+            cls._type_hints = get_type_hints(cls)
+        return cls._type_hints
+
+    def make_replay_patch(self, other: "GameObject") -> ReplayPatch | None:
         if other is None:
             return None
 
-        if not issubclass(type(other), GameObject):
+        if not isinstance(other, GameObject):
             raise ValueError(f"Can't record {type(self)} with {type(other)} not a game object")
 
         if type(self) != type(other):
@@ -471,7 +477,7 @@ class GameObject:
         for key in self.get_mapping().keys():
             if getattr(other, key) is None:
                 continue
-            python_type = get_type_hints(type(self))[key]
+            python_type = self.get_type_hints_cached()[key]
             if hasattr(python_type, "__origin__"):
                 if python_type.__origin__ == typing.Union:
                     python_type = python_type.__args__[0]
@@ -479,13 +485,13 @@ class GameObject:
                 if getattr(self, key) is None:
                     rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
                 else:
-                    rp.merge([key], getattr(self, key).record(getattr(other, key)))
+                    rp.merge([key], getattr(self, key).make_replay_patch(getattr(other, key)))
             elif hasattr(python_type, "__origin__") and python_type.__origin__ != typing.Union:
                 if issubclass(python_type.__origin__, list):
                     self_list = getattr(self, key)
                     other_list = getattr(other, key)
                     if len(other_list) != 0:
-                        if issubclass(type(other_list[0]), GameObject) and not hasattr(other_list[0], "id"):
+                        if isinstance(other_list[0], GameObject) and not hasattr(other_list[0], "id"):
                             if self_list != other_list:
                                 rp.replace_op(ReplaceOperation([key], dump_any(other_list)))
                             continue
@@ -496,15 +502,15 @@ class GameObject:
                     adder_index = len(self_list)
                     for index, elem in enumerate(other_list):
                         if index >= len(self_list):
-                            rp.add_op(AddOperation([key, str(adder_index)], dump_any(elem)))
+                            rp.add_op(AddOperation([key, adder_index], dump_any(elem)))
                             adder_index += 1
-                        elif issubclass(type(self_list[index]), GameObject):
-                            rp.merge([key, str(index)], self_list[index].record(elem))
+                        elif isinstance(self_list[index], GameObject):
+                            rp.merge([key, index], self_list[index].make_replay_patch(elem))
                         elif self_list[index] != elem:
-                            rp.replace_op(ReplaceOperation([key, str(index)], dump_any(elem)))
+                            rp.replace_op(ReplaceOperation([key, index], dump_any(elem)))
                     if len(other_list) < len(self_list):
                         for index in range(len(other_list), len(self_list)):
-                            rp.remove_op(RemoveOperation([key, str(index)]))
+                            rp.remove_op(RemoveOperation([key, index]))
                 elif issubclass(python_type.__origin__, dict):
                     self_dict = getattr(self, key)
                     other_dict = getattr(other, key)
@@ -512,9 +518,12 @@ class GameObject:
                         if item_key not in self_dict:
                             rp.add_op(AddOperation([key, item_key], dump_any(item_value)))
                         elif isinstance(self_dict[item_key], GameObject):
-                            rp.merge([key, item_key], self_dict.get(item_key).record(item_value))
+                            rp.merge([key, item_key], self_dict.get(item_key).make_replay_patch(item_value))
                         elif self_dict.get(item_key) != item_value:
                             rp.replace_op(ReplaceOperation([key, item_key], dump_any(item_value)))
             elif getattr(self, key) != getattr(other, key):
                 rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
         return rp
+
+    def apply_patch(self, rp: ReplayPatch) :
+        pass
