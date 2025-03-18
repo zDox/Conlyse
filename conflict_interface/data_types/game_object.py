@@ -16,7 +16,6 @@ from typing import get_args
 from typing import get_origin
 from typing import get_type_hints
 
-from django.db.migrations.operations.base import Operation
 
 from conflict_interface.data_types.custom_types import *
 from conflict_interface.logger_config import get_logger
@@ -424,7 +423,7 @@ class GameObject:
     def __hash__(self):
         if not hasattr(self, "MAPPING"):
             raise ValueError(f"{type(self).__name__} has no MAPPING implemented")
-        return hash(tuple(self.__getattribute__(key) for key in self.MAPPING.keys()))
+        return hash(tuple(self.__getattribute__(key) for key in self.get_mapping().keys()))
 
     _mapping = {}
     @classmethod
@@ -479,6 +478,8 @@ class GameObject:
         if type(self) != type(other):
             raise ValueError(f"Can't record {type(self)} with {type(other)} not of the same type")
         rp = ReplayPatch()
+        if hash(other) == hash(self):
+            return rp
         for key in self.get_mapping().keys():
             if getattr(other, key) is None:
                 continue
@@ -529,28 +530,3 @@ class GameObject:
             elif getattr(self, key) != getattr(other, key):
                 rp.replace_op(ReplaceOperation([key], dump_any(getattr(other, key))))
         return rp
-
-    def apply_patch(self, rp: ReplayPatch):
-        passing_operations = {}
-
-        for op in rp.operations:
-            if not hasattr(self, op.path[0]):
-                logger.warning(f"{self.__class__} has no attribute '{op.path[0]}'")
-                continue
-            attr_key = op.path[0]
-            if issubclass(self.get_type_hints_cached()[attr_key], GameObject):
-                   if not attr_key in passing_operations:
-                       passing_operations[attr_key] = []
-                   op.path.pop(0)
-                   passing_operations[attr_key].append(op)
-                   continue
-
-            if isinstance(op, ReplaceOperation):
-                self.apply_replace(op)
-            elif isinstance(op, AddOperation):
-                self.apply_add(op)
-            elif isinstance(op, RemoveOperation):
-                self.apply_remove(op)
-
-    def apply_replace(self, op: Operation):
-        if

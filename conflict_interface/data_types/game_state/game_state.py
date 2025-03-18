@@ -135,7 +135,6 @@ class States(GameObject):
         "mission_state": "29",
     }
 
-
     def update(self, new_fields: "States"):
         """
         Call the update method of each state that has a update and hand of the state as dict

@@ -2,6 +2,9 @@ from dataclasses import dataclass
 from typing import Any
 from typing import Union
 
+from conflict_interface.logger_config import get_logger
+
+logger = get_logger()
 
 @dataclass
 class AddOperation:
@@ -49,3 +52,4 @@ class ReplayPatch:
         print(f"Add: {','.join(add_str)}")
         print(f"Replace: {','.join(replace_str)}")
         print(f"Remove: {','.join(remove_str)}")
+
