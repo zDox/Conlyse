@@ -186,6 +186,7 @@ class ActionHandler:
                 print(f"Updating with patch")
                 rp = ReplayPatch()
                 self.game_state.update(game_state, path=[], rp=rp)
+                self.game.record_game_state(self.game_state)
                 self.game.record_patch(rp)
             else:
                 self.game_state = game_state

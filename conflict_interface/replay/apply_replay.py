@@ -27,15 +27,14 @@ def apply_patch_any(rp: ReplayPatch, obj_type: type, obj: Any, game: GameInterfa
         apply_operation_any(op, obj_type, obj, game)
 
 def apply_operation_any(op: Operation, obj_type: type, obj: Any, game: GameInterface):
-    python_type = get_inner_type(obj_type, obj)
     if isinstance(obj, GameObject):
-        return apply_operation_gameobject(op, python_type, obj, game)
+        return apply_operation_gameobject(op, obj_type, obj, game)
     elif isinstance(obj, list):
-        return apply_operation_list(op, python_type, obj, game)
+        return apply_operation_list(op, obj_type, obj, game)
     elif isinstance(obj, dict):
-        return apply_operation_dict(op, python_type, obj, game)
-    elif python_type in SIMPLE_PARSE_MAPPING:
-        return apply_operation_simple(op, python_type, obj)
+        return apply_operation_dict(op, obj_type, obj, game)
+    elif get_inner_type(obj_type, obj) in SIMPLE_PARSE_MAPPING:
+        return apply_operation_simple(op, get_inner_type(obj_type, obj), obj)
     else:
         raise NotImplementedError(f"Expected is either a GameObject, List or Dict but encountered {obj_type}")
 
@@ -78,7 +77,7 @@ def apply_operation_list(op: Operation, obj_type: type, obj: list, game: GameInt
 
 def apply_operation_dict(op: Operation, obj_type: type, obj: dict, game: GameInterface):
     if len(op.path) == 0:
-        return parse_any(type(obj), op.new_value, game)
+        return parse_any(obj_type, op.new_value, game)
 
 
     if len(op.path) == 1:

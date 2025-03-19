@@ -75,9 +75,9 @@ class ReplayPatch:
         for op in operations:
             key, path, new_value = op
             if key == "a":
-                instance.add_op(AddOperation(path, new_value))
+                instance.add_op(path, new_value)
             elif key == "p":
-                instance.replace_op(ReplaceOperation(path, new_value))
+                instance.replace_op(path, new_value)
             elif key == "r":
-                instance.remove_op(RemoveOperation(path))
+                instance.remove_op(path)
         return instance

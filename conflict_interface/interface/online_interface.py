@@ -172,13 +172,14 @@ class OnlineInterface(GameInterface):
                                      player_id=self.player_id,
                                      replay_patch=rp)
 
-    def record_game_state(self, rp: GameState):
+
+    def record_game_state(self, gs: GameState):
         if self.is_recording():
             with self.replay as r:
                 r.record_game_state(time_stamp=self.client_time(),
                                           game_id=self.game_id,
                                           player_id=self.player_id,
-                                          game_state=dump_any(rp))
+                                          game_state=dump_any(gs))
 
     """
     Utility functions

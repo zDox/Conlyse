@@ -266,9 +266,35 @@ class Replay:
             return
         self.conn.execute(
             "INSERT INTO patches (from_timestamp, to_timestamp, patch) VALUES (?, ?, ?)",
-            (from_timestamp, to_timestamp, json.dumps(patch))
+            (from_timestamp, to_timestamp, patch)
         )
         self.conn.commit()
+
+    def _get_patch(self, from_timestamp: int, to_timestamp: int) -> ReplayPatch:
+        cursor = self.conn.execute("""
+                SELECT  
+                patch
+                FROM patches 
+                WHERE from_timestamp = ? and to_timestamp = ?
+            """, (from_timestamp, to_timestamp,))
+        result = cursor.fetchone()
+        if result:
+            return ReplayPatch.from_string(result[0])
+        else:
+            raise Exception(f"No patch found with from_timestamp {from_timestamp} and to_timestamp {to_timestamp}")
+
+    def _get_game_state(self, timestamp: int) -> dict:
+        cursor = self.conn.execute("""
+                SELECT  
+                data
+                FROM game_state 
+                WHERE timestamp = ?
+            """, (timestamp,))
+        result = cursor.fetchone()
+        if result:
+            return json.loads(zlib.decompress(result[0]).decode('utf-8'))
+        else:
+            raise Exception(f"No Game found with timestamp {timestamp}")
 
     def get_static_map_data(self) -> dict:
         """Return the static map data."""
@@ -279,11 +305,13 @@ class Replay:
             raise IOError("Replay is not in write or append mode")
         if game_id != self.game_id or player_id != self.player_id:
             raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
-        if self.last_time >= time_stamp:
+        if self._last_time and self.last_time >= time_stamp:
             raise CorruptReplay(f"Already recorded newer ReplayPatch at {self.last_time} then {time_stamp}.")
 
         time_stamp_ms = int(time_stamp.timestamp() * 1000)
-        self._write_patch(self._current_time, time_stamp_ms, replay_patch.to_string())
+        self._write_patch(self._last_time, time_stamp_ms, replay_patch.to_string())
+        self._last_time = time_stamp_ms
+        self._write_information()
         print(f"Recorded patch at {time_stamp}")
 
     def record_initial_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
@@ -292,7 +320,7 @@ class Replay:
             raise IOError("Replay is not in write or append mode")
         if game_id != self.game_id or player_id != self.player_id:
             raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
-        if self.last_time and self.last_time >= time_stamp:
+        if self._last_time and self.last_time >= time_stamp:
             raise CorruptReplay(f"Already recorded newer GameState at {self.last_time} then {time_stamp}.")
 
         time_stamp_ms = int(time_stamp.timestamp() * 1000)
