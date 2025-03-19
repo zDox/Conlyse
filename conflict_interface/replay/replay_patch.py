@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from typing import Any
 from typing import Union
@@ -9,17 +10,21 @@ logger = get_logger()
 
 @dataclass
 class AddOperation:
+    Key = "a"
     path: list[str] = None
     new_value: Any = None
 
 @dataclass
 class ReplaceOperation:
+    Key = "p"
     path: list[str] = None
     new_value: Any = None
 
 @dataclass
 class RemoveOperation:
+    Key = "r"
     path: list[str] = None
+    new_value = None
 
 
 Operation = Union[AddOperation, ReplaceOperation, RemoveOperation, None]
@@ -55,3 +60,21 @@ class ReplayPatch:
         print(f"Add: {','.join(add_str)}")
         print(f"Replace: {','.join(replace_str)}")
         print(f"Remove: {','.join(remove_str)}")
+
+    def to_string(self) -> str:
+        operations = [(op.Key, op.path, op.new_value) for op in self.operations]
+        return json.dumps(operations)
+
+    @classmethod
+    def from_string(cls, string: str):
+        operations = json.loads(string)
+        instance = cls()
+        for op in operations:
+            key, path, new_value = op
+            if key == "a":
+                instance.add_op(AddOperation(path, new_value))
+            elif key == "p":
+                instance.replace_op(ReplaceOperation(path, new_value))
+            elif key == "r":
+                instance.remove_op(RemoveOperation(path))
+        return instance
