@@ -7,6 +7,7 @@ from datetime import datetime
 from time import time
 from deepdiff import DeepDiff
 
+from conflict_interface.data_types.army_state.army_state import ArmyState
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashSet
 from conflict_interface.data_types.custom_types import HashSetMap
@@ -17,6 +18,7 @@ from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.data_types.map_state.sea_province import SeaProvince
 from conflict_interface.data_types.mod_state.mod_state import ModState
+from conflict_interface.data_types.player_state.player_state import PlayerState
 from conflict_interface.data_types.research_state.reserach import Research
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.hub_interface import HubInterface
@@ -35,9 +37,9 @@ class B:
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     gitf = GameInterface()
-    file1 = "../tests/full_test_data_4.json"
-    file2 = "../tests/full_test_data_5.json"
-    state = ModState
+    file1 = "../tests/full_test_data_7.json"
+    file2 = "../tests/full_test_data_8.json"
+    state = ArmyState
     with open(file1, "r", encoding="utf-8") as f:
         data1 = json.load(f)
     with open(file2, "r", encoding="utf-8") as f:
@@ -50,7 +52,15 @@ if __name__ == "__main__":
     parsed_state2 = parse_game_object(state, state2, gitf)
 
     rp = make_replay_patch(parsed_state1, parsed_state2)
-
-    apply_patch_any(rp, state, parsed_state1, gitf)
-    print(parsed_state1 == parsed_state2)
     rp.debug_str()
+    print(parsed_state1 == parsed_state2)
+    dumped1 = dump_any(parsed_state1)
+    dumped2 = dump_any(parsed_state2)
+    diff = DeepDiff(dumped1, dumped2)
+    print(diff)
+    apply_patch_any(rp, state, parsed_state1, GameInterface())
+    print(parsed_state1 == parsed_state2)
+    dumped1 = dump_any(parsed_state1)
+    dumped2 = dump_any(parsed_state2)
+    diff = DeepDiff(dumped1, dumped2)
+    print(diff)

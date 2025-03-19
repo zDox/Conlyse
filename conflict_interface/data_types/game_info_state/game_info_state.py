@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Optional
 from typing import Union
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
@@ -9,6 +10,8 @@ from conflict_interface.data_types.game_object import GameObject
 from dataclasses import dataclass
 
 from conflict_interface.data_types.state import State
+from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 @dataclass
@@ -71,7 +74,7 @@ class GameInfoState(State):
     """
     C = "ultshared.UltGameInfoState"
     STATE_TYPE = 12
-    day_of_game: int
+    day_of_game: Optional[int]
     start_of_game: DateTimeSecondsInt
     next_day_time: DateTimeMillisecondsInt
     next_heal_time: DateTimeMillisecondsInt
@@ -167,3 +170,12 @@ class GameInfoState(State):
         # Placeholder for formatting function
         return str(time)  # Implement actual formatting logic as needed
     """
+
+    def update(self, other: "GameInfoState", path: list[PathNode] = None, rp: ReplayPatch = None):
+        for key in self.get_mapping().keys():
+            other_value = getattr(other, key)
+            if other_value is None:
+                continue
+            if rp:
+                rp.replace_op(path + [key], other_value)
+            setattr(self, key, other_value)

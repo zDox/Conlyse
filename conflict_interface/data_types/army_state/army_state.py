@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Optional
 from typing import override
 
@@ -6,6 +7,8 @@ from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.army_state.army import Army
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.state import State
+from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 @dataclass
@@ -20,10 +23,10 @@ class ArmyState(State):
     """
     C = "ultshared.UltArmyState"
     STATE_TYPE = 6
-    bombardments: Optional[HashMap[int, int]]  # TODO no idea if its actually int int (no examples in data1)
-    change_set: bool
+    bombardments: Optional[HashMap[int, int]] = field(default_factory=dict) # TODO no idea if its actually int int (no examples in data1)
+    change_set: bool = False
 
-    armies: HashMap[int, Army]
+    armies: HashMap[int, Army] = field(default_factory=dict)
 
     MAPPING = {
         "armies": "armies",
@@ -31,8 +34,7 @@ class ArmyState(State):
         "change_set": "changeSet"
     }
 
-    @override
-    def update(self, other: GameObject):
+    def update(self, other: GameObject, path: list[PathNode] = None, rp: ReplayPatch = None):
         """
         Update the current state with the new state
 
@@ -44,12 +46,20 @@ class ArmyState(State):
 
         if other == self:
             raise ValueError("UPDATE ERROR: Cannot update ArmyState with itself")
+        super().update(other, path=path, rp=rp)
 
-        if other is None:
-            return
+
+        # Merging two armies
         for new_army in other.armies.values():
             if new_army.removed and new_army.id in self.armies:
+                if rp:
+                    rp.remove_op(path + [new_army.id])
                 self.armies.pop(new_army.id)
                 continue
             else:
+                if rp:
+                    old_army = self.armies[new_army.id]
+                    for attr in new_army.get_mapping():
+                        if getattr(old_army, attr) != getattr(new_army, attr):
+                             rp.replace_op(path + [new_army.id, attr], getattr(new_army, attr))
                 self.armies[new_army.id] = new_army

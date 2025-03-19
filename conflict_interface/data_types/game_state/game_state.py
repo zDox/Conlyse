@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
+from typing import override
 
 from conflict_interface.data_types.admin_state.admin_state import AdminState
 from conflict_interface.data_types.ai_state.ai_state import AIState
@@ -33,6 +34,8 @@ from conflict_interface.data_types.user_inventory_state.user_inventory_state imp
 from conflict_interface.data_types.user_options_state.user_options_state import UserOptionsState
 from conflict_interface.data_types.user_sms_state.user_sms_state import UserSMSState
 from conflict_interface.data_types.wheel_of_fortune_state.wheel_of_fortune_state import WheelOfFortuneState
+from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.replay_patch import ReplayPatch
 
 """
 The following are all states but not every state
@@ -142,15 +145,7 @@ class States(GameObject):
         :param new_fields: The new fields to update with (dict)
         :return: None
         """
-        for state in self.__annotations__.keys():
-            new_state = getattr(new_fields, state)
-            if new_state is None:
-                continue
-            if getattr(self, state) is None:
-                setattr(self, state, new_state)
-                continue
 
-            getattr(self, state).update(new_state)
 
 
 
@@ -182,6 +177,21 @@ class GameState(State):
             return None, None
         return state_ids, time_stamps
 
-    def update(self, new_state: "GameState"):
-        self.action_results = new_state.action_results
-        self.states.update(new_state.states)
+    @override
+    def update(self, other: "GameState", path: list[PathNode] = None, rp: ReplayPatch = None) -> None:
+        super().update(other, path=path, rp=rp)
+
+        if rp and self.action_results != other.action_results:
+            rp.replace_op(path + ["action_results"], other.action_results)
+
+        self.action_results = other.action_results
+        for state in self.states.get_mapping().keys():
+            if getattr(other.states, state) is not None:
+                new_state = getattr(other.states, state)
+                state_type: type = self.states.get_type_hints_cached()[state]
+                if hasattr(new_state, "update"):
+                    if getattr(self.states, state) is None:
+                        setattr(self.states, state, state_type(self.game))
+                    getattr(self.states, state).update(new_state, path + ["states", state], rp)
+                else:
+                    raise Exception(f"{state_type} has no update function")

@@ -19,11 +19,6 @@ from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import *
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.replay_patch import AddOperation
-from conflict_interface.replay.replay_patch import RemoveOperation
-from conflict_interface.replay.replay_patch import ReplaceOperation
-from conflict_interface.replay.replay_patch import ReplayPatch
-from conflict_interface.utils.helper import safe_issubclass
 
 if TYPE_CHECKING: # The one place where this is needed for type hinting
     from conflict_interface.interface.game_interface import GameInterface
@@ -439,28 +434,6 @@ class GameObject:
                 cls._mapping = {**cls._mapping,
                                 **c.get_mapping()}
         return cls._mapping
-
-    def update(self, other):
-        """
-        Updates the current object with the values of another object.
-        """
-        if other is None:
-            return
-
-        if not issubclass(type(other), GameObject):
-            raise ValueError(f"Can't update {type(self)} with {type(other)} not a game object")
-        if type(self) != type(other):
-            raise ValueError(f"Can't update {type(self)} with {type(other)} not of the same type")
-        for key in self.get_mapping().keys():
-            if getattr(other, key) is None:
-                continue
-            elif safe_issubclass(self.get_type_hints_cached()[key], GameObject):
-                if getattr(self, key) is None:
-                    setattr(self, key, getattr(other, key))
-
-                getattr(self, key).update(getattr(other, key))
-            else:
-                setattr(self, key, getattr(other, key))
 
     @classmethod
     def get_type_hints_cached(cls):

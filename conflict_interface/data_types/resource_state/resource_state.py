@@ -14,6 +14,8 @@ from conflict_interface.data_types.resource_state.trading import Trading
 from conflict_interface.data_types.resource_state.traiding_action import OrderAction
 from conflict_interface.data_types.state import State
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.replay_patch import ReplayPatch
 
 logger = get_logger()
 
@@ -38,6 +40,26 @@ class ResourceState(State):
         "asks": "asks",
         "prices": "prices",
     }
+
+    def update(self, other: "ResourceState", path: list[PathNode] = None, rp: ReplayPatch = None):
+        super().update(other, path=path, rp=rp)
+        if rp:
+            if self.resource_profiles != other.resource_profiles:
+                rp.replace_op(path + ["resource_profiles"], other.resource_profiles)
+            if self.trading != other.trading:
+                rp.replace_op(path + ["trading"], other.trading)
+            if self.bids != other.bids:
+                rp.replace_op(path + ["bids"], other.bids)
+            if self.asks != other.asks:
+                rp.replace_op(path + ["asks"], other.asks)
+            if self.prices != other.prices:
+                rp.replace_op(path + ["prices"], other.prices)
+        self.resource_profiles = other.resource_profiles
+        self.trading = other.trading
+        self.bids = other.bids
+        self.asks = other.asks
+        self.prices = other.prices
+
     def get_order(self, buy: bool , resource_type: ResourceType = -1, piece_price: float = -1, amount: int = -1, order_id: int = -1) -> Optional[Order]:
         for inner in self.bids if buy else self.asks:
             for order in inner:

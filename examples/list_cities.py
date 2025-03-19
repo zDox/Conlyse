@@ -16,4 +16,4 @@ if __name__ == "__main__":
 
     game = interface.join_game(9758559)
 
-    pprint(game.get_my_cities())
+    pprint(game.get_provinces_by_name("Rome"))

@@ -13,6 +13,7 @@ from jsonpatch import JsonPatch
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsStr
 from conflict_interface.data_types.game_object import dump_date_time_str  # Assuming this exists in your codebase
+from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 class CorruptReplay(Exception):
@@ -70,9 +71,9 @@ class Replay:
             self._create_tables()
             self._write_information()
         elif self.mode == 'a':
-            self._load_existing_replay()
-            self._load_till_uptodate()
+            self._load_information()
         elif self.mode == 'r':
+            self._load_information()
             self._load_existing_replay()
         return self
 
@@ -131,6 +132,7 @@ class Replay:
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (1, VERSION, self.game_id, self.player_id, self._start_time, self._last_time))
         self.conn.commit()
+        print(f"Wrote information to {self._start_time}")
 
     def _load_information(self):
         """Load metadata from the information table."""
@@ -141,12 +143,12 @@ class Replay:
             raise CorruptReplay("Information table is empty")
 
         version, self.game_id, self.player_id, self._start_time, self._last_time = row
+        print(row)
         if version != VERSION:
             raise CorruptReplay(f"Unsupported version {version}")
 
     def _load_existing_replay(self):
         """Load metadata, initial state, static map data, and patch timestamps."""
-        self._load_information()
         self._load_initial_game_state()
 
         # Load static map data (if present)
@@ -241,6 +243,11 @@ class Replay:
         self.game_state = json.loads(zlib.decompress(initial_data[1]).decode('utf-8'))
         self._current_time = initial_data[0]
 
+    def _write_game_state(self, time_stamp: int, game_state: dict):
+        compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
+        self.conn.execute("INSERT INTO game_state (timestamp, data) VALUES (?, ?)", (time_stamp, compressed_data,))
+        self.conn.commit()
+
     def _write_initial_game_state(self, time_stamp: int, game_state: dict):
         """Compress and write the initial game state."""
         compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
@@ -250,7 +257,7 @@ class Replay:
         self._current_time = time_stamp
         self._last_time = time_stamp
 
-    def _write_patch(self, from_timestamp: int, to_timestamp: int, patch: JsonPatch):
+    def _write_patch(self, from_timestamp: int, to_timestamp: int, patch: str):
         """Write a patch to the database with from and to timestamps."""
         cursor = self.conn.execute("SELECT 1 FROM patches WHERE from_timestamp = ? and to_timestamp = ?",
                                    (from_timestamp, to_timestamp,))
@@ -259,7 +266,7 @@ class Replay:
             return
         self.conn.execute(
             "INSERT INTO patches (from_timestamp, to_timestamp, patch) VALUES (?, ?, ?)",
-            (from_timestamp, to_timestamp, json.dumps(patch.to_string()))
+            (from_timestamp, to_timestamp, json.dumps(patch))
         )
         self.conn.commit()
 
@@ -267,27 +274,45 @@ class Replay:
         """Return the static map data."""
         return self.static_map_data
 
+    def record_patch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: ReplayPatch):
+        if self.mode not in ("w", "a"):
+            raise IOError("Replay is not in write or append mode")
+        if game_id != self.game_id or player_id != self.player_id:
+            raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
+        if self.last_time >= time_stamp:
+            raise CorruptReplay(f"Already recorded newer ReplayPatch at {self.last_time} then {time_stamp}.")
+
+        time_stamp_ms = int(time_stamp.timestamp() * 1000)
+        self._write_patch(self._current_time, time_stamp_ms, replay_patch.to_string())
+        print(f"Recorded patch at {time_stamp}")
+
+    def record_initial_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
+        """Record a game state, either as initial state or a patch with from/to timestamps."""
+        if self.mode not in ("w", "a"):
+            raise IOError("Replay is not in write or append mode")
+        if game_id != self.game_id or player_id != self.player_id:
+            raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
+        if self.last_time and self.last_time >= time_stamp:
+            raise CorruptReplay(f"Already recorded newer GameState at {self.last_time} then {time_stamp}.")
+
+        time_stamp_ms = int(time_stamp.timestamp() * 1000)
+        self._write_initial_game_state(time_stamp_ms, game_state)
+        self._last_time = time_stamp_ms
+        self._write_information()
+        print(f"Recording intial game state at {self._start_time}.")
+
     def record_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
         """Record a game state, either as initial state or a patch with from/to timestamps."""
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
         if game_id != self.game_id or player_id != self.player_id:
             raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
+        if self.last_time and self.last_time >= time_stamp:
+            raise CorruptReplay(f"Already recorded newer GameState at {self.last_time} then {time_stamp}.")
 
         time_stamp_ms = int(time_stamp.timestamp() * 1000)
-        if not self.game_state:
-            self._write_initial_game_state(time_stamp_ms, game_state)
-        else:
-            if self._last_time is None:
-                raise CorruptReplay("No previous timestamp available for patch range")
-            t1 = time()
-            forward_patch = jsonpatch.make_patch(self.game_state, game_state)
-            backward_patch = jsonpatch.make_patch(game_state, self.game_state)
-            print(f"Forward and backward patch took: {time() - t1}")
-            self._write_patch(self._last_time, time_stamp_ms, forward_patch)
-            self._write_patch(time_stamp_ms, self._last_time, backward_patch)
-            self._last_time = time_stamp_ms
-        self.game_state = game_state
+        self._write_game_state(time_stamp_ms, game_state)
+        self._last_time = time_stamp_ms
         self._write_information()
 
     def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int):

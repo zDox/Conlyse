@@ -14,6 +14,7 @@ from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.game_api import GameApi
 
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.bidict import Bidict
 from conflict_interface.utils.exceptions import GameActivationException
 
@@ -180,10 +181,20 @@ class ActionHandler:
         if response_json["result"]["@c"] not in (GameState.C, "ultshared.UltAutoGameState"):
             raise ValueError(f"Action {response_json['result']} is not a GameState")
         game_state = parse_game_object(GameState, response_json["result"], self.game)
-        if self.game_state:
-            self.game_state.update(game_state)
+        if self.game.is_recording():
+            if self.game_state is not None:
+                print(f"Updating with patch")
+                rp = ReplayPatch()
+                self.game_state.update(game_state, path=[], rp=rp)
+                self.game.record_patch(rp)
+            else:
+                self.game_state = game_state
+                self.game.record_game_state(game_state)
         else:
-            self.game_state = game_state
+            if self.game_state:
+                self.game_state.update(game_state)
+            else:
+                self.game_state = game_state
 
         # Set the action results
         for action_request_id, action_result in self.game_state.action_results.items():

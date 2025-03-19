@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Union
 
 from conflict_interface.data_types.custom_types import Vector
@@ -7,6 +8,8 @@ from conflict_interface.data_types.newspaper_state.ranking import Ranking
 from conflict_interface.data_types.newspaper_state.report_article import ReportArticle
 from conflict_interface.data_types.newspaper_state.statistics_article import StatisticsArticle
 from conflict_interface.data_types.state import State
+from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 @dataclass
@@ -26,3 +29,15 @@ class NewspaperState(State):
         "ranking": "ranking",
         "report_articles": "reportArticles",
     }
+
+    def update(self, other: "NewspaperState", path: list[PathNode] = None, rp: ReplayPatch = None):
+        # TODO update newspaper to save paper of other dayys
+        super().update(other, path=path, rp=rp)
+
+        if rp:
+            if self.day != other.day:
+                rp.replace_op(path + ["day"], other.day)
+            if self.articles != other.articles:
+                rp.replace_op(path + ["articles"], other.articles)
+        self.day = other.day
+        self.articles = other.articles

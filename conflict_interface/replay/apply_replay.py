@@ -111,15 +111,15 @@ def apply_operation_simple(op: Operation, obj_type: type, obj: Any) -> Any:
 
     return parse_any(obj_type, op.new_value)
 
-def make_replay_patch(self: Any, other: Any) -> ReplayPatch:
+def make_replay_patch(self: Any, other: Any, on_update: bool = True) -> ReplayPatch:
     rp = ReplayPatch()
     path = []
-    make_replay_patch_any(rp, path, self, other)
+    make_replay_patch_any(rp, path, self, other, on_update)
     return rp
 
-def make_replay_patch_any(rp: ReplayPatch, path: list[str], self: Any, other: Any) -> ReplayPatch:
+def make_replay_patch_any(rp: ReplayPatch, path: list[str], self: Any, other: Any, on_update: bool = True):
     if other is None:
-        return rp
+        return
     if type(self) != type(other):
         rp.replace_op(ReplaceOperation(path, dump_any(other)))
     elif isinstance(other, GameObject):
@@ -133,25 +133,29 @@ def make_replay_patch_any(rp: ReplayPatch, path: list[str], self: Any, other: An
     else:
         raise Exception(f"Unsupported type {type(other)}")
 
-def make_replay_patch_gameobject(rp: ReplayPatch, path: list[str], self, other: "GameObject") -> ReplayPatch | None:
+def make_replay_patch_gameobject(rp: ReplayPatch, path: list[str], self, other: "GameObject"):
     if not isinstance(other, GameObject):
         raise ValueError(f"Can't record {type(self)} with {type(other)} not a game object")
+
+
     for key in self.get_mapping().keys():
         if getattr(other, key) is None:
             continue
+        if len(path) >= 1 and path[len(path) - 1] == 52:
+            print(path + [key], getattr(self, key), getattr(other, key))
         make_replay_patch_any(rp, path + [key], getattr(self, key), getattr(other, key))
 
-def make_replay_patch_list(rp: ReplayPatch, path: list[str], self: list[Any], other: list[Any]) -> ReplayPatch:
+def make_replay_patch_list(rp: ReplayPatch, path: list[str], self: list[Any], other: list[Any]):
     # Special cases where either list of GameObject and they dont have an id. Or ProductionList
     if len(other) != 0:
         if isinstance(other[0], GameObject) and not hasattr(other[0], "id"):
             if self != other:
                 rp.replace_op(ReplaceOperation(path, dump_any(other)))
-                return rp
+                return
         elif isinstance(other, ProductionList):
             if self != other:
                 rp.replace_op(ReplaceOperation(path, dump_any(other)))
-                return rp
+                return
 
     for index in range(max(len(self), len(other))):
         if index >= len(self):
@@ -160,9 +164,8 @@ def make_replay_patch_list(rp: ReplayPatch, path: list[str], self: list[Any], ot
             rp.remove_op(RemoveOperation(path + [index]))
         elif self[index] != other[index]:
             make_replay_patch_any(rp, path + [index], self[index], other[index])
-    return rp
 
-def make_replay_patch_dict(rp: ReplayPatch, path: list[str], self: dict[Any, Any], other: dict[Any, Any]) -> ReplayPatch:
+def make_replay_patch_dict(rp: ReplayPatch, path: list[str], self: dict[Any, Any], other: dict[Any, Any]):
     removed_keys = set(self.keys())
     for item_key, item_value in other.items():
         if item_key in removed_keys:
@@ -170,12 +173,13 @@ def make_replay_patch_dict(rp: ReplayPatch, path: list[str], self: dict[Any, Any
 
         if item_key not in self:
             rp.add_op(AddOperation(path + [dump_any(item_key)], dump_any(item_value)))
+            print(rp.operations)
         elif self.get(item_key) != item_value:
             make_replay_patch_any(rp, path + [dump_any(item_key)], self[item_key], item_value)
 
     for removed_key in removed_keys:
         rp.remove_op(RemoveOperation(path + [removed_key]))
-def make_replay_patch_simple(rp: ReplayPatch, path: list[str], self: Any, other: Any) -> ReplayPatch:
+
+def make_replay_patch_simple(rp: ReplayPatch, path: list[str], self: Any, other: Any):
     if self != other:
         rp.replace_op(ReplaceOperation(path, dump_any(other)))
-    return rp
