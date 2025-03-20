@@ -18,6 +18,7 @@ from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.game_api import GameApi
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.apply_replay import make_replay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
@@ -54,6 +55,15 @@ class OnlineInterface(GameInterface):
                                     game_id = self.game_id,
                                     player_id = self.player_id,
                                     static_map_data = static_map_data)
+        else:
+            with Replay(filename=self.replay_filename, mode="a", game_id=self.game_id, player_id=self.player_id) as r:
+                old_game_state = parse_game_object(GameState, r.get_initial_game_state(), self)
+                rp = make_replay_patch(old_game_state, self.game_state)
+                rp.debug_str()
+                print(f"Made ReplayPatch {rp}")
+                r.record_patch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp)
+                current_time = int(self.client_time().timestamp() * 1000)
+                r._write_game_state(current_time, dump_any(self.game_state))
 
         self.replay = Replay(self.replay_filename, mode="a")
 
@@ -99,7 +109,7 @@ class OnlineInterface(GameInterface):
                 login_action: LoginAction = DEFAULT_LOGIN_ACTION
                 login_action.system_information.client_version = self.game_api.client_version
                 login_action.system_information.os_name = self.game_api.device_details.os
-                self.online.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+                self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
@@ -171,15 +181,8 @@ class OnlineInterface(GameInterface):
                                      game_id=self.game_id,
                                      player_id=self.player_id,
                                      replay_patch=rp)
-
-
-    def record_game_state(self, gs: GameState):
-        if self.is_recording():
-            with self.replay as r:
-                r.record_game_state(time_stamp=self.client_time(),
-                                          game_id=self.game_id,
-                                          player_id=self.player_id,
-                                          game_state=dump_any(gs))
+                current_time = int(self.client_time().timestamp() * 1000)
+                r._write_game_state(current_time, dump_any(self.game_state))
 
     """
     Utility functions

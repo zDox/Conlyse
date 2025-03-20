@@ -68,9 +68,9 @@ class Map(GameObject):
     population_factor: int
     locations: HashSet[ProvinceType]
 
+    _province_id_to_index: dict[int, int] = None
     _provinces: dict[int, ProvinceType] = None
     static_map_data: StaticMapData = None
-
 
     MAPPING = {
         "is_reduced": "isReduced",
@@ -96,6 +96,17 @@ class Map(GameObject):
                 for province in self.locations
             }
         return self._provinces
+
+    def province_id_to_index(self, province_id: int) -> int | None:
+        if not self._province_id_to_index:
+            self._province_id_to_index = {}
+            for i, province in enumerate(self.locations):
+                self._province_id_to_index[province.id] = i
+        return self._province_id_to_index.get(province_id)
+
+    def clear_cache(self):
+        self._province_id_to_index = None
+        self._provinces = None
 
     def set_static_map_data(self, static_map_data: StaticMapData):
         self.static_map_data = static_map_data

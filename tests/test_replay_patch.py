@@ -2,6 +2,9 @@ import json
 import unittest
 from datetime import UTC
 
+from deepdiff import DeepDiff
+from jsonpatch import JsonPatch
+
 from conflict_interface.data_types.army_state.army_state import ArmyState
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
@@ -24,6 +27,7 @@ from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.replay.apply_replay import apply_patch_any
 from conflict_interface.replay.apply_replay import make_replay_patch
+from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
@@ -74,13 +78,22 @@ class ReplayPatchTest(unittest.TestCase):
         rp.remove_op(["test"])
         self.assertEqual(rp.operations, ReplayPatch.from_string('[["r", ["test"], null]]').operations)
 
+    def
 
     def test_load_json(self):
-
-        for file in self.test_files:
-            with self.subTest(file=file):
-                # Read in the json file
-                with open(file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                self.assertLess(2, len(data["result"]["states"])) # just tests if loading the file throws an error
+        gitf = GameInterface()
+        r = Replay("replay.db", 'r')
+        r.open()
+        start = r._start_time
+        patch_timestamps = r.get_timestamps()
+        for i, game_state_timestamp in enumerate(r.get_game_state_timestamps()):
+            if i == 0:
+                continue
+            with self.subTest(from_timestamp=r.get_game_state_timestamps()[i-1], to_timestamp=game_state_timestamp):
+                g1 = parse_game_object(GameState, r._get_game_state(r.get_game_state_timestamps()[i-1]), GameInterface())
+                g2 = parse_game_object(GameState, r._get_game_state(game_state_timestamp), GameInterface())
+                replay_patches = r._jump_from_to(patch_timestamps[i-1], game_state_timestamp)
+                for rp in replay_patches:
+                    apply_patch_any(rp, GameState, g1, GameInterface())
+                json_patch = JsonPatch.from_diff(dump_any(g2), dump_any(g1))
+                self.assertEqual(len(json_patch.to_string()), 2, msg=f"Failed at jump from {patch_timestamps[i-1]} to {game_state_timestamp} with {json_patch.to_string()}")

@@ -53,7 +53,7 @@ class ArmyState(State):
         for new_army in other.armies.values():
             if new_army.removed and new_army.id in self.armies:
                 if rp:
-                    rp.remove_op(path + [new_army.id])
+                    rp.remove_op(path + ["armies", new_army.id])
                 self.armies.pop(new_army.id)
                 continue
             else:
@@ -61,5 +61,5 @@ class ArmyState(State):
                     old_army = self.armies[new_army.id]
                     for attr in new_army.get_mapping():
                         if getattr(old_army, attr) != getattr(new_army, attr):
-                             rp.replace_op(path + [new_army.id, attr], getattr(new_army, attr))
+                             rp.replace_op(path + ["armies", new_army.id, attr], getattr(new_army, attr))
                 self.armies[new_army.id] = new_army

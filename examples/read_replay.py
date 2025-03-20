@@ -2,6 +2,7 @@ import json
 import logging
 from copy import deepcopy
 from dataclasses import dataclass
+from time import time
 
 from deepdiff import DeepDiff
 
@@ -24,10 +25,14 @@ if __name__ == "__main__":
     gitf = GameInterface()
     r = Replay("replay.db", 'r')
     r.open()
-    g1 = parse_game_object(GameState, r._get_game_state(1742422847653), GameInterface())
-    g2 = parse_game_object(GameState, r._get_game_state(1742422850371), GameInterface())
-    rp = r._get_patch(1742422850371, 1742422851238)
-    apply_patch_any(rp, GameState, g1, GameInterface())
-    print(dump_any(g1))
-    diff = DeepDiff(dump_any(g1), dump_any(g2))
-    # print(diff)
+    start = r._start_time
+    for game_state_timestamp in r.get_game_state_timestamps()[1:]:
+        g1 = parse_game_object(GameState, r.get_initial_game_state(), GameInterface())
+        g2 = parse_game_object(GameState, r._get_game_state(game_state_timestamp), GameInterface())
+        replay_patches = r._jump_from_to(start, game_state_timestamp)
+
+        for i, rp in enumerate(replay_patches):
+            apply_patch_any(rp, GameState, g1, GameInterface())
+        diff = DeepDiff(dump_any(g1), dump_any(g2))
+        print(game_state_timestamp)
+        print(diff)

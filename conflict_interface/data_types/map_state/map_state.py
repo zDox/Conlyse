@@ -26,7 +26,6 @@ class MapState(State):
     properties: Optional[HashMap[int, ProvinceProperty]]
 
     change_set: bool
-
     MAPPING = {
         "map": "map",
         "properties": "properties",
@@ -44,7 +43,12 @@ class MapState(State):
                     self.map.locations.append(province)
                     rp.add_op(path + ["map", "locations", -1], province)
                 else:
-                    self.map.provinces[province.id].update(province, path + ["map", "locations", province.id], rp)
+                    self.map.provinces[province.id].update(
+                        province,
+                        path + ["map", "locations", self.map.province_id_to_index(province.id)],
+                        rp
+                    )
+            self.map.clear_cache()
 
         if other.properties is not None:
             if any(province_id not in self.properties for province_id  in other.properties.keys()):
