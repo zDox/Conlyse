@@ -65,11 +65,12 @@ class Map(GameObject):
     localized_player_profiles: bool
     regions: Optional[HashMap[RegionType, Region]]
     overlap_x: int
-    provinces: HashSetMap[int, ProvinceType]
     population_factor: int
+    locations: HashSet[ProvinceType]
 
+    _province_id_to_index: dict[int, int] = None
+    _provinces: dict[int, ProvinceType] = None
     static_map_data: StaticMapData = None
-
 
     MAPPING = {
         "is_reduced": "isReduced",
@@ -83,9 +84,29 @@ class Map(GameObject):
         "localized_player_profiles": "localizedPlayerProfiles",
         "regions": "regions",
         "overlap_x": "overlapX",
-        "provinces": "locations",
+        "locations": "locations",
         "population_factor": "populationFactor"
     }
+
+    @property
+    def provinces(self) -> dict[int, ProvinceType]:
+        if not self._provinces:
+            self._provinces = {
+                province.id: province
+                for province in self.locations
+            }
+        return self._provinces
+
+    def province_id_to_index(self, province_id: int) -> int | None:
+        if not self._province_id_to_index:
+            self._province_id_to_index = {}
+            for i, province in enumerate(self.locations):
+                self._province_id_to_index[province.id] = i
+        return self._province_id_to_index.get(province_id)
+
+    def clear_cache(self):
+        self._province_id_to_index = None
+        self._provinces = None
 
     def set_static_map_data(self, static_map_data: StaticMapData):
         self.static_map_data = static_map_data
@@ -146,29 +167,3 @@ class Map(GameObject):
                     closest = Point(float(c_x), float(c_y))
 
         return closest
-
-    @override
-    def update(self, other: GameObject):
-        if self.provinces is None:
-            self.provinces = {}
-
-        if not isinstance(other, Map):
-            raise ValueError("UPDATE ERROR: Cannot update Map with object of type: " + str(type(other)))
-
-        for key in self.get_mapping().keys():
-            if getattr(other, key) is None:
-                continue
-            elif safe_issubclass(get_type_hints(type(self))[key], GameObject):
-                if getattr(self, key) is None:
-                    setattr(self, key, getattr(other, key))
-                getattr(self, key).update(getattr(other, key))
-            elif key not in ("provinces", ):
-                setattr(self, key, getattr(other, key))
-
-        if other.provinces is not None:
-            for location in other.provinces:
-                if location in self.provinces.keys():
-                    self.provinces[location].update(other.provinces[location])
-                else:
-                    logger.warning(f"New province found: {location}")
-                    self.provinces[location] = other.provinces[location]

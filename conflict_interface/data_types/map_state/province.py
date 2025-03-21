@@ -19,6 +19,8 @@ from conflict_interface.data_types.map_state.update_province_action import Updat
 from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.exceptions import ActionException
 
 logger = get_logger()
@@ -142,10 +144,24 @@ class Province(GameObject):
 
     }
 
-    updateable_keys = ["province_state_id", "adjacent_to_water",
-                       "resource_production", "money_production",
-                       "victory_points", "owner_id", "legal_owner",
-                       "morale", "upgrades_set"]
+    updateable_keys = ["province_state_id",
+                       "adjacent_to_water",
+                       "resource_production",
+                       "resource_production_type",
+                       "base_production",
+                       "money_production",
+                       "victory_points",
+                       "last_battle",
+                       "production",
+                       "production_slots",
+                       "construction_slots",
+                       "productions",
+                       "constructions",
+                       "core_ids",
+                       "owner_id",
+                       "legal_owner",
+                       "morale",
+                       "upgrades_set"]
 
     def is_owner(self):
         return self.owner_id == self.game.player_id
@@ -447,10 +463,14 @@ class Province(GameObject):
     def set_static_province(self, obj):
         self.static_data = obj
 
-    def update(self, new_province):
+    def update(self, other: "Province", path: list[PathNode] = None, rp: ReplayPatch = None):
+        print(f"Update in {self.name}")
+        print(self)
+        print(other)
         for updateable_key in Province.updateable_keys:
-            setattr(self, updateable_key,
-                    getattr(new_province, updateable_key))
+            if rp and getattr(self, updateable_key) != getattr(other, updateable_key):
+                rp.replace_op(path + [updateable_key], getattr(other, updateable_key))
+            setattr(self, updateable_key, getattr(other, updateable_key))
 
     def __hash__(self):
         return hash(self.id)

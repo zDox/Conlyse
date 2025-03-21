@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Optional
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
@@ -8,6 +9,8 @@ from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state_e
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.newspaper_state.article import Article
 from conflict_interface.data_types.state import State
+from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 @dataclass
@@ -39,15 +42,15 @@ class ForeignAffairRelations(GameObject):
     """
     C = "ultshared.UltForeignAffairRelations"
 
-    state_id: int # TODO why is here a state_id?
-    players: int
-    end_of_honor_period: HashMap[int, DateTimeMillisecondsInt] # TODO no idea if this is correct (no examples in data1)
+    state_id: int
+    players: int = None
+    end_of_honor_period: HashMap[int, DateTimeMillisecondsInt] = field(default_factory=dict)# TODO no idea if this is correct (no examples in data1)
 
 
-    neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]]
+    neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]] = field(default_factory=dict)
     MAPPING = {
-        "neighbor_relations": "neighborRelations",
         "state_id": "stateID",
+        "neighbor_relations": "neighborRelations",
         "players": "players",
         "end_of_honor_period": "endOfHonorPeriod",
     }
@@ -75,8 +78,17 @@ class ForeignAffairsState(State):
     C = "ultshared.UltForeignAffairsState"
     STATE_TYPE = 5
     relations: ForeignAffairRelations
-    messages: Vector[Article]
+    messages: Vector[Article] = field(default_factory=list)
     MAPPING = {
         "relations": "relations",
         "messages": "messages",
     }
+
+    def update(self, other: "ForeignAffairsState", path: list[PathNode] = None, rp: ReplayPatch = None):
+        if not isinstance(other, self.__class__):
+            raise ValueError("UPDATE ERROR: Cannot update ForeignAffairsState with object of type: " + str(type(other)))
+        super().update(other, path=path, rp=rp)
+        if rp:
+            for attr in self.get_mapping().keys():
+                if getattr(self, attr) != getattr(other, attr):
+                    rp.replace_op(path + [attr], getattr(other, attr))

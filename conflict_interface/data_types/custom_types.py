@@ -55,7 +55,7 @@ class HashSetMap(dict):
     """
     C = "java.util.HashSet"
 
-class UnmodifiableSet(set):
+class UnmodifiableSet(list):
     C = "java.util.Collections$UnmodifiableSet"
 
 class HashMap(dict[K, V]):
