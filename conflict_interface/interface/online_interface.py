@@ -18,6 +18,7 @@ from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.game_api import GameApi
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.apply_replay import apply_patch_any
 from conflict_interface.replay.apply_replay import make_replay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import ReplayPatch
@@ -58,9 +59,11 @@ class OnlineInterface(GameInterface):
         else:
             with Replay(filename=self.replay_filename, mode="a", game_id=self.game_id, player_id=self.player_id) as r:
                 old_game_state = parse_game_object(GameState, r.get_initial_game_state(), self)
+                uptodate_patches = r.jump_from_to(r.start_time, self.client_time())
+                for uptodate_patch in uptodate_patches:
+                    apply_patch_any(uptodate_patch, GameState, old_game_state, self)
+
                 rp = make_replay_patch(old_game_state, self.game_state)
-                rp.debug_str()
-                print(f"Made ReplayPatch {rp}")
                 r.record_patch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp)
                 current_time = int(self.client_time().timestamp() * 1000)
                 r._write_game_state(current_time, dump_any(self.game_state))
@@ -175,7 +178,6 @@ class OnlineInterface(GameInterface):
 
     def record_patch(self, rp: ReplayPatch):
         if self.is_recording():
-            rp.debug_str()
             with self.replay as r:
                 r.record_patch(time_stamp=self.client_time(),
                                      game_id=self.game_id,

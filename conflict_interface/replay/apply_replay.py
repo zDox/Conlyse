@@ -61,7 +61,6 @@ def apply_operation_gameobject(op: Operation, obj_type: type, obj: GameObject, g
     return obj
 
 def apply_operation_list(op: Operation, obj_type: type, obj: list, game: GameInterface):
-    print(op, obj_type)
     if len(op.path) == 0:
         if isinstance(op, ReplaceOperation):
             return parse_any(obj_type, op.new_value, game)
@@ -87,7 +86,6 @@ def apply_operation_dict(op: Operation, obj_type: type, obj: dict, game: GameInt
 
     if len(op.path) == 1:
         python_type = get_inner_type(obj_type, obj)
-        print(python_type.__args__[0], op.path[0])
         key = parse_any(python_type.__args__[0], op.path[0], game)
 
         if isinstance(op, AddOperation):
@@ -100,7 +98,6 @@ def apply_operation_dict(op: Operation, obj_type: type, obj: dict, game: GameInt
             obj.pop(key)
     else:
         python_type = get_inner_type(obj_type, obj)
-        print(f"Dict: Passing operation with key {python_type}")
         key = parse_any(python_type.__args__[0], op.path[0], game)
         op.path.pop(0)
         apply_operation_any(op, python_type.__args__[1], obj[key], game)
@@ -124,7 +121,6 @@ def make_replay_patch(self: Any, other: Any) -> ReplayPatch:
     return rp
 
 def make_replay_patch_any(rp: ReplayPatch, path: list[str], self: Any, other: Any):
-    print(self, other)
     if type(self) != type(other):
         rp.replace_op(path, dump_any(other))
     elif isinstance(other, GameObject):
@@ -176,7 +172,6 @@ def make_replay_patch_dict(rp: ReplayPatch, path: list[str], self: dict[Any, Any
 
         if item_key not in self:
             rp.add_op(path + [dump_any(item_key)], dump_any(item_value))
-            print(rp.operations)
         elif self.get(item_key) != item_value:
             make_replay_patch_any(rp, path + [dump_any(item_key)], self[item_key], item_value)
 

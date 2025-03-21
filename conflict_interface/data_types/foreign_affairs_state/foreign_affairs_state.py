@@ -42,12 +42,14 @@ class ForeignAffairRelations(GameObject):
     """
     C = "ultshared.UltForeignAffairRelations"
 
+    state_id: int
     players: int = None
     end_of_honor_period: HashMap[int, DateTimeMillisecondsInt] = field(default_factory=dict)# TODO no idea if this is correct (no examples in data1)
 
 
     neighbor_relations: dict[int, dict[int, ForeignAffairRelationTypes]] = field(default_factory=dict)
     MAPPING = {
+        "state_id": "stateID",
         "neighbor_relations": "neighborRelations",
         "players": "players",
         "end_of_honor_period": "endOfHonorPeriod",

@@ -21,7 +21,7 @@ def run_tests():
     # Discover tests in current directory and subdirectories
     test_suite = test_loader.discover(
         start_dir='.',  # Start searching from current directory
-        pattern='test_replay_*'  # Find files starting with 'test_'
+        pattern='test_*'  # Find files starting with 'test_'
     )
 
     # Create test runner with verbosity
