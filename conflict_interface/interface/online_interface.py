@@ -21,6 +21,7 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.apply_replay import apply_patch_any
 from conflict_interface.replay.apply_replay import make_replay_patch
 from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
 from conflict_interface.utils.exceptions import GameActivationException
@@ -176,10 +177,10 @@ class OnlineInterface(GameInterface):
     def is_recording(self) -> bool:
         return self.replay is not None
 
-    def record_patch(self, rp: ReplayPatch):
+    def record_patch(self, rp: BidirectionalReplayPatch):
         if self.is_recording():
             with self.replay as r:
-                r.record_patch(time_stamp=self.client_time(),
+                r.record_bipatch(time_stamp=self.client_time(),
                                      game_id=self.game_id,
                                      player_id=self.player_id,
                                      replay_patch=rp)

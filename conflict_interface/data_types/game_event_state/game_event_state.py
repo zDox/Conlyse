@@ -6,6 +6,7 @@ from typing import override
 from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.game_event_state.game_event import *
 from conflict_interface.data_types.state import State
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.helper import safe_issubclass
@@ -37,7 +38,7 @@ class GameEventState(State):
         "game_events": "gameEvents",
     }
 
-    def update(self, other: "GameEventState", path: list[PathNode] = None, rp: ReplayPatch = None):
+    def update(self, other: "GameEventState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         if other is None:
             return
         if not issubclass(type(other), GameEventState):
@@ -50,11 +51,12 @@ class GameEventState(State):
                 if other_game_event.new:
                     new_game_events.append(other_game_event)
 
-        self.game_events = other.game_events
-        self._new_game_events = new_game_events
 
         if rp:
-            rp.replace_op(path + ["game_events"], other.game_events)
+            rp.replace(path + ["game_events"], self.game_events, other.game_events)
+
+        self.game_events = other.game_events
+        self._new_game_events = new_game_events
 
         self.game.game_event_handler(self.game)
 

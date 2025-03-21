@@ -19,6 +19,7 @@ from conflict_interface.data_types.map_state.update_province_action import Updat
 from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.exceptions import ActionException
@@ -463,13 +464,10 @@ class Province(GameObject):
     def set_static_province(self, obj):
         self.static_data = obj
 
-    def update(self, other: "Province", path: list[PathNode] = None, rp: ReplayPatch = None):
-        print(f"Update in {self.name}")
-        print(self)
-        print(other)
+    def update(self, other: "Province", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         for updateable_key in Province.updateable_keys:
             if rp and getattr(self, updateable_key) != getattr(other, updateable_key):
-                rp.replace_op(path + [updateable_key], getattr(other, updateable_key))
+                rp.replace(path + [updateable_key], getattr(self, updateable_key), getattr(other, updateable_key))
             setattr(self, updateable_key, getattr(other, updateable_key))
 
     def __hash__(self):

@@ -21,7 +21,6 @@ class ReplayInterface(GameInterface):
         self.player_id: int | None = None
         self.current_time: datetime | None = None
 
-
     def open(self):
         t1 = time()
         self.replay.open()
@@ -42,10 +41,18 @@ class ReplayInterface(GameInterface):
     def client_time(self) -> datetime:
         return self.current_time
 
+    @property
+    def start_time(self) -> datetime:
+        return self.replay.start_time
+
+    @property
+    def end_time(self) -> datetime:
+        return self.replay.last_time
+
     def set_client_time(self, time_stamp: datetime) -> None:
         if self.current_time == time_stamp:
             return
-        if time_stamp < self.replay.start_time and self.replay.start_time == self.current_time:
+        if time_stamp < self.replay.start_time == self.current_time:
             return
 
         if time_stamp < self.replay.start_time:
