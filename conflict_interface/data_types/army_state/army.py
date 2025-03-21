@@ -7,6 +7,7 @@ from conflict_interface.data_types.army_state.army_action_result import ArmyActi
 from conflict_interface.data_types.army_state.army_enums import Aggressiveness
 from conflict_interface.data_types.army_state.army_enums import FightStatus
 from conflict_interface.data_types.army_state.army_enums import ForcedMarch
+from conflict_interface.data_types.army_state.commands import WaitCommand
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import LinkedList, UnitList
 from conflict_interface.data_types.game_object import GameObject
@@ -513,9 +514,53 @@ class Army(GameObject):
                     if 0 < vector_pos_to_point.dot(vector_a_to_b) < vector_a_to_b.dot(vector_a_to_b):
                         return [adj_point, point]
 
+    @staticmethod
+    def linear_interpolate(start: datetime, end: datetime, current: datetime, start_pos: Point, end_pos: Point):
+        if start == end:
+            return start_pos
+        delta = (end - start).total_seconds()
+        elapsed_time = (current - start).total_seconds()
+        fraction = elapsed_time / delta
+        interpolated_x = start_pos.x + fraction * (end_pos.x - start_pos.x)
+        interpolated_y = start_pos.y + fraction * (end_pos.y - start_pos.y)
+        return Point(interpolated_x, interpolated_y)
+
     def get_position(self, timestamp: datetime) -> Point:
         if not self.commands:
             return self.position
-        current = Point(0, 0)
+        current = self.position
+
+        if len(self.commands) == 1:
+            command = self.commands[0]
+            if isinstance(command, AttackCommand):
+                return Army.linear_interpolate(
+                    start = self.game.game_state.states.army_state.time_stamp,
+                    end = self.next_attack_time,
+                    current = timestamp,
+                    start_pos = self.position,
+                    end_pos = self.attack_position,
+                )
+
         for command in self.commands:
             if isinstance(command, GotoCommand):
+                if command.start_time <= timestamp <= command.arrival_time:
+                    return Army.linear_interpolate(start = command.start_time,
+                                                   end = command.arrival_time,
+                                                   current = timestamp,
+                                                   start_pos = command.start_position,
+                                                   end_pos = command.target_position)
+            elif isinstance(command, PatrolCommand):
+                if command.approaching:
+                    return Army.linear_interpolate(
+                        start = self.game.game_state.states.army_state.time_stamp,
+                        end = self.estimated_arrival_time,
+                        current = timestamp,
+                        start_pos = self.position,
+                        end_pos = self.attack_position,
+                    )
+                else:
+                    return self.position
+            elif isinstance(command, WaitCommand):
+                if command.execute_time <= timestamp <= command.execute_time + command.wait_time:
+                    return self.position
+        return current

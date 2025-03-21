@@ -130,7 +130,7 @@ class WaitCommand(GameObject):
     cancelable: bool
     direction: int
     location_id: int
-    execute_time: int
+    execute_time: DateTimeMillisecondsInt
 
     MAPPING = {
         "wait_time": "waitSeconds",
