@@ -35,7 +35,7 @@ class ReplayPatch:
     def __init__(self):
         self.operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]] = []
 
-    def add_op(self, path: list[str], new_value: Any ):
+    def add_op(self, path: list[str], new_value: Any):
         self.operations.append(AddOperation(path, new_value))
 
     def replace_op(self, path: list[str], new_value: Any):
@@ -81,3 +81,40 @@ class ReplayPatch:
             elif key == "r":
                 instance.remove_op(path)
         return instance
+
+
+class BidirectionalReplayPatch:
+    def __init__(self):
+        self.forward_patch = ReplayPatch()
+        self.backward_patch = ReplayPatch()
+
+    @classmethod
+    def from_existing_patches(cls, forward: ReplayPatch, backward: ReplayPatch):
+        instance = cls()
+        instance.forward_patch = forward
+        instance.backward_patch = backward
+        return instance
+
+    def forward_from_string(self, string: str):
+        self.forward_patch = ReplayPatch.from_string(string)
+
+    def backward_from_string(self, string: str):
+        self.backward_patch = ReplayPatch.from_string(string)
+
+    def forward_to_string(self):
+        return self.forward_patch.to_string()
+
+    def backward_to_string(self):
+        return self.backward_patch.to_string()
+
+    def add(self, path: list[str], old_value: Any, new_value: Any):
+        self.forward_patch.add_op(path, new_value)
+        self.backward_patch.remove_op(path)
+
+    def replace(self, path: list[str], old_value: Any, new_value: Any):
+        self.forward_patch.replace_op(path, new_value)
+        self.backward_patch.replace_op(path, old_value)
+
+    def remove(self, path: list[str], old_value: Any):
+        self.forward_patch.remove_op(path)
+        self.backward_patch.add_op(path, old_value)

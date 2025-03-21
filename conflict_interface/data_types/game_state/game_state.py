@@ -34,6 +34,7 @@ from conflict_interface.data_types.user_inventory_state.user_inventory_state imp
 from conflict_interface.data_types.user_options_state.user_options_state import UserOptionsState
 from conflict_interface.data_types.user_sms_state.user_sms_state import UserSMSState
 from conflict_interface.data_types.wheel_of_fortune_state.wheel_of_fortune_state import WheelOfFortuneState
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
 
@@ -178,11 +179,11 @@ class GameState(State):
         return state_ids, time_stamps
 
     @override
-    def update(self, other: "GameState", path: list[PathNode] = None, rp: ReplayPatch = None) -> None:
+    def update(self, other: "GameState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None) -> None:
         super().update(other, path=path, rp=rp)
 
         if rp and self.action_results != other.action_results:
-            rp.replace_op(path + ["action_results"], other.action_results)
+            rp.replace(path + ["action_results"], self.action_results, other.action_results)
 
         self.action_results = other.action_results
         for state in self.states.get_mapping().keys():

@@ -7,6 +7,7 @@ from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.army_state.army import Army
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.state import State
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
 
@@ -34,7 +35,7 @@ class ArmyState(State):
         "change_set": "changeSet"
     }
 
-    def update(self, other: GameObject, path: list[PathNode] = None, rp: ReplayPatch = None):
+    def update(self, other: GameObject, path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         """
         Update the current state with the new state
 
@@ -53,7 +54,7 @@ class ArmyState(State):
         for new_army in other.armies.values():
             if new_army.removed and new_army.id in self.armies:
                 if rp:
-                    rp.remove_op(path + ["armies", new_army.id])
+                    rp.remove(path + ["armies", new_army.id], self.armies.get(new_army.id))
                 self.armies.pop(new_army.id)
                 continue
             else:
@@ -61,5 +62,7 @@ class ArmyState(State):
                     old_army = self.armies[new_army.id]
                     for attr in new_army.get_mapping():
                         if getattr(old_army, attr) != getattr(new_army, attr):
-                             rp.replace_op(path + ["armies", new_army.id, attr], getattr(new_army, attr))
+                             rp.replace(path + ["armies", new_army.id, attr],
+                                        getattr(old_army, attr),
+                                        getattr(new_army, attr))
                 self.armies[new_army.id] = new_army
