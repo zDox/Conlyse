@@ -7,6 +7,8 @@ from typing import Optional
 from typing import Union
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
+from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
+from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.point import Point
 
@@ -115,12 +117,20 @@ class PatrolCommand(GameObject):
 
 @dataclass
 class WaitCommand(GameObject):
+    """
+    Attributes:
+        wait_time (TimeDela): The amount of time the unit will wait before executing the next command.
+        cancelable (bool): Boolean flag indicating if the command can be canceled.
+        direction (int): Unknown
+        location_id (int): Identifier for the province the unit is waiting in. Most of the time its just 0.
+        execute_time (DateTimeMillisecondsInt): Timestamp for when wait command starts.
+    """
     C = "wc"
-    wait_time: int # timedelta seconds
+    wait_time: TimeDeltaMillisecondsInt # timedelta seconds
     cancelable: bool
     direction: int
     location_id: int
-    execute_time: int
+    execute_time: DateTimeMillisecondsInt
 
     MAPPING = {
         "wait_time": "waitSeconds",
