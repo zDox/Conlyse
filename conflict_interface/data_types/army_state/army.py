@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 
 from conflict_interface.data_types.army_state.army_action import ArmyAction
@@ -9,15 +10,15 @@ from conflict_interface.data_types.army_state.army_enums import ForcedMarch
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import LinkedList, UnitList
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.mod_state.commands import AttackCommand
-from conflict_interface.data_types.mod_state.commands import GotoCommand
-from conflict_interface.data_types.mod_state.commands import PatrolCommand
-from conflict_interface.data_types.mod_state.commands import PatrolType
-from conflict_interface.data_types.mod_state.commands import SplitArmyCommand
+from conflict_interface.data_types.army_state.commands import AttackCommand
+from conflict_interface.data_types.army_state.commands import GotoCommand
+from conflict_interface.data_types.army_state.commands import PatrolCommand
+from conflict_interface.data_types.army_state.commands import PatrolType
+from conflict_interface.data_types.army_state.commands import SplitArmyCommand
 from conflict_interface.data_types.mod_state.configuration import \
         CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
         TokenFeature
-from conflict_interface.data_types.mod_state.commands import Command
+from conflict_interface.data_types.army_state.commands import Command
 from conflict_interface.data_types.mod_state.air_parameters import AirParameters
 from conflict_interface.data_types.mod_state.anti_air_parameters import AntiAirParameters
 
@@ -511,3 +512,10 @@ class Army(GameObject):
                 if vector_pos_to_point.cross(vector_a_to_b) <= 0.1:
                     if 0 < vector_pos_to_point.dot(vector_a_to_b) < vector_a_to_b.dot(vector_a_to_b):
                         return [adj_point, point]
+
+    def get_position(self, timestamp: datetime) -> Point:
+        if not self.commands:
+            return self.position
+        current = Point(0, 0)
+        for command in self.commands:
+            if isinstance(command, GotoCommand):

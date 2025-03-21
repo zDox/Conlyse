@@ -186,7 +186,6 @@ class ActionHandler:
 
         if self.game.is_recording():
             if self.game_state is not None:
-                print(f"Updating with patch")
                 rp = BidirectionalReplayPatch()
                 self.game_state.update(game_state, path=[], rp=rp)
                 self.game.record_patch(rp)
