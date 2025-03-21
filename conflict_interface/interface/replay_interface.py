@@ -58,10 +58,6 @@ class ReplayInterface(GameInterface):
         if time_stamp < self.replay.start_time:
             self.game_state = parse_any(GameState, self.replay.get_initial_game_state(), self)
             return
-        if time_stamp < self.current_time:
-            logger.debug("Jumping back in time. Loading initial game state")
-            self.game_state = parse_any(GameState, self.replay.get_initial_game_state(), self)
-            self.current_time = self.replay.start_time
 
         patches = self.replay.jump_from_to(self.current_time, time_stamp)
         for rp in patches:

@@ -19,10 +19,9 @@ from conflict_interface.game_api import GameApi
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.apply_replay import apply_patch_any
-from conflict_interface.replay.apply_replay import make_replay_patch
+from conflict_interface.replay.apply_replay import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
 from conflict_interface.utils.exceptions import GameActivationException
 
@@ -64,7 +63,7 @@ class OnlineInterface(GameInterface):
                 for uptodate_patch in uptodate_patches:
                     apply_patch_any(uptodate_patch, GameState, old_game_state, self)
 
-                rp = make_replay_patch(old_game_state, self.game_state)
+                rp = make_bireplay_patch(old_game_state, self.game_state)
                 r.record_patch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp)
                 current_time = int(self.client_time().timestamp() * 1000)
                 r._write_game_state(current_time, dump_any(self.game_state))

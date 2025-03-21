@@ -7,6 +7,7 @@ from sqlite3 import Connection
 from typing import Literal
 
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import ReplayPatch
 
 logger = get_logger()
@@ -276,16 +277,19 @@ class Replay:
             timestamps.append(int(row[0]))
         return timestamps
 
-    def record_patch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: ReplayPatch):
+    def record_bipatch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch):
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
         if game_id != self.game_id or player_id != self.player_id:
             raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
         if self._last_time and self.last_time >= time_stamp:
             raise CorruptReplay(f"Already recorded newer ReplayPatch at {self.last_time} then {time_stamp}.")
+        if not isinstance(replay_patch, BidirectionalReplayPatch):
+            raise Exception(f"Replay patch must be BidirectionalReplayPatch instance")
 
         time_stamp_ms = int(time_stamp.timestamp() * 1000)
-        self._write_patch(self._last_time, time_stamp_ms, replay_patch.to_string())
+        self._write_patch(self._last_time, time_stamp_ms, replay_patch.forward_to_string())
+        self._write_patch(time_stamp_ms, self._last_time, replay_patch.backward_to_string())
         self._last_time = time_stamp_ms
         self._write_information()
         logger.debug(f"Recorded patch at {self._start_time}")

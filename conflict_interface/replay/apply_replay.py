@@ -12,6 +12,7 @@ from conflict_interface.data_types.game_object import get_inner_type
 from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import Operation
 from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
@@ -113,6 +114,11 @@ def apply_operation_simple(op: Operation, obj_type: type, obj: Any) -> Any:
         raise Exception(f"Cannot apply {op} on {obj}")
 
     return parse_any(obj_type, op.new_value)
+
+def make_bireplay_patch(self: Any, other: Any) -> BidirectionalReplayPatch:
+    forward = make_replay_patch(self, other)
+    backward = make_replay_patch(other, self)
+    return BidirectionalReplayPatch.from_existing_patches(forward, backward)
 
 def make_replay_patch(self: Any, other: Any) -> ReplayPatch:
     rp = ReplayPatch()

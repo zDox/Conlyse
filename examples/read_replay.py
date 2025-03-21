@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
+from time import sleep
 from time import time
 
 from deepdiff import DeepDiff
@@ -31,16 +32,16 @@ if __name__ == "__main__":
     t1 = time()
     for time_stamp_int in ritf.replay.get_timestamps():
         time_stamp = datetime.fromtimestamp(time_stamp_int / 1000, tz=UTC)
-        print(ritf.get_provinces_by_name("Libreville"))
         ritf.set_client_time(time_stamp)
     print(f"Jumping forward took {(time() - t1):.6f} seconds")
-
+    sleep(1)
+    print("t")
+    sleep(1)
     timestamps = ritf.replay.get_timestamps()
     timestamps.reverse()
     t2 = time()
     for time_stamp_int in timestamps:
         time_stamp = datetime.fromtimestamp(time_stamp_int / 1000, tz=UTC)
-        print(ritf.get_provinces_by_name("Libreville"))
         ritf.set_client_time(time_stamp)
 
     print(f"Jumping backward took {(time() - t2):.6f} seconds")
