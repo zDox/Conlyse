@@ -7,9 +7,11 @@ from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.interface.game_interface import GameInterface
+from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.apply_replay import apply_patch_any
 from conflict_interface.replay.replay import Replay
 
+logger = get_logger()
 
 class ReplayInterface(GameInterface):
     def __init__(self, filename: str):
@@ -23,15 +25,15 @@ class ReplayInterface(GameInterface):
     def open(self):
         t1 = time()
         self.replay.open()
-        print(f"Loading Game State from disk took {time() - t1} seconds")
+        logger.debug(f"Loading Game State from disk took {time() - t1} seconds")
         t2 = time()
         self.game_state = parse_any(GameState, self.replay.get_initial_game_state(), self)
-        print(f"GameState parse took {time() - t2} seconds")
+        logger.debug(f"GameState parse took {time() - t2} seconds")
         t3 = time()
         self.game_state.states.map_state.map.set_static_map_data(parse_any(StaticMapData, self.replay.get_static_map_data(), self))
         self.player_id = self.replay.player_id
         self.current_time = self.replay.start_time
-        print(f"Static: {time() - t3} seconds")
+        logger.debug(f"Loading and setting static map data took {time() - t3} seconds")
 
     def close(self):
         self.replay.close()
@@ -47,11 +49,10 @@ class ReplayInterface(GameInterface):
             return
 
         if time_stamp < self.replay.start_time:
-            print("Loading entire gamestate")
             self.game_state = parse_any(GameState, self.replay.get_initial_game_state(), self)
             return
         if time_stamp < self.current_time:
-            print("Loading entire gamestate")
+            logger.debug("Jumping back in time. Loading initial game state")
             self.game_state = parse_any(GameState, self.replay.get_initial_game_state(), self)
             self.current_time = self.replay.start_time
 

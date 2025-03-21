@@ -4,15 +4,12 @@ import os
 import zlib
 from datetime import UTC, datetime
 from sqlite3 import Connection
-from time import time
 from typing import Literal
 
-
-from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.interface.game_interface import GameInterface
-from conflict_interface.replay.apply_replay import apply_patch_any
+from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import ReplayPatch
 
+logger = get_logger()
 
 class CorruptReplay(Exception):
     pass
@@ -122,7 +119,7 @@ class Replay:
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (1, VERSION, self.game_id, self.player_id, self._start_time, self._last_time))
         self.conn.commit()
-        print(f"Wrote information to {self._start_time}")
+        logger.debug(f"Wrote information {(1, VERSION, self.game_id, self.player_id, self._start_time, self._last_time)}")
 
     def _load_information(self):
         """Load metadata from the information table."""
@@ -133,7 +130,7 @@ class Replay:
             raise CorruptReplay("Information table is empty")
 
         version, self.game_id, self.player_id, self._start_time, self._last_time = row
-        print(row)
+        logger.debug(f"Loaded information {(1, VERSION, self.game_id, self.player_id, self._start_time, self._last_time)}")
         if version != VERSION:
             raise CorruptReplay(f"Unsupported version {version}")
 
@@ -163,7 +160,7 @@ class Replay:
             for from_ts, to_ts, patch_str in rows:
                 if from_ts != current:
                     continue
-                print(f"Jumping from {from_ts} to {to_ts}")
+                logger.debug(f"Jumping from {from_ts} to {to_ts}")
                 patch = ReplayPatch.from_string(patch_str)
                 patches.append(patch)
                 if to_ts == target:
@@ -183,7 +180,7 @@ class Replay:
             for from_ts, to_ts, patch_str in rows:
                 if from_ts != start:
                     continue
-                print(f"Jumping from {from_ts} to {to_ts}")
+                logger.debug(f"Jumping from {from_ts} to {to_ts}")
                 patch = ReplayPatch.from_string(patch_str)
                 patches.append(patch)
 
@@ -291,7 +288,7 @@ class Replay:
         self._write_patch(self._last_time, time_stamp_ms, replay_patch.to_string())
         self._last_time = time_stamp_ms
         self._write_information()
-        print(f"Recorded patch at {time_stamp}")
+        logger.debug(f"Recorded patch at {self._start_time}")
 
     def record_initial_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
         """Record a game state, either as initial state or a patch with from/to timestamps."""
@@ -307,7 +304,7 @@ class Replay:
         self._start_time = time_stamp_ms
         self._last_time = time_stamp_ms
         self._write_information()
-        print(f"Recording intial game state at {self._start_time}.")
+        logger.debug(f"Recorded initial game state at {self._start_time}.")
 
 
     def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int):
@@ -324,6 +321,7 @@ class Replay:
         compressed_data = zlib.compress(json.dumps(static_map_data).encode('utf-8'))
         self.conn.execute("INSERT INTO static_map_data (data) VALUES (?)", (compressed_data,))
         self.conn.commit()
+        logger.debug(f"Recorded static map data")
 
 
     def get_initial_game_state(self) -> dict:
