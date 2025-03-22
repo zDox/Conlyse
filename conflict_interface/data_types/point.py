@@ -185,7 +185,9 @@ class Point(GameObject):
     def clone(self):
         return deepcopy(self)
 
-    def __eq__(self, other):
+    def __eq__(self, other: "Point"):
+        if other is not self.__class__:
+            return False
         return self.x == other.x and self.y == other.y
 
     def __sub__(self, other):

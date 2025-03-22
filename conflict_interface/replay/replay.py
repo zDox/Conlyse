@@ -173,18 +173,21 @@ class Replay:
             cursor = self.conn.execute("""
                         SELECT from_timestamp, to_timestamp, patch 
                         FROM patches 
-                        WHERE to_timestamp <= ? AND from_timestamp >= ?
+                        WHERE to_timestamp >= ? AND from_timestamp <= ?
                         AND from_timestamp > to_timestamp 
                         ORDER BY from_timestamp DESC
                     """, (target, start))
             rows = cursor.fetchall()
+            current = start
             for from_ts, to_ts, patch_str in rows:
-                if from_ts != start:
+                if from_ts != current:
                     continue
                 logger.debug(f"Jumping from {from_ts} to {to_ts}")
                 patch = ReplayPatch.from_string(patch_str)
                 patches.append(patch)
-
+                if to_ts == target:
+                    continue
+                current = to_ts
         return patches
 
     def jump_from_to(self, start: datetime, target: datetime) -> list[ReplayPatch]:
@@ -230,7 +233,7 @@ class Replay:
         cursor = self.conn.execute("SELECT 1 FROM patches WHERE from_timestamp = ? and to_timestamp = ?",
                                    (from_timestamp, to_timestamp,))
         if cursor.fetchone():
-            print(f"Patch for to_timestamp {to_timestamp} already exists, skipping")
+            logger.info(f"Patch for to_timestamp {to_timestamp} already exists, skipping")
             return
         self.conn.execute(
             "INSERT INTO patches (from_timestamp, to_timestamp, patch) VALUES (?, ?, ?)",

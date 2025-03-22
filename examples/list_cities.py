@@ -15,5 +15,5 @@ if __name__ == "__main__":
     interface.login(username, password)
 
     game = interface.join_game(9758559)
-
+    pprint(game.get_player(33))
     pprint(game.get_provinces_by_name("Rome"))

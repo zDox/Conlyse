@@ -64,7 +64,7 @@ class OnlineInterface(GameInterface):
                     apply_patch_any(uptodate_patch, GameState, old_game_state, self)
 
                 rp = make_bireplay_patch(old_game_state, self.game_state)
-                r.record_patch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp)
+                r.record_bipatch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp)
                 current_time = int(self.client_time().timestamp() * 1000)
                 r._write_game_state(current_time, dump_any(self.game_state))
 

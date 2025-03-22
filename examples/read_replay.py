@@ -30,18 +30,9 @@ if __name__ == "__main__":
     ritf = ReplayInterface("replay.db")
     ritf.open()
     t1 = time()
-    for time_stamp_int in ritf.replay.get_timestamps():
-        time_stamp = datetime.fromtimestamp(time_stamp_int / 1000, tz=UTC)
-        ritf.set_client_time(time_stamp)
-    print(f"Jumping forward took {(time() - t1):.6f} seconds")
-    sleep(1)
-    print("t")
-    sleep(1)
-    timestamps = ritf.replay.get_timestamps()
-    timestamps.reverse()
-    t2 = time()
-    for time_stamp_int in timestamps:
-        time_stamp = datetime.fromtimestamp(time_stamp_int / 1000, tz=UTC)
-        ritf.set_client_time(time_stamp)
+    ritf.set_client_time(ritf.replay.last_time)
 
-    print(f"Jumping backward took {(time() - t2):.6f} seconds")
+    time_stamps = ritf.replay.get_timestamps()
+    time_stamps.reverse()
+
+    ritf.set_client_time(datetime.fromtimestamp(1742670897685 / 1000, tz=UTC))
