@@ -1,10 +1,6 @@
-import typing
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import Optional
 from typing import Union
-from typing import get_type_hints
-from typing import override
 
 import numpy as np
 from shapely import Point as ShapelyPoint
@@ -12,19 +8,12 @@ from shapely import Point as ShapelyPoint
 from conflict_interface.data_types.common.enums.region_type import RegionType
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import HashSet
-from conflict_interface.data_types.custom_types import HashSetMap
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.data_types.map_state.province import Province
-from conflict_interface.data_types.map_state.province import logger
 from conflict_interface.data_types.map_state.region import Region
 from conflict_interface.data_types.map_state.sea_province import SeaProvince
 from conflict_interface.data_types.point import Point
 from conflict_interface.data_types.static_map_data import StaticMapData
-from conflict_interface.replay.replay_patch import AddOperation
-from conflict_interface.replay.replay_patch import ReplaceOperation
-from conflict_interface.replay.replay_patch import ReplayPatch
-from conflict_interface.utils.helper import safe_issubclass
 
 ProvinceType = Union[Province, SeaProvince]
 
