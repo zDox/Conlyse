@@ -84,12 +84,3 @@ class ForeignAffairsState(State):
         "relations": "relations",
         "messages": "messages",
     }
-
-    def update(self, other: "ForeignAffairsState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
-        if not isinstance(other, self.__class__):
-            raise ValueError("UPDATE ERROR: Cannot update ForeignAffairsState with object of type: " + str(type(other)))
-        super().update(other, path=path, rp=rp)
-        if rp:
-            for attr in self.get_mapping().keys():
-                if getattr(self, attr) != getattr(other, attr):
-                    rp.replace(path + [attr], getattr(self, attr), getattr(other, attr))
