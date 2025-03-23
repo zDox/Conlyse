@@ -21,6 +21,7 @@ class ReplayInterface(GameInterface):
         self.static_map_data = None
         self.player_id: int | None = None
         self.current_time: datetime | None = None
+        self.game_id: int | None = None
 
     def open(self):
         t1 = time()
@@ -33,6 +34,7 @@ class ReplayInterface(GameInterface):
         self.static_map_data = parse_any(StaticMapData, self.replay.get_static_map_data(), self)
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
         self.player_id = self.replay.player_id
+        self.game_id = self.replay.game_id
         self.current_time = self.replay.start_time
         logger.debug(f"Loading and setting static map data took {time() - t3} seconds")
 

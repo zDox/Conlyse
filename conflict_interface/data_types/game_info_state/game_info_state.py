@@ -1,3 +1,4 @@
+from datetime import datetime
 from datetime import timedelta
 from typing import Optional
 from typing import Union
@@ -164,6 +165,11 @@ class GameInfoState(State):
         minutes = 59 - (remaining_timedelta.seconds % 3600) // 60
         seconds = 59 - remaining_timedelta.seconds % 60
         return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+
+    def get_real_time(self) -> datetime:
+        delta = (self.game.client_time() - self.start_of_game).total_seconds() * (1/self.time_scale)
+        return self.start_of_game + timedelta(seconds=delta)
+
 
     """
     # Mock methods for `format_timer` and `format_timer_tiny`
