@@ -555,7 +555,6 @@ class Army(GameObject):
 
         # Get current time in milliseconds if not provided
         current_time = timestamp if timestamp else self.game.client_time()
-        current_time_ms = int(current_time.timestamp() * 1000)
 
         # Use existing position or create new one based on force_update
         result_pos = Point(0, 0)
@@ -563,13 +562,13 @@ class Army(GameObject):
         # Get first command
         command = self.commands[0]
 
-        if current_time_ms >= command.arrival_time:
+        if current_time >= command.arrival_time:
             # If past arrival time, use target position
             result_pos.x = command.target_position.x
             result_pos.y = command.target_position.y
         else:
             # Calculate interpolated position between start and target
-            time_progress = (current_time_ms - command.start_time) / (command.arrival_time - command.start_time)
+            time_progress = ((current_time- command.start_time) / (command.arrival_time - command.start_time)).total_seconds()
             result_pos.x = command.start_position.x + (
                     command.target_position.x - command.start_position.x) * time_progress
             result_pos.y = command.start_position.y + (

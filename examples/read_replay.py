@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
+from pprint import pprint
 from time import sleep
 from time import time
 
@@ -27,10 +28,12 @@ class B:
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     gitf = GameInterface()
-    ritf = ReplayInterface("replay.db")
+    ritf = ReplayInterface("replay2.db")
     ritf.open()
     t1 = time()
+    print(ritf.game_state.states.army_state.armies.get(17000323))
     ritf.set_client_time(ritf.replay.last_time)
+    print(ritf.game_state.states.army_state.armies.get(17000323).get_land_position())
 
     time_stamps = ritf.replay.get_timestamps()
     time_stamps.reverse()

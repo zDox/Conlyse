@@ -1,6 +1,7 @@
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from pprint import pprint
 from time import time
 from typing import override
 
@@ -44,11 +45,13 @@ class ReplayInterface(GameInterface):
 
     def _find_current_player_id(self) -> int | None:
         for player in self.get_players().values():
-            if player.activity_state == "ACTIVE":
+            if player.activity_state == "ACTIVE" or player.activity_state == "UNKNOWN":
                 return player.player_id
 
     def _update_player_id(self):
-        if self.player_id is not None and self.get_player(self.player_id).activity_state == "ACTIVE":
+        pprint(self.get_players(player_id=0))
+        if self.player_id is not None and (self.get_player(self.player_id).activity_state == "ACTIVE"
+            or self.get_player(self.player_id).activity_state == "UNKNOWN"):
             return
 
         self.player_id = self._find_current_player_id()
@@ -81,6 +84,7 @@ class ReplayInterface(GameInterface):
 
         patches = self.replay.jump_from_to(self.current_time, time_stamp)
         for rp in patches:
+            rp.debug_str()
             apply_patch_any(rp, GameState, self.game_state, self)
 
         self.current_time = time_stamp

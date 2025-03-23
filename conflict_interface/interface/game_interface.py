@@ -64,7 +64,7 @@ class GameInterface:
             if self.is_country_selected():
                 return func(self, *args, **kwargs)
             else:
-                return None
+                raise CountryUnselectedException("Country is not selected. Function needs player id unequal to 0.")
 
         return wrap
     """
