@@ -1,5 +1,6 @@
 from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
 from time import time
 from typing import override
 
@@ -33,13 +34,28 @@ class ReplayInterface(GameInterface):
         t3 = time()
         self.static_map_data = parse_any(StaticMapData, self.replay.get_static_map_data(), self)
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
-        self.player_id = self.replay.player_id
+        self._update_player_id()
         self.game_id = self.replay.game_id
         self.current_time = self.replay.start_time
         logger.debug(f"Loading and setting static map data took {time() - t3} seconds")
 
     def close(self):
         self.replay.close()
+
+    def _find_current_player_id(self) -> int | None:
+        for player in self.get_players().values():
+            if player.activity_state == "ACTIVE":
+                return player.player_id
+
+    def _update_player_id(self):
+        if self.player_id == 0:
+            self.player_id = self._find_current_player_id()
+        elif self.get_player(self.player_id).activity_state != "ACTIVE":
+            self.player_id = self._find_current_player_id()
+
+        if self.player_id is None:
+            raise Exception("Could not determine player ID")
+
 
     @override
     def client_time(self) -> datetime:
@@ -66,8 +82,23 @@ class ReplayInterface(GameInterface):
         patches = self.replay.jump_from_to(self.current_time, time_stamp)
         for rp in patches:
             apply_patch_any(rp, GameState, self.game_state, self)
+
         self.current_time = time_stamp
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
+        self._update_player_id()
 
     def get_timestamps(self) -> list[datetime]:
         return [datetime.fromtimestamp(ts / 1000, tz=UTC) for ts in self.replay.get_timestamps()]
+
+    def average_update_frequency(self) -> timedelta:
+        """
+        Computes the average update frequency as a timedelta.
+        """
+        timestamps = self.get_timestamps()
+        if len(timestamps) < 2:  # Need at least 2 timestamps to calculate frequency
+            return timedelta(0)
+
+        total_time = (self.end_time - self.end_time).total_seconds()
+        num_intervals = len(timestamps) - 1
+
+        return timedelta(seconds=num_intervals / total_time if total_time > 0 else 0.0)
