@@ -20,11 +20,14 @@ class State(GameObject):
     }
 
     def update(self, other: "State", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
-        self.time_stamp = other.time_stamp
-        self.state_id = other.state_id
-        self.state_type = other.state_type
-        if rp:
-            rp.replace(path + ["time_stamp"], self.time_stamp, other.time_stamp)
-            rp.replace(path + ["state_id"], self.state_id, other.state_id)
-            if self.state_type != self.state_type:
-                rp.replace(path + ["state_type"], self.state_type, other.state_type)
+        """
+        Function should be overwritten if some of the attributes are not always set by conflict of nations.
+        This functions assumes that always the entire state is supplied.
+        """
+        if not isinstance(other, self.__class__):
+            raise ValueError(f"UPDATE ERROR: Cannot update  {self.__class__} with object of type: {type(other)}")
+        for attr in self.get_mapping().keys():
+            if getattr(self, attr) != getattr(other, attr):
+                if rp:
+                    rp.replace(path + [attr], getattr(self, attr), getattr(other, attr))
+                setattr(self, attr, getattr(other, attr))
