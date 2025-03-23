@@ -64,7 +64,7 @@ class GameInterface:
             if self.is_country_selected():
                 return func(self, *args, **kwargs)
             else:
-                raise CountryUnselectedException("Country not selected.")
+                return None
 
         return wrap
     """
@@ -87,8 +87,8 @@ class GameInterface:
         return self.game_state.states.army_state.armies.get(army_id)
 
     @country_selected
-    def get_army_by_number(self, army_number: int) -> Army:
-        return next(iter(self.get_my_armies(army_number=army_number).values()), None)
+    def get_my_army_by_number(self, army_number: int) -> Army:
+        return next(iter(self.get_my_armies(owner_id=self.player_id, army_number=army_number).values()), None)
 
     @country_selected
     def get_armies_in_province(self, province_id: int) -> list[Army]:
@@ -96,9 +96,6 @@ class GameInterface:
         for x in self.get_armies().values():
             if x.location_id == province_id:
                 armies.append(x)
-
-        if len(armies) == 0:
-            logger.warning(f"No armies found in province {province_id}")
 
         return armies
 
@@ -403,6 +400,7 @@ class GameInterface:
         """
         return self.get_players(available=True)
 
+
     def get_human_players(self) -> dict[int, PlayerProfile]:
         """
         Retrieves a dictionary of all countries that are played by humans and their associated player profiles.
@@ -453,9 +451,11 @@ class GameInterface:
     """
     ResearchState(23)
     """
+    @country_selected
     def get_research_state(self) -> ResearchState:
         return self.game_state.states.research_state
 
+    @country_selected
     def get_current_research(self) -> list[Research]:
         """
         Gets the list of active research currently being researched in the game.
@@ -466,6 +466,7 @@ class GameInterface:
         """
         return list(self.game_state.states.research_state.current_researches)
 
+    @country_selected
     def get_completed_research(self) -> dict[int, Research]:
         """
         Retrieves the completed research data from the game state.
@@ -514,9 +515,6 @@ class GameInterface:
 
     @country_selected
     def get_my_resource_profile(self) -> ResourceProfile:
-        """
-
-        """
         return self.get_player_resource_profile(self.player_id)
 
     @country_selected

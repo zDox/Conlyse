@@ -48,10 +48,10 @@ class ReplayInterface(GameInterface):
                 return player.player_id
 
     def _update_player_id(self):
-        if self.player_id == 0:
-            self.player_id = self._find_current_player_id()
-        elif self.get_player(self.player_id).activity_state != "ACTIVE":
-            self.player_id = self._find_current_player_id()
+        if self.player_id is not None and self.get_player(self.player_id).activity_state == "ACTIVE":
+            return
+
+        self.player_id = self._find_current_player_id()
 
         if self.player_id is None:
             raise Exception("Could not determine player ID")
