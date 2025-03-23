@@ -33,3 +33,11 @@ class AirParameters(GameObject):
         "max_flight_time": "maxFlightTime",
         "air_field": "airField",
     }
+    def get_airfield_position(self) -> Point | None:
+        if not self.air_field:
+            return None
+        if isinstance(self.air_field, TemporaryAirfield):
+            return self.air_field.air_field_position
+        else:
+            province_id = self.air_field.removeprefix("p")
+            return self.game.get_province(int(province_id)).static_data.center_coordinate
