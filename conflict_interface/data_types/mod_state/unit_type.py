@@ -34,6 +34,7 @@ from conflict_interface.data_types.mod_state.configuration import TokenConsumerC
 from conflict_interface.data_types.mod_state.configuration import TokenProducerConfig
 from conflict_interface.data_types.mod_state.configuration import TokenSensitivityConfig
 from conflict_interface.data_types.mod_state.configuration import UnitTypeFrontEndConfig
+from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
 from conflict_interface.data_types.player_state.faction import Faction
 from conflict_interface.data_types.research_state.research_type import ResearchType
 from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
@@ -67,7 +68,7 @@ class UnitType(GameObject):
     foreign_speed_factor: float
     identifier: str
     minimum_tech_level: int
-    unit_features: Optional[HashMap[int, float]] # TODO Key should be UnitFeature
+    unit_features: Optional[HashMap[UnitFeature, float]]
     size_factors: Optional[HashMap[int, float]]
     attack_painter: str
     pin_painter: str
@@ -249,3 +250,11 @@ class UnitType(GameObject):
 
     def has_faction(self, faction: Faction):
         return faction in self.factions
+
+    def has_feature(self, feature: UnitFeature):
+        if self.unit_features:
+            return feature in self.unit_features
+        return False
+
+    def get_feature(self, feature: UnitFeature) -> float:
+        return self.unit_features.get(feature)

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
 
 
 @dataclass
@@ -79,5 +80,9 @@ class Unit(GameObject):
         "hit_points": "hp",
         "max_hit_points": "mhp",
     }
+
+    def has_feature(self, feature: UnitFeature) -> bool:
+        unit_type = self.game.get_unit_type(self.unit_type_id)
+        return unit_type.has_feature(feature)
 
 

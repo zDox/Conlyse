@@ -525,42 +525,203 @@ class Army(GameObject):
         interpolated_y = start_pos.y + fraction * (end_pos.y - start_pos.y)
         return Point(interpolated_x, interpolated_y)
 
-    def get_position(self, timestamp: datetime) -> Point:
-        if not self.commands:
-            return self.position
-        current = self.position
+    def get_next_command(self) -> Command | None:
+        if self.commands:
+            return self.commands[0]
+        return None
 
-        if len(self.commands) == 1:
-            command = self.commands[0]
-            if isinstance(command, AttackCommand):
-                return Army.linear_interpolate(
-                    start = self.game.game_state.states.army_state.time_stamp,
-                    end = self.next_attack_time,
-                    current = timestamp,
-                    start_pos = self.position,
-                    end_pos = self.attack_position,
+    def get_position(self, timestamp: Optional[datetime] = None) -> Point:
+        """
+        Calculate the army's current position based on its movement status and commands.
+
+        Args:
+            timestamp (datetime, optional): The specific time to calculate position for.
+                                          Defaults to current time if None.
+        Returns:
+            Point: The calculated position of the army.
+        """
+        # If army has air parameters and is at an airfield, return airfield position
+        if self.air_parameters and self.air_parameters.air_field:
+            return self.air_parameters.get_airfield_position()
+        elif self.air_parameters and self.is_flying():
+            return self.get_air_position(timestamp)
+
+        # If no commands or not moving, return static position
+        if not self.commands or not self.is_moving():
+            return self.position
+
+        # Get current time in milliseconds if not provided
+        current_time = timestamp if timestamp else self.game.client_time()
+        current_time_ms = int(current_time.timestamp() * 1000)
+
+        # Use existing position or create new one based on force_update
+        result_pos = Point(0, 0)
+
+        # Get first command
+        command = self.commands[0]
+
+        if current_time_ms >= command.arrival_time:
+            # If past arrival time, use target position
+            result_pos.x = command.target_position.x
+            result_pos.y = command.target_position.y
+        else:
+            # Calculate interpolated position between start and target
+            time_progress = (current_time_ms - command.start_time) / (command.arrival_time - command.start_time)
+            result_pos.x = command.start_position.x + (
+                        command.target_position.x - command.start_position.x) * time_progress
+            result_pos.y = command.start_position.y + (
+                        command.target_position.y - command.start_position.y) * time_progress
+
+        return result_pos
+
+    def get_air_position(self, timestamp: Optional[datetime] = None) -> Point | None:
+        """
+        Calculate the army's current air position based on its flight status and timing.
+
+        Args:
+            timestamp (datetime, optional): The specific time to calculate position for.
+                                          Defaults to current time if None.
+
+        Returns:
+            Point: The calculated air position of the army.
+        """
+        # Use current time if timestamp not provided
+        current_time = timestamp if timestamp else datetime.now()
+        current_time_ms = int(current_time.timestamp() * 1000)
+
+
+        if self.is_flying() and self.attack_position is not None:
+            if self.fight_status == FightStatus.PATROLLING:
+                # For patrolling, use attack position directly
+                self._air_position = Point(self.attack_position.x, self.attack_position.y)
+            else:
+                # Calculate interpolated position
+                next_attack_time = int(self.next_attack_time.timestamp() * 1000)
+                last_air_action_time =  int(self.air_parameters.last_air_action_time.timestamp() * 1000) if self.air_parameters else 0
+
+                # Calculate progress (0 to 1) between last action and next attack
+                denominator = next_attack_time - last_air_action_time
+                if denominator == 0:
+                    progress = 0
+                else:
+                    progress = max(0.0, 1 - (next_attack_time - current_time_ms) / denominator)
+
+                # Determine start and end points based on direction
+                start_pos = self.air_parameters.last_air_position
+                end_pos = self.get_position() if self.is_airplane_returning() else self.attack_position
+
+                # Interpolate between start and end positions
+                return Point(
+                    start_pos.x + (end_pos.x - start_pos.x) * progress,
+                    start_pos.y + (end_pos.y - start_pos.y) * progress
                 )
 
-        for command in self.commands:
-            if isinstance(command, GotoCommand):
-                if command.start_time <= timestamp <= command.arrival_time:
-                    return Army.linear_interpolate(start = command.start_time,
-                                                   end = command.arrival_time,
-                                                   current = timestamp,
-                                                   start_pos = command.start_position,
-                                                   end_pos = command.target_position)
-            elif isinstance(command, PatrolCommand):
-                if command.approaching:
-                    return Army.linear_interpolate(
-                        start = self.game.game_state.states.army_state.time_stamp,
-                        end = self.estimated_arrival_time,
-                        current = timestamp,
-                        start_pos = self.position,
-                        end_pos = self.attack_position,
-                    )
-                else:
-                    return self.position
-            elif isinstance(command, WaitCommand):
-                if command.execute_time <= timestamp <= command.execute_time + command.wait_time:
-                    return self.position
-        return current
+        return None
+
+    def is_moving(self) -> bool:
+        return (
+            self.commands is not None and
+            len(self.commands) > 0 and
+            isinstance(self.commands[0], GotoCommand) and
+            self.commands[0].arrival_time != 0
+        )
+
+    def is_flying(self) -> bool:
+        """
+        Determine if the army is currently flying based on its status and capabilities.
+
+        Returns:
+            bool: True if the army is flying, False otherwise.
+        """
+        # Calculate and cache the flying status if not already set
+        if self.is_fighting():
+            return False
+        else:
+            return (
+                    (self.airplane and self.is_patrolling()) or
+                    (self.airplane and self.is_airplane_returning()) or
+                    (self.airplane and self.is_bombing()) or
+                    self.is_relocating() or
+                    self.is_doing_air_mobile_relocation()
+            )
+
+    def is_fighting(self) -> bool:
+        """
+        Determine if the army is currently engaged in direct combat.
+
+        Returns:
+            bool: True if fighting or has attackers, False otherwise.
+        """
+        return (
+                self.fight_status == FightStatus.FIGHTING or
+                len(self.battle.attacker_ids) > 0 if self.battle else False
+        )
+
+    def is_bombarding(self) -> bool:
+        """
+        Determine if the army is currently bombarding.
+
+        Returns:
+            bool: True if bombarding, False otherwise.
+        """
+        return self.fight_status == FightStatus.BOMBARDING
+
+    def is_bombing(self) -> bool:
+        """
+        Determine if the army is currently bombing.
+
+        Returns:
+            bool: True if bombing, False otherwise.
+        """
+        return self.fight_status == FightStatus.BOMBING
+
+    def is_patrolling(self) -> bool:
+        """
+        Determine if the army is currently patrolling or approaching a patrol position.
+
+        Returns:
+            bool: True if patrolling or approaching patrol, False otherwise.
+        """
+        return (
+                self.fight_status == FightStatus.PATROLLING or
+                self.fight_status == FightStatus.APPROACH_PATROL
+        )
+
+    def is_attacking(self) -> bool:
+        """
+        Determine if the army is currently engaged in any form of attack.
+
+        Returns:
+            bool: True if bombarding, bombing, or fighting, False otherwise.
+        """
+        return (
+                self.is_bombarding() or
+                self.is_bombing() or
+                self.is_fighting()
+        )
+
+    def is_airplane_returning(self) -> bool:
+        if self.get_next_command():
+            if isinstance(self.get_next_command(), WaitCommand):
+                return self.get_next_command().is_returning()
+        return False
+
+    def is_relocating(self) -> bool:
+        if self.commands and len(self.commands) > 0:
+            next_command = self.get_next_command()
+            return isinstance(next_command, PatrolCommand) and next_command.is_relocation()
+        else:
+            return False
+
+    def is_doing_air_mobile_relocation(self) -> bool:
+        if not self.is_air_mobile():
+            return False
+        else:
+            next_command = self.get_next_command()
+            return (
+                    isinstance(next_command, PatrolCommand) and
+                    next_command.patrol_type == PatrolType.air_mobile_relocation
+            )
+
+    def is_air_mobile(self):
+        return all(unit.has_feature() for unit in self.units)
