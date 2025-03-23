@@ -193,7 +193,7 @@ class ActionHandler:
                 self.game_state = game_state
         else:
             if self.game_state:
-                self.game_state.update(game_state)
+                self.game_state.update(game_state, path=[])
             else:
                 self.game_state = game_state
 

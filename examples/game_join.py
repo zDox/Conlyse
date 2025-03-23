@@ -16,13 +16,22 @@ if __name__ == "__main__":
     interface.login(username, password)
     games = interface.get_global_games(scenario_id=5975, # World war 3 1x speed
                                        state=HubGameState.READY_TO_JOIN)
-    selected_game = next(iter(games))
+    my_games = interface.get_my_games()
+    selected_game = None
+    for game in games:
+        if not game.game_id in my_games:
+            selected_game = game
+            break
+    if selected_game is None:
+        exit()
+
     pprint(f"Joining new game:  {selected_game.game_id}")
     game = interface.join_game(selected_game.game_id)
+    print(game.player_id)
     print("Country is selected: ", game.is_country_selected())
-    if not game.is_country_selected():
-        print("Selecting country...")
-        game.select_country(random_country_team=True)
-
-    print("Selected country:", game.get_player(game.player_id).nation_name)
+    selected_country = next(iter(list(game.get_playable_countries().values())))
+    print(selected_country)
+    game.select_country(country_id=selected_country.player_id)
+    print("Country is selected: ", game.is_country_selected())
+    print(f"Selected country: {game.get_my_player()}")
     game.update()
