@@ -531,6 +531,14 @@ class Army(GameObject):
         return None
 
     def get_position(self, timestamp: Optional[datetime] = None) -> Point:
+        if self.air_parameters and self.air_parameters.air_field:
+            return self.get_position(timestamp)  # Airfield takes priority
+        elif self.is_flying() and self.attack_position is not None:
+            return self.get_air_position(timestamp)
+        else:
+            return self.get_position(timestamp)
+
+    def get_land_position(self, timestamp: Optional[datetime] = None) -> Point:
         """
         Calculate the army's current position based on its movement status and commands.
 
@@ -543,8 +551,6 @@ class Army(GameObject):
         # If army has air parameters and is at an airfield, return airfield position
         if self.air_parameters and self.air_parameters.air_field:
             return self.air_parameters.get_airfield_position()
-        elif self.air_parameters and self.is_flying():
-            return self.get_air_position(timestamp)
 
         # If no commands or not moving, return static position
         if not self.commands or not self.is_moving():
@@ -586,14 +592,13 @@ class Army(GameObject):
             Point: The calculated air position of the army.
         """
         # Use current time if timestamp not provided
-        current_time = timestamp if timestamp else datetime.now()
+        current_time = timestamp if timestamp else self.game.client_time()
         current_time_ms = int(current_time.timestamp() * 1000)
-
 
         if self.is_flying() and self.attack_position is not None:
             if self.fight_status == FightStatus.PATROLLING:
                 # For patrolling, use attack position directly
-                self._air_position = Point(self.attack_position.x, self.attack_position.y)
+                return Point(self.attack_position.x, self.attack_position.y)
             else:
                 # Calculate interpolated position
                 next_attack_time = int(self.next_attack_time.timestamp() * 1000)
@@ -609,7 +614,6 @@ class Army(GameObject):
                 # Determine start and end points based on direction
                 start_pos = self.air_parameters.last_air_position
                 end_pos = self.get_position() if self.is_airplane_returning() else self.attack_position
-
                 # Interpolate between start and end positions
                 return Point(
                     start_pos.x + (end_pos.x - start_pos.x) * progress,
