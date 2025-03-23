@@ -27,6 +27,7 @@ from conflict_interface.data_types.army_state.unit import Unit
 
 from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
 from conflict_interface.data_types.map_state.map_state_enums import TerrainType
+from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
 from conflict_interface.data_types.point import Point
 
 @dataclass
@@ -728,4 +729,4 @@ class Army(GameObject):
             )
 
     def is_air_mobile(self):
-        return all(unit.has_feature() for unit in self.units)
+        return all(unit.has_feature(UnitFeature.UNITFEATURE_AIR_MOBILE) for unit in self.units)
