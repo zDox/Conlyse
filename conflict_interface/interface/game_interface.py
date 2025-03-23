@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from conflict_interface.data_types.army_state.army import Army
 from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state_enums import ForeignAffairRelationTypes
 from conflict_interface.data_types.game_event_state.game_event import GameEvent
+from conflict_interface.data_types.game_info_state.game_info_state import GameInfoState
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.map_state.map import ProvinceType
 from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
@@ -116,6 +117,11 @@ class GameInterface:
     def get_game_events(self) -> list[GameEvent]:
         return list(self.game_state.states.game_event_state.game_events)
 
+    """
+    GameInfoState(12)
+    """
+    def get_game_info_state(self) -> GameInfoState:
+        return self.game_state.states.game_info_state
 
     """
     MapState(3)

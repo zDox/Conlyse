@@ -187,12 +187,14 @@ class GameState(State):
 
         self.action_results = other.action_results
         for state in self.states.get_mapping().keys():
-            if getattr(other.states, state) is not None:
-                new_state = getattr(other.states, state)
-                state_type: type = self.states.get_type_hints_cached()[state]
-                if hasattr(new_state, "update"):
-                    if getattr(self.states, state) is None:
-                        setattr(self.states, state, state_type(self.game))
-                    getattr(self.states, state).update(new_state, path + ["states", state], rp)
-                else:
-                    raise Exception(f"{state_type} has no update function")
+            old_state = getattr(self.states, state)
+            new_state = getattr(other.states, state)
+            if new_state is None:
+                continue
+            if old_state is None:
+                rp.replace(path + ["states", state], old_state, new_state)
+                setattr(self.states, state, new_state)
+            elif hasattr(new_state, "update"):
+                getattr(self.states, state).update(new_state, path + ["states", state], rp)
+            else:
+                raise Exception(f"{type(new_state)} has no update function")
