@@ -7,28 +7,29 @@ from conflict_interface.data_types.army_state.army_action_result import ArmyActi
 from conflict_interface.data_types.army_state.army_enums import Aggressiveness
 from conflict_interface.data_types.army_state.army_enums import FightStatus
 from conflict_interface.data_types.army_state.army_enums import ForcedMarch
-from conflict_interface.data_types.army_state.commands import WaitCommand
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
-from conflict_interface.data_types.custom_types import LinkedList, UnitList
-from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.army_state.commands import AttackCommand
+from conflict_interface.data_types.army_state.commands import Command
 from conflict_interface.data_types.army_state.commands import GotoCommand
 from conflict_interface.data_types.army_state.commands import PatrolCommand
 from conflict_interface.data_types.army_state.commands import PatrolType
 from conflict_interface.data_types.army_state.commands import SplitArmyCommand
-from conflict_interface.data_types.mod_state.configuration import \
-        CarrierFeature, MissileCarrierFeature, RadarSignatureFeature, \
-        TokenFeature
-from conflict_interface.data_types.army_state.commands import Command
+from conflict_interface.data_types.army_state.commands import WaitCommand
+from conflict_interface.data_types.army_state.unit import Unit
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
+from conflict_interface.data_types.custom_types import LinkedList
+from conflict_interface.data_types.custom_types import UnitList
+from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.map_state.map_state_enums import TerrainType
+from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
 from conflict_interface.data_types.mod_state.air_parameters import AirParameters
 from conflict_interface.data_types.mod_state.anti_air_parameters import AntiAirParameters
-
-from conflict_interface.data_types.army_state.unit import Unit
-
-from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
-from conflict_interface.data_types.map_state.map_state_enums import TerrainType
+from conflict_interface.data_types.mod_state.configuration import CarrierFeature
+from conflict_interface.data_types.mod_state.configuration import MissileCarrierFeature
+from conflict_interface.data_types.mod_state.configuration import RadarSignatureFeature
+from conflict_interface.data_types.mod_state.configuration import TokenFeature
 from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
 from conflict_interface.data_types.point import Point
+
 
 @dataclass
 class Battle(GameObject):
@@ -38,6 +39,7 @@ class Battle(GameObject):
     MAPPING = {
         "attacker_ids": "a"
     }
+
 
 @dataclass
 class Army(GameObject):
@@ -121,14 +123,11 @@ class Army(GameObject):
     at_airfield: bool = False
     units: UnitList[Unit] = None
 
-
     commands: LinkedList[Command] = None
     fight_status: FightStatus = FightStatus.IDLE
     battle: Battle = None
     attack_unit_id: int = None
     attack_position: Point = None
-
-
 
     # I do not now any unit which needs rail but whatever
     needs_rail: bool = False
@@ -141,7 +140,6 @@ class Army(GameObject):
 
     range: int = 5
     base_speed: float = None
-
 
     view_width: int = None
     detailed_view_width: int = None
@@ -158,7 +156,7 @@ class Army(GameObject):
     carrier_feature: Optional[CarrierFeature] = None
 
     last_location_ids: list[int] = None
-    end_of_unit_walk: bool = None # No idea what this is. Might be a boolean.
+    end_of_unit_walk: bool = None  # No idea what this is. Might be a boolean.
 
     hit_points: float = None
     max_hit_points: int = None
@@ -212,7 +210,7 @@ class Army(GameObject):
         "forced_march": "fm",
         "removed": "rm",
         "terrain_type_str": "terrainType",
-        "terrain_type": "tt", # TODO confirm this is a terrain type (another similar exists)
+        "terrain_type": "tt",  # TODO confirm this is a terrain type (another similar exists)
         "air_parameters": "aip",
         "anti_air_parameters": "aap",
         "carriable": "ca",
@@ -344,20 +342,20 @@ class Army(GameObject):
         """
         if self.airplane:
             if self.is_in_range(point):
-                return self.set_command(GotoCommand(start_position = self.position,
-                                                    target_position = point)), ArmyActionResult.Ok
+                return self.set_command(GotoCommand(start_position=self.position,
+                                                    target_position=point)), ArmyActionResult.Ok
             else:
                 return None, ArmyActionResult.OutOfRange
         else:
             return self.set_commands([
-                GotoCommand(start_position = self.position,
-                            target_position = self.position,
-                            speed = self.base_speed,
-                            on_water = self.on_sea),
-                GotoCommand(start_position = self.position,
-                            target_position = point,
-                            speed = self.base_speed,
-                            on_water = self.on_sea)]), ArmyActionResult.Ok
+                GotoCommand(start_position=self.position,
+                            target_position=self.position,
+                            speed=self.base_speed,
+                            on_water=self.on_sea),
+                GotoCommand(start_position=self.position,
+                            target_position=point,
+                            speed=self.base_speed,
+                            on_water=self.on_sea)]), ArmyActionResult.Ok
 
     def add_waypoint(self, point: Point):
         """
@@ -375,10 +373,10 @@ class Army(GameObject):
         if self.commands:
             last_command = self.commands[-1]
             if isinstance(last_command, GotoCommand):
-                return self.add_command(GotoCommand(start_position = last_command.target_position,
-                                                    target_position = point,
-                                                    speed = self.base_speed,
-                                                    on_water = self.on_sea,
+                return self.add_command(GotoCommand(start_position=last_command.target_position,
+                                                    target_position=point,
+                                                    speed=self.base_speed,
+                                                    on_water=self.on_sea,
                                                     )), ArmyActionResult.Ok
             else:
                 return None, ArmyActionResult.InvalidCommandQueue
@@ -429,7 +427,8 @@ class Army(GameObject):
         else:
             return self.set_command(AttackCommand(army.id, None, True)), ArmyActionResult.Ok
 
-    def split_army(self, point: Point, split_units_count: list[tuple[int, int]]) -> tuple[Optional[int], ArmyActionResult]:
+    def split_army(self, point: Point, split_units_count: list[tuple[int, int]]) -> tuple[
+        Optional[int], ArmyActionResult]:
         """
         Splits the current army and assigns a new command to the newly created army.
 
@@ -458,12 +457,14 @@ class Army(GameObject):
                         split_units.append(Unit(0, unit_id, size=unit_count))
 
         goto_command = GotoCommand(self.position, point)
-        new_army = Army(units=UnitList(split_units),owner_id=self.owner_id, position=self.position, commands=LinkedList([goto_command]))
+        new_army = Army(units=UnitList(split_units), owner_id=self.owner_id, position=self.position,
+                        commands=LinkedList([goto_command]))
         split_command = SplitArmyCommand(splitted_army=new_army)
         return self.set_command(split_command), ArmyActionResult.Ok
 
-    def split_and_move_unit(self, unit_type_name: str, amount: int, target_province_name: str) -> tuple[int | None, ArmyActionResult]:
-        type_ids = [x.unit_type_id  for x in self.units]
+    def split_and_move_unit(self, unit_type_name: str, amount: int, target_province_name: str) -> tuple[
+        int | None, ArmyActionResult]:
+        type_ids = [x.unit_type_id for x in self.units]
         amounts = [x.size for x in self.units]
 
         tuples = []
@@ -481,8 +482,6 @@ class Army(GameObject):
             tuples
         )
         return result
-                
-
 
     def cancel_commands(self) -> tuple[Optional[int], ArmyActionResult]:
         """
@@ -532,12 +531,9 @@ class Army(GameObject):
         return None
 
     def get_position(self, timestamp: Optional[datetime] = None) -> Point:
-        if self.air_parameters and self.air_parameters.air_field:
-            return self.get_position(timestamp)  # Airfield takes priority
-        elif self.is_flying() and self.attack_position is not None:
+        if self.is_flying() and self.attack_position is not None:
             return self.get_air_position(timestamp)
-        else:
-            return self.get_position(timestamp)
+        return self.get_land_position(timestamp)
 
     def get_land_position(self, timestamp: Optional[datetime] = None) -> Point:
         """
@@ -575,9 +571,9 @@ class Army(GameObject):
             # Calculate interpolated position between start and target
             time_progress = (current_time_ms - command.start_time) / (command.arrival_time - command.start_time)
             result_pos.x = command.start_position.x + (
-                        command.target_position.x - command.start_position.x) * time_progress
+                    command.target_position.x - command.start_position.x) * time_progress
             result_pos.y = command.start_position.y + (
-                        command.target_position.y - command.start_position.y) * time_progress
+                    command.target_position.y - command.start_position.y) * time_progress
 
         return result_pos
 
@@ -603,7 +599,8 @@ class Army(GameObject):
             else:
                 # Calculate interpolated position
                 next_attack_time = int(self.next_attack_time.timestamp() * 1000)
-                last_air_action_time =  int(self.air_parameters.last_air_action_time.timestamp() * 1000) if self.air_parameters else 0
+                last_air_action_time = int(
+                    self.air_parameters.last_air_action_time.timestamp() * 1000) if self.air_parameters else 0
 
                 # Calculate progress (0 to 1) between last action and next attack
                 denominator = next_attack_time - last_air_action_time
@@ -614,7 +611,7 @@ class Army(GameObject):
 
                 # Determine start and end points based on direction
                 start_pos = self.air_parameters.last_air_position
-                end_pos = self.get_position() if self.is_airplane_returning() else self.attack_position
+                end_pos = self.get_land_position(current_time) if self.is_airplane_returning() else self.attack_position
                 # Interpolate between start and end positions
                 return Point(
                     start_pos.x + (end_pos.x - start_pos.x) * progress,
@@ -625,10 +622,10 @@ class Army(GameObject):
 
     def is_moving(self) -> bool:
         return (
-            self.commands is not None and
-            len(self.commands) > 0 and
-            isinstance(self.commands[0], GotoCommand) and
-            self.commands[0].arrival_time != 0
+                self.commands is not None and
+                len(self.commands) > 0 and
+                isinstance(self.commands[0], GotoCommand) and
+                self.commands[0].arrival_time != 0
         )
 
     def is_flying(self) -> bool:
@@ -658,8 +655,8 @@ class Army(GameObject):
             bool: True if fighting or has attackers, False otherwise.
         """
         return (
-                self.fight_status == FightStatus.FIGHTING or
-                len(self.battle.attacker_ids) > 0 if self.battle else False
+            self.fight_status == FightStatus.FIGHTING or
+            len(self.battle.attacker_ids) > 0 if self.battle else False
         )
 
     def is_bombarding(self) -> bool:
