@@ -192,7 +192,8 @@ class GameState(State):
             if new_state is None:
                 continue
             if old_state is None:
-                rp.replace(path + ["states", state], old_state, new_state)
+                if rp:
+                    rp.replace(path + ["states", state], old_state, new_state)
                 setattr(self.states, state, new_state)
             elif hasattr(new_state, "update"):
                 getattr(self.states, state).update(new_state, path + ["states", state], rp)

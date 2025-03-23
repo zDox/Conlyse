@@ -286,7 +286,7 @@ class Replay:
         if game_id != self.game_id:
             raise CorruptReplay(f"Game ID do not match replay {self.filename}")
 
-        if player_id == 0:
+        if self.player_id == 0:
             self.player_id = player_id
 
         if self.player_id != player_id:
@@ -308,7 +308,7 @@ class Replay:
         if game_id != self.game_id:
             raise CorruptReplay(f"Game ID do not match replay {self.filename}")
 
-        if player_id == 0:
+        if self.player_id == 0:
             self.player_id = player_id
 
         if self.player_id != player_id:
