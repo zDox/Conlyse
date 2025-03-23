@@ -285,10 +285,14 @@ class Replay:
             raise IOError("Replay is not in write or append mode")
         if game_id != self.game_id:
             raise CorruptReplay(f"Game ID do not match replay {self.filename}")
+
+        if player_id == 0:
+            self.player_id = player_id
+
+        if self.player_id != player_id:
+            raise CorruptReplay(f"Player ID does not match replay {self.filename}")
         if self._last_time and self.last_time >= time_stamp:
-            raise CorruptReplay(f"Already recorded newer ReplayPatch at {self.last_time} then {time_stamp}.")
-        if not isinstance(replay_patch, BidirectionalReplayPatch):
-            raise Exception(f"Replay patch must be BidirectionalReplayPatch instance")
+            raise CorruptReplay(f"Already recorded newer BidirectionalPatch at {self.last_time} then {time_stamp}.")
 
         time_stamp_ms = int(time_stamp.timestamp() * 1000)
         self._write_patch(self._last_time, time_stamp_ms, replay_patch.forward_to_string())
@@ -303,6 +307,12 @@ class Replay:
             raise IOError("Replay is not in write or append mode")
         if game_id != self.game_id:
             raise CorruptReplay(f"Game ID do not match replay {self.filename}")
+
+        if player_id == 0:
+            self.player_id = player_id
+
+        if self.player_id != player_id:
+            raise CorruptReplay(f"Player ID does not match replay {self.filename}")
         if self._last_time and self.last_time >= time_stamp:
             raise CorruptReplay(f"Already recorded newer GameState at {self.last_time} then {time_stamp}.")
 
