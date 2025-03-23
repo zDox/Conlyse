@@ -283,8 +283,8 @@ class Replay:
     def record_bipatch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch):
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
-        if game_id != self.game_id or player_id != self.player_id:
-            raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
+        if game_id != self.game_id:
+            raise CorruptReplay(f"Game ID do not match replay {self.filename}")
         if self._last_time and self.last_time >= time_stamp:
             raise CorruptReplay(f"Already recorded newer ReplayPatch at {self.last_time} then {time_stamp}.")
         if not isinstance(replay_patch, BidirectionalReplayPatch):
@@ -301,8 +301,8 @@ class Replay:
         """Record a game state, either as initial state or a patch with from/to timestamps."""
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
-        if game_id != self.game_id or player_id != self.player_id:
-            raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
+        if game_id != self.game_id:
+            raise CorruptReplay(f"Game ID do not match replay {self.filename}")
         if self._last_time and self.last_time >= time_stamp:
             raise CorruptReplay(f"Already recorded newer GameState at {self.last_time} then {time_stamp}.")
 
@@ -318,8 +318,8 @@ class Replay:
         """Compress and record static map data."""
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
-        if game_id != self.game_id or player_id != self.player_id:
-            raise CorruptReplay(f"Game ID or Player ID do not match replay {self.filename}")
+        if game_id != self.game_id:
+            raise CorruptReplay(f"Game ID do not match replay {self.filename}")
 
         cursor = self.conn.execute("SELECT 1 FROM static_map_data")
         if cursor.fetchone():
