@@ -20,6 +20,10 @@ class State(GameObject):
     }
 
     def update(self, other: "State", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        """
+        Function should be overwritten if some of the attributes are not always set by conflict of nations.
+        This functions assumes that always the entire state is supplied.
+        """
         if not isinstance(other, self.__class__):
             raise ValueError(f"UPDATE ERROR: Cannot update  {self.__class__} with object of type: {type(other)}")
         for attr in self.get_mapping().keys():
