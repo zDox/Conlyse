@@ -18,7 +18,7 @@ if __name__ == "__main__":
     pprint(f"Joining new game:  {game_id}")
     game = interface.join_game(game_id)
     city = game.get_provinces_by_name("Johannesburg")
-    army = game.get_army_by_number(14)
+    army = game.get_my_army_by_number(14)
     unit_type = game.get_unit_type_by_name_and_tier("Motorized Infantry", 1)
 
     split_units = [(unit_type.id, 1)]
