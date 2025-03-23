@@ -31,7 +31,7 @@ if __name__ == "__main__":
     ritf = ReplayInterface("replay2.db")
     ritf.open()
     t1 = time()
-    print(ritf.game_state.states.army_state.armies.get(17000323))
+    print(ritf.game_state.states.army_state.armies.get(17000323).get_land_position())
     ritf.set_client_time(ritf.replay.last_time)
     print(ritf.game_state.states.army_state.armies.get(17000323).get_land_position())
 

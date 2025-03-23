@@ -568,7 +568,7 @@ class Army(GameObject):
             result_pos.y = command.target_position.y
         else:
             # Calculate interpolated position between start and target
-            time_progress = ((current_time- command.start_time) / (command.arrival_time - command.start_time)).total_seconds()
+            time_progress = ((current_time- command.start_time) / (command.arrival_time - command.start_time))
             result_pos.x = command.start_position.x + (
                     command.target_position.x - command.start_position.x) * time_progress
             result_pos.y = command.start_position.y + (

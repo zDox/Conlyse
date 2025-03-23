@@ -49,7 +49,6 @@ class ReplayInterface(GameInterface):
                 return player.player_id
 
     def _update_player_id(self):
-        pprint(self.get_players(player_id=0))
         if self.player_id is not None and (self.get_player(self.player_id).activity_state == "ACTIVE"
             or self.get_player(self.player_id).activity_state == "UNKNOWN"):
             return
