@@ -40,6 +40,8 @@ class ArmyState(State):
         Update the current state with the new state
 
         :param other: The new state to update with (dict)
+        :param path: The path of the current state to update
+        :param rp: The bidirectional replay patch to use
         :return: None
         """
         if not isinstance(other, ArmyState):
@@ -59,10 +61,13 @@ class ArmyState(State):
                 continue
             else:
                 if rp:
-                    old_army = self.armies[new_army.id]
-                    for attr in new_army.get_mapping():
-                        if getattr(old_army, attr) != getattr(new_army, attr):
-                             rp.replace(path + ["armies", new_army.id, attr],
-                                        getattr(old_army, attr),
-                                        getattr(new_army, attr))
+                    if new_army.id in self.armies:
+                        old_army = self.armies[new_army.id]
+                        for attr in new_army.get_mapping():
+                            if getattr(old_army, attr) != getattr(new_army, attr):
+                                 rp.replace(path + ["armies", new_army.id, attr],
+                                            getattr(old_army, attr),
+                                            getattr(new_army, attr))
+                    else:
+                        rp.add(path + ["armies", new_army.id], None, new_army)
                 self.armies[new_army.id] = new_army
