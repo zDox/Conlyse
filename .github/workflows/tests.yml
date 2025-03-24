@@ -26,11 +26,8 @@ jobs:
 
       - name: get test data
         run: |
-          wget -O full_test_data_1.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_1.json
-          wget -O full_test_data_2.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_2.json
-          wget -O full_test_data_3.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_3.json
-          wget -O full_test_data_4.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_4.json
-          
+          wget -O full_test_data_5.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_5.json
+
 
       - name: Run tests with unittest
         env:
