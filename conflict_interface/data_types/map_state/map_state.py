@@ -42,8 +42,8 @@ class MapState(State):
         if other.map is not None:
             for province in other.map.locations:
                 if province.id not in self.map.provinces:
-                    rp.add(path + ["map", "locations", -1], self.map.provinces.get(province
-                    .id), province)
+                    if rp:
+                        rp.add(path + ["map", "locations", -1], self.map.provinces.get(province.id), province)
                     self.map.locations.append(province)
                 else:
                     self.map.provinces[province.id].update(
@@ -55,10 +55,12 @@ class MapState(State):
 
         if other.properties is not None:
             if any(province_id not in self.properties for province_id  in other.properties.keys()):
-                rp.replace(path + ["properties"], self.properties, other.properties)
+                if rp:
+                    rp.replace(path + ["properties"], self.properties, other.properties)
                 self.properties = other.properties
                 return
             for province_id, prop in other.properties.items():
-                rp.replace(path + ["properties", province_id], self.properties.get(province_id), prop)
+                if rp:
+                    rp.replace(path + ["properties", province_id], self.properties.get(province_id), prop)
                 self.properties[province_id] = prop
                 self.map.provinces[province_id]._properties = prop
