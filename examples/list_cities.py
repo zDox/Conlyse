@@ -11,9 +11,10 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
 
     interface = HubInterface()
-    username, password, email, proxy_url = load_credentials()
+    username, password = "QOfUgzqsvWoiMv", "kuHxGrfxPlHbJW"
     interface.login(username, password)
 
-    game = interface.join_game(9758559)
-    pprint(game.get_player(33))
-    pprint(game.get_provinces_by_name("Rome"))
+    game = interface.join_game(9874910)
+    for army in game.get_armies().values():
+        if army.units is None:
+            print(army)
