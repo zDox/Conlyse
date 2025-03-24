@@ -83,7 +83,6 @@ class ReplayInterface(GameInterface):
 
         patches = self.replay.jump_from_to(self.current_time, time_stamp)
         for rp in patches:
-            rp.debug_str()
             apply_patch_any(rp, GameState, self.game_state, self)
 
         self.current_time = time_stamp
