@@ -5,6 +5,7 @@ from typing import Optional
 from typing import Union
 
 from conflict_interface.data_types.custom_types import ArrayList
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import EmptyList
 from conflict_interface.data_types.custom_types import EmptyMap
 from conflict_interface.data_types.custom_types import RegularImmutableMap
@@ -233,10 +234,12 @@ class MissileCarrierFeature(GameObject):
     C ="ultshared.warfare.UltMissileCarrierFeature"
     missile_carrier_config: MissileCarrierConfig
     inventory: HashMap[int, int]
+    last_missile_pawns: HashMap[int, DateTimeMillisecondsInt] # TODO Type checking
 
     MAPPING = {
         "missile_carrier_config": "missileCarrierConfig",
         "inventory": "inventory",
+        "last_missile_pawns": "lastMissileSpawns",
     }
 
 
@@ -595,11 +598,14 @@ class PurchaseStrategyConfig(GameObject):
     purchasable: bool
     requirements: ConflictCondition
     costs: Union[LinkedHashMap[int, int], HashMap[int, int]]
-
+    initial_count: int
+    enable_all_priority: bool
     MAPPING = {
         "purchasable": "purchasable",
         "requirements": "requirements",
         "costs": "costs",
+        "initial_count": "initialCount",
+        "enable_all_priority": "enableAllPriority",
     }
 
 @dataclass
@@ -709,10 +715,14 @@ class PlayerProgressionConfig(GameObject):
 class ConsumptionStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltConsumptionStrategyConfig"
 
-    consumption: ArrayList[int] # TODO check typing
+    consumption_events: Optional[ArrayList[int]] # TODO check typing
+    behavior: str
+    insufficient_rule: str
 
     MAPPING = {
-        "consumption": "consumption",
+        "consumption_events": "consumptionEvents",
+        "behavior": "behavior",
+        "insufficient_rule": "insufficientRule",
     }
 
 @dataclass

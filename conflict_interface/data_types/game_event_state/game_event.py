@@ -6,6 +6,7 @@ from conflict_interface.data_types.army_state.army import Army
 from conflict_interface.data_types.custom_types import ArraysArrayList
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_event_state.sender import Sender
+from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 
 
 @dataclass
@@ -184,7 +185,13 @@ class UnitTrainedEvent(GameEvent):
 @dataclass
 class UpgradeBuiltEvent(GameEvent):
     C = "ultshared.gameevents.UltUpgradeBuiltGameEvent"
-    pass
+    upgrade: ModableUpgrade
+    location_id: int
+
+    MAPPING = {
+        "location_id": "locationID",
+        "upgrade": "upgrade",
+    }
 
 @dataclass
 class WarDeclaredEvent(GameEvent):

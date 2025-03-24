@@ -1,8 +1,6 @@
 import json
 import unittest
 
-from requests import Session
-
 from conflict_interface.data_types.army_state.army_state import ArmyState
 from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state import ForeignAffairsState
 from conflict_interface.data_types.game_event_state.game_event_state import GameEventState
@@ -17,15 +15,13 @@ from conflict_interface.data_types.player_state.player_state import PlayerState
 from conflict_interface.data_types.research_state.research_state import ResearchState
 from conflict_interface.data_types.resource_state.resource_state import ResourceState
 from conflict_interface.interface.game_interface import GameInterface
-from conflict_interface.interface.online_interface import OnlineInterface
-from conflict_interface.interface.replay_interface import ReplayInterface
 from tests.compare_dicts import compare_dicts
 
 
 class ParseDumpTests(unittest.TestCase):
     test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState,
                    ResearchState, GameInfoState, GameEventState]
-    test_files = ["full_test_data_4.json"]
+    test_files = ["full_test_data_5.json"]
 
     def test_load_json(self):
         for file in ParseDumpTests.test_files:

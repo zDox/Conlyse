@@ -11,6 +11,7 @@ from conflict_interface.data_types.game_object import GameObject
 from dataclasses import dataclass
 
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import universal_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
@@ -178,11 +179,5 @@ class GameInfoState(State):
         return str(time)  # Implement actual formatting logic as needed
     """
 
-    def update(self, other: "GameInfoState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
-        for key in self.get_mapping().keys():
-            same_value = getattr(self, key)
-            other_value = getattr(other, key)
-
-            if rp:
-                rp.replace(path + [key], same_value, other_value)
-            setattr(self, key, other_value)
+    def update(self, other: "State", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        universal_update(self, other, path, rp)

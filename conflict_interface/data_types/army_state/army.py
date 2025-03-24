@@ -109,7 +109,7 @@ class Army(GameObject):
     spy_reveal_time: Optional[DateTimeMillisecondsInt] = None
     last_damage_taken_time: Optional[DateTimeMillisecondsInt] = None
 
-    patrol_radius: int = -1
+    patrol_radius: float = -1
     id: int = None
     size: int = 1
     health: float = 1.0

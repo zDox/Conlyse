@@ -8,6 +8,7 @@ from conflict_interface.data_types.newspaper_state.ranking import Ranking
 from conflict_interface.data_types.newspaper_state.report_article import ReportArticle
 from conflict_interface.data_types.newspaper_state.statistics_article import StatisticsArticle
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 
@@ -32,7 +33,7 @@ class NewspaperState(State):
 
     def update(self, other: "NewspaperState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         # TODO update newspaper to save paper of other dayys
-        super().update(other, path=path, rp=rp)
+        state_update(self, other, path=path, rp=rp)
 
         if rp:
             if self.day != other.day:

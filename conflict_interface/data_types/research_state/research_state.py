@@ -8,6 +8,7 @@ from conflict_interface.data_types.research_state.reserach import Research
 
 from conflict_interface.data_types.research_state.research_action_result import ResearchActionResult
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
@@ -140,7 +141,7 @@ class ResearchState(State):
     def update(self, other: "ResearchState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         if not isinstance(other, self.__class__):
             raise ValueError("UPDATE ERROR: Cannot update ResearchState with object of type: " + str(type(other)))
-        super().update(other, path=path, rp=rp)
+        state_update(self, other, path=path, rp=rp)
         if rp:
             for attr in self.get_mapping().keys():
                 if getattr(self, attr) != getattr(other, attr):

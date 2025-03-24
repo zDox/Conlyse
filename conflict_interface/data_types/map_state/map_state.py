@@ -7,6 +7,7 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.province_property import ProvinceProperty
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
@@ -36,7 +37,7 @@ class MapState(State):
     def update(self, other: GameObject, path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         if not isinstance(other, MapState):
             raise ValueError("UPDATE ERROR: Cannot update MapState with object of type: " + str(type(other)))
-        super().update(other, path=path, rp=rp)
+        state_update(self, other, path=path, rp=rp)
 
         if other.map is not None:
             for province in other.map.locations:

@@ -55,6 +55,7 @@ class ImpactType(Enum, metaclass=DefaultEnumMeta):
 class SeaType(Enum):
     HIGH_SEA = "HIGHSEA"
     COASTAL = "COASTAL"
+    RIVER = "RIVER"
 
 
 class TerrainType(Enum, metaclass=DefaultEnumMeta):
@@ -93,3 +94,4 @@ class TerrainTypeStr(Enum, metaclass=DefaultEnumMeta):
     HIGHSEA = "HIGHSEA"
     COASTAL = "COASTAL"
     SUBURBAN = "SUBURBAN"
+    RIVER = "RIVER"

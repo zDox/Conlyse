@@ -28,14 +28,7 @@ class B:
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     gitf = GameInterface()
-    ritf = Replay("replay2.db")
-    ritf.open()
-    t1 = time()
-    print(ritf.game_state.states.army_state.armies.get(17000323).get_land_position())
-    ritf.set_client_time(ritf.replay.last_time)
-    print(ritf.game_state.states.army_state.armies.get(17000323).get_land_position())
-
-    time_stamps = ritf.replay.get_timestamps()
-    time_stamps.reverse()
-
-    ritf.set_client_time(datetime.fromtimestamp(1742670897685 / 1000, tz=UTC))
+    r = Replay("replay2.db", "a")
+    time_stamps = r.get_game_state_timestamps()
+    for current_timestamp, next_timestamp in zip(time_stamps, time_stamps[1:]):
+        pass

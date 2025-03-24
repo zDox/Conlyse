@@ -47,8 +47,8 @@ class UpgradeType(GameObject):
     upgrade_description: str
     upgrade_name: str
 
-    new_upgrade_description: HashMap[str,str]
-    new_upgrade_name: HashMap[str,str]
+    new_upgrade_description: Optional[str]
+    new_upgrade_name: Optional[str]
 
     possible_province_states: HashMap[int, int]
 

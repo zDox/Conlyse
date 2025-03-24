@@ -6,6 +6,7 @@ from typing import override
 from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.game_event_state.game_event import *
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
@@ -43,7 +44,7 @@ class GameEventState(State):
             return
         if not issubclass(type(other), GameEventState):
             raise ValueError(f"Can't update {type(self)} with {type(other)} not a game event state")
-        super().update(other, path=path, rp=rp)
+        state_update(self, other, path=path, rp=rp)
 
         new_game_events = []
         if getattr(other, "game_events") is not None:

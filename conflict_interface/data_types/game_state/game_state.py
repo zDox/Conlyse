@@ -27,6 +27,7 @@ from conflict_interface.data_types.game_info_state.game_info_state import GameIn
 from conflict_interface.data_types.research_state.research_state import ResearchState
 from conflict_interface.data_types.configuration_state.configuration_state import ConfigurationState
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import state_update
 from conflict_interface.data_types.statistic_state.statistic_state import StatisticState
 from conflict_interface.data_types.triggered_tutorial_state.triggered_tutorial_state import TriggeredTutorialState
 from conflict_interface.data_types.tutorial_state.tutorial_state import TutorialState
@@ -178,9 +179,8 @@ class GameState(State):
             return None, None
         return state_ids, time_stamps
 
-    @override
     def update(self, other: "GameState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None) -> None:
-        super().update(other, path=path, rp=rp)
+        state_update(self, other, path=path, rp=rp)
 
         if rp and self.action_results != other.action_results:
             rp.replace(path + ["action_results"], self.action_results, other.action_results)

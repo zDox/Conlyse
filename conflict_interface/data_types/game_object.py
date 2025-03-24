@@ -341,7 +341,7 @@ def parse_any(cls: Type[DataclassType], json_obj: Any, game: GameInterface = Non
         raise ValueError(f"Type is None for json_obj {str(json_obj)[:1000]}")
     cls = get_inner_type(cls, json_obj)
 
-    #print(f"Handling parse_any for {cls} and {str(json_obj)[:1000]}")
+    # print(f"Handling parse_any for {cls} and {str(json_obj)[:1000]}")
 
     if issubclass(cls, GameObject):
         return parse_game_object(cls, json_obj, game)

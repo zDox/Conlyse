@@ -7,6 +7,7 @@ from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.army_state.army import Army
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
@@ -49,7 +50,7 @@ class ArmyState(State):
 
         if other == self:
             raise ValueError("UPDATE ERROR: Cannot update ArmyState with itself")
-        super().update(other, path=path, rp=rp)
+        state_update(self, other, path=path, rp=rp)
 
 
         # Merging two armies
