@@ -22,8 +22,9 @@ GameEventType = Union[
         ResourcesLootedEvent, ResourcesLostEvent, ArmyDamageReceivedEvent,
         ProvinceDamageReceivedEvent, OwnAllianceMembershipEvent, OtherAllianceMembershipEvent,
         MissileMissedTargetEvent, PatrolCancelledEvent, AircraftRebaseEvent,
-        PremiumSpyCatchEvent, PremiumSpyCorruptionMissionEvent, PremiumSpyDamageUpgradeEvent,
-        PremiumSpyDecreaseMoralEvent, PremiumSpyDestroyResourceEvent, UpgradeDemolishedEvent,
+        PremiumSpyCatchEvent, PremiumSpyCorruptionMissionEvent, PremiumSpySabotageMissionEvent,
+        PremiumSpyDamageUpgradeEvent, PremiumSpyDecreaseMoralEvent, PremiumSpyDestroyResourceEvent,
+        UpgradeDemolishedEvent,
         ArmyDisbandedEvent, UnitsExpiredEvent, NuclearImpactEvent, QuestDoneEvent,
         CoalitionMessageEvent, MissionEvent
     ]
