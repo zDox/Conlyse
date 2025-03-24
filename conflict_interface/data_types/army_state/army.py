@@ -122,9 +122,9 @@ class Army(GameObject):
     last_direction: Point = None
     on_sea: bool = False
     at_airfield: bool = False
-    units: UnitList[Unit] = field(default_factory=UnitList)
+    units: Optional[UnitList[Unit]] = field(default_factory=UnitList)
 
-    commands: LinkedList[Command] = field(default_factory=LinkedList)
+    commands: Optional[LinkedList[Command]] = field(default_factory=LinkedList)
     fight_status: FightStatus = FightStatus.IDLE
     battle: Battle = None
     attack_unit_id: int = None
