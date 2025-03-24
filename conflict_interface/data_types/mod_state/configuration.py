@@ -598,8 +598,8 @@ class PurchaseStrategyConfig(GameObject):
     purchasable: bool
     requirements: ConflictCondition
     costs: Union[LinkedHashMap[int, int], HashMap[int, int]]
-    initial_count: int
-    enable_all_priority: bool
+    enable_all_priority: bool = False
+    initial_count: int = 0
     MAPPING = {
         "purchasable": "purchasable",
         "requirements": "requirements",
@@ -716,8 +716,8 @@ class ConsumptionStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltConsumptionStrategyConfig"
 
     consumption_events: Optional[ArrayList[int]] # TODO check typing
-    behavior: str
-    insufficient_rule: str
+    behavior: Optional[str]
+    insufficient_rule: Optional[str]
 
     MAPPING = {
         "consumption_events": "consumptionEvents",
