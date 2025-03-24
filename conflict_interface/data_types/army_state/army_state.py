@@ -55,10 +55,11 @@ class ArmyState(State):
 
         # Merging two armies
         for new_army in other.armies.values():
-            if new_army.removed and new_army.id in self.armies:
-                if rp:
-                    rp.remove(path + ["armies", new_army.id], self.armies.get(new_army.id))
-                self.armies.pop(new_army.id)
+            if new_army.removed:
+                if new_army.id in self.armies:
+                    if rp:
+                        rp.remove(path + ["armies", new_army.id], self.armies.get(new_army.id))
+                    self.armies.pop(new_army.id)
                 continue
             else:
                 if rp:
