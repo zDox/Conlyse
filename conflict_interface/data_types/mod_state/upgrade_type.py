@@ -24,7 +24,6 @@ class UpgradeType(GameObject):
     build_condition: int
     max_condition: int
     min_condition: int
-
     article_prefix: str
     costs: HashMap[int, int]
     unit_costs: HashMap[int, int]

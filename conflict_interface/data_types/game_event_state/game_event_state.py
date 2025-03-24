@@ -1,7 +1,5 @@
 from dataclasses import field
 from typing import Union
-from typing import get_type_hints
-from typing import override
 
 from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.game_event_state.game_event import *
@@ -9,8 +7,6 @@ from conflict_interface.data_types.state import State
 from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
-from conflict_interface.replay.replay_patch import ReplayPatch
-from conflict_interface.utils.helper import safe_issubclass
 
 GameEventType = Union[
         ProvinceEnteredEvent, ProvinceLostEvent, NewspaperArticleEvent,

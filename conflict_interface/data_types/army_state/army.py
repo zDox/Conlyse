@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from typing import Optional
 
@@ -121,9 +122,9 @@ class Army(GameObject):
     last_direction: Point = None
     on_sea: bool = False
     at_airfield: bool = False
-    units: UnitList[Unit] = None
+    units: UnitList[Unit] = field(default_factory=UnitList)
 
-    commands: LinkedList[Command] = None
+    commands: LinkedList[Command] = field(default_factory=LinkedList)
     fight_status: FightStatus = FightStatus.IDLE
     battle: Battle = None
     attack_unit_id: int = None

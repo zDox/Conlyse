@@ -67,7 +67,7 @@ class ArmyState(State):
                         old_army = self.armies[new_army.id]
                         for attr in new_army.get_mapping():
                             if getattr(old_army, attr) != getattr(new_army, attr):
-                                 rp.replace(path + ["armies", new_army.id, attr],
+                                rp.replace(path + ["armies", new_army.id, attr],
                                             getattr(old_army, attr),
                                             getattr(new_army, attr))
                     else:
