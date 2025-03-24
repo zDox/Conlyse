@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
 from pprint import pprint
 from time import sleep
 from time import time
@@ -27,13 +28,26 @@ class B:
     foo: int
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
     gitf = GameInterface()
     ritf = Replay("replay2.db")
     ritf.open()
     t1 = time()
-    print(ritf.game_state.states.army_state.armies.get(17000323).get_land_position())
-    ritf.set_client_time(ritf.replay.last_time)
-    print(ritf.game_state.states.army_state.armies.get(17000323).get_land_position())
+    before_string = "27.03.2025 04:21:29"
+    after_string = "27.03.2025 04:21:33"
+
+    before_timestamp = datetime.fromtimestamp(datetime.strptime(before_string, "%d.%m.%Y %H:%M:%S").timestamp(), tz=UTC)
+    after_timestamp = datetime.fromtimestamp(datetime.strptime(after_string, "%d.%m.%Y %H:%M:%S").timestamp(), tz=UTC)
+
+    print(before_timestamp.tzname())
+    print("Jumping forward")
+    print(ritf.current_time.timestamp(), ritf.get_relation(86,35))
+    ritf.set_client_time(before_timestamp)
+    print(ritf.current_time.timestamp(), ritf.get_relation(86,35))
+    ritf.set_client_time(after_timestamp)
+    print(ritf.current_time.timestamp(), ritf.get_relation(86,35))
+    ritf.set_client_time(before_timestamp - timedelta(minutes=50))
+    print(ritf.current_time.timestamp(), ritf.get_relation(86,35))
 
     time_stamps = ritf.replay.get_timestamps()
     time_stamps.reverse()
