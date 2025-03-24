@@ -1,4 +1,5 @@
 import logging
+from pprint import pprint
 from time import sleep
 
 
@@ -10,8 +11,9 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     username, password, email, proxy_url = load_credentials()
     itf = HubInterface()
-    itf.login(username, password)
-    game = itf.join_game(9871761, replay_filename="replay.db")
+    itf.login("QOfUgzqsvWoiMv", "kuHxGrfxPlHbJW")
+    game = itf.join_game(9874690, replay_filename="replay.db")
+    pprint(game.game_state.states)
     while True:
         game.update()
         sleep(10)
