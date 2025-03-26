@@ -725,5 +725,7 @@ class Army(GameObject):
                     next_command.patrol_type == PatrolType.air_mobile_relocation
             )
 
-    def is_air_mobile(self):
+    def is_air_mobile(self) -> bool:
+        if not self.units:
+            return False
         return all(unit.has_feature(UnitFeature.UNITFEATURE_AIR_MOBILE) for unit in self.units)
