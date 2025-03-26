@@ -30,7 +30,9 @@ from conflict_interface.data_types.mod_state.configuration import RadarSignature
 from conflict_interface.data_types.mod_state.configuration import TokenFeature
 from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
 from conflict_interface.data_types.point import Point
+from conflict_interface.logger_config import get_logger
 
+logger = get_logger()
 
 @dataclass
 class Battle(GameObject):
@@ -562,6 +564,9 @@ class Army(GameObject):
 
         # Get first command
         command = self.commands[0]
+        if not command.arrival_time:
+            logger.debug(f"Command {self} has no arrival time")
+            return self.position
 
         if current_time >= command.arrival_time:
             # If past arrival time, use target position
