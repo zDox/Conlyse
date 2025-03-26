@@ -3,6 +3,9 @@ from __future__ import  annotations
 from enum import Enum
 from typing import Any
 from typing import TYPE_CHECKING
+from typing import Union
+from typing import get_args
+from typing import get_origin
 
 from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.data_types.game_object import GameObject
@@ -43,6 +46,44 @@ def apply_operation_any(op: Operation, obj_type: type, obj: Any, game: GameInter
     else:
         raise NotImplementedError(f"Expected is either a GameObject, List or Dict but encountered {obj_type}")
 
+def get_list_element_type(list_type_hint: type, list_element) -> type:
+    origin = get_origin(list_type_hint)
+    args = get_args(list_type_hint)
+    non_optional_list_type = list_type_hint
+    json_type = type(list_element)
+    if origin is Union:
+        if args[0] is None:
+            raise ValueError("Type is None, cant extract inner type.")
+        if len(args) == 2 and args[1] is type(None):
+            non_optional_list_type = args[1]
+
+    origin = get_origin(non_optional_list_type)
+    args = get_args(non_optional_list_type)
+    if origin is Union:
+        for arg in args:
+            element_type = get_args(arg)[0]
+            if element_type is None:
+                raise ValueError("Type is None, cant extract inner type.")
+            if json_type is dict:
+                if "@c" in list_element:
+                    if hasattr(element_type, "C") and element_type.C == list_element["@c"]:
+                        return element_type
+                elif json_type == element_type:
+                    return element_type
+                elif element_type.__name__ == "Point" and list_element.keys() == {"x", "y"}:
+                    return element_type
+            elif json_type is list:
+                if hasattr(element_type, "C") and element_type.C == list_element[0]:
+                    return element_type
+            elif element_type is json_type:
+                return element_type
+
+    elif non_optional_list_type is None:
+        raise ValueError("Type is None, cant extract inner type.")
+    else:
+        return get_args(non_optional_list_type)[0]
+
+
 
 
 def apply_operation_gameobject(op: Operation, obj_type: type, obj: GameObject, game: GameInterface):
@@ -67,8 +108,8 @@ def apply_operation_list(op: Operation, obj_type: type, obj: list, game: GameInt
             return parse_any(obj_type, op.new_value, game)
         else:
             raise Exception(f"Operation is {op} but path is empty and obj is {obj}")
-    value_type = obj_type.__args__[0]
     if len(op.path) == 1:
+        value_type = get_list_element_type(obj_type, op.new_value)
         if isinstance(op, AddOperation):
             obj.append(parse_any(value_type, op.new_value, game))
         elif isinstance(op, ReplaceOperation):
@@ -77,7 +118,7 @@ def apply_operation_list(op: Operation, obj_type: type, obj: list, game: GameInt
             obj.pop()
     else:
         key = op.path.pop(0)
-        apply_operation_any(op, value_type, obj[int(key)], game)
+        apply_operation_any(op, type(obj), obj[int(key)], game)
     return obj
 
 def apply_operation_dict(op: Operation, obj_type: type, obj: dict, game: GameInterface):
