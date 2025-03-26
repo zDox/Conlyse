@@ -61,7 +61,7 @@ class OnlineInterface(GameInterface):
                 old_game_state = parse_game_object(GameState, r.get_initial_game_state(), self)
                 uptodate_patches = r.jump_from_to(r.start_time, self.client_time())
                 for uptodate_patch in uptodate_patches:
-                    apply_patch_any(uptodate_patch, GameState, old_game_state, self)
+                    apply_patch_any(uptodate_patch, old_game_state, self)
 
                 rp = make_bireplay_patch(old_game_state, self.game_state)
                 r.record_bipatch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp)
