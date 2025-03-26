@@ -185,8 +185,8 @@ class UnitTrainedEvent(GameEvent):
 @dataclass
 class UpgradeBuiltEvent(GameEvent):
     C = "ultshared.gameevents.UltUpgradeBuiltGameEvent"
-    upgrade: ModableUpgrade
-    location_id: int
+    upgrade: Optional[ModableUpgrade]
+    location_id: Optional[int]
 
     MAPPING = {
         "location_id": "locationID",

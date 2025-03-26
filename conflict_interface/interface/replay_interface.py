@@ -1,7 +1,6 @@
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from pprint import pprint
 from time import time
 from typing import override
 
@@ -83,7 +82,7 @@ class ReplayInterface(GameInterface):
 
         patches = self.replay.jump_from_to(self.current_time, time_stamp)
         for rp in patches:
-            apply_patch_any(rp, GameState, self.game_state, self)
+            apply_patch_any(rp, self.game_state, self)
 
         self.current_time = time_stamp
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
