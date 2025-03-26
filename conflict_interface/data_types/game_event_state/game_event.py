@@ -6,6 +6,7 @@ from conflict_interface.data_types.army_state.army import Army
 from conflict_interface.data_types.custom_types import ArraysArrayList
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_event_state.sender import Sender
+from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 
 
 @dataclass
@@ -124,185 +125,191 @@ class ArmyDestroyedEvent(GameEvent):
 @dataclass
 class NewspaperArticleEvent(GameEvent):
     C = "ultshared.gameevents.UltNewspaperArticleGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class ArmyAttackedEvent(GameEvent):
     C = "ultshared.gameevents.UltArmyAttackedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class AirCrashEvent(GameEvent):
     C = "ultshared.gameevents.UltAirCrashGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class MessageReceivedEvent(GameEvent):
     C = "ultshared.gameevents.UltMessageReceivedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class ProvinceWonEvent(GameEvent):
     C = "ultshared.gameevents.UltProvinceWonGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class RelationChangeEvent(GameEvent):
     C = "ultshared.gameevents.UltRelationChangeGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class ResourceShortageEvent(GameEvent):
     C = "ultshared.gameevents.UltResourceShortageGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class SpyInfoEvent(GameEvent):
     C = "ultshared.gameevents.UltSpyInfoGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class TradeOfferEvent(GameEvent):
     C = "ultshared.gameevents.UltTradeOfferGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class TradeProcessedEvent(GameEvent):
     C = "ultshared.gameevents.UltTradeProcessedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class UnitProducedEvent(GameEvent):
     C = "ultshared.gameevents.UltUnitProducedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class UnitTrainedEvent(GameEvent):
     C = "ultshared.gameevents.UltUnitTrainedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class UpgradeBuiltEvent(GameEvent):
     C = "ultshared.gameevents.UltUpgradeBuiltGameEvent"
-    pass
+    upgrade: ModableUpgrade
+    location_id: int
+
+    MAPPING = {
+        "location_id": "locationID",
+        "upgrade": "upgrade",
+    }
 
 @dataclass
 class WarDeclaredEvent(GameEvent):
     C = "ultshared.gameevents.UltWarDeclaredGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class ResearchCompletedEvent(GameEvent):
     C = "ultshared.gameevents.UltResearchCompletedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class ResourcesLootedEvent(GameEvent):
     C = "ultshared.gameevents.UltResourcesLootedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class ResourcesLostEvent(GameEvent):
     C = "ultshared.gameevents.UltResourcesLostGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class ArmyDamageReceivedEvent(GameEvent):
     C = "ultshared.gameevents.UltArmyDamageReceivedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class ProvinceDamageReceivedEvent(GameEvent):
     C = "ultshared.gameevents.UltProvinceDamageReceivedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class OwnAllianceMembershipEvent(GameEvent):
     C = "ultshared.gameevents.UltOwnAllianceMembershipEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class OtherAllianceMembershipEvent(GameEvent):
     C = "ultshared.gameevents.UltOtherAllianceMembershipEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class MissileMissedTargetEvent(GameEvent):
     C = "ultshared.gameevents.UltMissileMissedTargetGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class PatrolCancelledEvent(GameEvent):
     C = "ultshared.gameevents.UltPatrolCancelledGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class AircraftRebaseEvent(GameEvent):
     C = "ultshared.gameevents.UltAircraftRebaseGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class PremiumSpyCatchEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyCatchGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class PremiumSpyCorruptionMissionEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyCorruptionMissionGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class PremiumSpySabotageMissionEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpySabotageMissionGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class PremiumSpyDamageUpgradeEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyDamageUpgradeGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class PremiumSpyDecreaseMoralEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyDecreaseMoralGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class PremiumSpyDestroyResourceEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyDestroyResourceGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class UpgradeDemolishedEvent(GameEvent):
     C = "ultshared.gameevents.UltUpgradeDemolishedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class ArmyDisbandedEvent(GameEvent):
     C = "ultshared.gameevents.UltArmyDisbandedGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class UnitsExpiredEvent(GameEvent):
     C = "ultshared.gameevents.UltUnitsExpiredGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class NuclearImpactEvent(GameEvent):
     C = "ultshared.gameevents.UltNuclearImpactGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class QuestDoneEvent(GameEvent):
     C = "ultshared.gameevents.UltQuestDoneGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class CoalitionMessageEvent(GameEvent):
     C = "ultshared.gameevents.UltCoalitionMessageGameEvent"
-    pass
+    MAPPING = {}
 
 @dataclass
 class MissionEvent(GameEvent):
     C = "ultshared.gameevents.UltMissionGameEvent"
-    pass
+    MAPPING = {}
 

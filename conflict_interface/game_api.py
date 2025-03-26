@@ -147,9 +147,8 @@ class GameApi:
         match = re.search(r'clientVersion=(\d+)', response.text)
         if match:
             self.client_version = int(match.group(1))
-            if self.client_version != 188:
-                logger.warning(f"Client version is {self.client_version} \
-                        which is not supported by this library.")
+            if self.client_version != 189:
+                logger.warning(f"Client version is {self.client_version} which is not supported by this library (supported 189).")
         else:
             raise GameJoinException(f"Could not find client_version \
                     in request {response.text}")

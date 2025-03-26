@@ -46,6 +46,9 @@ from conflict_interface.data_types.spy_state.premium_spy_job import RevealAllArm
 from conflict_interface.data_types.spy_state.premium_spy_job import RevealProvinceArmiesJob
 from conflict_interface.data_types.spy_state.spy_mission import SpyMission
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import universal_update
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
+from conflict_interface.replay.replay_patch import PathNode
 
 
 @dataclass
@@ -146,3 +149,6 @@ class ModState(State):
         "uber_config": "uberConfig",
         "player_progress_config": "playerProgressionConfig",
     }
+
+    def update(self, other: "State", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        universal_update(self, other, path, rp)

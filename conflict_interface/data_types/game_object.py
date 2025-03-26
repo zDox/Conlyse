@@ -298,7 +298,9 @@ def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterfac
             parsed_data[python_var_name] = parse_any(python_var_type, json_obj[conflict_var_name], game)
         else:
             if field_info.default == DATACLASS_MISSING:
-                if type(None) in get_args(python_var_type):
+                if field_info.default_factory != DATACLASS_MISSING:
+                    parsed_data[python_var_name] = field_info.default_factory()
+                elif type(None) in get_args(python_var_type):
                     parsed_data[python_var_name] = None
                 elif issubclass(python_var_type, Enum):
                     if isinstance(python_var_type, DefaultEnumMeta):
@@ -341,7 +343,7 @@ def parse_any(cls: Type[DataclassType], json_obj: Any, game: GameInterface = Non
         raise ValueError(f"Type is None for json_obj {str(json_obj)[:1000]}")
     cls = get_inner_type(cls, json_obj)
 
-    #print(f"Handling parse_any for {cls} and {str(json_obj)[:1000]}")
+    # print(f"Handling parse_any for {cls} and {str(json_obj)[:1000]}")
 
     if issubclass(cls, GameObject):
         return parse_game_object(cls, json_obj, game)

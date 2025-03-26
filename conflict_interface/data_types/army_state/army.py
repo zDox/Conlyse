@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from typing import Optional
 
@@ -109,7 +110,7 @@ class Army(GameObject):
     spy_reveal_time: Optional[DateTimeMillisecondsInt] = None
     last_damage_taken_time: Optional[DateTimeMillisecondsInt] = None
 
-    patrol_radius: int = -1
+    patrol_radius: float = -1
     id: int = None
     size: int = 1
     health: float = 1.0
@@ -121,9 +122,9 @@ class Army(GameObject):
     last_direction: Point = None
     on_sea: bool = False
     at_airfield: bool = False
-    units: UnitList[Unit] = None
+    units: UnitList[Unit] = field(default_factory=UnitList)
 
-    commands: LinkedList[Command] = None
+    commands: LinkedList[Command] = field(default_factory=LinkedList)
     fight_status: FightStatus = FightStatus.IDLE
     battle: Battle = None
     attack_unit_id: int = None
@@ -724,5 +725,7 @@ class Army(GameObject):
                     next_command.patrol_type == PatrolType.air_mobile_relocation
             )
 
-    def is_air_mobile(self):
+    def is_air_mobile(self) -> bool:
+        if not self.units:
+            return False
         return all(unit.has_feature(UnitFeature.UNITFEATURE_AIR_MOBILE) for unit in self.units)

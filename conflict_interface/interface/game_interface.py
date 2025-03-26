@@ -70,8 +70,9 @@ class GameInterface:
     """
     ArmyState(6)
     """
-    @country_selected
     def get_armies(self, **filters) -> dict[int, Army]:
+        if not self.game_state.states.army_state:
+            return {}
         return {
             army_id: army
             for army_id, army in self.game_state.states.army_state.armies.items()
@@ -82,12 +83,13 @@ class GameInterface:
     def get_my_armies(self, **filters) -> dict[int, Army]:
         return self.get_armies(owner_id=self.player_id, **filters)
 
-    @country_selected
-    def get_army(self, army_id: int) -> Army:
+    def get_army(self, army_id: int) -> Army | None:
+        if not self.game_state.states.army_state:
+            return None
         return self.game_state.states.army_state.armies.get(army_id)
 
     @country_selected
-    def get_my_army_by_number(self, army_number: int) -> Army:
+    def get_my_army_by_number(self, army_number: int) -> Army | None:
         return next(iter(self.get_my_armies(owner_id=self.player_id, army_number=army_number).values()), None)
 
     @country_selected

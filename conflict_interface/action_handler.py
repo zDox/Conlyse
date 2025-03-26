@@ -188,7 +188,7 @@ class ActionHandler:
             if self.game_state is not None:
                 rp = BidirectionalReplayPatch()
                 self.game_state.update(game_state, path=[], rp=rp)
-                self.game.record_patch(rp)
+                self.game.record_patch(rp, game_state)
             else:
                 self.game_state = game_state
         else:

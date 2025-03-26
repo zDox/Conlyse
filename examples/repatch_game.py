@@ -4,26 +4,16 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
-from datetime import timedelta
 from pprint import pprint
 from time import sleep
 from time import time
-from typing import Union
-from typing import get_args
 
 from deepdiff import DeepDiff
-from typing_extensions import get_origin
 
-from conflict_interface.data_types.army_state.army import Army
 from conflict_interface.data_types.army_state.army_state import ArmyState
-from conflict_interface.data_types.custom_types import ArrayList
-from conflict_interface.data_types.custom_types import EmptyList
-from conflict_interface.data_types.custom_types import LinkedList
 from conflict_interface.data_types.game_object import dump_any
-from conflict_interface.data_types.game_object import get_inner_type
 from conflict_interface.data_types.game_object import parse_game_object
 from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
@@ -37,10 +27,8 @@ class B:
     foo: int
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG)
-
     gitf = GameInterface()
-    ritf = ReplayInterface("replay.db")
-    ritf.open()
-    ritf.set_client_time(ritf.end_time)
-    ritf.close()
+    r = Replay("replay2.db", "a")
+    time_stamps = r.get_game_state_timestamps()
+    for current_timestamp, next_timestamp in zip(time_stamps, time_stamps[1:]):
+        pass

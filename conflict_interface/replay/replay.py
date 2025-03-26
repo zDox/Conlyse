@@ -375,3 +375,4 @@ class Replay:
             return json.loads(zlib.decompress(result[0]).decode('utf-8'))
         else:
             raise Exception(f"No Game found with timestamp {timestamp}")
+

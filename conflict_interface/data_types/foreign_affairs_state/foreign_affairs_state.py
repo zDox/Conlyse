@@ -9,6 +9,7 @@ from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state_e
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.newspaper_state.article import Article
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import universal_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
@@ -84,3 +85,6 @@ class ForeignAffairsState(State):
         "relations": "relations",
         "messages": "messages",
     }
+
+    def update(self, other: "State", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        universal_update(self, other, path, rp)

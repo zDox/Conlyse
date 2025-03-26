@@ -176,7 +176,7 @@ class OnlineInterface(GameInterface):
     def is_recording(self) -> bool:
         return self.replay is not None
 
-    def record_patch(self, rp: BidirectionalReplayPatch):
+    def record_patch(self, rp: BidirectionalReplayPatch, small_game_state: GameState):
         if self.is_recording():
             with self.replay as r:
                 r.record_bipatch(time_stamp=self.client_time(),
@@ -184,7 +184,7 @@ class OnlineInterface(GameInterface):
                                      player_id=self.player_id,
                                      replay_patch=rp)
                 current_time = int(self.client_time().timestamp() * 1000)
-                r._write_game_state(current_time, dump_any(self.game_state))
+                r._write_game_state(current_time, dump_any(small_game_state))
 
     """
     Utility functions

@@ -7,6 +7,7 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.province_property import ProvinceProperty
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 from conflict_interface.replay.replay_patch import ReplayPatch
@@ -36,13 +37,13 @@ class MapState(State):
     def update(self, other: GameObject, path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         if not isinstance(other, MapState):
             raise ValueError("UPDATE ERROR: Cannot update MapState with object of type: " + str(type(other)))
-        super().update(other, path=path, rp=rp)
+        state_update(self, other, path=path, rp=rp)
 
         if other.map is not None:
             for province in other.map.locations:
                 if province.id not in self.map.provinces:
-                    rp.add(path + ["map", "locations", -1], self.map.provinces.get(province
-                    .id), province)
+                    if rp:
+                        rp.add(path + ["map", "locations", -1], self.map.provinces.get(province.id), province)
                     self.map.locations.append(province)
                 else:
                     self.map.provinces[province.id].update(
@@ -54,10 +55,12 @@ class MapState(State):
 
         if other.properties is not None:
             if any(province_id not in self.properties for province_id  in other.properties.keys()):
-                rp.replace(path + ["properties"], self.properties, other.properties)
+                if rp:
+                    rp.replace(path + ["properties"], self.properties, other.properties)
                 self.properties = other.properties
                 return
             for province_id, prop in other.properties.items():
-                rp.replace(path + ["properties", province_id], self.properties.get(province_id), prop)
+                if rp:
+                    rp.replace(path + ["properties", province_id], self.properties.get(province_id), prop)
                 self.properties[province_id] = prop
                 self.map.provinces[province_id]._properties = prop
