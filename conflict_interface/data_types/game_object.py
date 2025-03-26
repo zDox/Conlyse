@@ -336,7 +336,7 @@ def parse_enum(cls: type[Enum], json_obj: str | int) -> Enum:
             raise ValueError(f"Unknown enum value {json_obj} for {cls}")
 
 
-def parse_any(cls: Type[DataclassType], json_obj: Any, game: GameInterface = None) -> DataclassType:
+def parse_any(cls: Any, json_obj: Any, game: GameInterface = None) -> DataclassType:
     if json_obj is None:
         return None
     if cls is None:
