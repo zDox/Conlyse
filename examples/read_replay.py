@@ -11,7 +11,7 @@ from time import time
 from typing import Optional
 from typing import Union
 from typing import get_args
-
+from typing import get_origin
 
 from conflict_interface.data_types.army_state.army import Army
 from conflict_interface.data_types.army_state.army_state import ArmyState
@@ -44,9 +44,7 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
-    print(get_list_element_type(Optional[HashMap[int, ProvinceProperty]], {'@c': 'ultshared.UltProvinceProperties'}))
-    a: dict[ResourceType, str] = {ResourceType.NONE: "100"}
-    print(a[ResourceType(0)])
+
 
 
 
