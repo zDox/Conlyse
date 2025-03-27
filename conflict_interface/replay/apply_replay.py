@@ -22,6 +22,7 @@ from conflict_interface.replay.replay_patch import Operation
 from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
 from conflict_interface.replay.replay_patch import ReplayPatch
+from conflict_interface.utils.helper import safe_issubclass
 
 if TYPE_CHECKING:
     from conflict_interface.interface.game_interface import GameInterface
@@ -141,9 +142,10 @@ def apply_operation(op: Operation, obj: GameObject | list | dict, obj_type, pos:
                 raise ValueError(f"Object has no attribute '{pos}'")
             setattr(obj, pos, None)
         else:
-            if type(obj) is list:
+            inner_type = get_inner_type(obj_type, obj)
+            if issubclass(inner_type, list):
                 obj.pop()
-            elif type(obj) is dict:
+            elif issubclass(inner_type, dict):
                 obj.pop(pos)
 
 def make_bireplay_patch(self: Any, other: Any) -> BidirectionalReplayPatch:
