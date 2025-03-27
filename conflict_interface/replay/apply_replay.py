@@ -144,9 +144,15 @@ def apply_operation(op: Operation, obj: GameObject | list | dict, obj_type, pos:
         else:
             inner_type = get_inner_type(obj_type, obj)
             if issubclass(inner_type, list):
-                obj.pop()
+                if len(obj) == 0:
+                    logger.warning(f"Cannot remove {str(obj)[:100]} from empty list")
+                else:
+                    obj.pop()
             elif issubclass(inner_type, dict):
-                obj.pop(pos)
+                if pos in obj.keys():
+                    obj.pop(pos)
+                else:
+                    logger.warning(f"Key {pos} not in {str(obj)[:100]}")
 
 def make_bireplay_patch(self: Any, other: Any) -> BidirectionalReplayPatch:
     forward = make_replay_patch(self, other)
