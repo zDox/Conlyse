@@ -33,3 +33,4 @@ build
 /doc/main-built-min.js
 
 examples/replay*
+examples/credentials.json
