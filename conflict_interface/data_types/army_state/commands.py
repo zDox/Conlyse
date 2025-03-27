@@ -98,6 +98,7 @@ class PatrolType(Enum):
     air_mobile_relocation = "AirMobileRelocation"
     airplane_relocation = "AirplaneRelocation"
     guard = "Guard"
+    air_transport = "AirTransport"
 
 
 @dataclass
