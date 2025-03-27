@@ -33,7 +33,5 @@ build
 /doc/main-built-min.js
 tests/full_test_data_5.json
 examples/replay.db
-examples/replay.db
 *.db
 examples/replay.db
-*.db
