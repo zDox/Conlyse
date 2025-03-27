@@ -416,6 +416,8 @@ class HubApi:
             "userID": self.auth.user_id,
         }, "getSessionToken")
         if "sessionToken" not in res:
+            print(res)
+            print(self.auth)
             raise AuthenticationException("Could not get session token")
         return res["sessionToken"]
 

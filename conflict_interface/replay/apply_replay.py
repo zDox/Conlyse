@@ -1,8 +1,12 @@
-from __future__ import  annotations
+from __future__ import annotations
 
 from enum import Enum
 from typing import Any
 from typing import TYPE_CHECKING
+from typing import Union
+from typing import get_args
+from typing import get_origin
+
 
 from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.data_types.game_object import GameObject
@@ -10,6 +14,7 @@ from conflict_interface.data_types.game_object import SIMPLE_PARSE_MAPPING
 from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.data_types.game_object import get_inner_type
 from conflict_interface.data_types.game_object import parse_any
+from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
@@ -17,103 +22,131 @@ from conflict_interface.replay.replay_patch import Operation
 from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
 from conflict_interface.replay.replay_patch import ReplayPatch
+from conflict_interface.utils.helper import safe_issubclass
 
 if TYPE_CHECKING:
     from conflict_interface.interface.game_interface import GameInterface
 
 logger = get_logger()
 
-def apply_patch_any(rp: ReplayPatch, obj_type: type, obj: Any, game: GameInterface):
-    for op in rp.operations:
-        apply_operation_any(op, obj_type, obj, game)
 
-def apply_operation_any(op: Operation, obj_type: type, obj: Any, game: GameInterface):
+def get_list_element_type(list_type_hint: type, list_element) -> type:
+    """
+    Takes the type hint of a list ond a list element and returns the type of the list element.
+    Args:
+        list_type_hint: Type hint of the list
+        list_element:  Element of the list
+
+    Returns:
+        Type of the list element ready to be parsed
+    """
+    origin = get_origin(list_type_hint)
+    args = get_args(list_type_hint)
+    non_optional_list_type = list_type_hint
+    json_type = type(list_element)
+    if origin is Union:
+        if args[0] is None:
+            raise ValueError("Type is None, cant extract inner type.")
+        if len(args) == 2 and args[1] is type(None):
+            non_optional_list_type = args[0]
+
+    origin = get_origin(non_optional_list_type)
+    args = get_args(non_optional_list_type)
+    if origin is Union:
+        for arg in args:
+            element_type = get_args(arg)[0]
+            if element_type is None:
+                raise ValueError("Type is None, cant extract inner type.")
+            if json_type is dict:
+                if "@c" in list_element:
+                    if hasattr(element_type, "C") and element_type.C == list_element["@c"]:
+                        return element_type
+                elif json_type == element_type:
+                    return element_type
+                elif element_type.__name__ == "Point" and list_element.keys() == {"x", "y"}:
+                    return element_type
+            elif json_type is list:
+                if hasattr(element_type, "C") and element_type.C == list_element[0]:
+                    return element_type
+            elif element_type is json_type:
+                return element_type
+
+    elif non_optional_list_type is None:
+        raise ValueError("Type is None, cant extract inner type.")
+    else:
+        if len(args) == 2:
+            return args[1]
+        elif len(args) != 1:
+            raise ValueError(f"Expected list got {non_optional_list_type} for {list_element} and typehint {list_type_hint} with args {args}")
+        return args[0]
+
+def recur_path(obj: Any, obj_type: type, path: list[str | int], game_state: GameState, game: GameInterface) -> tuple[Any, str | int, type] |tuple[Any, str | int]:
+    if len(path) == 0:
+        raise ValueError(f"Path is empty for {obj}")
+    if len(path) == 1:
+        if isinstance(obj, GameObject):
+            if not hasattr(obj, path[0]):
+                raise ValueError(f"Object {str(obj)[:100]} has no attribute '{path[0]}'")
+            else:
+                obj_type = obj.get_type_hints_cached()[path[0]]
+        return obj, path[0], obj_type
+    key = path.pop(0)
     if isinstance(obj, GameObject):
-        return apply_operation_gameobject(op, obj_type, obj, game)
+        if not hasattr(obj, key):
+            raise ValueError(f"Object {str(obj)[:100]} has no attribute '{key}'")
+        return recur_path(getattr(obj, key), obj.get_type_hints_cached()[key], path, game_state, game)
     elif isinstance(obj, list):
-        return apply_operation_list(op, obj_type, obj, game)
+        return recur_path(obj[int(key)], get_args(obj_type)[0], path, game_state, game)
     elif isinstance(obj, dict):
-        return apply_operation_dict(op, obj_type, obj, game)
-    elif get_inner_type(obj_type, obj) in SIMPLE_PARSE_MAPPING:
-        return apply_operation_simple(op, get_inner_type(obj_type, obj), obj)
-    elif obj is None and len(op.path) == 0:
-        return parse_any(obj_type, op.new_value, game)
-    elif isinstance(obj, Enum):
-        return parse_any(obj_type, op.new_value, game)
-    else:
-        raise NotImplementedError(f"Expected is either a GameObject, List or Dict but encountered {obj_type}")
+        inner_type = get_inner_type(obj_type, obj)
+        key = parse_any(get_args(inner_type)[0], key, game)
+        return recur_path(obj[key], get_args(inner_type)[1], path, game_state, game)
 
+def apply_patch_any(rp: ReplayPatch, game_state: GameState, game: GameInterface):
+    if not isinstance(game_state, GameState):
+        raise ValueError(f"Expected game state but got {type(game_state)}")
+    for op in rp.operations:
+        obj, pos, obj_type = recur_path(game_state, GameState, op.path.copy(), game_state, game)
+        apply_operation(op, obj, obj_type, pos, game)
 
-
-def apply_operation_gameobject(op: Operation, obj_type: type, obj: GameObject, game: GameInterface):
-    if len(op.path) == 0:
-        if isinstance(op, AddOperation):
-            raise Exception(f"Cannot apply {op} on {obj}")
-        elif isinstance(op, ReplaceOperation):
-            return parse_any(obj_type, op.new_value, game)
-        elif isinstance(op, RemoveOperation):
-            return None
-
-    if not hasattr(obj, op.path[0]):
-        logger.warning(f"{obj.__class__} has no attribute '{op.path[0]}'")
-        return
-    key = op.path.pop(0)
-    setattr(obj, key, apply_operation_any(op, obj.get_type_hints_cached()[key], getattr(obj, key), game))
-    return obj
-
-def apply_operation_list(op: Operation, obj_type: type, obj: list, game: GameInterface):
-    if len(op.path) == 0:
-        if isinstance(op, ReplaceOperation):
-            return parse_any(obj_type, op.new_value, game)
+def apply_operation(op: Operation, obj: GameObject | list | dict, obj_type, pos: int | str,  game):
+    if isinstance(op, ReplaceOperation):
+        if isinstance(obj, GameObject):
+            if not type(pos) is str:
+                raise ValueError(f"Can only replace at str for gameObject but got {type(pos)}")
+            if not hasattr(obj, pos):
+                raise ValueError(f"Object {str(obj)[:100]}has no attribute '{pos}'")
+            inner_type = get_inner_type(obj_type, op.new_value)
+            setattr(obj, pos, parse_any(inner_type, op.new_value, game))
+        elif isinstance(obj, list) or isinstance(obj, dict):
+            ele_type = get_list_element_type(obj_type, op.new_value)
+            obj[pos] = parse_any(ele_type, op.new_value, game)
         else:
-            raise Exception(f"Operation is {op} but path is empty and obj is {obj}")
-    value_type = obj_type.__args__[0]
-    if len(op.path) == 1:
-        if isinstance(op, AddOperation):
-            obj.append(parse_any(value_type, op.new_value, game))
-        elif isinstance(op, ReplaceOperation):
-            obj[int(op.path[0])] = parse_any(value_type, op.new_value, game)
-        else:
-            obj.pop()
-    else:
-        key = op.path.pop(0)
-        apply_operation_any(op, value_type, obj[int(key)], game)
-    return obj
-
-def apply_operation_dict(op: Operation, obj_type: type, obj: dict, game: GameInterface):
-    if len(op.path) == 0:
-        return parse_any(obj_type, op.new_value, game)
-
-
-    if len(op.path) == 1:
-        python_type = get_inner_type(obj_type, obj)
-        key = parse_any(python_type.__args__[0], op.path[0], game)
-
-        if isinstance(op, AddOperation):
-            value = parse_any(python_type.__args__[1], op.new_value, game)
-            obj[key] = value
-        elif isinstance(op, ReplaceOperation):
-            value = parse_any(python_type.__args__[1], op.new_value, game)
-            obj[key] = value
-        else:
-            obj.pop(key)
-    else:
-        python_type = get_inner_type(obj_type, obj)
-        key = parse_any(python_type.__args__[0], op.path[0], game)
-        op.path.pop(0)
-        apply_operation_any(op, python_type.__args__[1], obj[key], game)
-    return obj
-
-def apply_operation_simple(op: Operation, obj_type: type, obj: Any) -> Any:
-    if len(op.path) != 0:
-        raise Exception(f"Operation is {op} but path is not empty and obj is {obj}")
+            raise ValueError(f"pos is not str or int it is: {type(pos)} for {pos}")
 
     if isinstance(op, AddOperation):
-        raise Exception(f"Cannot apply {op} on {obj}")
-    elif isinstance(op, RemoveOperation):
-        raise Exception(f"Cannot apply {op} on {obj}")
+        if isinstance(obj, list):
+            obj.append(parse_any(get_list_element_type(obj_type, op.new_value), op.new_value, game))
+        elif isinstance(obj, dict):
+            inner_type = get_inner_type(obj_type, obj)
+            key = parse_any(get_args(inner_type)[0], pos, game)
+            obj[key] = parse_any(get_args(inner_type)[1], op.new_value, game)
+        else:
+            raise ValueError(f"Can only add to List or Dict not {type(obj)}")
 
-    return parse_any(obj_type, op.new_value)
+    if isinstance(op, RemoveOperation):
+        if isinstance(obj, GameObject):
+            if not type(pos) is str:
+                raise ValueError(f"Can only remove at str for gameObject but got {type(pos)}")
+            if not hasattr(obj,pos):
+                raise ValueError(f"Object has no attribute '{pos}'")
+            setattr(obj, pos, None)
+        else:
+            inner_type = get_inner_type(obj_type, obj)
+            if issubclass(inner_type, list):
+                obj.pop()
+            elif issubclass(inner_type, dict):
+                obj.pop(pos)
 
 def make_bireplay_patch(self: Any, other: Any) -> BidirectionalReplayPatch:
     forward = make_replay_patch(self, other)

@@ -101,7 +101,7 @@ class GameInfoState(State):
     military_score: int
     military_boost_score: int
     game_image_path: str
-    end_of_game: DateTimeMillisecondsInt
+    end_of_game: DateTimeSecondsInt
     game_ended: bool
     victory_points_modifier: int
     coalition_victory_points_modifier: int

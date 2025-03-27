@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import typing
 from dataclasses import MISSING as DATACLASS_MISSING
 from dataclasses import is_dataclass
 from datetime import UTC
 from enum import Enum
-from inspect import Attribute
-from time import time
 from typing import Any
 from typing import TYPE_CHECKING
 from typing import Type
@@ -15,7 +12,6 @@ from typing import cast
 from typing import get_args
 from typing import get_origin
 from typing import get_type_hints
-
 
 from conflict_interface.data_types.custom_types import *
 from conflict_interface.logger_config import get_logger
@@ -60,7 +56,9 @@ def get_inner_type(cls: type, json_obj):
                     return arg
             elif json_type is int and arg is DateTimeMillisecondsInt: # TODO could run into problems when Union[int, DateTimeInt]
                 return arg
-            elif arg is json_type:
+            elif json_type is arg:
+                return arg
+            elif get_origin(arg) == json_type:
                 return arg
 
         raise ValueError(f"Unknown type {cls} for json_obj {str(json_obj)[:1000]}, origin is {origin}, json_type is {json_type}")
@@ -336,7 +334,7 @@ def parse_enum(cls: type[Enum], json_obj: str | int) -> Enum:
             raise ValueError(f"Unknown enum value {json_obj} for {cls}")
 
 
-def parse_any(cls: Type[DataclassType], json_obj: Any, game: GameInterface = None) -> DataclassType:
+def parse_any(cls: Any, json_obj: Any, game: GameInterface = None) -> DataclassType:
     if json_obj is None:
         return None
     if cls is None:

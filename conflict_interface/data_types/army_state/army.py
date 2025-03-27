@@ -30,7 +30,9 @@ from conflict_interface.data_types.mod_state.configuration import RadarSignature
 from conflict_interface.data_types.mod_state.configuration import TokenFeature
 from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
 from conflict_interface.data_types.point import Point
+from conflict_interface.logger_config import get_logger
 
+logger = get_logger()
 
 @dataclass
 class Battle(GameObject):
@@ -562,6 +564,9 @@ class Army(GameObject):
 
         # Get first command
         command = self.commands[0]
+        if not command.arrival_time:
+            logger.debug(f"Command {self} has no arrival time")
+            return self.position
 
         if current_time >= command.arrival_time:
             # If past arrival time, use target position
@@ -597,6 +602,8 @@ class Army(GameObject):
                 # For patrolling, use attack position directly
                 return Point(self.attack_position.x, self.attack_position.y)
             else:
+                if not self.next_attack_time:
+                    return self.position
                 # Calculate interpolated position
                 next_attack_time = int(self.next_attack_time.timestamp() * 1000)
                 last_air_action_time = int(
@@ -725,5 +732,7 @@ class Army(GameObject):
                     next_command.patrol_type == PatrolType.air_mobile_relocation
             )
 
-    def is_air_mobile(self):
+    def is_air_mobile(self) -> bool:
+        if not self.units:
+            return False
         return all(unit.has_feature(UnitFeature.UNITFEATURE_AIR_MOBILE) for unit in self.units)
