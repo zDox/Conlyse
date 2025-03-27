@@ -602,6 +602,8 @@ class Army(GameObject):
                 # For patrolling, use attack position directly
                 return Point(self.attack_position.x, self.attack_position.y)
             else:
+                if not self.next_attack_time:
+                    return self.position
                 # Calculate interpolated position
                 next_attack_time = int(self.next_attack_time.timestamp() * 1000)
                 last_air_action_time = int(
