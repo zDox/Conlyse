@@ -4,13 +4,13 @@ import os
 import zlib
 from datetime import UTC, datetime
 from sqlite3 import Connection
-from typing import Literal
+from typing import Literal, Dict, List, Optional
 
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import ReplayPatch
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch, ReplayPatch
 
 logger = get_logger()
+
 
 class CorruptReplay(Exception):
     pass
@@ -29,11 +29,16 @@ class Replay:
         self.mode = mode
         self.game_id = game_id
         self.player_id = player_id
-        self.conn: Connection | None = None
+        self.conn: Optional[Connection] = None
 
         self._start_time: int = 0
-        self._last_time: int | None = None  # To track the previous timestamp for patch ranges
+        self._last_time: Optional[int] = None
 
+        # In-memory caches (only patches and timestamps, no game states)
+        self._patches: Dict[tuple[int, int], ReplayPatch] = {}  # (from_ts, to_ts) -> patch
+        self._timestamps: List[int] = []
+        self._game_state_timestamps: List[int] = []
+        self._static_map_data: Optional[dict] = None
 
     def __enter__(self):
         if self.mode == 'w':
@@ -46,10 +51,9 @@ class Replay:
         if self.mode == 'w':
             self._create_tables()
             self._write_information()
-        elif self.mode == 'a':
+        elif self.mode in ('r', 'a'):
             self._load_information()
-        elif self.mode == 'r':
-            self._load_information()
+            self._load_into_memory()  # Load patches and timestamps, not game states
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -62,11 +66,31 @@ class Replay:
     def close(self):
         self.__exit__(None, None, None)
 
+    def _load_into_memory(self):
+        """Load patches and timestamps into memory, fetch game state timestamps from disk."""
+        # Load game state timestamps (but not the states themselves)
+        cursor = self.conn.execute("SELECT timestamp FROM game_state")
+        self._game_state_timestamps = [row[0] for row in cursor.fetchall()]
+        self._game_state_timestamps.sort()
+
+        # Load patches
+        cursor = self.conn.execute("SELECT from_timestamp, to_timestamp, patch FROM patches")
+        for from_ts, to_ts, patch_str in cursor.fetchall():
+            self._patches[(from_ts, to_ts)] = ReplayPatch.from_string(patch_str)
+            if to_ts not in self._timestamps:
+                self._timestamps.append(to_ts)
+        self._timestamps.sort()
+
+        # Load static map data
+        cursor = self.conn.execute("SELECT data FROM static_map_data")
+        if static_data := cursor.fetchone():
+            self._static_map_data = json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
+
     def _create_tables(self):
-        """Create SQLite tables for metadata, initial state, patches, actions, and static map data."""
+        """Create SQLite tables (unchanged)."""
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS information (
-                id INTEGER PRIMARY KEY,  -- Single row with id=1
+                id INTEGER PRIMARY KEY,
                 version INTEGER,
                 game_id INTEGER,
                 player_id INTEGER,
@@ -77,50 +101,44 @@ class Replay:
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS game_state (
                 timestamp INTEGER PRIMARY KEY,
-                data BLOB  -- Compressed JSON
+                data BLOB
             )
         """)
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS patches (
                 from_timestamp INTEGER,
                 to_timestamp INTEGER,
-                patch TEXT  -- Uncompressed JSON patch
+                patch TEXT
             )
         """)
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS actions (
                 timestamp INTEGER PRIMARY KEY,
-                action TEXT  -- Uncompressed JSON action
+                action TEXT
             )
         """)
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS static_map_data (
-                data BLOB  -- Compressed JSON
+                data BLOB
             )
         """)
         self.conn.commit()
 
     @property
-    def start_time(self) -> datetime | None:
-        if self._start_time is None:
-            return None
-        return datetime.fromtimestamp(self._start_time / 1000, tz=UTC)
-
+    def start_time(self) -> Optional[datetime]:
+        return datetime.fromtimestamp(self._start_time / 1000, tz=UTC) if self._start_time else None
 
     @property
-    def last_time(self) -> datetime | None:
-        if self._last_time is None:
-            return None
-        return datetime.fromtimestamp(self._last_time / 1000, tz=UTC)
+    def last_time(self) -> Optional[datetime]:
+        return datetime.fromtimestamp(self._last_time / 1000, tz=UTC) if self._last_time else None
 
     def _write_information(self):
         """Write metadata to the information table."""
         self.conn.execute("""
-                INSERT OR REPLACE INTO information (id, version, game_id, player_id, start_time, last_time) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (1, VERSION, self.game_id, self.player_id, self._start_time, self._last_time))
+            INSERT OR REPLACE INTO information (id, version, game_id, player_id, start_time, last_time) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (1, VERSION, self.game_id, self.player_id, self._start_time, self._last_time))
         self.conn.commit()
-        logger.debug(f"Wrote information {(1, VERSION, self.game_id, self.player_id, self._start_time, self._last_time)}")
 
     def _load_information(self):
         """Load metadata from the information table."""
@@ -129,112 +147,71 @@ class Replay:
         row = cursor.fetchone()
         if not row:
             raise CorruptReplay("Information table is empty")
-
         version, self.game_id, self.player_id, self._start_time, self._last_time = row
-        logger.debug(f"Loaded information {(1, VERSION, self.game_id, self.player_id, self._start_time, self._last_time)}")
         if version != VERSION:
             raise CorruptReplay(f"Unsupported version {version}")
 
-
-
-    def _jump_from_to(self, start: int, target: int) -> list[ReplayPatch]:
-        """Jump from current_time to target time (in milliseconds) using the shortest path."""
+    def _jump_from_to(self, start: int, target: int) -> List[ReplayPatch]:
+        """Jump from start to target using in-memory patches."""
         if self.mode not in ('r', 'a'):
             raise IOError("Replay must be in read or append mode to jump")
-
-
         if target < self._start_time:
             raise ValueError(f"Cannot jump to {target} before start time {self._start_time}")
 
         patches = []
-        # Sequential Path: Apply patches from current_time to target
+        current = start
         if target > start:
-            cursor = self.conn.execute("""
-                        SELECT from_timestamp, to_timestamp, patch 
-                        FROM patches 
-                        WHERE to_timestamp <= ? AND from_timestamp >= ?
-                        AND from_timestamp < to_timestamp 
-                        ORDER BY from_timestamp ASC
-                    """, (target, start))
-            rows = cursor.fetchall()
-            current = start
-            for from_ts, to_ts, patch_str in rows:
-                if from_ts != current:
-                    continue
-                logger.debug(f"Jumping from {from_ts} to {to_ts}")
-                patch = ReplayPatch.from_string(patch_str)
+            while current < target:
+                next_patch = None
+                for (from_ts, to_ts), patch in self._patches.items():
+                    if from_ts == current and to_ts > from_ts and to_ts <= target:
+                        next_patch = (to_ts, patch)
+                        break
+                if not next_patch:
+                    break
+                current, patch = next_patch
                 patches.append(patch)
-                if to_ts == target:
-                    continue
-                current = to_ts
-
-            # Sequential Path: Apply patches from current_time to target
         elif target < start:
-            cursor = self.conn.execute("""
-                        SELECT from_timestamp, to_timestamp, patch 
-                        FROM patches 
-                        WHERE to_timestamp >= ? AND from_timestamp <= ?
-                        AND from_timestamp > to_timestamp 
-                        ORDER BY from_timestamp DESC
-                    """, (target, start))
-            rows = cursor.fetchall()
-            current = start
-            for from_ts, to_ts, patch_str in rows:
-                if from_ts != current:
-                    continue
-                logger.debug(f"Jumping from {from_ts} to {to_ts}")
-                patch = ReplayPatch.from_string(patch_str)
+            while current > target:
+                next_patch = None
+                for (from_ts, to_ts), patch in self._patches.items():
+                    if from_ts == current and to_ts < from_ts and to_ts >= target:
+                        next_patch = (to_ts, patch)
+                        break
+                if not next_patch:
+                    break
+                current, patch = next_patch
                 patches.append(patch)
-                if to_ts == target:
-                    continue
-                current = to_ts
         return patches
 
-    def jump_from_to(self, start: datetime, target: datetime) -> list[ReplayPatch]:
-        start = int(start.timestamp() * 1000)
-        target = int(target.timestamp() * 1000)
+    def jump_from_to(self, start: datetime, target: datetime) -> List[ReplayPatch]:
+        start_ms = int(start.timestamp() * 1000)
+        target_ms = int(target.timestamp() * 1000)
 
-        cursor = self.conn.execute("""
-                SELECT from_timestamp 
-                FROM patches 
-                WHERE from_timestamp <= ?
-                ORDER BY from_timestamp DESC
-            """, (start,))
-        result = cursor.fetchone()
-        start = result[0] if result else self._start_time
+        # Snap to nearest available timestamps
+        start_ms = max([ts for ts in self._timestamps + [self._start_time] if ts <= start_ms], default=self._start_time)
+        target_ms = max([ts for ts in self._timestamps if ts <= target_ms], default=self._start_time)
 
-
-        cursor = self.conn.execute("""
-                SELECT to_timestamp 
-                FROM patches 
-                WHERE to_timestamp <= ?
-                ORDER BY to_timestamp DESC
-            """, (target,))
-        result = cursor.fetchone()
-        target = result[0] if result else self._start_time
-
-
-        return self._jump_from_to(start, target)
-
+        return self._jump_from_to(start_ms, target_ms)
 
     def _write_game_state(self, time_stamp: int, game_state: dict):
+        """Write game state directly to disk only."""
+        self._game_state_timestamps.append(time_stamp)
+        self._game_state_timestamps.sort()
         compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
-        self.conn.execute("INSERT INTO game_state (timestamp, data) VALUES (?, ?)", (time_stamp, compressed_data,))
-        self.conn.commit()
-
-    def _write_initial_game_state(self, time_stamp: int, game_state: dict):
-        """Compress and write the initial game state."""
-        compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
-        self.conn.execute("INSERT INTO game_state (timestamp, data) VALUES (?, ?)", (time_stamp, compressed_data,))
+        self.conn.execute("INSERT INTO game_state (timestamp, data) VALUES (?, ?)", (time_stamp, compressed_data))
         self.conn.commit()
 
     def _write_patch(self, from_timestamp: int, to_timestamp: int, patch: str):
-        """Write a patch to the database with from and to timestamps."""
-        cursor = self.conn.execute("SELECT 1 FROM patches WHERE from_timestamp = ? and to_timestamp = ?",
-                                   (from_timestamp, to_timestamp,))
-        if cursor.fetchone():
-            logger.info(f"Patch for to_timestamp {to_timestamp} already exists, skipping")
+        """Write to both memory and disk."""
+        if (from_timestamp, to_timestamp) in self._patches:
+            logger.info(f"Patch for {from_timestamp} to {to_timestamp} already exists, skipping")
             return
+        patch_obj = ReplayPatch.from_string(patch)
+        self._patches[(from_timestamp, to_timestamp)] = patch_obj
+        if to_timestamp not in self._timestamps:
+            self._timestamps.append(to_timestamp)
+            self._timestamps.sort()
         self.conn.execute(
             "INSERT INTO patches (from_timestamp, to_timestamp, patch) VALUES (?, ?, ?)",
             (from_timestamp, to_timestamp, patch)
@@ -242,137 +219,67 @@ class Replay:
         self.conn.commit()
 
     def get_patch(self, from_timestamp: int, to_timestamp: int) -> ReplayPatch:
-        cursor = self.conn.execute("""
-                SELECT  
-                patch
-                FROM patches 
-                WHERE from_timestamp = ? and to_timestamp = ?
-            """, (from_timestamp, to_timestamp,))
-        result = cursor.fetchone()
-        if result:
-            return ReplayPatch.from_string(result[0])
-        else:
-            raise Exception(f"No patch found with from_timestamp {from_timestamp} and to_timestamp {to_timestamp}")
+        if (from_timestamp, to_timestamp) in self._patches:
+            return self._patches[(from_timestamp, to_timestamp)]
+        raise Exception(f"No patch found with from_timestamp {from_timestamp} and to_timestamp {to_timestamp}")
 
-    def get_timestamps(self) -> list[int]:
-        timestamps = [self._start_time]
+    def get_timestamps(self) -> List[int]:
+        return self._timestamps.copy()
 
-        cursor = self.conn.execute("""
-                SELECT to_timestamp 
-                FROM patches 
-                ORDER BY to_timestamp
-            """)
-        result = cursor.fetchall()
-        for row in result:
-            timestamps.append(int(row[0]))
-        return timestamps
+    def get_game_state_timestamps(self) -> List[int]:
+        return self._game_state_timestamps.copy()
 
-    def get_game_state_timestamps(self) -> list[int]:
-        timestamps = []
-
-        cursor = self.conn.execute("""
-                SELECT timestamp 
-                FROM game_state 
-                ORDER BY timestamp
-            """)
-        result = cursor.fetchall()
-        for row in result:
-            timestamps.append(int(row[0]))
-        return timestamps
-
-    def record_bipatch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch):
+    def record_bipatch(self, time_stamp: datetime, game_id: int, player_id: int,
+                       replay_patch: BidirectionalReplayPatch):
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
-        if game_id != self.game_id:
-            raise CorruptReplay(f"Game ID do not match replay {self.filename}")
-
-        if self.player_id == 0:
-            self.player_id = player_id
-
-        if self.player_id != player_id:
-            raise CorruptReplay(f"Player ID does not match replay {self.filename}")
+        if game_id != self.game_id or (self.player_id != 0 and self.player_id != player_id):
+            raise CorruptReplay(f"Game/Player ID mismatch in replay {self.filename}")
         if self._last_time and self.last_time >= time_stamp:
-            raise CorruptReplay(f"Already recorded newer BidirectionalPatch at {self.last_time} then {time_stamp}.")
+            raise CorruptReplay(f"Newer patch exists at {self.last_time} than {time_stamp}")
 
         time_stamp_ms = int(time_stamp.timestamp() * 1000)
-        self._write_patch(self._last_time, time_stamp_ms, replay_patch.forward_to_string())
-        self._write_patch(time_stamp_ms, self._last_time, replay_patch.backward_to_string())
+        self._write_patch(self._last_time or self._start_time, time_stamp_ms, replay_patch.forward_to_string())
+        self._write_patch(time_stamp_ms, self._last_time or self._start_time, replay_patch.backward_to_string())
         self._last_time = time_stamp_ms
         self._write_information()
-        logger.debug(f"Recorded patch at {self._start_time}")
 
     def record_initial_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
-        """Record a game state, either as initial state or a patch with from/to timestamps."""
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
-        if game_id != self.game_id:
-            raise CorruptReplay(f"Game ID do not match replay {self.filename}")
-
-        if self.player_id == 0:
-            self.player_id = player_id
-
-        if self.player_id != player_id:
-            raise CorruptReplay(f"Player ID does not match replay {self.filename}")
+        if game_id != self.game_id or (self.player_id != 0 and self.player_id != player_id):
+            raise CorruptReplay(f"Game/Player ID mismatch in replay {self.filename}")
         if self._last_time and self.last_time >= time_stamp:
-            raise CorruptReplay(f"Already recorded newer GameState at {self.last_time} then {time_stamp}.")
+            raise CorruptReplay(f"Newer state exists at {self.last_time} than {time_stamp}")
 
         time_stamp_ms = int(time_stamp.timestamp() * 1000)
-        self._write_initial_game_state(time_stamp_ms, game_state)
+        self._write_game_state(time_stamp_ms, game_state)
         self._start_time = time_stamp_ms
         self._last_time = time_stamp_ms
         self._write_information()
-        logger.debug(f"Recorded initial game state at {self._start_time}.")
-
 
     def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int):
-        """Compress and record static map data."""
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
-        if game_id != self.game_id:
-            raise CorruptReplay(f"Game ID do not match replay {self.filename}")
-
-        cursor = self.conn.execute("SELECT 1 FROM static_map_data")
-        if cursor.fetchone():
-            return  # Already recorded
-
+        if game_id != self.game_id or (self.player_id != 0 and self.player_id != player_id):
+            raise CorruptReplay(f"Game/Player ID mismatch in replay {self.filename}")
+        if self._static_map_data is not None:
+            return
+        self._static_map_data = static_map_data
         compressed_data = zlib.compress(json.dumps(static_map_data).encode('utf-8'))
         self.conn.execute("INSERT INTO static_map_data (data) VALUES (?)", (compressed_data,))
         self.conn.commit()
-        logger.debug(f"Recorded static map data")
-
 
     def get_initial_game_state(self) -> dict:
-        cursor = self.conn.execute("""
-                SELECT  
-                data
-                FROM game_state 
-                WHERE timestamp = ?
-            """, (self._start_time,))
-        result = cursor.fetchone()
-        if result:
-            return json.loads(zlib.decompress(result[0]).decode('utf-8'))
-        else:
-            raise Exception(f"No Game found with timestamp {self._start_time}")
-
+        return self._get_game_state(self._start_time)
 
     def get_static_map_data(self) -> dict:
-        """Return the static map data."""
-        # Load static map data (if present)
-        cursor = self.conn.execute("SELECT data FROM static_map_data")
-        if static_data := cursor.fetchone():
-            return json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
-        return {}
+        return self._static_map_data or {}
 
     def _get_game_state(self, timestamp: int) -> dict:
-        cursor = self.conn.execute("""
-                SELECT  
-                data
-                FROM game_state 
-                WHERE timestamp = ?
-            """, (timestamp,))
-        result = cursor.fetchone()
-        if result:
-            return json.loads(zlib.decompress(result[0]).decode('utf-8'))
-        else:
-            raise Exception(f"No Game found with timestamp {timestamp}")
-
+        """Load game state from disk instead of memory."""
+        cursor = self.conn.execute("SELECT data FROM game_state WHERE timestamp = ?", (timestamp,))
+        row = cursor.fetchone()
+        if row:
+            return json.loads(zlib.decompress(row[0]).decode('utf-8'))
+        raise Exception(f"No game state found at {timestamp}")

@@ -32,6 +32,7 @@ tests/full_test_data_4.json
 build
 /doc/main-built-min.js
 tests/full_test_data_5.json
-examples/replay.db
 *.db
-examples/replay.db
+
+examples/
+examples/credentials.json
