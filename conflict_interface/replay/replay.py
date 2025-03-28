@@ -34,12 +34,11 @@ class Replay:
         self._start_time: int = 0
         self._last_time: Optional[int] = None
 
-        # In-memory caches
+        # In-memory caches (only patches and timestamps, no game states)
         self._patches: Dict[tuple[int, int], ReplayPatch] = {}  # (from_ts, to_ts) -> patch
-        self._game_states: Dict[int, dict] = {}  # timestamp -> game state
-        self._static_map_data: Optional[dict] = None
         self._timestamps: List[int] = []
         self._game_state_timestamps: List[int] = []
+        self._static_map_data: Optional[dict] = None
 
     def __enter__(self):
         if self.mode == 'w':
@@ -54,7 +53,7 @@ class Replay:
             self._write_information()
         elif self.mode in ('r', 'a'):
             self._load_information()
-            self._load_into_memory()  # Load data into memory
+            self._load_into_memory()  # Load patches and timestamps, not game states
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -68,12 +67,10 @@ class Replay:
         self.__exit__(None, None, None)
 
     def _load_into_memory(self):
-        """Load critical tables into memory for faster access."""
-        # Load game states
-        cursor = self.conn.execute("SELECT timestamp, data FROM game_state")
-        for timestamp, compressed_data in cursor.fetchall():
-            self._game_states[timestamp] = json.loads(zlib.decompress(compressed_data).decode('utf-8'))
-            self._game_state_timestamps.append(timestamp)
+        """Load patches and timestamps into memory, fetch game state timestamps from disk."""
+        # Load game state timestamps (but not the states themselves)
+        cursor = self.conn.execute("SELECT timestamp FROM game_state")
+        self._game_state_timestamps = [row[0] for row in cursor.fetchall()]
         self._game_state_timestamps.sort()
 
         # Load patches
@@ -198,8 +195,7 @@ class Replay:
         return self._jump_from_to(start_ms, target_ms)
 
     def _write_game_state(self, time_stamp: int, game_state: dict):
-        """Write to both memory and disk."""
-        self._game_states[time_stamp] = game_state
+        """Write game state directly to disk only."""
         self._game_state_timestamps.append(time_stamp)
         self._game_state_timestamps.sort()
         compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
@@ -275,14 +271,15 @@ class Replay:
         self.conn.commit()
 
     def get_initial_game_state(self) -> dict:
-        if self._start_time in self._game_states:
-            return self._game_states[self._start_time]
-        raise Exception(f"No game state found at {self._start_time}")
+        return self._get_game_state(self._start_time)
 
     def get_static_map_data(self) -> dict:
         return self._static_map_data or {}
 
     def _get_game_state(self, timestamp: int) -> dict:
-        if timestamp in self._game_states:
-            return self._game_states[timestamp]
+        """Load game state from disk instead of memory."""
+        cursor = self.conn.execute("SELECT data FROM game_state WHERE timestamp = ?", (timestamp,))
+        row = cursor.fetchone()
+        if row:
+            return json.loads(zlib.decompress(row[0]).decode('utf-8'))
         raise Exception(f"No game state found at {timestamp}")
