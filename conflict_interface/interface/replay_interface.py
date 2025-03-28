@@ -23,6 +23,7 @@ class ReplayInterface(GameInterface):
         self.player_id: int | None = None
         self.current_time: datetime | None = None
         self.game_id: int | None = None
+        self.last_patch_time = None
 
     def open(self):
         t1 = time()
@@ -37,6 +38,7 @@ class ReplayInterface(GameInterface):
         self._update_player_id()
         self.game_id = self.replay.game_id
         self.current_time = self.replay.start_time
+        self.last_patch_time = self.replay.start_time
         logger.debug(f"Loading and setting static map data took {time() - t3} seconds")
 
     def close(self):
@@ -80,7 +82,7 @@ class ReplayInterface(GameInterface):
             self.game_state = parse_any(GameState, self.replay.get_initial_game_state(), self)
             return
 
-        patches = self.replay.jump_from_to(self.current_time, time_stamp)
+        patches, self.last_patch_time = self.replay.jump_from_to(self.last_patch_time, time_stamp)
         for rp in patches:
             apply_patch_any(rp, self.game_state, self)
 

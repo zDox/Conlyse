@@ -5,6 +5,7 @@ import zlib
 from datetime import UTC, datetime
 from sqlite3 import Connection
 from typing import Literal, Dict, List, Optional
+from typing import Tuple
 
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch, ReplayPatch
@@ -184,7 +185,7 @@ class Replay:
                 patches.append(patch)
         return patches
 
-    def jump_from_to(self, start: datetime, target: datetime) -> List[ReplayPatch]:
+    def jump_from_to(self, start: datetime, target: datetime) -> Tuple[List[ReplayPatch], datetime]:
         start_ms = int(start.timestamp() * 1000)
         target_ms = int(target.timestamp() * 1000)
 
@@ -192,7 +193,7 @@ class Replay:
         start_ms = max([ts for ts in self._timestamps + [self._start_time] if ts <= start_ms], default=self._start_time)
         target_ms = max([ts for ts in self._timestamps if ts <= target_ms], default=self._start_time)
 
-        return self._jump_from_to(start_ms, target_ms)
+        return self._jump_from_to(start_ms, target_ms), datetime.fromtimestamp(target_ms / 1000, tz=UTC)
 
     def _write_game_state(self, time_stamp: int, game_state: dict):
         """Write game state directly to disk only."""
