@@ -11,10 +11,10 @@ class Faction(Enum, metaclass=DefaultEnumMeta):
 
     @property
     def code(self):
-        if self.WESTERN:
+        if self == Faction.WESTERN:
             return "US"
-        elif self.EASTERN:
+        elif self == Faction.EASTERN:
             return "RU"
-        elif self.EUROPEAN:
+        elif self == Faction.EUROPEAN:
             return "EU"
         raise ValueError("No code for faction NONE")
