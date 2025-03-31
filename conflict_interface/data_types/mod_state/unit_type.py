@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pprint import pprint
 from typing import Optional
 from typing import Set
 from typing import Union
@@ -258,3 +259,41 @@ class UnitType(GameObject):
 
     def get_feature(self, feature: UnitFeature) -> float:
         return self.unit_features.get(feature)
+
+    def has_faction_specific_images(self):
+        # Check if faction_specific_images is defined in render_config
+        if hasattr(self.render_config, 'faction_specific_images'):
+            return self.render_config.faction_specific_images is None
+        return True
+
+    def get_default_angle_index(self) -> float | None:
+        if self.radar_config and self.radar_config.signature_types:
+            for signature in self.radar_config.signature_types.keys():
+                if self.id == signature:
+                    return 10
+        return None
+
+    def get_icon_key_ww2(self, variant=None, category=None, angle=None, is_moving=False, faction: Faction | None=None):
+        # Default unit_class to the unit's class if not provided
+        if self.unit_class is None:
+            raise NotImplementedError("The following should be here: unit_class = self.get_unit_class()")
+        # Build the icon key
+        icon_key = ''
+        if category:
+            icon_key += f"{category}/"
+
+        if variant:
+            icon_key += f"{self.identifier}_{variant}"
+        else:
+            icon_key += str(self.identifier)
+
+        if is_moving:
+            icon_key += "_move"
+        if faction and self.has_faction_specific_images():
+            icon_key += f"_{faction.value}"
+
+        # Append angle, defaulting to 0 if not provided, ensuring integer
+        angle_value = int(angle) if angle is not None else 0
+        icon_key += f"_{angle_value}"
+
+        return icon_key

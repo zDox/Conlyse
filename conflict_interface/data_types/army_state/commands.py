@@ -1,5 +1,4 @@
-
-
+import math
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -67,6 +66,14 @@ class GotoCommand(GameObject):
         "speed_factor": "sf",
     }
 
+
+    def get_direction(self) -> float:
+        """
+        Returns the direction of the movement relative to the current position as radians.
+        """
+        start_pos = self.start_position
+        target_pos = self.target_position
+        return math.atan2(-target_pos.x + start_pos.x, target_pos.y - start_pos.y)
 
 @dataclass
 class RetreatCommand(GameObject):

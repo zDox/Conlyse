@@ -449,6 +449,10 @@ class GameInterface:
         """
         return self.game_state.states.player_state.teams.get(team_id)
 
+    @country_selected
+    def get_faction(self) -> Faction:
+        return self.get_my_player().faction
+
 
     """
     ResearchState(23)

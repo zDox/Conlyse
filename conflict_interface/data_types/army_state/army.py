@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
@@ -177,6 +178,8 @@ class Army(GameObject):
 
     radar_signature_feature: Optional[RadarSignatureFeature] = None
     token_feature: Optional[TokenFeature] = None
+
+    _angle: int | None = None
 
     MAPPING = {
         "id": "id",
@@ -663,8 +666,11 @@ class Army(GameObject):
         """
         return (
             self.fight_status == FightStatus.FIGHTING or
-            len(self.battle.attacker_ids) > 0 if self.battle else False
+            self.get_attacker_count() > 0 if self.battle else False
         )
+
+    def get_attacker_count(self) -> int:
+        return len(self.battle.attacker_ids)
 
     def is_bombarding(self) -> bool:
         """
@@ -683,6 +689,15 @@ class Army(GameObject):
             bool: True if bombing, False otherwise.
         """
         return self.fight_status == FightStatus.BOMBING
+
+    def is_airplane(self) -> bool:
+        return self.airplane
+
+    def is_at_airfield(self) -> bool:
+        return self.at_airfield
+
+    def is_on_sea(self) -> bool:
+        return self.on_sea
 
     def is_patrolling(self) -> bool:
         """
@@ -736,3 +751,55 @@ class Army(GameObject):
         if not self.units:
             return False
         return all(unit.has_feature(UnitFeature.UNITFEATURE_AIR_MOBILE) for unit in self.units)
+
+    def get_image(self):
+        status = None
+        unit_index = None
+
+        if self.is_fighting() or self.is_flying():
+            status = 'fighting'
+
+        if self.airplane and not self.at_airfield:
+            status = 'moving'
+
+        if self.is_fighting() and self.get_attacker_count() > 0:
+            status = 'defending'
+
+        angle = self.get_discrete_angle_index()
+
+        for unit_index in range(len(self.units) - 1, -1, -1):
+            current_unit = self.units[unit_index]
+            if current_unit and (not self.is_on_sea() or current_unit.is_ship()):
+                return current_unit.get_image(status, angle)
+
+        if self.is_on_sea():
+            return 'images/warfare/unit_Fleet1.jpg'
+        elif self.size > 0 and self.health < 0.5:
+            return 'images/warfare/unit_Army2.jpg'
+        else:
+            return 'images/warfare/unit_Army.jpg'
+
+    def get_next_target_position(self) -> Point | None:
+        for command in self.commands:
+            if command.target_position:
+                return command.target_position
+
+
+    def get_discrete_angle_index(self):
+        if self._angle is None:
+            raw_angle = self.calculate_raw_angle()
+            angle_step = 2 * math.pi / 12
+            self._angle = int((raw_angle + math.pi + angle_step / 2) // angle_step) % 12
+        return self._angle
+
+    def calculate_raw_angle(self, default_angle=0):
+        next_command = self.get_next_command()
+        if self.is_moving():
+            if next_command:
+                return next_command.get_direction() + math.pi
+            current_position = self.get_position()
+            target_position = self.get_next_target_position()
+            if current_position != target_position:
+                return math.atan2(-target_position.x + current_position.x, target_position.y - current_position.y) + math.pi
+        return math.atan2(-self.last_direction.x, self.last_direction.y) + math.pi \
+            if (self.last_direction and self.last_direction.get_length(True) > 0) else default_angle

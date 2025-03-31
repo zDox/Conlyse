@@ -250,3 +250,12 @@ class GameApi:
 
         response.raise_for_status()
         return loads(response.text)
+
+    def get_image(self, path: str) -> bytes:
+        response = self.session.get(
+            "https://www.conflictnations.com/clients/con-client/con-client_live/images/warfare/" + path,
+            proxies=self.proxy
+        )
+
+        response.raise_for_status()
+        return response.content
