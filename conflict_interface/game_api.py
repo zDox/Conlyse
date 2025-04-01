@@ -81,6 +81,14 @@ class GameApi:
         else:
             self.proxy = defaultdict()
 
+    @classmethod
+    def from_static(cls) -> "GameApi":
+        instance = cls(session=CloudScraper.create_scraper(),
+                       auth_details=None,
+                       game_id=0,
+                       proxy=None)
+        return instance
+
     def set_proxy(self, proxy: dict):
         self.proxy = proxy
 
