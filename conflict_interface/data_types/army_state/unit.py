@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
+from conflict_interface.data_types.mod_state.unit_type import UnitType
 
 
 @dataclass
@@ -82,9 +83,15 @@ class Unit(GameObject):
         "max_hit_points": "mhp",
     }
 
+    def get_unit_type(self) -> UnitType:
+        return self.game.get_unit_type(self.unit_type_id)
+
     def has_feature(self, feature: UnitFeature) -> bool:
         unit_type = self.game.get_unit_type(self.unit_type_id)
         return unit_type.has_feature(feature)
+
+    def is_ship(self) -> bool:
+        return self.has_feature(UnitFeature.SHIP)
 
     @staticmethod
     def get_image_index(angle):
@@ -93,14 +100,13 @@ class Unit(GameObject):
         index = (angle + math.pi + step / 2) / step
         return math.floor(index) % army_angles
 
-    def get_image(self, status: str, angle_index: int = None):
-        unit_type = self.game.get_unit_type(self.unit_type_id)
+    def get_image(self, unit_type: UnitType,status: str, is_moving: bool = False, angle_index: int = None):
         if angle_index is None:
             angle_index = unit_type.get_default_angle_index()
         return unit_type.get_icon_key_ww2(
             variant=status,
             category=2,
             angle=angle_index,
-            is_moving=status == "moving",
-            faction=self.game.get_faction(),
+            is_moving=is_moving,
+            faction=self.game.get_faction(), # TODO Take the faction of the actual owner of the Unit
         ) + ".png"

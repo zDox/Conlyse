@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from typing import Optional
+from typing import Tuple
 
 from conflict_interface.data_types.army_state.army_action import ArmyAction
 from conflict_interface.data_types.army_state.army_action_result import ArmyActionResult
@@ -20,6 +21,7 @@ from conflict_interface.data_types.army_state.unit import Unit
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import LinkedList
 from conflict_interface.data_types.custom_types import UnitList
+from conflict_interface.data_types.game_info_state.game_info_state import GameFeatures
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
@@ -30,6 +32,7 @@ from conflict_interface.data_types.mod_state.configuration import MissileCarrier
 from conflict_interface.data_types.mod_state.configuration import RadarSignatureFeature
 from conflict_interface.data_types.mod_state.configuration import TokenFeature
 from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
+from conflict_interface.data_types.mod_state.unit_type import UnitType
 from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
 
@@ -768,9 +771,24 @@ class Army(GameObject):
             return False
         return all(unit.has_feature(UnitFeature.UNITFEATURE_AIR_MOBILE) for unit in self.units)
 
-    def get_image(self):
+    def is_ship(self) -> bool:
+        # Check if ship status is not yet determined
+        # Iterate over units in reverse order
+        for unit in reversed(self.units):
+            if unit and unit.get_unit_type().is_ship():
+                return True
+        return False
+
+
+    def get_image(self) -> Tuple[str, str]:
+        """
+        Returns a tuple of paths to the image of the army.
+        First path is the image best representing the current state of the army.
+        Not every unit type has that 'optimal' image implemented.
+        Second path is a default path that simple shows the unit standing still while
+        be correctly rotated.
+        """
         status = None
-        unit_index = None
 
         if self.is_fighting() or self.is_flying():
             status = 'fighting'
@@ -785,14 +803,22 @@ class Army(GameObject):
         for unit_index in range(len(self.units) - 1, -1, -1):
             current_unit = self.units[unit_index]
             if current_unit and (not self.is_on_sea() or current_unit.is_ship()):
-                return current_unit.get_image(status, angle_index)
+                unit_type = current_unit.get_unit_type()
+                return (current_unit.get_image(unit_type, status, self.is_moving(), angle_index),
+                        current_unit.get_image(unit_type, None, False, angle_index))
+            elif current_unit and self.is_on_sea() and not current_unit.is_ship():
+                transport_ship_option = self.game.game_state.states.mod_state.get_transport_ship_id()
+                if transport_ship_option and self.is_on_sea() and not self.is_ship():
+                    unit_type = self.game.get_unit_type(transport_ship_option)
+                    return (current_unit.get_image(unit_type, status, self.is_moving(), angle_index),
+                            current_unit.get_image(unit_type, None, False, angle_index))
 
         if self.is_on_sea():
-            return 'images/warfare/unit_Fleet1.jpg'
+            return 'images/warfare/unit_Fleet1.jpg', "images/warfare/unit_Fleet1.jpg"
         elif self.size > 0 and self.health < 0.5:
-            return 'images/warfare/unit_Army2.jpg'
+            return 'images/warfare/unit_Army2.jpg', 'images/warfare/unit_Army2.jpg'
         else:
-            return 'images/warfare/unit_Army.jpg'
+            return 'images/warfare/unit_Army.jpg', 'images/warfare/unit_Army.jpg'
 
     def get_next_target_position(self) -> Point | None:
         for command in self.commands:

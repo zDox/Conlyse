@@ -29,6 +29,7 @@ from conflict_interface.data_types.mod_state.configuration import SpyConfig
 from conflict_interface.data_types.mod_state.configuration import UberConfig
 from conflict_interface.data_types.mod_state.mission_type import MissionType
 from conflict_interface.data_types.mod_state.mod_state_enums import DamageType
+from conflict_interface.data_types.mod_state.mod_state_enums import ModGameFeatures
 from conflict_interface.data_types.mod_state.premium import Premium
 from conflict_interface.data_types.mod_state.rank_cache import RankCache
 from conflict_interface.data_types.mod_state.rank_type import RankType
@@ -68,7 +69,7 @@ class ModState(State):
     resource_entries: HashMap[int, ResourceEntry]
     research_types: HashMap[int, ResearchType]
     resource_consumption: HashMap[int, int] # TODO it is a hashmap of what?
-    options: HashMap[str, float]
+    options: HashMap[ModGameFeatures, float]
     string_options: HashMap[str, str]
     premium_spy_jobs: ArrayList[Union[RevealProvinceArmiesJob, CountryInfoJob, DecreaseMoralJob, DestroyResouceJob, DamageUpgradeJob, RevealAllArmiesJob]]
     spy_missions: HashMap[int, SpyMission]
@@ -152,3 +153,9 @@ class ModState(State):
 
     def update(self, other: "State", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         universal_update(self, other, path, rp)
+
+    def get_option(self, option: ModGameFeatures):
+        return self.options.get(option, None)
+
+    def get_transport_ship_id(self) -> int:
+        return int(self.get_option(ModGameFeatures.OPTION_TRANSPORT_SHIP))
