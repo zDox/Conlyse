@@ -81,6 +81,14 @@ class GameApi:
         else:
             self.proxy = defaultdict()
 
+    @classmethod
+    def from_static(cls) -> "GameApi":
+        instance = cls(session=CloudScraper.create_scraper(),
+                       auth_details=None,
+                       game_id=0,
+                       proxy=None)
+        return instance
+
     def set_proxy(self, proxy: dict):
         self.proxy = proxy
 
@@ -250,3 +258,12 @@ class GameApi:
 
         response.raise_for_status()
         return loads(response.text)
+
+    def get_image(self, path: str) -> bytes:
+        response = self.session.get(
+            "https://www.conflictnations.com/clients/con-client/con-client_live/images/warfare/" + path,
+            proxies=self.proxy
+        )
+
+        response.raise_for_status()
+        return response.content

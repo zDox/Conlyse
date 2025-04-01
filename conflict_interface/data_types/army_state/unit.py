@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 
 from conflict_interface.data_types.game_object import GameObject
@@ -85,4 +86,21 @@ class Unit(GameObject):
         unit_type = self.game.get_unit_type(self.unit_type_id)
         return unit_type.has_feature(feature)
 
+    @staticmethod
+    def get_image_index(angle):
+        army_angles = 12
+        step = 2 * math.pi / army_angles
+        index = (angle + math.pi + step / 2) / step
+        return math.floor(index) % army_angles
 
+    def get_image(self, status: str, angle_index: int = None):
+        unit_type = self.game.get_unit_type(self.unit_type_id)
+        if angle_index is None:
+            angle_index = unit_type.get_default_angle_index()
+        return unit_type.get_icon_key_ww2(
+            variant=None,
+            category=2,
+            angle=angle_index,
+            is_moving=status == "moving",
+            faction=self.game.get_faction(),
+        ) + ".png"
