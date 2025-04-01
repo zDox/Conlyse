@@ -271,7 +271,7 @@ class UnitType(GameObject):
             for signature in self.radar_config.signature_types.keys():
                 if self.id == signature:
                     return 10
-        return None
+        return 0
 
     def get_icon_key_ww2(self, variant=None, category=None, angle=None, is_moving=False, faction: Faction | None=None):
         # Default unit_class to the unit's class if not provided

@@ -95,7 +95,9 @@ class Unit(GameObject):
 
     def get_image(self, status: str, angle_index: int = None):
         unit_type = self.game.get_unit_type(self.unit_type_id)
-
+        if angle_index is None:
+            angle_index = unit_type.get_default_angle_index()
+            print(unit_type.identifier, angle_index)
         return unit_type.get_icon_key_ww2(
             variant=None,
             category=2,

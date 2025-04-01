@@ -44,6 +44,8 @@ class Battle(GameObject):
         "attacker_ids": "a"
     }
 
+DEFAULT_ARMY_ANGLE = 2.199114857512855
+
 
 @dataclass
 class Army(GameObject):
@@ -765,12 +767,11 @@ class Army(GameObject):
         if self.is_fighting() and self.get_attacker_count() > 0:
             status = 'defending'
 
-        angle = self.get_discrete_angle_index()
-
+        angle_index = self.get_discrete_angle_index()
         for unit_index in range(len(self.units) - 1, -1, -1):
             current_unit = self.units[unit_index]
             if current_unit and (not self.is_on_sea() or current_unit.is_ship()):
-                return current_unit.get_image(status, angle)
+                return current_unit.get_image(status, angle_index)
 
         if self.is_on_sea():
             return 'images/warfare/unit_Fleet1.jpg'
@@ -792,7 +793,7 @@ class Army(GameObject):
             self._angle = int((raw_angle + math.pi + angle_step / 2) // angle_step) % 12
         return self._angle
 
-    def calculate_raw_angle(self, default_angle=0):
+    def calculate_raw_angle(self):
         next_command = self.get_next_command()
         if self.is_moving():
             if next_command:
@@ -802,4 +803,4 @@ class Army(GameObject):
             if current_position != target_position:
                 return math.atan2(-target_position.x + current_position.x, target_position.y - current_position.y) + math.pi
         return math.atan2(-self.last_direction.x, self.last_direction.y) + math.pi \
-            if (self.last_direction and self.last_direction.get_length(True) > 0) else default_angle
+                if (self.last_direction and self.last_direction.get_length(True) > 0) else DEFAULT_ARMY_ANGLE
