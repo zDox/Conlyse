@@ -5,6 +5,7 @@ from pprint import pprint
 
 import matplotlib.pyplot as plt
 from PIL import Image
+from requests import HTTPError
 
 from conflict_interface.data_types.army_state.unit import Unit
 from conflict_interface.interface.hub_interface import HubInterface
@@ -23,9 +24,12 @@ if __name__ == "__main__":
     game = interface.join_game(9900696)
     # Load image from bytes
     for army in game.get_armies().values():
-        path = army.get_image()
+        path, default_path = army.get_image()
         print(f"path: {path}")
-        image = Image.open(BytesIO(game.game_api.get_image(path)))
+        try:
+            image = Image.open(BytesIO(game.game_api.get_image(path)))
+        except HTTPError as e:
+            image = Image.open(BytesIO(game.game_api.get_image(default_path)))
         plt.figure(figsize=(5, 5))
         plt.imshow(image)
         plt.axis("off")

@@ -12,6 +12,7 @@ from conflict_interface.data_types.game_info_state.game_info_state import GameIn
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.map_state.map import ProvinceType
 from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
+from conflict_interface.data_types.mod_state.mod_state_enums import ModGameFeatures
 from conflict_interface.data_types.mod_state.unit_type import UnitType
 from conflict_interface.data_types.mod_state.upgrade_type import UpgradeType
 from conflict_interface.data_types.newspaper_state.article import Article
@@ -325,6 +326,8 @@ class GameInterface:
                 if research_type.name == name and research_type.tier == tier:
                     return research_type
 
+    def get_mod_option(self, option: ModGameFeatures):
+        return self.game_state.states.mod_state.get_option(option)
     """
     NewspaperState(2)
     """

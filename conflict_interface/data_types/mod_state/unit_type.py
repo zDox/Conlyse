@@ -260,6 +260,9 @@ class UnitType(GameObject):
     def get_feature(self, feature: UnitFeature) -> float:
         return self.unit_features.get(feature)
 
+    def is_ship(self) -> bool:
+        return self.has_feature(UnitFeature.SHIP)
+
     def has_faction_specific_images(self):
         # Check if faction_specific_images is defined in render_config
         if hasattr(self.render_config, 'faction_specific_images'):
