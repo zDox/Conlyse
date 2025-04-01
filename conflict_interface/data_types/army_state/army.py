@@ -543,6 +543,17 @@ class Army(GameObject):
             return self.get_air_position(timestamp)
         return self.get_land_position(timestamp)
 
+    def get_target_position(self):
+        if self.commands:
+            # Iterate over commands in reverse order
+            for command in reversed(self.commands):
+                # Check if command is a goto or a relocating patrol command
+                if (isinstance(command, GotoCommand) or
+                        (isinstance(command, PatrolCommand) and command.is_relocation())):
+                    return command.target_position
+        # Default to current position if no valid command is found
+        return self.get_position()
+
     def get_land_position(self, timestamp: Optional[datetime] = None) -> Point:
         """
         Calculate the army's current position based on its movement status and commands.
@@ -633,6 +644,9 @@ class Army(GameObject):
         return None
 
     def is_moving(self) -> bool:
+        """
+        Is only working for ships and ground units
+        """
         return (
                 self.commands is not None and
                 len(self.commands) > 0 and
@@ -761,8 +775,8 @@ class Army(GameObject):
         if self.is_fighting() or self.is_flying():
             status = 'fighting'
 
-        if self.airplane and not self.at_airfield:
-            status = 'moving'
+        if self.is_flying():
+            status = 'air'
 
         if self.is_fighting() and self.get_attacker_count() > 0:
             status = 'defending'
@@ -789,6 +803,7 @@ class Army(GameObject):
     def get_discrete_angle_index(self):
         if self._angle is None:
             raw_angle = self.calculate_raw_angle()
+            print(raw_angle)
             angle_step = 2 * math.pi / 12
             self._angle = int((raw_angle + math.pi + angle_step / 2) // angle_step) % 12
         return self._angle
@@ -800,6 +815,11 @@ class Army(GameObject):
                 return next_command.get_direction() + math.pi
             current_position = self.get_position()
             target_position = self.get_next_target_position()
+            if current_position != target_position:
+                return math.atan2(-target_position.x + current_position.x, target_position.y - current_position.y) + math.pi
+        elif self.is_flying():
+            current_position = self.get_position()
+            target_position = self.get_target_position()
             if current_position != target_position:
                 return math.atan2(-target_position.x + current_position.x, target_position.y - current_position.y) + math.pi
         return math.atan2(-self.last_direction.x, self.last_direction.y) + math.pi \

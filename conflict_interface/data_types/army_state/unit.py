@@ -98,7 +98,7 @@ class Unit(GameObject):
         if angle_index is None:
             angle_index = unit_type.get_default_angle_index()
         return unit_type.get_icon_key_ww2(
-            variant=None,
+            variant=status,
             category=2,
             angle=angle_index,
             is_moving=status == "moving",

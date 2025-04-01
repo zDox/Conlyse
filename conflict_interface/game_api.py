@@ -267,3 +267,12 @@ class GameApi:
 
         response.raise_for_status()
         return response.content
+
+    def get_sprite(self, path: str) -> str:
+        response = self.session.get(
+            "https://www.conflictnations.com/clients/con-client/con-client_live/images/sprites/" + path,
+            proxies=self.proxy
+        )
+
+        response.raise_for_status()
+        return response.content
