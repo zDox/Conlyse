@@ -244,17 +244,23 @@ class Army(GameObject):
         "patrol_radius": "patrolRadius"
     }
 
-    def update_values(self):
-        """
-        Sets some of the values of the army to None. This is necessary because otherwise the GameApi raises an error.
-        This is conflict of nations fault and nothing that we can do about it.
-        """
-        self.air_parameters = None
-        self.anti_air_parameters = None
-        self.estimated_arrival_time = None
-        self.radar_signature_feature = None
-        self.token_feature = None
-        self.next_attack_time = None
+    def action_copy(self) -> "Army":
+        return Army(
+            id = self.id,
+            size = self.size,
+            owner_id = self.owner_id,
+            location_id = self.location_id,
+            position = self.position,
+            last_direction = self.last_direction,
+            on_sea = self.on_sea,
+            units = UnitList([unit.action_copy() for unit in self.units]),
+            commands = LinkedList([command.action_copy() for command in self.commands]),
+            attack_unit_id=self.attack_unit_id,
+            attack_position=self.attack_position,
+            aggressiveness=self.aggressiveness,
+            forced_march=self.forced_march,
+        )
+
 
     def set_command(self, command: Command) -> int:
         """
@@ -279,9 +285,8 @@ class Army(GameObject):
         Returns:
             int: Unique action id.
         """
-        self.update_values()
         self.commands = LinkedList(commands)
-        return self.game.online.do_action(ArmyAction(LinkedList([self])))
+        return self.game.online.do_action(ArmyAction(LinkedList([self.action_copy()])))
 
     def add_command(self, command: Command) -> int:
         """
@@ -294,9 +299,8 @@ class Army(GameObject):
         Returns:
             int: Unique action id.
         """
-        self.update_values()
         self.commands.append(command)
-        return self.game.online.do_action(ArmyAction(LinkedList([self])))
+        return self.game.online.do_action(ArmyAction(LinkedList([self.action_copy()])))
 
     def patrol(self, target: Point) -> tuple[Optional[int], ArmyActionResult]:
         """
@@ -800,6 +804,14 @@ class Army(GameObject):
             status = 'defending'
 
         angle_index = self.get_discrete_angle_index()
+        if not self.units:
+            if self.is_on_sea():
+                return 'images/warfare/unit_Fleet1.jpg', "images/warfare/unit_Fleet1.jpg"
+            elif self.size > 0 and self.health < 0.5:
+                return 'images/warfare/unit_Army2.jpg', 'images/warfare/unit_Army2.jpg'
+            else:
+                return 'images/warfare/unit_Army.jpg', 'images/warfare/unit_Army.jpg'
+
         for unit_index in range(len(self.units) - 1, -1, -1):
             current_unit = self.units[unit_index]
             if current_unit and (not self.is_on_sea() or current_unit.is_ship()):
@@ -827,12 +839,9 @@ class Army(GameObject):
 
 
     def get_discrete_angle_index(self):
-        if self._angle is None:
-            raw_angle = self.calculate_raw_angle()
-            print(raw_angle)
-            angle_step = 2 * math.pi / 12
-            self._angle = int((raw_angle + math.pi + angle_step / 2) // angle_step) % 12
-        return self._angle
+        raw_angle = self.calculate_raw_angle()
+        angle_step = 2 * math.pi / 12
+        return int((raw_angle + math.pi + angle_step / 2) // angle_step) % 12
 
     def calculate_raw_angle(self):
         next_command = self.get_next_command()

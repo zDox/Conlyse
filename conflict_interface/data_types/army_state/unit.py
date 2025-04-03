@@ -83,6 +83,17 @@ class Unit(GameObject):
         "max_hit_points": "mhp",
     }
 
+    def action_copy(self) -> "Unit":
+        return Unit(
+            id = self.id,
+            unit_type_id = self.unit_type_id,
+            health = self.health,
+            size = self.size,
+            kills = self.kills,
+            at_airfield = self.at_airfield,
+            on_sea=self.on_sea
+        )
+
     def get_unit_type(self) -> UnitType:
         return self.game.get_unit_type(self.unit_type_id)
 

@@ -1,4 +1,5 @@
 import math
+from copy import copy
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -66,6 +67,18 @@ class GotoCommand(GameObject):
         "speed_factor": "sf",
     }
 
+    def action_copy(self) -> "GotoCommand":
+        return GotoCommand(
+            arrival_time=self.arrival_time,
+            speed=self.speed,
+            start_position=self.start_position,
+            target_position=self.target_position,
+            on_water=self.on_water,
+            start_time=self.start_time,
+            speed_factor=self.speed_factor,
+            location_id=self.location_id,
+            in_air=self.in_air,
+        )
 
     def get_direction(self) -> float:
         """
@@ -80,6 +93,9 @@ class RetreatCommand(GameObject):
     C = "rt"
     MAPPING = {}
 
+    def action_copy(self) -> "RetreatCommand":
+        return copy(self)
+
 
 @dataclass
 class AttackCommand(GameObject):
@@ -93,6 +109,8 @@ class AttackCommand(GameObject):
         "target_position": "targetPos",
         "user_given": "userGiven",
     }
+    def action_copy(self) -> "AttackCommand":
+        return copy(self)
 
 
 @dataclass
@@ -122,6 +140,8 @@ class PatrolCommand(GameObject):
         "patrol_type": "type",
         "air_field": "airField",
     }
+    def action_copy(self) -> "PatrolCommand":
+        return copy(self)
 
     def is_relocation(self) -> bool:
         return self.patrol_type != PatrolType.guard
@@ -162,6 +182,9 @@ class WaitCommand(GameObject):
         "location_id": "locationID",
         "execute_time": "execTime",
     }
+
+    def action_copy(self) -> "WaitCommand":
+        return copy(self)
 
     def is_waiting(self) -> bool:
         """
@@ -252,12 +275,16 @@ class SplitArmyCommand(GameObject):
     MAPPING = {
         "splitted_army": "splittedArmy",
     }
-
+    def action_copy(self) -> "SplitArmyCommand":
+        return copy(self)
 
 @dataclass
 class FireMissileCommand(GameObject):
     C = "fm"
     MAPPING = {}
+
+    def action_copy(self) -> "FireMissileCommand":
+        return copy(self)
 
 COMMAND_TYPES = [GotoCommand, RetreatCommand, AttackCommand, SiegeCommand,
                  PatrolCommand, WaitCommand, SplitArmyCommand,
