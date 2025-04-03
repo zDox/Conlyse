@@ -69,6 +69,8 @@ class OnlineInterface(GameInterface):
                 r._write_game_state(current_time, dump_any(self.game_state))
 
         self.replay = Replay(self.replay_filename, mode="a")
+        self.replay.open()
+        self.replay.close()
 
 
     @override
