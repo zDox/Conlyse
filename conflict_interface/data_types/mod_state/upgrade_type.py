@@ -39,7 +39,7 @@ class UpgradeType(GameObject):
     required_researches: HashMap[int, ResearchRequirementConfig] # TODO type unknown
 
 
-    sorting_orders: str
+    sorting_order: int
     upgrade_identifier: str
 
     art: int # TODO Dont know what this is
@@ -61,7 +61,6 @@ class UpgradeType(GameObject):
 
     ranking_factor: int = 1
     feature_icon_prefix: str = ""
-    enable_able: bool = False
     day_of_availability: int = 0
 
     _tier: int | None = None
@@ -75,7 +74,6 @@ class UpgradeType(GameObject):
         "max_condition": "mxc",
         "min_condition": "mnc",
         "day_of_availability": "doa",
-        "enable_able": "ie",
         "article_prefix": "ap",
         "costs": "c",
         "unit_costs": "uc",

@@ -22,7 +22,6 @@ from conflict_interface.replay.replay_patch import Operation
 from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
 from conflict_interface.replay.replay_patch import ReplayPatch
-from conflict_interface.utils.helper import safe_issubclass
 
 if TYPE_CHECKING:
     from conflict_interface.interface.game_interface import GameInterface
