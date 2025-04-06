@@ -15,9 +15,9 @@ from conflict_interface.data_types.resource_state.resource_state_enums import Re
 class ResearchType(GameObject):
     C = "ultshared.research.UltResearchType"
     item_id: int
-    identifier: str
-    set: int
-    set_order_id: int
+    identifier: str # Icon identifier for Research Icons
+    set: int # Tab ID infantry = 1
+    set_order_id: int # Order in Tab ID ( ID for one research line)
     costs: HashMap[ResourceType, int]
     build_time: TimeDeltaSecondsInt
     day_available: int

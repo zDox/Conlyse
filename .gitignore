@@ -36,3 +36,7 @@ tests/full_test_data_5.json
 
 examples/
 examples/credentials.json
+main.js
+main.js
+main.js
+*.js
