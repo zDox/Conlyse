@@ -85,7 +85,7 @@ class UpgradeType(GameObject):
         "required_upgrades": "rqu",
         "feature_icon_prefix": "fip",
         "ranking_factor": "rnf",
-        "sorting_orders": "so",
+        "sorting_order": "so",
         "upgrade_identifier": "uid",
         "art": "art",
         "removed_upgrades": "rmu",
