@@ -39,7 +39,7 @@ class UpgradeType(GameObject):
     required_researches: HashMap[int, ResearchRequirementConfig] # TODO type unknown
 
 
-    sorting_order: int
+    sorting_order: str
     upgrade_identifier: str
 
     art: int # TODO Dont know what this is
