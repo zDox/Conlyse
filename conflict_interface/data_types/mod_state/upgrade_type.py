@@ -5,6 +5,7 @@ from typing import Optional
 
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
 from conflict_interface.data_types.mod_state.configuration import ConflictCondition
 from conflict_interface.data_types.mod_state.configuration import ConstructionSpeedupConfig
 from conflict_interface.data_types.mod_state.configuration import FactorySpeedUpConfig
@@ -49,7 +50,7 @@ class UpgradeType(GameObject):
     new_upgrade_description: Optional[str]
     new_upgrade_name: Optional[str]
 
-    possible_province_states: HashMap[int, int]
+    possible_province_states: HashMap[ProvinceStateID, int]
 
     heal_armies_upgrade_feature_config: Optional[HealArmiesUpgradeFeatureConfig]
     construction_speedup_config: Optional[ConstructionSpeedupConfig]

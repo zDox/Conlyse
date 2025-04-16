@@ -461,6 +461,20 @@ class Province(GameObject):
             slot=0,
         )), UpdateProvinceActionResult.Ok
 
+    def has_construction(self, slot: int) -> bool:
+        return self.constructions[slot] is not None
+
+    def has_upgrades(self, required_upgrades: list[int]) -> bool:
+        for required_upgrade in required_upgrades:
+            has_upgrade = False
+            for upgrade in self.upgrades.values():
+                if upgrade.id == required_upgrade:
+                    has_upgrade = True
+                    break
+            if not has_upgrade:
+                return False
+        return True
+
     def set_static_province(self, obj):
         self.static_data = obj
 

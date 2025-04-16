@@ -55,3 +55,47 @@ class ProvinceProperty(GameObject):
         "morale_factors": "moraleFactors",
         "revolt_suppression_property": "revoltSuppressionProperty",
     }
+
+
+    def update_possible_upgrades(self, province_id: int):
+        province = self.game.get_province(province_id)
+        if province is None:
+            return
+        self.possible_upgrades = ArrayList([])
+        if province.has_construction(0):
+            return None
+
+        # Upgrades that replace any of the current ones
+        for upgrade in province.upgrades.values():
+            upgrade_type = self.game.get_upgrade_type(upgrade.id)
+            if upgrade_type is None:
+                continue
+            replacing_upgrade_type = self.game.get_upgrade_type(upgrade_type.get_replacing_upgrade())
+            if replacing_upgrade_type is None:
+                continue
+            if not province.has_upgrades(list(replacing_upgrade_type.required_upgrades.keys())):
+                continue
+            if upgrade.condition == upgrade_type.max_condition:
+                self.possible_upgrades.append(ModableUpgrade(
+                    id=replacing_upgrade_type.id,
+                    relative_position=None,
+                    condition=0,
+                ))
+            else:
+                self.possible_upgrades.append(ModableUpgrade(
+                    id=upgrade.id,
+                    relative_position=None,
+                    condition=0,
+                ))
+        # Upgrades that are base upgrades
+        for upgrade in self.game.get_upgrade_types(tier=1).values():
+            if any([upgrade.sorting_order == self.game.get_upgrade_type(possible_upgrade.id).sorting_order for possible_upgrade in self.possible_upgrades]):
+                # Upgrade from same group is already possible. Lower level one shouldn't be possible to build.
+                continue
+            if province.province_state_id not in upgrade.possible_province_states:
+                continue
+            self.possible_upgrades.append(ModableUpgrade(
+                id=upgrade.id,
+                relative_position=None,
+                condition=0,
+            ))

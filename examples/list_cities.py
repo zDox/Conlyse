@@ -3,16 +3,9 @@ import logging
 
 from pprint import pprint
 
-import matplotlib.pyplot as plt
-from PIL import Image
-from requests import HTTPError
-
-from conflict_interface.data_types.army_state.unit import Unit
+from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
-from examples.helper_functions import load_credentials
-from PIL import Image
-from io import BytesIO
 
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
@@ -21,17 +14,13 @@ if __name__ == "__main__":
     username, password = "IpXOoCknBFbBKI", "qsubmliInVbgyF"
     interface.login(username, password)
 
-    game = interface.join_game(9900696)
-    # Load image from bytes
-    for army in game.get_armies().values():
-        path, default_path = army.get_image()
-        print(f"path: {path}")
-        try:
-            image = Image.open(BytesIO(game.game_api.get_image(path)))
-        except HTTPError as e:
-            image = Image.open(BytesIO(game.game_api.get_image(default_path)))
-        plt.figure(figsize=(5, 5))
-        plt.imshow(image)
-        plt.axis("off")
-        plt.title(f"{army.id}_{army.army_number}")
-        plt.show()
+    game = interface.join_game(9926617)
+
+    algiers = game.get_provinces_by_name("Algiers")
+    pprint([game.get_upgrade_type(upgrade.id)
+           for upgrade in algiers.properties.possible_upgrades])
+    algiers.properties.possible_upgrades = ArrayList([])
+    algiers.properties.update_possible_upgrades(algiers.id)
+    print("Updating possible_upgrades")
+    pprint([game.get_upgrade_type(upgrade.id) for upgrade in algiers.properties.possible_upgrades])
+
