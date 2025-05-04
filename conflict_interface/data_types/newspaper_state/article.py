@@ -2,6 +2,7 @@ from typing import Optional
 from typing import Union
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
+from conflict_interface.data_types.custom_types import SqlDate
 from conflict_interface.data_types.custom_types import Vector
 from conflict_interface.data_types.game_object import GameObject
 from dataclasses import dataclass
@@ -34,8 +35,8 @@ class Article(GameObject):
     receiver_flag_id: int
     report_count: int
     alliance_id: int
-    date: list[Union[str, DateTimeMillisecondsInt]] # sql date format
-    time: list[Union[str, DateTimeMillisecondsInt]] # sql time format
+    date: SqlDate[DateTimeMillisecondsInt]
+    time: list[str] # sql time format
 
 
     image_id: Optional[dict[str, int]]

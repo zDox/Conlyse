@@ -21,7 +21,7 @@ from tests.compare_dicts import compare_dicts
 class ParseDumpTests(unittest.TestCase):
     test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState,
                    ResearchState, GameInfoState, GameEventState]
-    test_files = ["full_test_data_5.json"]
+    test_files = ["full_test_data_6_v191.json"]
 
     def test_load_json(self):
         for file in ParseDumpTests.test_files:

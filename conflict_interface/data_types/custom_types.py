@@ -45,6 +45,12 @@ class EmptyList(list):
 class UnmodifiableCollection(list):
     C = "java.util.Collections$UnmodifiableCollection"
 
+class SqlDate(list):
+    """
+    A list that represents a SQL date. It is used to convert the date to a string
+    """
+    C = "java.sql.Date"
+
 
 class HashSet(list):
     C = "java.util.HashSet"

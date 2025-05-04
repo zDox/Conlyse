@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 
+from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
+from conflict_interface.data_types.custom_types import SqlDate
 from conflict_interface.data_types.game_object import GameObject
 
 @dataclass
 class StatisticsArticle(GameObject):
     C = "ultshared.UltStatisticsArticle"
     message_body: str
-    date: list[str] # sql date format
+    date: SqlDate[DateTimeMillisecondsInt] # sql date format
     time: list[str] # sql time format
     author: str
     read_by_sender: bool

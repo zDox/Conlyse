@@ -31,7 +31,6 @@ DataclassType = TypeVar("DataclassType", bound="object")
 def get_inner_type(cls: type, json_obj):
     # Check if the type is Optional
     origin = get_origin(cls)
-
     json_type = type(json_obj)
 
     if origin is Union:
@@ -94,6 +93,9 @@ def parse_normal_dict(cls,json_obj,game):
 
 def parse_normal_list(cls, json_obj, game):
     return [parse_any(cls.__args__[0], v, game) for v in json_obj]
+
+def parse_sql_date(cls, json_obj, game):
+    return cls([parse_any(cls.__args__[0], v, game) for v in json_obj[1:]])
 
 def parse_date_time_milliseconds(json_obj):
     if len(str(json_obj)) < 13 and str(json_obj) != "0":
@@ -169,6 +171,12 @@ def dump_conflict_list(obj) -> list:
 
     return [obj.C, [dump_any(v) for v in obj]]
 
+def dump_sql_date(obj) -> list:
+    if not hasattr(obj, "C"):
+        raise ValueError(f"Object {obj} has no C implemented")
+
+    return [obj.C] + [dump_any(v) for v in obj]
+
 def dump_conflict_mapping(obj) -> dict:
     if not hasattr(obj, "C"):
         raise ValueError(f"Object {obj} has no C implemented")
@@ -225,6 +233,7 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     EmptyMap: parse_conflict_mapping,
     UnmodifiableMap: parse_conflict_mapping,
     HashSetMap: parse_list_to_dict,
+    SqlDate: parse_sql_date,
 
 }
 
@@ -256,6 +265,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     EmptyMap: dump_conflict_mapping,
     UnmodifiableMap: dump_conflict_mapping,
     HashSetMap: dump_dict_to_list,
+    SqlDate: dump_sql_date,
 
     DateTimeMillisecondsInt: dump_date_time_int,
     DateTimeMillisecondsStr: dump_date_time_str,
