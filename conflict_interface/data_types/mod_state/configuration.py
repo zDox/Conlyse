@@ -15,6 +15,7 @@ from conflict_interface.data_types.custom_types import UnmodifiableCollection, H
 from conflict_interface.data_types.custom_types import UnmodifiableMap
 from conflict_interface.data_types.custom_types import UnmodifiableSet
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.mod_state.boost import Boost
 from conflict_interface.data_types.player_state.faction import Faction
 
@@ -789,5 +790,14 @@ class FactionSpecificConfig(GameObject):
 
     MAPPING = {
         "factions": "factions",
+    }
+
+@dataclass
+class TerrainRestrictedConfig(GameObject):
+    C = "ultshared.modding.configuration.UltTerrainRestrictionConfig"
+
+    restricted_terrains: HashSet[int] # TODO though it is terrain type but value can be 22 which is not terrain
+    MAPPING = {
+        "restricted_terrains": "restrictedTerrains",
     }
 

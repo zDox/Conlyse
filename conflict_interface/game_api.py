@@ -10,9 +10,8 @@ from json import dumps
 from json import loads
 from time import time
 
-from cloudscraper import CloudScraper
+from cloudscraper25 import CloudScraper
 from lxml import html
-from requests import Session
 
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.logger_config import get_logger
@@ -83,7 +82,15 @@ class GameApi:
 
     @classmethod
     def from_static(cls) -> "GameApi":
-        instance = cls(session=CloudScraper.create_scraper(),
+        instance = cls(session=CloudScraper.create_scraper(disableCloudflareV2=True,
+                                                           stealth_options={
+                                                               'min_delay': 0.01,
+                                                               'max_delay': 1,
+                                                               'human_like_delays': True,
+                                                               'randomize_headers': True,
+                                                               'browser_quirks': True
+                                                           }
+                                                           ),
                        auth_details=None,
                        game_id=0,
                        proxy=None)
@@ -155,8 +162,8 @@ class GameApi:
         match = re.search(r'clientVersion=(\d+)', response.text)
         if match:
             self.client_version = int(match.group(1))
-            if self.client_version != 189:
-                logger.warning(f"Client version is {self.client_version} which is not supported by this library (supported 189).")
+            if self.client_version != 191:
+                logger.warning(f"Client version is {self.client_version} which is not supported by this library (supported 191).")
         else:
             raise GameJoinException(f"Could not find client_version \
                     in request {response.text}")

@@ -7,7 +7,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import lxml
-from cloudscraper import CloudScraper
+from cloudscraper25 import CloudScraper
 from fake_useragent import UserAgent
 from lxml import html
 from requests import Response
@@ -68,7 +68,15 @@ class HubApi:
     HOST = "https://www.conflictnations.com/"
 
     def __init__(self, proxy: dict = None):
-        self.session = CloudScraper.create_scraper()
+        self.session = CloudScraper.create_scraper(disableCloudflareV2=True,
+                                                   stealth_options={
+                                                       'min_delay': 0.01,
+                                                       'max_delay': 1,
+                                                       'human_like_delays': True,
+                                                       'randomize_headers': True,
+                                                       'browser_quirks': True
+                                                   }
+                                                   )
         self.user_agent = UserAgent(platforms='desktop').random
         self.session.headers = {
                 "User-Agent": self.user_agent,
@@ -514,7 +522,14 @@ class HubApi:
         return True
 
     def logout(self):
-        self.session = CloudScraper.create_scraper()
+        self.session = CloudScraper.create_scraper(disableCloudflareV2=True,
+                                                   stealth_options = {
+                                                       'min_delay': 0.01,
+                                                       'max_delay': 1,
+                                                       'human_like_delays': True,
+                                                       'randomize_headers': True,
+                                                       'browser_quirks': True
+                                                   })
         self.user_agent = UserAgent(platforms='desktop').random
         self.session.headers = {
                 "User-Agent": self.user_agent,

@@ -8,6 +8,7 @@ from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.data_types.custom_types import Vector
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.impact import Impact
+from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
 from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
 from conflict_interface.data_types.map_state.map_state_enums import ResourceProductionType
@@ -18,6 +19,7 @@ from conflict_interface.data_types.map_state.update_province_action import Updat
 from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionModes
 from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
+from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
@@ -83,7 +85,7 @@ class Province(GameObject):
     # Data from GameServer
     province_state_id: ProvinceStateID
 
-    adjacent_to_water: bool
+    center_coordinate: Point
     resource_production: Optional[int]
     resource_production_type: ResourceProductionType
 
@@ -101,11 +103,9 @@ class Province(GameObject):
 
     production: Optional[ProvinceProduction]
     productions: Optional[ProductionList[ProvinceProduction]]
-    production_slots: Optional[ProductionList[ProvinceProduction]]
+    terrain_type: TerrainType
 
-    construction: Optional[ProvinceProduction]
     constructions: Optional[ProductionList[ProvinceProduction]]
-    construction_slots: Optional[ProductionList[ProvinceProduction]]
     costal: bool = False
     money_production: int = 0
     morale: int = 70
@@ -120,7 +120,7 @@ class Province(GameObject):
     MAPPING = {
         "id": "id",
         "name": "n",
-        "adjacent_to_water": "c",
+        "center_coordinate": "c",
         "owner_id": "o",
         "morale": "m",
         "province_state_id": "pst",
@@ -136,13 +136,10 @@ class Province(GameObject):
         "last_battle": "lb",
         "impacts": "ims",
         "costal": "co",
-        "construction": "bi",  # TODO why the fuck bi??
         "constructions": "cos",  # TODO what the heck cos??
         "production": "pi",
         "productions": "prs",
-        "construction_slots": "cs",
-        "production_slots": "ps",
-
+        "terrain_type": "tt"
     }
 
     updateable_keys = ["province_state_id",

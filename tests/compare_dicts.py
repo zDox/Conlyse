@@ -24,19 +24,24 @@ def recur_compare_keys(dict1, dict2, depth, path, max_depth):
     if "@c" in dict1:
         current_path = path + dict1["@c"] + "/"
 
-    for key in dict1.keys():
-        if key not in dict2:
-            print(f"Key '{key}' not found in changed dictionary at path: {current_path}")
-            good = False
-        else:
-            if isinstance(dict1[key], dict):
-                good = good and recur_compare_keys(dict1[key], dict2[key], depth + 1, f"{current_path}{key}/",
-                                                   max_depth)
-            elif isinstance(dict1[key], list):
-                if not type(dict2) is dict: print("WTH" + " " + str(type(dict2)) + " " + str(dict2))
-                good = good and recur_list_key_compare(dict1[key], dict2[key], depth + 1, f"{current_path}{key}/",
+    try:
+        for key in dict1.keys():
+            if key not in dict2:
+                print(f"Key '{key}' not found in changed dictionary at path: {current_path}")
+                good = False
+            else:
+                if isinstance(dict1[key], dict):
+                    good = good and recur_compare_keys(dict1[key], dict2[key], depth + 1, f"{current_path}{key}/",
                                                        max_depth)
-
+                elif isinstance(dict1[key], list):
+                    if not type(dict2) is dict: print("WTH" + " " + str(type(dict2)) + " " + str(dict2))
+                    good = good and recur_list_key_compare(dict1[key], dict2[key], depth + 1, f"{current_path}{key}/",
+                                                           max_depth)
+    except TypeError:
+        print(f"Error comparing keys at path {path}")
+        print(f"  Original: {dict1}")
+        print(f"  Processed: {dict2}")
+        return False
     return good
 
 
@@ -136,6 +141,8 @@ def custom_list_sort(item):
                 return (0, item['@c'])
         else:
             return 1
+    elif item == "java.sql.Date":
+        return (0, 0)
 
     elif isinstance(item, list):
         return (1, len(item))

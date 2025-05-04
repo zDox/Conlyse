@@ -2,6 +2,7 @@ from dataclasses import field
 from typing import Union
 
 from conflict_interface.data_types.custom_types import ArrayList
+from conflict_interface.data_types.custom_types import EmptyList
 from conflict_interface.data_types.game_event_state.game_event import *
 from conflict_interface.data_types.state import State
 from conflict_interface.data_types.state import state_update
@@ -29,7 +30,7 @@ GameEventType = Union[
 class GameEventState(State):
     C = "ultshared.gameevents.UltGameEventState"
     STATE_TYPE = 24
-    game_events: ArrayList[GameEventType] = field(default_factory=list)
+    game_events: Union[EmptyList[GameEventType],ArrayList[GameEventType]] = field(default_factory=list)
 
     _new_game_events: list[GameEventType] = None
     MAPPING = {

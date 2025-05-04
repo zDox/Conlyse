@@ -31,6 +31,7 @@ from conflict_interface.data_types.mod_state.configuration import ScoutConfig
 from conflict_interface.data_types.mod_state.configuration import SortingConfig
 from conflict_interface.data_types.mod_state.configuration import SoundConfig
 from conflict_interface.data_types.mod_state.configuration import StackingConfig
+from conflict_interface.data_types.mod_state.configuration import TerrainRestrictedConfig
 from conflict_interface.data_types.mod_state.configuration import TokenConsumerConfig
 from conflict_interface.data_types.mod_state.configuration import TokenProducerConfig
 from conflict_interface.data_types.mod_state.configuration import TokenSensitivityConfig
@@ -114,6 +115,7 @@ class UnitType(GameObject):
     token_sensitivity_config: TokenSensitivityConfig
     production_requirements_config: ConflictCondition
     frontend_config: UnitTypeFrontEndConfig
+    terrain_restriction_config: TerrainRestrictedConfig
     render_config: RenderConfig
 
     _tier: int = None
@@ -189,6 +191,7 @@ class UnitType(GameObject):
         "production_requirements_config": "productionRequirementConfig",
         "frontend_config": "frontendConfig",
         "render_config": "renderConfig",
+        "terrain_restriction_config": "terrainRestrictionConfig",
     }
     def get_name_with_tier(self):
         """
