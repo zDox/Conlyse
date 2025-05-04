@@ -60,6 +60,7 @@ class Replay:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.conn:
             self.conn.close()
+            self.conn = None
 
     def open(self):
         self.__enter__()

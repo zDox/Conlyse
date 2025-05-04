@@ -21,6 +21,7 @@ class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
     OCCUPIED_CITY = 53
     ANNEXED_CITY = 54
     MAINLAND_CITY = 55
+    MAX = 99
 
 
 class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):

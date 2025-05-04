@@ -248,8 +248,10 @@ class UnitType(GameObject):
         if self._factions is None:
             self._factions = set()
             research = self.get_required_research_type()
-            if research:
+            if research and research.faction_specific_config:
                 self._factions.update(research.faction_specific_config.factions)
+            else:
+                self._factions = {Faction.EUROPEAN, Faction.WESTERN, Faction.EASTERN}
         return self._factions
 
     def has_faction(self, faction: Faction):
