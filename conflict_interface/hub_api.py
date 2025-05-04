@@ -7,7 +7,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import lxml
-from cloudscraper import CloudScraper
+from cloudscraper25 import CloudScraper
 from fake_useragent import UserAgent
 from lxml import html
 from requests import Response

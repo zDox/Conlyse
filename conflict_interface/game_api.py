@@ -10,9 +10,8 @@ from json import dumps
 from json import loads
 from time import time
 
-from cloudscraper import CloudScraper
+from cloudscraper25 import CloudScraper
 from lxml import html
-from requests import Session
 
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.logger_config import get_logger

@@ -4,7 +4,7 @@ from time import time
 from typing import Callable
 from typing import override
 
-from cloudscraper import CloudScraper
+from cloudscraper25 import CloudScraper
 
 from conflict_interface.action_handler import ActionHandler
 from conflict_interface.data_types.action import Action
