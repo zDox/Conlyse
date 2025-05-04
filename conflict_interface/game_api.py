@@ -82,7 +82,15 @@ class GameApi:
 
     @classmethod
     def from_static(cls) -> "GameApi":
-        instance = cls(session=CloudScraper.create_scraper(),
+        instance = cls(session=CloudScraper.create_scraper(disableCloudflareV2=True,
+                                                           stealth_options={
+                                                               'min_delay': 0.01,
+                                                               'max_delay': 1,
+                                                               'human_like_delays': True,
+                                                               'randomize_headers': True,
+                                                               'browser_quirks': True
+                                                           }
+                                                           ),
                        auth_details=None,
                        game_id=0,
                        proxy=None)
