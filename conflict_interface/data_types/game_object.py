@@ -259,6 +259,7 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     BidListOuter: dump_conflict_list,
     AskListInner: dump_conflict_list,
     AskListOuter: dump_conflict_list,
+    RankingEntryList: dump_conflict_list,
     HashMap: dump_conflict_mapping,
     TreeMap: dump_conflict_mapping,
     LinkedHashMap: dump_conflict_mapping,
