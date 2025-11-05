@@ -1,4 +1,5 @@
 import json
+import logging
 import unittest
 
 from conflict_interface.data_types.army_state.army_state import ArmyState
@@ -19,8 +20,8 @@ from tests.compare_dicts import compare_dicts
 
 
 class ParseDumpTests(unittest.TestCase):
-    test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState,
-                   ResearchState, GameInfoState, GameEventState]
+    test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState, ResearchState, GameInfoState, GameEventState]
+
     test_files = ["full_test_data_1_v206.json"]
 
     def test_load_json(self):
