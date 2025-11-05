@@ -106,7 +106,7 @@ export function useDrawingMode({
             } else if (drawingLevel === 1 && currentDrawing) {
                 let pos = event.data.getLocalPosition(viewport);
                 drawing_info.position = new PIXI.Point(pos.x + 30, pos.y + 20);
-                drawing_info.text = Math.round(Math.hypot(Math.abs(pos.x - currentDrawing["x1"]), Math.abs(pos.y - currentDrawing["y1"])).toString(10));
+                drawing_info.text = Math.round(Math.hypot(Math.abs(pos.x - currentDrawing["x1"]), Math.abs(pos.y - currentDrawing["y1"]))).toString();
                 drawing_graphic.clear();
                 drawing_graphic.lineStyle({ color: fillColor[0], alpha: fillColor[1], width: strokeWidth, scaleMode: LINE_SCALE_MODE.NORMAL });
                 drawing_graphic.moveTo(currentDrawing["x1"], currentDrawing["y1"]);
