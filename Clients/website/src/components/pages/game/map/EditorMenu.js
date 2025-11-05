@@ -1,6 +1,6 @@
 import {Box, Grid, IconButton} from "@mui/material";
-import ModeSwitch from "./components/mode_switch_button";
-import SelectGroupButton from "./components/select_group_button";
+import ModeSwitch from "./components/ModeSwitch";
+import SelectGroupButton from "./components/SelectGroupButton";
 import {
     CircleOutlined,
     Edit,

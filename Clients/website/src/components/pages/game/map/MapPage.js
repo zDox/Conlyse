@@ -5,7 +5,7 @@ import Map from "./map";
 import {get_combined_province} from "../../../../helper/provinces/provinces_getter";
 import CustomDrawer from "../../../CustomDrawer";
 import React, {useState} from "react";
-import EditorMenu from "./editor_menu";
+import EditorMenu from "./EditorMenu";
 import DetailedInformation from "./Modes/selectionMode/detailed_information";
 import * as PIXI from "pixi.js";
 import {pushDrawing} from "./Modes/drawingMode/drawing_mode";
