@@ -420,7 +420,7 @@ class HubApi:
                 if i == SESSION_TOKEN_RETRIES -1:
                     raise e
                 sleep_amount = 5 * (i +1)
-                logger.debug(f"Sleeping for {sleep_amount} seconds")
+                logger.warning(f"Sleeping for {sleep_amount} seconds as getSessionToken failed...")
                 sleep(sleep_amount)
 
     def get_session_token(self) -> str:
