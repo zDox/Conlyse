@@ -204,8 +204,9 @@ class GameApi:
                                      headers=headers,
                                      data=dumps(data),
                                      proxies=self.proxy)
-        response_json = response.json()
         response.raise_for_status()
+        response_json = response.json()
+
         if not type(response_json["result"]) is int:
             if "timeStamp" in response_json["result"]:
                 self.update_server_time(response_json["result"]["timeStamp"])

@@ -60,7 +60,7 @@ class ProvinceProperty(GameObject):
     def update_possible_upgrades(self, province_id: int):
         province = self.game.get_province(province_id)
         if province is None:
-            return
+            return None
         self.possible_upgrades = ArrayList([])
         if province.has_construction(0):
             return None
@@ -99,3 +99,4 @@ class ProvinceProperty(GameObject):
                 relative_position=None,
                 condition=0,
             ))
+        return None

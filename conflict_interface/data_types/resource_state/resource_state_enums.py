@@ -18,3 +18,6 @@ class ResourceType(Enum, metaclass=DefaultEnumMeta):
     MONEY = 20
     CITY_CLAIM = 30
     PHARMACEUTICAL = 40
+    GROUND_MUNITION = 50
+    SEA_MUNITION = 60
+    AIR_GROUND_MUNITION = 70

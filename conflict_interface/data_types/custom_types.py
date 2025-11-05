@@ -25,6 +25,9 @@ class AskListOuter(list):
 class AskListInner(list):
     C = "ultshared.UltAskList"
 
+class RankingEntryList(list):
+    C = "[Lultshared.UltRankingEntry;"
+
 class LinkedList(list):
     C = "java.util.LinkedList"
 

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
+from .ranking_entry import RankingEntry
 from ..custom_types import HashMap # TODO why is tis relative needed
+from ..custom_types import RankingEntryList
 from ..game_object import GameObject
 
 
@@ -14,6 +16,7 @@ class Ranking(GameObject):
     team_ranking: HashMap[int, int]
     teams_rank_sorted: list[int]
     initialized: bool
+    unified_rank_sorted: RankingEntryList[RankingEntry]
 
     MAPPING = {
         "winner": "winner",
@@ -23,4 +26,5 @@ class Ranking(GameObject):
         "team_ranking": "teamRanking",
         "teams_rank_sorted": "teamsRankSorted",
         "initialized": "initialized",
+        "unified_rank_sorted": "unifiedRankSorted",
     }

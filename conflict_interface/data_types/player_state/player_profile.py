@@ -50,6 +50,7 @@ class PlayerProfile(GameObject):
     ai_profile: Optional[str] # TODO make enum ex. "major"
     accumulated_victory_points: int
     daily_victory_points: int
+    terrorist_country: bool
 
     banned: bool = False
     mail: str = ""
@@ -102,4 +103,5 @@ class PlayerProfile(GameObject):
         "ai_profile": "aiProfile",
         "accumulated_victory_points": "accumulatedVps",
         "daily_victory_points": "dailyVictoryPoints",
+        "terrorist_country": "terroristCountry",
     }
