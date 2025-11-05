@@ -3,6 +3,7 @@ import hashlib
 import json
 from collections import defaultdict
 from functools import wraps
+from time import sleep
 from typing import Any
 from urllib.parse import urlencode
 
@@ -418,6 +419,9 @@ class HubApi:
             except Exception as e:
                 if i == SESSION_TOKEN_RETRIES -1:
                     raise e
+                sleep_amount = 5 * (i +1)
+                logger.debug(f"Sleeping for {sleep_amount} seconds")
+                sleep(sleep_amount)
 
     def get_session_token(self) -> str:
         """
