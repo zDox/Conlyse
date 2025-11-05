@@ -92,7 +92,8 @@ class UnitFeature(Enum):
     UNITFEATURE_SHIP_TRANSPORTABLE = 64
     UNITFEATURE_SHIP_TRANSPORT = 65
     UNITFEATURE_STACKING = 66
-    UNKNOWN_2 = 67
+    UNKNOWN_67 = 67
+    UNKNOWN_68 = 68
 
 
 class UpgradeFeature(Enum):
@@ -137,6 +138,7 @@ class UpgradeFeature(Enum):
     DEMOLISHABLE = 38
     NOT_ADDED_TO_PROVINCE = 39
     INVISIBLE_FROM_STATS = 40
+    UNKNOWN_41 = 41
 
 
 class ValueFunction(Enum):
@@ -300,3 +302,7 @@ class ModGameFeatures(Enum):
     OPTION_DEBUG_RESOURCES = 'debugResources'
     OPTION_UNIFIED_UBER = 'unifiedUber'
     OPTION_UNIFIED_CLIENT = 'unifiedClient'
+
+    OPTION_OFFICER_PREMIUM_CURRENCY_ITEM_TIER_1 = 'officerPremiumCurrencyItemTier1'
+    OPTION_OFFICER_PREMIUM_CURRENCY_ITEM_TIER_2 = 'officerPremiumCurrencyItemTier2'
+    OPTION_OFFICER_PREMIUM_CURRENCY_ITEM_TIER_3 = 'officerPremiumCurrencyItemTier3'

@@ -10,7 +10,7 @@ if __name__ == "__main__":
     interface = HubInterface()
     username, password, email, proxy_url = load_credentials()
     interface.login(username, password)
-    for game_info in interface.get_global_games().values():
+    for game_info in interface.get_global_games():
         if game_info.day_of_game != 1:
             continue
         print(f"Game: {game_info.game_id}")

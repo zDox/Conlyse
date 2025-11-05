@@ -10,6 +10,7 @@ from conflict_interface.data_types.mod_state.configuration import ConflictCondit
 from conflict_interface.data_types.mod_state.configuration import ConstructionSpeedupConfig
 from conflict_interface.data_types.mod_state.configuration import FactorySpeedUpConfig
 from conflict_interface.data_types.mod_state.configuration import HealArmiesUpgradeFeatureConfig
+from conflict_interface.data_types.mod_state.configuration import UnitSpawnConfig
 from conflict_interface.data_types.mod_state.configuration import UpgradeTypeFreeformConfig
 from conflict_interface.data_types.mod_state.configuration import VictoryPointsGenerationConfig
 from conflict_interface.data_types.mod_state.mod_state_enums import UpgradeFeature
@@ -60,6 +61,8 @@ class UpgradeType(GameObject):
     construction_requirement_config: ConflictCondition
     victory_points_generation_config: Optional[VictoryPointsGenerationConfig]
 
+    unit_spawn_config: Optional[UnitSpawnConfig]
+
     ranking_factor: int = 1
     feature_icon_prefix: str = ""
     day_of_availability: int = 0
@@ -104,7 +107,7 @@ class UpgradeType(GameObject):
         "factory_speedup_config": "fsc",
         "construction_requirement_config": 'constructionRequirementConfig',
         "victory_points_generation_config": "victoryPointsGenerationConfig",
-
+        "unit_spawn_config": "unitSpawnConfig",
     }
 
     def has_feature(self, feature: UpgradeFeature):

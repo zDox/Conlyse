@@ -51,7 +51,7 @@ def get_inner_type(cls: type, json_obj):
                 elif arg.__name__ == "Point" and json_obj.keys() == {"x", "y"}:
                     return arg
             elif json_type is list:
-                if arg.C == json_obj[0]:
+                if hasattr(arg, "C") and arg.C == json_obj[0]:
                     return arg
             elif json_type is int and arg is DateTimeMillisecondsInt: # TODO could run into problems when Union[int, DateTimeInt]
                 return arg
@@ -226,6 +226,7 @@ COMPLEX_PARSE_MAPPING: dict[type,Any] = {
     AskListInner: parse_conflict_list,
     AskListOuter: parse_conflict_list,
     ProductionList: parse_conflict_list,
+    RankingEntryList: parse_conflict_list,
     HashMap: parse_conflict_mapping,
     TreeMap: parse_conflict_mapping,
     LinkedHashMap: parse_conflict_mapping,

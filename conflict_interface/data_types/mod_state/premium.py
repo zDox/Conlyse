@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.mod_state.configuration import PremiumVisibilityConfig
+from conflict_interface.data_types.mod_state.configuration import TokenProducerConfig
 
 
 @dataclass
@@ -11,9 +13,11 @@ class Premium(GameObject):
     max_quantity: int
     is_inventory_item: bool
     is_global_item: bool
-    amount_factor: float # TODO check int
+    amount_factor: float
     name: str
     description: str
+    visibility: PremiumVisibilityConfig
+    token_producer_config: Optional[TokenProducerConfig]
 
     MAPPING = {
         "item_id": "itemID",
@@ -23,5 +27,7 @@ class Premium(GameObject):
         "amount_factor": "amountFactor",
         "name": "name",
         "description": "description",
+        "visibility": "visibility",
+        "token_producer_config": "tokenProducerConfig",
     }
 

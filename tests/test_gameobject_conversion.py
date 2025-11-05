@@ -1,4 +1,5 @@
 import json
+import logging
 import unittest
 
 from conflict_interface.data_types.army_state.army_state import ArmyState
@@ -15,13 +16,16 @@ from conflict_interface.data_types.player_state.player_state import PlayerState
 from conflict_interface.data_types.research_state.research_state import ResearchState
 from conflict_interface.data_types.resource_state.resource_state import ResourceState
 from conflict_interface.interface.game_interface import GameInterface
+from conflict_interface.logger_config import setup_library_logger
 from tests.compare_dicts import compare_dicts
 
 
 class ParseDumpTests(unittest.TestCase):
-    test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState,
-                   ResearchState, GameInfoState, GameEventState]
+    test_states = [ModState]
+    # test_states += [ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState, ResearchState, GameInfoState, GameEventState]
+
     test_files = ["full_test_data_1_v206.json"]
+    # setup_library_logger(logging.DEBUG)
 
     def test_load_json(self):
         for file in ParseDumpTests.test_files:

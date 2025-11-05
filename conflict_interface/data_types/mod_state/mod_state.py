@@ -31,6 +31,7 @@ from conflict_interface.data_types.mod_state.mission_type import MissionType
 from conflict_interface.data_types.mod_state.mod_state_enums import DamageType
 from conflict_interface.data_types.mod_state.mod_state_enums import ModGameFeatures
 from conflict_interface.data_types.mod_state.premium import Premium
+from conflict_interface.data_types.mod_state.premium_offer import PremiumOffer
 from conflict_interface.data_types.mod_state.rank_cache import RankCache
 from conflict_interface.data_types.mod_state.rank_type import RankType
 from conflict_interface.data_types.mod_state.relation import Relation
@@ -74,6 +75,7 @@ class ModState(State):
     premium_spy_jobs: ArrayList[Union[RevealProvinceArmiesJob, CountryInfoJob, DecreaseMoralJob, DestroyResouceJob, DamageUpgradeJob, RevealAllArmiesJob]]
     spy_missions: HashMap[int, SpyMission]
     premiums: HashMap[int, Premium]
+    premium_offers: HashMap[int, PremiumOffer]
     province_states: HashMap[int, ProvinceState]
     units: HashMap[int, Unit]
     terrain_types: TreeMap[int, TerrainTypeStr]
@@ -124,6 +126,7 @@ class ModState(State):
         "premium_spy_jobs": "premiumSpyJobs",
         "spy_missions": "spyMissions",
         "premiums": "premiums",
+        "premium_offers": "premiumOffers",
         "province_states": "provinceStates",
         "units": "units",
         "terrain_types": "terrainTypes",
