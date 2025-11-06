@@ -149,8 +149,6 @@ class Province(GameObject):
                        "victory_points",
                        "last_battle",
                        "production",
-                       "production_slots",
-                       "construction_slots",
                        "productions",
                        "constructions",
                        "core_ids",
