@@ -55,7 +55,6 @@ class Province(GameObject):
         id: Identifier for the province.
         province_state_id: State ID representing the current status of the province. E.x. if the province is occupied
         name: Name of the province.
-        adjacent_to_water: Indicates whether the province is situated adjacent to a water body.
         resource_production: Amount of resources produced by the province, if applicable.
         resource_production_type: Type of resource produced by the province.
         money_production: Amount of money produced by the province.
@@ -143,7 +142,6 @@ class Province(GameObject):
     }
 
     updateable_keys = ["province_state_id",
-                       "adjacent_to_water",
                        "resource_production",
                        "resource_production_type",
                        "base_production",
