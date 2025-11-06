@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from threading import Condition
 from typing import Any
 from typing import Optional
 from typing import Union
@@ -369,6 +368,12 @@ class ModStateFrontendConfig(GameObject):
     community_you_tube: dict[str, Union[str, int]]
     factor_bonus_tooltip: dict[str, list[int]]
     ticket_item_ids: list[int]
+    show_veteran_separation_text: bool
+    solsten_survey_details: dict[str, Union[str, int]]
+    officer_promo_banner: dict[str, Union[str, int]]
+    feature_promo_popup: dict[str, Union[str, int, bool]]
+
+
 
 
     MAPPING = {
@@ -380,15 +385,21 @@ class ModStateFrontendConfig(GameObject):
         "community_you_tube": "communityYouTube",
         "factor_bonus_tooltip": "factorBonusTooltip",
         "ticket_item_ids": "ticketItemIDs",
+        "show_veteran_separation_text": "showVeteranSeparationText",
+        "solsten_survey_details": "solstenSurveyDetails",
+        "officer_promo_banner": "officerPromoBanner",
+        "feature_promo_popup": "featurePromoPopup",
     }
 
 @dataclass
 class UnitTypeFrontEndConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
     player_progression_image: Optional[str]
+    officer_premium_id: Optional[int]
 
     MAPPING = {
         "player_progression_image": "playerProgressionImage",
+        "officer_premium_id": "officerPremiumItemID",
     }
 
 @dataclass
@@ -405,14 +416,23 @@ class UpgradeTypeFreeformConfig(GameObject):
     construction_visibility: Optional[dict[str, bool]]
     highlight: Optional[dict[str, bool]]
     sound_id: Optional[str]
+    animation_id: Optional[str]
 
     MAPPING = {
         "visibility": "visibility",
         "construction_visibility": "constructionVisibility",
         "highlight": "highlight",
-        "sound_id": "soundID"
+        "sound_id": "soundID",
+        "animation_id": "animationId",
     }
 
+@dataclass
+class PremiumVisibilityConfig(GameObject):
+    C = "ultshared.modding.configuration.premiums.UltPremiumVisibilityConfig"
+    visibility: str
+    MAPPING = {
+        "visibility": "visibility",
+    }
 
 @dataclass
 class ConstructionSpeedupConfig(GameObject):
@@ -576,7 +596,7 @@ class SplitStrategyConfig(GameObject):
 @dataclass
 class EffectsConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltEffectsConfig"
-    effects: ArrayList[dict[str, Union[float, str, int]]] # TODO check typing
+    effects: ArrayList[dict[str, Union[float, str, int, UnmodifiableSet[int], TokenProducerConfig]]] # TODO check typing
 
     MAPPING = {
         "effects": "effects",
@@ -651,11 +671,15 @@ class RenderConfig(GameObject):
     faction_specific_images: Optional[bool]
     icon: Optional[str]
     background_image: Optional[str]
+    effective_charge: Optional[str]
+    directional: bool = False
 
     MAPPING = {
         "faction_specific_images": "factionSpecificImages",
         "icon": "icon",
         "background_image": "backgroundImage",
+        "directional": "directional",
+        "effective_charge": "effectiveCharge",
     }
 
 @dataclass
@@ -692,8 +716,8 @@ class UberConfig(GameObject):
 class IncludeExcludeConfig(GameObject):
     C = "ultshared.modding.configuration.UltIncludeExcludeConfig"
 
-    include: UnmodifiableSet[int]
-    exclude: UnmodifiableSet[int]
+    include: UnmodifiableSet[Union[int, str, bool, float]]
+    exclude: UnmodifiableSet[Union[int, str, bool, float]]
 
     MAPPING = {
         "include": "include",
@@ -716,7 +740,7 @@ class PlayerProgressionConfig(GameObject):
 class ConsumptionStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltConsumptionStrategyConfig"
 
-    consumption_events: Optional[ArrayList[int]] # TODO check typing
+    consumption_events: Optional[ArrayList[str]] # TODO check typing
     behavior: Optional[str]
     insufficient_rule: Optional[str]
 
@@ -758,6 +782,32 @@ class StackingConfig(GameObject):
     MAPPING = {
         "stacking_limit": "limit",
         "cls": "class",
+    }
+
+@dataclass
+class UnitSpawnDetails(GameObject):
+    C = "ultshared.modding.configuration.UltUnitSpawnConfig$UnitSpawnDetails"
+    chance: float
+    spawn_condition: ConflictCondition
+    
+    MAPPING = {
+        "chance": "chance",
+        "spawn_condition": "spawnCondition",
+    }
+
+@dataclass
+class UnitSpawnConfig(GameObject):
+    C = "ultshared.modding.configuration.UltUnitSpawnConfig"
+    units: LinkedHashMap[str, UnitSpawnDetails]
+    rounds_per_day: int
+    spawn_during_combat: bool
+    spawn_condition: ConflictCondition
+
+    MAPPING = {
+        "units": "units",
+        "rounds_per_day": "roundsPerDay",
+        "spawn_during_combat": "spawnDuringCombat",
+        "spawn_condition": "spawnCondition",
     }
 
 @dataclass

@@ -32,6 +32,7 @@ class TokenType(GameObject):
     effect_scaling_strategy: EffectScalingStrategyConfig
     consumption_strategy: ConsumptionStrategyConfig
     render_config: RenderConfig
+    token_display: str
 
     MAPPING = {
         "item_id": "itemID",
@@ -48,4 +49,5 @@ class TokenType(GameObject):
         "effect_scaling_strategy": "effectScalingStrategy",
         "consumption_strategy": "consumptionStrategy",
         "render_config": "renderConfig",
+        "token_display": "tokenDisplay",
     }

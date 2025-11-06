@@ -3,6 +3,7 @@ import hashlib
 import json
 from collections import defaultdict
 from functools import wraps
+from time import sleep
 from typing import Any
 from urllib.parse import urlencode
 
@@ -50,6 +51,8 @@ HUB_RESULT_CODE_EXCEPTION_MAPPING = {
     HubResultCode.TooManyGameJoinsTooFrequently: TooManyGameJoinsTooFrequently,
     HubResultCode.NotEnoughTickets: NotEnoughTickets,
 }
+
+SESSION_TOKEN_RETRIES = 3
 
 def get_user_name_taken_response_text(username):
     return f'<script type="text/javascript">setNameCheckResponse(0, "Username already taken", 2, "{username}");</script>'
@@ -410,7 +413,15 @@ class HubApi:
             raise Exception("Could not find authentication url")
 
         self.auth = AuthDetails.from_url_parameters(iframe_src[0])
-        self.auth.session_token = self.get_session_token()
+        for i in range(SESSION_TOKEN_RETRIES):
+            try:
+                self.auth.session_token = self.get_session_token()
+            except Exception as e:
+                if i == SESSION_TOKEN_RETRIES -1:
+                    raise e
+                sleep_amount = 5 * (i +1)
+                logger.warning(f"Sleeping for {sleep_amount} seconds as getSessionToken failed...")
+                sleep(sleep_amount)
 
     def get_session_token(self) -> str:
         """
@@ -424,8 +435,7 @@ class HubApi:
             "userID": self.auth.user_id,
         }, "getSessionToken")
         if "sessionToken" not in res:
-            print(res)
-            print(self.auth)
+            logger.debug(f"Could not retrieve session token. Response was {res}")
             raise AuthenticationException("Could not get session token")
         return res["sessionToken"]
 

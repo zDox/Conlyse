@@ -20,6 +20,7 @@ from conflict_interface.utils.exceptions import GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
 
 logger = get_logger()
+SUPPORTED_CLIENT_VERSION = 206
 
 @dataclass
 class DeviceDetails:
@@ -162,8 +163,8 @@ class GameApi:
         match = re.search(r'clientVersion=(\d+)', response.text)
         if match:
             self.client_version = int(match.group(1))
-            if self.client_version != 191:
-                logger.warning(f"Client version is {self.client_version} which is not supported by this library (supported 191).")
+            if self.client_version != SUPPORTED_CLIENT_VERSION:
+                logger.warning(f"Client version is {self.client_version} which is not supported by this library (supported {SUPPORTED_CLIENT_VERSION}).")
         else:
             raise GameJoinException(f"Could not find client_version \
                     in request {response.text}")

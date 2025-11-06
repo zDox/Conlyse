@@ -20,6 +20,8 @@ from conflict_interface.data_types.mod_state.configuration import DisbandConfig
 from conflict_interface.data_types.mod_state.configuration import DummyMissileCarrierConfig
 from conflict_interface.data_types.mod_state.configuration import DummyMissileConfig
 from conflict_interface.data_types.mod_state.configuration import DummyScoutConfig
+from conflict_interface.data_types.mod_state.configuration import FactionSpecificConfig
+from conflict_interface.data_types.mod_state.configuration import IncludeExcludeConfig
 from conflict_interface.data_types.mod_state.configuration import LaunchTargetConfig
 from conflict_interface.data_types.mod_state.configuration import LimitedMobilizationConfig
 from conflict_interface.data_types.mod_state.configuration import MissileCarrierConfig
@@ -117,6 +119,9 @@ class UnitType(GameObject):
     frontend_config: UnitTypeFrontEndConfig
     terrain_restriction_config: TerrainRestrictedConfig
     render_config: RenderConfig
+    faction_specific_config: FactionSpecificConfig
+    limited_commands: dict[str, Union[IncludeExcludeConfig, bool]]
+
 
     _tier: int = None
     _is_max_tier: int = None
@@ -192,6 +197,8 @@ class UnitType(GameObject):
         "frontend_config": "frontendConfig",
         "render_config": "renderConfig",
         "terrain_restriction_config": "terrainRestrictionConfig",
+        "faction_specific_config": "factionSpecificConfig",
+        "limited_commands": "limitedCommands"
     }
     def get_name_with_tier(self):
         """

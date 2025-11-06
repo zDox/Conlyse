@@ -12,53 +12,53 @@ class HubInterfaceTests(unittest.TestCase):
     def setUpClass(cls):
         cls.username, cls.password, cls.email, cls.proxy_url = load_credentials()
 
-    def setUp(self):
-        self.interface = HubInterface()
+        # Create a shared interface instance and log in once for all non-login tests
+        # Reason: Rate limiting of number of logins
+        cls.shared_interface = HubInterface()
+        cls.shared_interface.login(cls.username, cls.password)
 
+    # Login tests created their own HubInterface in order to properly reset it
     def test_login_success(self):
+        interface = HubInterface()
         try:
-            self.interface.login(self.username, self.password)
+            interface.login(self.username, self.password)
         except Exception as e:
             self.fail(f"Login raised an exception unexpectedly: {e}")
-    
-    
+
     def test_login_with_username_failure(self):
+        interface = HubInterface()
         with self.assertRaises(AuthenticationException):
-            self.interface.login(random_prefix+self.username, self.password)
-            
+            interface.login(random_prefix + self.username, self.password)
+
     def test_login_with_password_failure(self):
+        interface = HubInterface()
         with self.assertRaises(AuthenticationException):
-            self.interface.login(self.username, random_prefix+self.password)
+            interface.login(self.username, random_prefix + self.password)
 
     def test_join_game_failure(self):
-        self.interface.login(self.username, self.password)
         with self.assertRaises(Exception):  # Replace with a specific exception if applicable
-            self.interface.join_game(-1)  # Invalid game ID
+            self.shared_interface.join_game(-1)  # Invalid game ID
 
     def test_get_my_games_success(self):
-        self.interface.login(self.username, self.password)
         try:
-            my_games = self.interface.get_my_games()
+            my_games = self.shared_interface.get_my_games()
             self.assertIsNotNone(my_games, "get_my_games returned None unexpectedly.")
         except Exception as e:
             self.fail(f"get_my_games() raised an exception unexpectedly: {e}")
 
     def test_get_global_games_success(self):
-        self.interface.login(self.username, self.password)
         try:
-            global_games = self.interface.get_global_games()
+            global_games = self.shared_interface.get_global_games()
             self.assertIsNotNone(global_games, "get_global_games returned None unexpectedly.")
         except Exception as e:
             self.fail(f"get_global_games() raised an exception unexpectedly: {e}")
 
     def test_is_in_game_failure(self):
-        self.interface.login(self.username, self.password)
-        self.assertFalse(self.interface.is_in_game(-1))
+        self.assertFalse(self.shared_interface.is_in_game(-1))
 
     def test_game_join_as_guest(self):
-        self.interface.login(self.username, self.password)
         try:
-            game = self.interface.join_game(get_new_game_id(self.interface), guest=True)
+            game = self.shared_interface.join_game(get_new_game_id(self.shared_interface), guest=True)
         except Exception as e:
             self.fail(f"join_game() raised an exception unexpectedly: {e}")
         self.assertIsNotNone(game)

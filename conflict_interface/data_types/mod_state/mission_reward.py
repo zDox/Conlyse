@@ -8,7 +8,7 @@ from conflict_interface.data_types.custom_types import LinkedHashMap
 class MissionReward(GameObject):
     C = "ultshared.modding.configuration.missions.UltMissionReward"
     name: str
-    parameters: LinkedHashMap[int, str]
+    parameters: LinkedHashMap[str, str]
     icon: str
 
     MAPPING = {
