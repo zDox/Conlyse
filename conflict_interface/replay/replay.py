@@ -1,3 +1,10 @@
+"""
+Replay recording and playback system for game state changes.
+
+This module provides the core Replay class for recording game state changes
+over time and playing them back. Replays are stored in SQLite databases with
+support for bidirectional time travel through patches.
+"""
 import json
 import sqlite3
 import os
@@ -14,15 +21,63 @@ logger = get_logger()
 
 
 class CorruptReplay(Exception):
+    """Raised when a replay file is corrupted or has an invalid format."""
     pass
 
 
+# Replay file format version
 VERSION = 3
+
+# Required keys in the information table
 MANDATORY_KEYS = ["version", "game_id", "player_id", "start_time"]
 
 
 class Replay:
-    def __init__(self, filename: str, mode: Literal['r', 'w', 'a'], game_id: int = None, player_id: int = None):
+    """
+    Main replay class for recording and playing back game state changes.
+    
+    The Replay class manages a SQLite database that stores:
+    - Game state snapshots at key timestamps
+    - Patches representing changes between timestamps
+    - Static map data
+    - Action history
+    
+    Supports three modes:
+    - 'r': Read-only mode for replay playback
+    - 'w': Write mode for creating new replays
+    - 'a': Append mode for adding to existing replays
+    
+    The replay system uses bidirectional patches for efficient time travel,
+    allowing navigation both forward and backward through the game history
+    without storing complete states at each timestamp.
+    
+    Attributes:
+        filename: Path to the SQLite database file
+        mode: Access mode ('r', 'w', or 'a')
+        game_id: ID of the game being recorded/played
+        player_id: ID of the player whose perspective is being recorded
+        conn: SQLite database connection
+    """
+    
+    def __init__(
+        self, 
+        filename: str, 
+        mode: Literal['r', 'w', 'a'], 
+        game_id: int = None, 
+        player_id: int = None
+    ):
+        """
+        Initialize a replay file.
+        
+        Args:
+            filename: Path to the replay database file
+            mode: 'r' for read, 'w' for write, 'a' for append
+            game_id: Game ID (required for write/append modes)
+            player_id: Player ID (required for write/append modes)
+            
+        Raises:
+            ValueError: If mode is invalid
+        """
         if mode not in ('r', 'w', 'a'):
             raise ValueError("Mode must be 'r' (read), 'w' (write), or 'a' (append)")
 
@@ -42,6 +97,16 @@ class Replay:
         self._static_map_data: Optional[dict] = None
 
     def __enter__(self):
+        """
+        Context manager entry - opens the database connection.
+        
+        Returns:
+            self for use in with statements
+            
+        Raises:
+            ValueError: If game_id or player_id missing in write mode
+            FileNotFoundError: If file doesn't exist in read/append mode
+        """
         if self.mode == 'w':
             if self.game_id is None or self.player_id is None:
                 raise ValueError("Game ID and Player ID must be provided in write mode")
@@ -58,18 +123,29 @@ class Replay:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - closes the database connection."""
         if self.conn:
             self.conn.close()
             self.conn = None
 
     def open(self):
+        """Open the replay file (alternative to using as context manager)."""
         self.__enter__()
 
     def close(self):
+        """Close the replay file (alternative to using as context manager)."""
         self.__exit__(None, None, None)
 
     def _load_into_memory(self):
-        """Load patches and timestamps into memory, fetch game state timestamps from disk."""
+        """
+        Load patches and timestamps into memory for fast access.
+        
+        Game states are kept on disk and loaded on demand to reduce memory usage.
+        This method loads:
+        - Timestamps of all game state snapshots
+        - All patches for time travel
+        - Static map data
+        """
         # Load game state timestamps (but not the states themselves)
         cursor = self.conn.execute("SELECT timestamp FROM game_state")
         self._game_state_timestamps = [row[0] for row in cursor.fetchall()]
@@ -89,7 +165,7 @@ class Replay:
             self._static_map_data = json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
 
     def _create_tables(self):
-        """Create SQLite tables (unchanged)."""
+        """Create SQLite database schema for replay storage."""
         self.conn.execute("""
             CREATE TABLE IF NOT EXISTS information (
                 id INTEGER PRIMARY KEY,
@@ -128,14 +204,26 @@ class Replay:
 
     @property
     def start_time(self) -> Optional[datetime]:
+        """
+        Get the replay start time as a datetime object.
+        
+        Returns:
+            The start time in UTC, or None if not set
+        """
         return datetime.fromtimestamp(self._start_time / 1000, tz=UTC) if self._start_time else None
 
     @property
     def last_time(self) -> Optional[datetime]:
+        """
+        Get the last recorded time as a datetime object.
+        
+        Returns:
+            The last recorded time in UTC, or None if not set
+        """
         return datetime.fromtimestamp(self._last_time / 1000, tz=UTC) if self._last_time else None
 
     def _write_information(self):
-        """Write metadata to the information table."""
+        """Write or update replay metadata in the information table."""
         self.conn.execute("""
             INSERT OR REPLACE INTO information (id, version, game_id, player_id, start_time, last_time) 
             VALUES (?, ?, ?, ?, ?, ?)
@@ -143,7 +231,12 @@ class Replay:
         self.conn.commit()
 
     def _load_information(self):
-        """Load metadata from the information table."""
+        """
+        Load replay metadata from the information table.
+        
+        Raises:
+            CorruptReplay: If information table is empty or version mismatch
+        """
         cursor = self.conn.execute(
             "SELECT version, game_id, player_id, start_time, last_time FROM information WHERE id = ?", (1,))
         row = cursor.fetchone()
@@ -154,7 +247,24 @@ class Replay:
             raise CorruptReplay(f"Unsupported version {version}")
 
     def _jump_from_to(self, start: int, target: int) -> List[ReplayPatch]:
-        """Jump from start to target using in-memory patches."""
+        """
+        Calculate the sequence of patches needed to jump between timestamps.
+        
+        This method finds the optimal path through the patch graph to move from
+        the start timestamp to the target timestamp. It supports both forward
+        and backward time travel.
+        
+        Args:
+            start: Starting timestamp in milliseconds
+            target: Target timestamp in milliseconds
+            
+        Returns:
+            List of patches to apply in sequence
+            
+        Raises:
+            IOError: If replay is not in read or append mode
+            ValueError: If target is before the replay start time
+        """
         if self.mode not in ('r', 'a'):
             raise IOError("Replay must be in read or append mode to jump")
         if target < self._start_time:
@@ -162,6 +272,8 @@ class Replay:
 
         patches = []
         current = start
+        
+        # Forward time travel
         if target > start:
             while current < target:
                 next_patch = None
@@ -173,6 +285,7 @@ class Replay:
                     break
                 current, patch = next_patch
                 patches.append(patch)
+        # Backward time travel
         elif target < start:
             while current > target:
                 next_patch = None
@@ -184,9 +297,20 @@ class Replay:
                     break
                 current, patch = next_patch
                 patches.append(patch)
+                
         return patches
 
     def jump_from_to(self, start: datetime, target: datetime) -> Tuple[List[ReplayPatch], datetime]:
+        """
+        Jump between two datetimes, snapping to nearest available timestamps.
+        
+        Args:
+            start: Starting datetime
+            target: Target datetime
+            
+        Returns:
+            Tuple of (list of patches to apply, actual target datetime reached)
+        """
         start_ms = int(start.timestamp() * 1000)
         target_ms = int(target.timestamp() * 1000)
 
@@ -197,7 +321,15 @@ class Replay:
         return self._jump_from_to(start_ms, target_ms), datetime.fromtimestamp(target_ms / 1000, tz=UTC)
 
     def _write_game_state(self, time_stamp: int, game_state: dict):
-        """Write game state directly to disk only."""
+        """
+        Store a complete game state snapshot to disk.
+        
+        Game states are compressed using zlib to reduce storage size.
+        
+        Args:
+            time_stamp: Timestamp in milliseconds
+            game_state: Game state dictionary to store
+        """
         self._game_state_timestamps.append(time_stamp)
         self._game_state_timestamps.sort()
         compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
@@ -205,7 +337,14 @@ class Replay:
         self.conn.commit()
 
     def _write_patch(self, from_timestamp: int, to_timestamp: int, patch: str):
-        """Write to both memory and disk."""
+        """
+        Store a patch to both memory and disk.
+        
+        Args:
+            from_timestamp: Starting timestamp in milliseconds
+            to_timestamp: Ending timestamp in milliseconds
+            patch: Serialized patch string
+        """
         if (from_timestamp, to_timestamp) in self._patches:
             logger.info(f"Patch for {from_timestamp} to {to_timestamp} already exists, skipping")
             return
@@ -221,18 +360,63 @@ class Replay:
         self.conn.commit()
 
     def get_patch(self, from_timestamp: int, to_timestamp: int) -> ReplayPatch:
+        """
+        Retrieve a specific patch from memory.
+        
+        Args:
+            from_timestamp: Starting timestamp
+            to_timestamp: Ending timestamp
+            
+        Returns:
+            The requested ReplayPatch
+            
+        Raises:
+            Exception: If the patch is not found
+        """
         if (from_timestamp, to_timestamp) in self._patches:
             return self._patches[(from_timestamp, to_timestamp)]
         raise Exception(f"No patch found with from_timestamp {from_timestamp} and to_timestamp {to_timestamp}")
 
     def get_timestamps(self) -> List[int]:
+        """
+        Get all timestamps where patches exist.
+        
+        Returns:
+            Sorted list of timestamps in milliseconds
+        """
         return self._timestamps.copy()
 
     def get_game_state_timestamps(self) -> List[int]:
+        """
+        Get all timestamps where complete game states are stored.
+        
+        Returns:
+            Sorted list of timestamps in milliseconds
+        """
         return self._game_state_timestamps.copy()
 
-    def record_bipatch(self, time_stamp: datetime, game_id: int, player_id: int,
-                       replay_patch: BidirectionalReplayPatch):
+    def record_bipatch(
+        self, 
+        time_stamp: datetime, 
+        game_id: int, 
+        player_id: int,
+        replay_patch: BidirectionalReplayPatch
+    ):
+        """
+        Record a bidirectional patch at a specific timestamp.
+        
+        Stores both forward and backward patches for efficient time travel.
+        
+        Args:
+            time_stamp: When this patch was created
+            game_id: Game ID (must match replay's game_id)
+            player_id: Player ID (must match replay's player_id or be 0)
+            replay_patch: The bidirectional patch to record
+            
+        Raises:
+            IOError: If replay is not in write or append mode
+            CorruptReplay: If game/player ID mismatch or timestamp out of order
+        """
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
         if game_id != self.game_id or (self.player_id != 0 and self.player_id != player_id):
@@ -247,6 +431,21 @@ class Replay:
         self._write_information()
 
     def record_initial_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
+        """
+        Record the initial game state snapshot.
+        
+        This should be the first call when creating a new replay.
+        
+        Args:
+            time_stamp: When the game state was captured
+            game_id: Game ID (must match replay's game_id)
+            player_id: Player ID (must match replay's player_id or be 0)
+            game_state: Complete game state dictionary
+            
+        Raises:
+            IOError: If replay is not in write or append mode
+            CorruptReplay: If game/player ID mismatch or timestamp out of order
+        """
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
         if game_id != self.game_id or (self.player_id != 0 and self.player_id != player_id):
@@ -261,6 +460,18 @@ class Replay:
         self._write_information()
 
     def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int):
+        """
+        Record static map data that doesn't change during the game.
+        
+        Args:
+            static_map_data: Dictionary containing static map information
+            game_id: Game ID (must match replay's game_id)
+            player_id: Player ID (must match replay's player_id or be 0)
+            
+        Raises:
+            IOError: If replay is not in write or append mode
+            CorruptReplay: If game/player ID mismatch
+        """
         if self.mode not in ("w", "a"):
             raise IOError("Replay is not in write or append mode")
         if game_id != self.game_id or (self.player_id != 0 and self.player_id != player_id):
@@ -273,13 +484,36 @@ class Replay:
         self.conn.commit()
 
     def get_initial_game_state(self) -> dict:
+        """
+        Retrieve the initial game state.
+        
+        Returns:
+            The game state dictionary from the start of the replay
+        """
         return self._get_game_state(self._start_time)
 
     def get_static_map_data(self) -> dict:
+        """
+        Retrieve static map data.
+        
+        Returns:
+            The static map data dictionary, or empty dict if not set
+        """
         return self._static_map_data or {}
 
     def _get_game_state(self, timestamp: int) -> dict:
-        """Load game state from disk instead of memory."""
+        """
+        Load a game state from disk.
+        
+        Args:
+            timestamp: Timestamp in milliseconds
+            
+        Returns:
+            Game state dictionary
+            
+        Raises:
+            Exception: If no game state found at the timestamp
+        """
         cursor = self.conn.execute("SELECT data FROM game_state WHERE timestamp = ?", (timestamp,))
         row = cursor.fetchone()
         if row:
