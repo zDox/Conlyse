@@ -69,6 +69,7 @@ def get_list_element_type(list_type_hint: type, list_element) -> type:
     if origin is Union:
         if args[0] is None:
             raise ValueError("Type is None, cant extract inner type.")
+        # Strip Optional wrapper to get the actual type
         if len(args) == 2 and args[1] is type(None):
             non_optional_list_type = args[0]
 
@@ -77,6 +78,7 @@ def get_list_element_type(list_type_hint: type, list_element) -> type:
     
     # Handle Union types with multiple possibilities
     if origin is Union:
+        # Try to match the actual JSON type with one of the union members
         for arg in args:
             element_type = get_args(arg)[0]
             if element_type is None:
@@ -84,14 +86,18 @@ def get_list_element_type(list_type_hint: type, list_element) -> type:
             
             # Match by JSON structure
             if json_type is dict:
+                # Check for class marker in JSON
                 if "@c" in list_element:
                     if hasattr(element_type, "C") and element_type.C == list_element["@c"]:
                         return element_type
+                # Direct type match
                 elif json_type == element_type:
                     return element_type
+                # Special case for Point type
                 elif element_type.__name__ == "Point" and list_element.keys() == {"x", "y"}:
                     return element_type
             elif json_type is list:
+                # List format with class marker as first element
                 if hasattr(element_type, "C") and element_type.C == list_element[0]:
                     return element_type
             elif element_type is json_type:
@@ -99,7 +105,7 @@ def get_list_element_type(list_type_hint: type, list_element) -> type:
     elif non_optional_list_type is None:
         raise ValueError("Type is None, cant extract inner type.")
     else:
-        # Simple list type
+        # Simple list type - extract the element type from args
         if len(args) == 2:
             return args[1]
         elif len(args) != 1:
@@ -195,6 +201,7 @@ def apply_operation(op: Operation, obj: GameObject | list | dict, obj_type, pos:
     Raises:
         ValueError: If operation type doesn't match object type
     """
+    # Replace operation: Update an existing value
     if isinstance(op, ReplaceOperation):
         if isinstance(obj, GameObject):
             if not type(pos) is str:
@@ -209,22 +216,27 @@ def apply_operation(op: Operation, obj: GameObject | list | dict, obj_type, pos:
         else:
             raise ValueError(f"pos is not str or int it is: {type(pos)} for {pos}")
 
+    # Add operation: Insert a new value
     if isinstance(op, AddOperation):
         if isinstance(obj, list):
+            # Append to list
             obj.append(parse_any(get_list_element_type(obj_type, op.new_value), op.new_value, game))
         elif isinstance(obj, dict):
+            # Add key-value pair to dict
             inner_type = get_inner_type(obj_type, obj)
             key = parse_any(get_args(inner_type)[0], pos, game)
             obj[key] = parse_any(get_args(inner_type)[1], op.new_value, game)
         else:
             raise ValueError(f"Can only add to List or Dict not {type(obj)}")
 
+    # Remove operation: Delete a value
     if isinstance(op, RemoveOperation):
         if isinstance(obj, GameObject):
             if not type(pos) is str:
                 raise ValueError(f"Can only remove at str for gameObject but got {type(pos)}")
             if not hasattr(obj, pos):
                 raise ValueError(f"Object has no attribute '{pos}'")
+            # Set attribute to None to "remove" it
             setattr(obj, pos, None)
         else:
             inner_type = get_inner_type(obj_type, obj)
@@ -232,6 +244,7 @@ def apply_operation(op: Operation, obj: GameObject | list | dict, obj_type, pos:
                 if len(obj) == 0:
                     logger.warning(f"Cannot remove {str(obj)[:100]} from empty list")
                 else:
+                    # Remove last element (patches are designed to work this way)
                     obj.pop()
             elif issubclass(inner_type, dict):
                 if pos in obj.keys():
