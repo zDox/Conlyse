@@ -184,18 +184,17 @@ class ActionHandler:
             raise ValueError(f"Action {response_json['result']} is not a GameState")
         game_state = parse_game_object(GameState, response_json["result"], self.game)
 
-        if self.game.is_recording():
-            if self.game_state is not None:
-                rp = BidirectionalReplayPatch()
-                self.game_state.update(game_state, path=[], rp=rp)
-                self.game.record_patch(rp, game_state)
-            else:
-                self.game_state = game_state
+        if self.game_state is None:
+            # Initialize the game state
+            self.game_state = game_state
+        elif self.game.is_recording():
+            # Create and record a replay patch
+            rp = BidirectionalReplayPatch()
+            self.game_state.update(game_state, path=[], rp=rp)
+            self.game.record_patch(rp, game_state)
         else:
-            if self.game_state:
-                self.game_state.update(game_state, path=[])
-            else:
-                self.game_state = game_state
+            # Update the current game state
+            self.game_state.update(game_state, path=[])
 
         # Set the action results
         for action_request_id, action_result in self.game_state.action_results.items():

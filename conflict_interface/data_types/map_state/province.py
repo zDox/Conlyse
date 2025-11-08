@@ -23,7 +23,6 @@ from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
-from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.utils.exceptions import ActionException
 
 logger = get_logger()
@@ -62,20 +61,13 @@ class Province(GameObject):
         owner_id: ID of the player who currently owns the province.
         morale: Morale of the province, with a default value of 70.
         legal_owner: ID of the legal owner of the province or -1 if no legal owner.
-        construction (Optional[ProvinceProduction]): Upgrade that is currently being constructed in this province.
-            This is the upgrade that is visible to the owner of the province
         constructions (ProductionList[Optional[ProvinceProduction]]): The List has 4 entries. In slot 0 is the upgrade that is
             visible to the owner of the province. Slot 1,2 are unknown and are so it seems always None. Slot 3 is the slot
             where the Population is built to the next level. Population is a building not visible to the player.
-        construction_slots (ProductionList[Optional[ProvinceProduction]]): Never encountered dont know what preceisly is
-            in there.
         production (Optional[ProvinceProduction]): Unit that is currently being mobilized in this province.
             This is the upgrade that is visible to the owner of the province
         productions (ProductionList[Optional[ProvinceProduction]]): The list holds all currently units that are
             currently being produced in this province. So far we only encountered lists with a single entry.
-        production_slots (ProductionList[Optional[ProvinceProduction]]): Never encountered dont know what preceisly is
-            in there.
-
 
     """
     C = "p"
@@ -226,7 +218,7 @@ class Province(GameObject):
                 otherwise the reason why it can't be built.
         """
         # TODO Check if player has necessary resources
-        slot_0 = self.construction
+        slot_0 = self.constructions[0] if self.constructions else None
         if slot_0 is not None:
             return UpdateProvinceActionResult.AlreadyConstructingUpgrade
         elif upgrade not in self.properties.possible_upgrades:
@@ -283,7 +275,7 @@ class Province(GameObject):
                 outcome of the cancellation attempt.
         """
 
-        if self.construction is None:
+        if self.constructions is None or self.constructions[0] is None:
             return None, UpdateProvinceActionResult.NoProduction
 
         return self.game.online.do_action(UpdateProvinceAction(

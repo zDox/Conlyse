@@ -170,7 +170,7 @@ class OnlineInterface(GameInterface):
         # Execute any queued actions
         t1 = time()
         self.action_handler.create_game_state_action()
-        print(f"Update took: {time() - t1}")
+        logger.debug(f"Update took: {time() - t1}")
 
     """
     Everything regarding replay capabilities

@@ -1,5 +1,4 @@
 import logging
-from pprint import pprint
 from time import sleep
 
 
@@ -12,8 +11,7 @@ if __name__ == "__main__":
     username, password, email, proxy_url = load_credentials()
     itf = HubInterface()
     itf.login("Juicy8533", "REMOVED_SECRET")
-    game = itf.join_game(9879994, replay_filename="replay_missile.db")
-    pprint(game.game_state.states)
+    game = itf.join_game(10563895, replay_filename="replay.db")
     while True:
         game.update()
         sleep(10)
