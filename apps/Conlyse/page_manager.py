@@ -14,7 +14,7 @@ class PageManager:
         # Context is used to hold the args the current page passes to the next page
         self.context = {}
 
-    def registerPage(self, page_type: PageType, page_class: type):
+    def register_page(self, page_type: PageType, page_class: type):
         self.pages[page_type] = page_class
 
     def switch_to(self, next_page_type: PageType, **kwargs):
@@ -22,3 +22,16 @@ class PageManager:
             raise Exception(f"Page type {next_page_type} is not registered in PageManager")
         if next_page_type == self.current_page_type:
             return
+
+    def _transition_page(self):
+        self.current_page.clean_up()
+        self.current_page: Page = self.pages[self.next_page_type]()
+        self.current_page.setup(self.context)
+        self.current_page_type = self.next_page_type
+        self.next_page_type = None
+
+    def update(self):
+        if self.next_page_type is not None:
+            self._transition_page()
+
+        self.current_page.update()
