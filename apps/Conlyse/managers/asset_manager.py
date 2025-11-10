@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app import App
 
-ASSETS_PATH = "../assets/"
+ASSETS_PATH = "assets/"
 
 
 class AssetManager:
@@ -12,13 +12,13 @@ class AssetManager:
         self.assets = {}
 
     def load_string(self, asset_name: str, file_path: str):
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(ASSETS_PATH+file_path, 'r', encoding='utf-8') as f:
             self.assets[asset_name] = f.read()
             return self.assets[asset_name]
 
     def load_json(self, asset_name: str, file_path: str):
         import json
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(ASSETS_PATH+file_path, 'r', encoding='utf-8') as f:
             self.assets[asset_name] = json.load(f)
             return self.assets[asset_name]
 

@@ -1,55 +1,36 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app import App
 import json
 import os
 
+CONFIG_PATH = "../config.json"
 
 class ConfigManager:
-    def __init__(self, config_path='config.json'):
-        self.config_path = config_path
+    def __init__(self, app: App):
+        self.app = app
         self.config = self.load_config()
         self.set_missing_defaults()  # Ensure defaults are set on initialization
 
     def load_config(self):
         """Load the config from file or create a default one if it doesn't exist."""
-        if not os.path.exists(self.config_path):
+        if not os.path.exists(CONFIG_PATH):
             return self.create_default_config()
 
-        with open(self.config_path, 'r') as f:
+        with open(CONFIG_PATH, 'r') as f:
             return json.load(f)
 
     def create_default_config(self):
         """Create and save a default configuration."""
-        default_config = {
-            "ui": {
-                "scaling_factor": 1,
-                "theme": "dark"
-            },
-            "credentials": {
-                "username": "",
-                "password": "",
-                "email": "",
-                "proxy_url": "",
-            },
-            "replay_mode": {
-                "replay_path": "",
-            },
-            "online_mode": {
-                "record_replay_state": {
-                    "recordings": {}
-                }
-            },
-            "debug": {
-                "time": False,
-                "verbose": False,
-                "style_sheet_hot_loading": False
-            }
-        }
+        default_config = self.app.asset_manager.load_json("default_config", "default_config.json")
         self.save_config(default_config)
         return default_config
 
     def save_config(self, config=None):
         """Save the current or provided config to file."""
         config = config or self.config
-        with open(self.config_path, 'w') as f:
+        with open(CONFIG_PATH, 'w') as f:
             json.dump(config, f, indent=4)
 
     def get(self, key, default=None):

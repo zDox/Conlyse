@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QStackedWidget
 
-from page_type import PageType
+from utils.enums import PageType
 from pages.page import Page
 
 
@@ -89,6 +89,7 @@ class PageManager:
 
         self.stack.addWidget(self.current_page)
         self.stack.setCurrentWidget(self.current_page)
+        self.app.style_manager.update_style()
 
         self.context = {}
 

@@ -1,5 +1,4 @@
-from enum import Enum
-from enum import auto
+from enum import Enum, auto
 
 
 class PageType(Enum):
@@ -8,3 +7,8 @@ class PageType(Enum):
     ProvinceListPage = auto()
     CountryListPage = auto()
     MapPage = auto()
+
+
+class Theme(Enum):
+    LIGHT = auto()
+    DARK = auto()

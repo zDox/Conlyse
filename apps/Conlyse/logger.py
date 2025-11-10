@@ -4,7 +4,7 @@ LIBRARY_LOGGER_NAME = "rpv"
 logging.getLogger(LIBRARY_LOGGER_NAME).addHandler(logging.NullHandler())
 
 
-def setup_library_logger(level=logging.WARNING):
+def setup_logger(level=logging.WARNING):
     logger = logging.getLogger(LIBRARY_LOGGER_NAME)
     logger.setLevel(level)
 
