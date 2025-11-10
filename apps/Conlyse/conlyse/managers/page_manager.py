@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QStackedWidget
 
-from utils.enums import PageType
-from pages.page import Page
+from conlyse.utils.enums import PageType
+from conlyse.pages.page import Page
 
 
 class PageManager:

@@ -1,11 +1,11 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from abc import ABCMeta
 from typing import TYPE_CHECKING
 
 from PyQt6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
-    from app import App
+    pass
 
 
 class QtABCMeta(ABCMeta, type(QWidget)):

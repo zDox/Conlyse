@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from string import Template
 
-from logger import get_logger
-from utils.enums import PageType
-from utils.enums import Theme
-from utils.string_manipulation import camel_to_snake
+from conlyse.logger import get_logger
+from conlyse.utils.enums import PageType
+from conlyse.utils.enums import Theme
+from conlyse.utils.string_manipulation import camel_to_snake
 
 if  TYPE_CHECKING:
-    from app import App
+    from conlyse.app import App
 
 logger = get_logger()
 
