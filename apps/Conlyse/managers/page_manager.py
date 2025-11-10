@@ -1,5 +1,8 @@
+from PyQt6.QtWidgets import QStackedWidget
+
 from page_type import PageType
 from pages.page import Page
+
 
 class PageManager:
     """
@@ -13,13 +16,13 @@ class PageManager:
     def __init__(self, app):
         self.pages: dict[PageType, type] = {}
 
-        self.current_page_type: PageType = PageType.ReplayListPage
+        self.current_page_type: PageType | None = None
         self.current_page: Page | None = None
 
         self.next_page_type: PageType | None = None
 
         self.app = app
-        self.stack = app.q_window.stacked_widget  # QStackedWidget that holds the pages
+        self.stack: QStackedWidget = app.q_window.stacked_widget  # QStackedWidget that holds the pages
 
         # Context is used to hold the args the current page passes to the next page
         self.context = {}
@@ -34,7 +37,7 @@ class PageManager:
     def switch_to(self, next_page_type: PageType, **kwargs):
         if next_page_type not in self.pages:
             raise Exception(f"Page type {next_page_type} is not registered in PageManager")
-        if next_page_type == self.current_page_type:
+        if next_page_type == self.current_page_type and not self.current_page_type:
             return
         self.next_page_type = next_page_type
         self.context = kwargs
@@ -76,6 +79,7 @@ class PageManager:
     def _transition_page(self):
         if self.current_page:
             self.current_page.clean_up()
+            self.stack.removeWidget(self.current_page)
 
         # Create and setup new page
         self.current_page = self.pages[self.next_page_type](self.app)
@@ -95,3 +99,6 @@ class PageManager:
 
         if self.current_page:
             self.current_page.update()
+
+    def get_current_page_type(self) -> PageType | None:
+        return self.current_page_type

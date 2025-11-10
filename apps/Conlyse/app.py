@@ -1,13 +1,17 @@
 import sys
 
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtWidgets import QMainWindow
 
-from event_handler import EventHandler
+from managers.config_manager import ConfigManager
+from managers.event_manager import EventManager
+from managers.style_manager import StyleManager
+from managers.asset_manager import AssetManager
 from logger import get_logger
 from main_window import MainWindow
-from page_manager import PageManager
+from managers.page_manager import PageManager
 from page_type import PageType
 from pages.replay_list_page_test import ReplayListPage
 
@@ -16,24 +20,20 @@ logger = get_logger()
 
 class App:
     def __init__(self):
-        self.event_handler = EventHandler()
-        self.q_app = None
-        self.q_window = None
-        self.page_manager = None
+        self.asset_manager = AssetManager(self)
+        self.event_handler : EventManager = EventManager()
+        self.style_manager = StyleManager(self)
+        self.q_app : QApplication = QApplication(sys.argv)
+        self.q_window : QMainWindow = MainWindow()
+        self.page_manager : PageManager = PageManager(self)
+        self.frame_timer : QTimer = QTimer()
+
+        self.config_manager = ConfigManager()
+
         
 
     def start(self):
         logger.debug("Loading application...")
-        self.q_app = QApplication(sys.argv)
-
-        # Set application font
-        font = QFont("Roboto", 10)
-        self.q_app.setFont(font)
-
-        self.q_window = MainWindow()
-
-        # Initialize StateManager
-        self.page_manager = PageManager(self)
 
         # Register pages
         self.page_manager.register_page(PageType.ReplayListPage, ReplayListPage)
@@ -42,11 +42,23 @@ class App:
 
         # Start with home
         self.page_manager.switch_to(PageType.ReplayListPage)
+        self.page_manager.update()
+
+        # Frame update timer (~60 FPS)
+        self.frame_timer.setInterval(16)  # ms
+        self.frame_timer.timeout.connect(self.update_frame)
+        self.frame_timer.start()
 
         # Start the application by showing the main window
         self.q_window.show()
 
         sys.exit(self.q_app.exec())
+
+    def update_frame(self):
+        # Per-frame logic
+        self.page_manager.update()
+        # Trigger repaint if needed
+        self.q_window.update()
 
 
 
