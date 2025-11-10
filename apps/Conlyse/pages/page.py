@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
 
 class Page(ABC):
-    def __init__(self, app: App):
+    def __init__(self, app):
         pass
 
     @abstractmethod
