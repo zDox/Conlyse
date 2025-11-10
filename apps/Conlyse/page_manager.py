@@ -1,13 +1,24 @@
+from page_type import PageType
+from pages.page import Page
+
+
 class PageManager:
     def __init__(self):
-        self.pages = {}
+        self.pages: dict[PageType, type] = {}
 
-    def add_page(self, page_id, content):
-        self.pages[page_id] = content
+        self.current_page_type: PageType = PageType.ReplayListPage
+        self.current_page: Page = ReplayListPage()
 
-    def get_page(self, page_id):
-        return self.pages.get(page_id, None)
+        self.next_page_type: PageType | None = None
 
-    def remove_page(self, page_id):
-        if page_id in self.pages:
-            del self.pages[page_id]
+        # Context is used to hold the args the current page passes to the next page
+        self.context = {}
+
+    def registerPage(self, page_type: PageType, page_class: type):
+        self.pages[page_type] = page_class
+
+    def switch_to(self, next_page_type: PageType, **kwargs):
+        if next_page_type not in self.pages:
+            raise Exception(f"Page type {next_page_type} is not registered in PageManager")
+        if next_page_type == self.current_page_type:
+            return
