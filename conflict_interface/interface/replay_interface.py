@@ -59,7 +59,6 @@ class ReplayInterface(GameInterface):
         if self.player_id is None:
             raise Exception("Could not determine player ID")
 
-
     @override
     def client_time(self) -> datetime:
         return self.current_time

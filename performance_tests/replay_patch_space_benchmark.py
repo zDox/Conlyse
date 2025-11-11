@@ -10,8 +10,9 @@ class ReplaySpaceBenchmark:
     def run_space_test(self):
         replay = Replay(self.replay_file, "r")
         replay.open()
+
         replay.load_patches_from_disk_into_cache()
-        patches = replay._patches.values()
+        patches = replay.cache._patches.values()
 
         total_binary_space = 0
         total_string_space = 0
@@ -64,7 +65,7 @@ class ReplaySpaceBenchmark:
         replay = Replay(self.replay_file, "r")
         replay.open()
         replay.load_patches_from_disk_into_cache()
-        patches = list(replay._patches.values())
+        patches = list(replay.cache._patches.values())
 
         total_patches = len(patches)
         print(f"Benchmarking {total_patches} patches...")
