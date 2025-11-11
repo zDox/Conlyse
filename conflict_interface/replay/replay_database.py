@@ -5,6 +5,7 @@ from sqlite3 import Connection
 from typing import Optional
 
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.constants import CorruptReplay
 from conflict_interface.replay.replay_metadata import ReplayMetadata
 from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.replay.replay_validator import ReplayValidator
@@ -150,7 +151,6 @@ class ReplayDatabase:
             (timestamp, compressed_data))
         self.conn.commit()
 
-
     def read_static_map_data(self) -> dict:
         """
         Load static map data from disk.
@@ -181,9 +181,6 @@ class ReplayDatabase:
         self.conn.execute(f"INSERT INTO {TABLE_STATIC_MAP_DATA} (data) VALUES (?)", (compressed_data,))
         self.conn.commit()
 
-
-
-
     @staticmethod
     def row_to_metadata(row) -> ReplayMetadata:
         """Convert a database row to ReplayMetadata."""
@@ -194,69 +191,3 @@ class ReplayDatabase:
             start_time=row[3],
             last_time=row[4]
         )
-
-    def _write_game_state(self, time_stamp: int, game_state: dict):
-        """
-        Store a complete game state snapshot to disk.
-
-        Game states are compressed using zlib to reduce storage size.
-
-        Args:
-            time_stamp: Timestamp in milliseconds
-            game_state: Game state dictionary to store
-        """
-        compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
-        self.conn.execute(
-            f"INSERT INTO {TABLE_GAME_STATE} (timestamp, data) VALUES (?, ?)",
-            (time_stamp, compressed_data))
-        self.conn.commit()
-
-    def _write_patch(self, from_timestamp: int, to_timestamp: int, patch: str):
-        """
-        Store a patch to both memory and disk.
-
-        Args:
-            from_timestamp: Starting timestamp in milliseconds
-            to_timestamp: Ending timestamp in milliseconds
-            patch: patch
-        """
-        self.conn.execute(
-            f"INSERT INTO {TABLE_PATCHES} (from_timestamp, to_timestamp, patch) VALUES (?, ?, ?)",
-            (from_timestamp, to_timestamp, patch)
-        )
-        self.conn.commit()
-
-    def load_static_map_data(self) -> dict:
-        """
-        Loads the static map data from disk and returns it.
-        It does not cache the game state in memory.
-
-        Returns:
-            The static map data dictionary, or empty dict if not set
-        """
-        # Load static map data
-        cursor = self.conn.execute(f"SELECT data FROM {TABLE_STATIC_MAP_DATA}")
-        if static_data := cursor.fetchone():
-            static_map_data = json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
-            return static_map_data
-        raise Exception("No static map data found in replay")
-
-    def _load_game_state(self, timestamp: int) -> dict:
-        """
-        Load a game state from disk.
-        It does not cache the game state in memory.
-
-        Args:
-            timestamp: Timestamp in milliseconds
-
-        Returns:
-            Game state dictionary
-
-        Raises:
-            Exception: If no game state found at the timestamp
-        """
-        cursor = self.conn.execute(f"SELECT data FROM {TABLE_GAME_STATE} WHERE timestamp = ?", (timestamp,))
-        row = cursor.fetchone()
-        if row:
-            return json.loads(zlib.decompress(row[0]).decode('utf-8'))
-        raise Exception(f"No game state found at {timestamp}")

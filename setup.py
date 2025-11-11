@@ -30,7 +30,7 @@ setup(
     ],
     packages=find_packages(),
     include_package_data=True,
-    install_requires=["setuptools","requests", "requests[socks]", "fake_useragent", "lxml", "numpy", "shapely", "jsonpatch", "cloudscraper25"],
+    install_requires=["setuptools","requests", "requests[socks]", "fake_useragent", "lxml", "numpy", "shapely", "jsonpatch", "cloudscraper25", "msgpack", "zstandard"],
     extras_require =
     {
         "docs": [

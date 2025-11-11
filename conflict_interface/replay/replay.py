@@ -118,7 +118,6 @@ class Replay:
         """Close the replay file (alternative to using as context manager)."""
         self.db.disconnect()
 
-
     def load_metadata_from_disk(self):
         """
         Load replay metadata from disk.
@@ -131,7 +130,6 @@ class Replay:
         self.player_id = metadata.player_id
         self._start_time = metadata.start_time
         self._last_time = metadata.last_time
-
 
     def get_metadata(self) -> ReplayMetadata:
         """
@@ -288,7 +286,6 @@ class Replay:
 
         return self._jump_from_to(start_ms, target_ms), datetime.fromtimestamp(target_ms / MS_PER_SECOND, tz=UTC)
 
-
     def get_patch(self, from_timestamp: int, to_timestamp: int) -> ReplayPatch:
         """
         Retrieve a specific patch from memory.
@@ -362,8 +359,6 @@ class Replay:
         backward_ts = (time_stamp_ms, self._last_time or self._start_time)
         self.db.write_patch(forward_ts[0], forward_ts[1], replay_patch.forward_to_string())
         self.db.write_patch(backward_ts[0], backward_ts[1], replay_patch.backward_to_string())
-        self.cache.add_patch(forward_ts, replay_patch.forward_patch)
-        self.cache.add_patch(backward_ts, replay_patch.backward_patch)
 
         self._last_time = time_stamp_ms
         self.db.write_metadata(self.get_metadata())
@@ -413,6 +408,15 @@ class Replay:
         ReplayValidator.validate_write_mode(self.mode)
         ReplayValidator.validate_game_player_ids(self.get_metadata(), game_id, player_id)
         self.db.write_static_map_data(static_map_data)
+
+    def load_static_map_data(self) -> dict:
+        """
+        Load static map data from disk.
+
+        Returns:
+            The static map data dictionary
+        """
+        return self.db.read_static_map_data()
 
     def load_initial_game_state(self) -> dict:
         """

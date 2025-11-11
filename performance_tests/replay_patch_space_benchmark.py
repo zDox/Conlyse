@@ -10,6 +10,7 @@ class ReplaySpaceBenchmark:
     def run_space_test(self):
         replay = Replay(self.replay_file, "r")
         replay.open()
+
         replay.load_patches_from_disk_into_cache()
         patches = replay.cache._patches.values()
 
