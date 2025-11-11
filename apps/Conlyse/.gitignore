@@ -2,3 +2,7 @@
 /__pycache__
 /conlyse/pages/__pycache__
 /assets
+/conlyse/__pycache__
+/conlyse/managers/__pycache__
+/conlyse/utils/__pycache__
+config.json
