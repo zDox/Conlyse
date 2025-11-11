@@ -2,7 +2,6 @@ import logging
 import sys
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtWidgets import QMainWindow
 

@@ -70,12 +70,13 @@ class ReplayListItem(QWidget):
 class ReplayListPage(Page):
     """Widget version of ReplayAnalyser for use in QStackedWidget"""
 
+    HEADER = False
+
     def __init__(self, app, parent=None):
         super().__init__(parent)
 
         self.app: App = app
         self.selected_replay = MOCK_REPLAYS[0]
-        self.setup_ui()
 
     def setup_ui(self):
         # Main layout
@@ -351,10 +352,10 @@ class ReplayListPage(Page):
         self.update_details()
 
     def clean_up(self):
-        pass
+        self.clear_layout()
 
     def update(self):
         pass
 
     def setup(self, context):
-        pass
+        self.setup_ui()

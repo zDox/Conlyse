@@ -8,7 +8,6 @@ class PageType(Enum):
     CountryListPage = auto()
     MapPage = auto()
 
-
 class Theme(Enum):
     LIGHT = auto()
     DARK = auto()
