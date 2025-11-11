@@ -5,44 +5,26 @@ This module provides the core Replay class for recording game state changes
 over time and playing them back. Replays are stored in SQLite databases with
 support for bidirectional time travel through patches.
 """
-import json
-import sqlite3
 import os
-import zlib
-from datetime import UTC, datetime
-from sqlite3 import Connection
-from typing import Literal, Dict, List, Optional
+from datetime import UTC
+from datetime import datetime
+from typing import List
+from typing import Literal
+from typing import Optional
 from typing import Tuple
 
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.replay_patch import BidirectionalReplayPatch, ReplayPatch
+from conflict_interface.replay.constants import MS_PER_SECOND
+from conflict_interface.replay.constants import REPLAY_VERSION
+from conflict_interface.replay.replay_cache import ReplayCache
+from conflict_interface.replay.replay_database import ReplayDatabase
+from conflict_interface.replay.replay_metadata import ReplayMetadata
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
+from conflict_interface.replay.replay_patch import ReplayPatch
+from conflict_interface.replay.replay_validator import ReplayValidator
 
 logger = get_logger()
 
-
-class CorruptReplay(Exception):
-    """Raised when a replay file is corrupted or has an invalid format."""
-    pass
-
-
-# Replay file format version
-VERSION = 3
-
-# Required keys in the information table
-MANDATORY_KEYS = ["version", "game_id", "player_id", "start_time"]
-
-# Database table names
-TABLE_INFORMATION = "information"
-TABLE_GAME_STATE = "game_state"
-TABLE_PATCHES = "patches"
-TABLE_ACTIONS = "actions"
-TABLE_STATIC_MAP_DATA = "static_map_data"
-
-# Information table primary key
-INFO_TABLE_PK = 1
-
-# Timestamp conversion factor (milliseconds per second)
-MS_PER_SECOND = 1000
 
 
 class Replay:
@@ -69,7 +51,6 @@ class Replay:
         mode: Access mode ('r', 'w', or 'a')
         game_id: ID of the game being recorded/played
         player_id: ID of the player whose perspective is being recorded
-        conn: SQLite database connection
     """
     
     def __init__(
@@ -77,8 +58,7 @@ class Replay:
         filename: str, 
         mode: Literal['r', 'w', 'a'], 
         game_id: int = None, 
-        player_id: int = None,
-        cache_patches: bool = False # Whether to load all patches into memory when opening in read/append mode
+        player_id: int = None
     ):
         """
         Initialize a replay file.
@@ -99,8 +79,8 @@ class Replay:
         self.mode = mode
         self.game_id = game_id
         self.player_id = player_id
-        self.conn: Optional[Connection] = None
-        self.cache_patches = cache_patches
+        self.db = ReplayDatabase()
+        self.cache = ReplayCache()
 
         self._start_time: int = 0
         self._last_time: Optional[int] = None
@@ -108,75 +88,74 @@ class Replay:
         # In-memory lists of timestamps, are always loaded
         self._timestamps: List[int] = []
         self._game_state_timestamps: List[int] = []
-
-        # In-memory caches (only patches and timestamps, no game states)
-        # Value is None if patch not loaded yet (from disk on demand)
-        self._patches: Dict[tuple[int, int], ReplayPatch | None] = {}  # (from_ts, to_ts) -> patch
+        self._patch_timestamps: List[tuple[int, int]] = []
 
     def __enter__(self):
-        """
-        Context manager entry - opens the database connection.
-        
-        Returns:
-            self for use in with statements
-            
-        Raises:
-            ValueError: If game_id or player_id missing in write mode
-            FileNotFoundError: If file doesn't exist in read/append mode
-        """
+        self.open()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        self.__exit__(None, None, None)
+
+    def open(self):
         if self.mode == 'w':
             if self.game_id is None or self.player_id is None:
                 raise ValueError("Game ID and Player ID must be provided in write mode")
         elif self.mode in ('r', 'a') and not os.path.exists(self.filename):
             raise FileNotFoundError(f"Replay file {self.filename} not found")
 
-        self.conn = sqlite3.connect(self.filename)
+        self.db.connect(self.filename)
         if self.mode == 'w':
-            self._create_tables()
-            self._write_information()
+            self.db.create_tables()
+            self.db.write_metadata(self.get_metadata())
         elif self.mode in ('r', 'a'):
-            self._load_information()
+            self.load_metadata_from_disk()
             self.load_game_state_timestamps()
-            if self.cache_patches:
-                self.load_patches_and_patch_timestamps()
             self.load_patch_timestamps()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - closes the database connection."""
-        if self.conn:
-            self.conn.close()
-            self.conn = None
-
-    def open(self):
-        """Open the replay file (alternative to using as context manager)."""
-        self.__enter__()
-
     def close(self):
         """Close the replay file (alternative to using as context manager)."""
-        self.__exit__(None, None, None)
+        self.db.disconnect()
 
-    def load_patches_from_disk_into_cache(self):
-        """
-        Load patches into memory for fast access.
-        """
-        # Load patches
-        cursor = self.conn.execute(f"SELECT from_timestamp, to_timestamp, patch FROM {TABLE_PATCHES}")
-        for from_ts, to_ts, patch_str in cursor.fetchall():
-            self._patches[(from_ts, to_ts)] = ReplayPatch.from_string(patch_str)
 
+    def load_metadata_from_disk(self):
+        """
+        Load replay metadata from disk.
+
+        Returns:
+            ReplayMetadata object containing metadata
+        """
+        metadata = self.db.read_metadata()
+        self.game_id = metadata.game_id
+        self.player_id = metadata.player_id
+        self._start_time = metadata.start_time
+        self._last_time = metadata.last_time
+
+
+    def get_metadata(self) -> ReplayMetadata:
+        """
+        Get replay metadata.
+
+        Returns:
+            ReplayMetadata object containing metadata
+        """
+        return ReplayMetadata(
+            version=REPLAY_VERSION,
+            game_id=self.game_id,
+            player_id=self.player_id,
+            start_time=self._start_time,
+            last_time=self._last_time
+        )
 
     def load_game_state_timestamps(self):
         # Load game state timestamps (but not the states themselves)
-        cursor = self.conn.execute(f"SELECT timestamp FROM {TABLE_GAME_STATE}")
-        self._game_state_timestamps = [row[0] for row in cursor.fetchall()]
+        self._game_state_timestamps = self.db.read_game_state_timestamps()
         self._game_state_timestamps.sort()
 
     def load_patch_timestamps(self):
         # Load patch timestamps (but not the patches themselves)
-        cursor = self.conn.execute(f"SELECT from_timestamp, to_timestamp, patch FROM {TABLE_PATCHES}")
-        for from_ts, to_ts, patch_str in cursor.fetchall():
-            self._patches[(from_ts, to_ts)] = None  # Placeholder for lazy loading
+        for (from_ts, to_ts) in self.db.read_patch_timestamps():
             if to_ts not in self._timestamps:
                 self._timestamps.append(to_ts)
         self._timestamps.sort()
@@ -185,50 +164,19 @@ class Replay:
         """
         Load patches and timestamps into memory for fast access.
         """
-        cursor = self.conn.execute(f"SELECT from_timestamp, to_timestamp, patch FROM {TABLE_PATCHES}")
-        for from_ts, to_ts, patch_str in cursor.fetchall():
-            self._patches[(from_ts, to_ts)] = ReplayPatch.from_string(patch_str)
+        for (from_ts, to_ts), patch in self.db.read_patches().items():
+            self.cache.add_patch((from_ts, to_ts), patch)
+            self._patch_timestamps.append((from_ts, to_ts))
             if to_ts not in self._timestamps:
                 self._timestamps.append(to_ts)
         self._timestamps.sort()
 
-    def _create_tables(self):
-        """Create SQLite database schema for replay storage."""
-        self.conn.execute(f"""
-            CREATE TABLE IF NOT EXISTS {TABLE_INFORMATION} (
-                id INTEGER PRIMARY KEY,
-                version INTEGER,
-                game_id INTEGER,
-                player_id INTEGER,
-                start_time INTEGER,
-                last_time INTEGER
-            )
-        """)
-        self.conn.execute(f"""
-            CREATE TABLE IF NOT EXISTS {TABLE_GAME_STATE} (
-                timestamp INTEGER PRIMARY KEY,
-                data BLOB
-            )
-        """)
-        self.conn.execute(f"""
-            CREATE TABLE IF NOT EXISTS {TABLE_PATCHES} (
-                from_timestamp INTEGER,
-                to_timestamp INTEGER,
-                patch TEXT
-            )
-        """)
-        self.conn.execute(f"""
-            CREATE TABLE IF NOT EXISTS {TABLE_ACTIONS} (
-                timestamp INTEGER PRIMARY KEY,
-                action TEXT
-            )
-        """)
-        self.conn.execute(f"""
-            CREATE TABLE IF NOT EXISTS {TABLE_STATIC_MAP_DATA} (
-                data BLOB
-            )
-        """)
-        self.conn.commit()
+    def load_patches_from_disk_into_cache(self):
+        """
+        Load all patches from disk into the in-memory cache.
+        """
+        for (from_ts, to_ts), patch in self.db.read_patches().items():
+            self.cache.add_patch((from_ts, to_ts), patch)
 
     @property
     def start_time(self) -> Optional[datetime]:
@@ -250,69 +198,8 @@ class Replay:
         """
         return datetime.fromtimestamp(self._last_time / MS_PER_SECOND, tz=UTC) if self._last_time else None
 
-    def _write_information(self):
-        """Write or update replay metadata in the information table."""
-        self.conn.execute(f"""
-            INSERT OR REPLACE INTO {TABLE_INFORMATION} (id, version, game_id, player_id, start_time, last_time) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (INFO_TABLE_PK, VERSION, self.game_id, self.player_id, self._start_time, self._last_time))
-        self.conn.commit()
-
-    def _load_information(self):
-        """
-        Load replay metadata from the information table.
-        
-        Raises:
-            CorruptReplay: If information table is empty or version mismatch
-        """
-        cursor = self.conn.execute(
-            f"SELECT version, game_id, player_id, start_time, last_time FROM {TABLE_INFORMATION} WHERE id = ?", 
-            (INFO_TABLE_PK,))
-        row = cursor.fetchone()
-        if not row:
-            raise CorruptReplay("Information table is empty")
-        version, self.game_id, self.player_id, self._start_time, self._last_time = row
-        if version != VERSION:
-            raise CorruptReplay(f"Unsupported version {version}")
-
-    def _validate_write_mode(self):
-        """
-        Validate that replay is in write or append mode.
-        
-        Raises:
-            IOError: If replay is not in write or append mode
-        """
-        if self.mode not in ("w", "a"):
-            raise IOError("Replay is not in write or append mode")
-
-    def _validate_game_player_ids(self, game_id: int, player_id: int):
-        """
-        Validate that game and player IDs match the replay's IDs.
-        
-        Args:
-            game_id: Game ID to validate
-            player_id: Player ID to validate (0 is wildcard)
-            
-        Raises:
-            CorruptReplay: If IDs don't match
-        """
-        if game_id != self.game_id or (self.player_id != 0 and self.player_id != player_id):
-            raise CorruptReplay(f"Game/Player ID mismatch in replay {self.filename}")
-
-    def _validate_timestamp_order(self, time_stamp: datetime):
-        """
-        Validate that the new timestamp is after the last recorded timestamp.
-        
-        Args:
-            time_stamp: Timestamp to validate
-            
-        Raises:
-            CorruptReplay: If timestamp is out of order
-        """
-        if self._last_time and self.last_time >= time_stamp:
-            raise CorruptReplay(f"Newer patch exists at {self.last_time} than {time_stamp}")
-
-    def _datetime_to_ms(self, dt: datetime) -> int:
+    @staticmethod
+    def datetime_to_ms(dt: datetime) -> int:
         """
         Convert datetime to milliseconds timestamp.
         
@@ -356,8 +243,8 @@ class Replay:
             while current < target:
                 next_patch = None
                 # Search for a patch that starts at current and ends before or at target
-                for (from_ts, to_ts), patch in self._patches.items():
-                    if from_ts == current and to_ts > from_ts and to_ts <= target:
+                for from_ts, to_ts in self._patch_timestamps:
+                    if from_ts == current and from_ts < to_ts <= target:
                         next_patch = (to_ts, self.get_patch(from_ts, to_ts))
                         break
                 if not next_patch:
@@ -370,8 +257,8 @@ class Replay:
             while current > target:
                 next_patch = None
                 # Search for a backward patch that starts at current and ends at or after target
-                for (from_ts, to_ts), patch in self._patches.items():
-                    if from_ts == current and to_ts < from_ts and to_ts >= target:
+                for (from_ts, to_ts), patch in self._patch_timestamps:
+                    if from_ts == current and from_ts > to_ts >= target:
                         next_patch = (to_ts, self.get_patch(from_ts, to_ts))
                         break
                 if not next_patch:
@@ -401,46 +288,6 @@ class Replay:
 
         return self._jump_from_to(start_ms, target_ms), datetime.fromtimestamp(target_ms / MS_PER_SECOND, tz=UTC)
 
-    def _write_game_state(self, time_stamp: int, game_state: dict):
-        """
-        Store a complete game state snapshot to disk.
-        
-        Game states are compressed using zlib to reduce storage size.
-        
-        Args:
-            time_stamp: Timestamp in milliseconds
-            game_state: Game state dictionary to store
-        """
-        self._game_state_timestamps.append(time_stamp)
-        self._game_state_timestamps.sort()
-        compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
-        self.conn.execute(
-            f"INSERT INTO {TABLE_GAME_STATE} (timestamp, data) VALUES (?, ?)", 
-            (time_stamp, compressed_data))
-        self.conn.commit()
-
-    def _write_patch(self, from_timestamp: int, to_timestamp: int, patch: str):
-        """
-        Store a patch to both memory and disk.
-        
-        Args:
-            from_timestamp: Starting timestamp in milliseconds
-            to_timestamp: Ending timestamp in milliseconds
-            patch: Serialized patch string
-        """
-        if (from_timestamp, to_timestamp) in self._patches:
-            logger.info(f"Patch for {from_timestamp} to {to_timestamp} already exists, skipping")
-            return
-        patch_obj = ReplayPatch.from_string(patch)
-        self._patches[(from_timestamp, to_timestamp)] = patch_obj
-        if to_timestamp not in self._timestamps:
-            self._timestamps.append(to_timestamp)
-            self._timestamps.sort()
-        self.conn.execute(
-            f"INSERT INTO {TABLE_PATCHES} (from_timestamp, to_timestamp, patch) VALUES (?, ?, ?)",
-            (from_timestamp, to_timestamp, patch)
-        )
-        self.conn.commit()
 
     def get_patch(self, from_timestamp: int, to_timestamp: int) -> ReplayPatch:
         """
@@ -456,21 +303,13 @@ class Replay:
         Raises:
             Exception: If the patch is not found
         """
-        if (from_timestamp, to_timestamp) not in self._patches:
-            raise Exception(f"No patch found with from_timestamp {from_timestamp} and to_timestamp {to_timestamp}")
-        if self._patches[(from_timestamp, to_timestamp)] is not None:
+        if self.cache.has_patch((from_timestamp, to_timestamp))  is not None:
             # Patch already loaded in memory
-            return self._patches[(from_timestamp, to_timestamp)]
+            return self.cache.get_patch((from_timestamp, to_timestamp))
 
-        # Load patch from disk
-        cursor = self.conn.execute(
-            f"SELECT patch FROM {TABLE_PATCHES} WHERE from_timestamp = ? AND to_timestamp = ?",
-            (from_timestamp, to_timestamp))
-        row = cursor.fetchone()
-        if row:
-            patch_obj = ReplayPatch.from_string(row[0])
-            self._patches[(from_timestamp, to_timestamp)] = patch_obj
-            return patch_obj
+        patch = self.db.read_patch(from_timestamp, to_timestamp)
+        if patch:
+            self.cache.add_patch((from_timestamp, to_timestamp), patch)
         raise Exception(f"No patch found with from_timestamp {from_timestamp} and to_timestamp {to_timestamp}")
 
     def get_timestamps(self) -> List[int]:
@@ -513,15 +352,21 @@ class Replay:
             IOError: If replay is not in write or append mode
             CorruptReplay: If game/player ID mismatch or timestamp out of order
         """
-        self._validate_write_mode()
-        self._validate_game_player_ids(game_id, player_id)
-        self._validate_timestamp_order(time_stamp)
+        time_stamp_ms = Replay.datetime_to_ms(time_stamp)
+        ReplayValidator.validate_write_mode(self.mode)
+        ReplayValidator.validate_game_player_ids(self.get_metadata(), game_id, player_id)
+        ReplayValidator.validate_timestamp_order(self.get_metadata(), time_stamp_ms)
 
-        time_stamp_ms = self._datetime_to_ms(time_stamp)
-        self._write_patch(self._last_time or self._start_time, time_stamp_ms, replay_patch.forward_to_string())
-        self._write_patch(time_stamp_ms, self._last_time or self._start_time, replay_patch.backward_to_string())
+        self._timestamps.append(time_stamp_ms)
+        forward_ts = (self._last_time or self._start_time, time_stamp_ms)
+        backward_ts = (time_stamp_ms, self._last_time or self._start_time)
+        self.db.write_patch(forward_ts[0], forward_ts[1], replay_patch.forward_to_string())
+        self.db.write_patch(backward_ts[0], backward_ts[1], replay_patch.backward_to_string())
+        self.cache.add_patch(forward_ts, replay_patch.forward_patch)
+        self.cache.add_patch(backward_ts, replay_patch.backward_patch)
+
         self._last_time = time_stamp_ms
-        self._write_information()
+        self.db.write_metadata(self.get_metadata())
 
     def record_initial_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
         """
@@ -539,15 +384,18 @@ class Replay:
             IOError: If replay is not in write or append mode
             CorruptReplay: If game/player ID mismatch or timestamp out of order
         """
-        self._validate_write_mode()
-        self._validate_game_player_ids(game_id, player_id)
-        self._validate_timestamp_order(time_stamp)
+        time_stamp_ms = Replay.datetime_to_ms(time_stamp)
 
-        time_stamp_ms = self._datetime_to_ms(time_stamp)
-        self._write_game_state(time_stamp_ms, game_state)
+        ReplayValidator.validate_write_mode(self.mode)
+        ReplayValidator.validate_game_player_ids(self.get_metadata(), game_id, player_id)
+        ReplayValidator.validate_timestamp_order(self.get_metadata(), time_stamp_ms)
+
+        self.db.write_game_state(time_stamp_ms, game_state)
+        self._game_state_timestamps.append(time_stamp_ms)
+        self._game_state_timestamps.sort()
         self._start_time = time_stamp_ms
         self._last_time = time_stamp_ms
-        self._write_information()
+        self.db.write_metadata(self.get_metadata())
 
     def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int):
         """
@@ -562,17 +410,9 @@ class Replay:
             IOError: If replay is not in write or append mode
             CorruptReplay: If game/player ID mismatch
         """
-        self._validate_write_mode()
-        self._validate_game_player_ids(game_id, player_id)
-
-        # Check if static map data already exists
-        cursor = self.conn.execute(f"SELECT COUNT(*) FROM {TABLE_STATIC_MAP_DATA}")
-        if cursor.fetchone()[0] > 0:
-            return
-
-        compressed_data = zlib.compress(json.dumps(static_map_data).encode('utf-8'))
-        self.conn.execute(f"INSERT INTO {TABLE_STATIC_MAP_DATA} (data) VALUES (?)", (compressed_data,))
-        self.conn.commit()
+        ReplayValidator.validate_write_mode(self.mode)
+        ReplayValidator.validate_game_player_ids(self.get_metadata(), game_id, player_id)
+        self.db.write_static_map_data(static_map_data)
 
     def load_initial_game_state(self) -> dict:
         """
@@ -582,42 +422,8 @@ class Replay:
         Returns:
             The game state dictionary from the start of the replay
         """
-        return self._load_game_state(self._start_time)
+        return self.db.read_game_state(self._start_time)
 
-    def load_static_map_data(self) -> dict:
-        """
-        Loads the static map data from disk and returns it.
-        It does not cache the game state in memory.
-        
-        Returns:
-            The static map data dictionary, or empty dict if not set
-        """
-        # Load static map data
-        cursor = self.conn.execute(f"SELECT data FROM {TABLE_STATIC_MAP_DATA}")
-        if static_data := cursor.fetchone():
-            static_map_data = json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
-            return static_map_data
-        raise Exception("No static map data found in replay")
-
-    def _load_game_state(self, timestamp: int) -> dict:
-        """
-        Load a game state from disk.
-        It does not cache the game state in memory.
-        
-        Args:
-            timestamp: Timestamp in milliseconds
-            
-        Returns:
-            Game state dictionary
-            
-        Raises:
-            Exception: If no game state found at the timestamp
-        """
-        cursor = self.conn.execute(f"SELECT data FROM {TABLE_GAME_STATE} WHERE timestamp = ?", (timestamp,))
-        row = cursor.fetchone()
-        if row:
-            return json.loads(zlib.decompress(row[0]).decode('utf-8'))
-        raise Exception(f"No game state found at {timestamp}")
 
     def check_integrity(self) -> bool:
         time_stamps = self.get_timestamps()
