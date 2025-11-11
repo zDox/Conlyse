@@ -292,9 +292,9 @@ class ReplayListPage(Page):
         open_btn.setObjectName("primary")
         actions_layout.addWidget(open_btn)
 
-        export_btn = QPushButton("📄 Export Data")
-        export_btn.setObjectName("secondary")
-        actions_layout.addWidget(export_btn)
+        delete_btn = QPushButton("Delete Replay")
+        delete_btn.setObjectName("secondary")
+        actions_layout.addWidget(delete_btn)
 
         self.details_content_layout.addLayout(actions_layout)
         self.details_content_layout.addStretch()
