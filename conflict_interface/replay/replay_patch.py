@@ -11,10 +11,25 @@ from typing import Union
 
 from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.logger_config import get_logger
+import msgpack
+import zstandard as zstd
+from array import array
 
 logger = get_logger()
 
 PathNode = Union[str, int]
+
+# Operation type mapping (more compact than strings)
+OP_ADD = 0
+OP_REPLACE = 1
+OP_REMOVE = 2
+
+OP_TO_INT = {"a": OP_ADD, "p": OP_REPLACE, "r": OP_REMOVE}
+INT_TO_OP = {OP_ADD: "a", OP_REPLACE: "p", OP_REMOVE: "r"}
+
+# Zstandard compressor (reusable for better performance)
+_compressor = zstd.ZstdCompressor(level=3)  # Level 3 is good balance
+_decompressor = zstd.ZstdDecompressor()
 
 @dataclass
 class AddOperation:
@@ -80,6 +95,13 @@ class ReplayPatch:
     def __init__(self):
         """Initialize an empty replay patch."""
         self.operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]] = []
+
+    def __eq__(self, other):
+        """Check equality between two ReplayPatch instances."""
+        if not isinstance(other, ReplayPatch):
+            return False
+
+        return self.operations == other.operations
 
     def add_op(self, path: list[str], new_value: Any) -> None:
         """
@@ -160,6 +182,7 @@ class ReplayPatch:
         Returns:
             JSON string representation of all operations
         """
+
         operations = [(op.Key, op.path, dump_any(op.new_value)) for op in self.operations]
         return json.dumps(operations)
 
@@ -185,6 +208,148 @@ class ReplayPatch:
             elif key == "r":
                 instance.remove_op(path)
         return instance
+
+    def to_bytes(self) -> bytes:
+        """
+        Serialize the replay patch to compressed bytes with optimized performance.
+
+        Uses a columnar storage format to reduce redundancy:
+        - Paths are deduplicated into a lookup table
+        - Operations are stored as integers (0-2)
+        - Path references use indices into the path table
+        - Final data is compressed with zstd for speed
+
+        Returns:
+            bytes: Compressed binary representation of the patch
+        """
+        # Step 1: Build deduplicated path lookup table
+        # Maps path tuples to their index in the path list
+        path_dict = {}
+        path_list = []
+
+        for op in self.operations:
+            # Normalize path to tuple for consistent hashing
+            path_key = tuple(op.path) if isinstance(op.path, list) else op.path
+
+            # Add new paths to lookup table
+            if path_key not in path_dict:
+                if not path_key:
+                    logger.error("Empty path in replay patch operation.")
+                path_dict[path_key] = len(path_list)
+                # Store as list for msgpack serialization compatibility
+                path_list.append(
+                    list(path_key) if isinstance(path_key, tuple) else path_key
+                )
+
+        # Step 2: Pre-allocate columnar arrays for efficient storage
+        num_ops = len(self.operations)
+
+        # Operation types as unsigned bytes (0=add, 1=replace, 2=remove)
+        ops_col = array('B', (0,) * num_ops)
+
+        # Path indices - use 16-bit if possible, otherwise 32-bit
+        index_type = 'H' if len(path_list) < 65536 else 'I'
+        path_indices_col = array(index_type, (0,) * num_ops)
+
+        # Operation values (kept as list since values are heterogeneous)
+        values_col = []
+
+        # Step 3: Populate columnar data
+        for i, op in enumerate(self.operations):
+            # Get normalized path key
+            path_key = tuple(op.path) if isinstance(op.path, list) else op.path
+
+            if not path_key or path_key not in path_dict:
+                logger.error("Empty or unknown path in replay patch operation.")
+                continue
+
+            # Store operation type as integer
+            ops_col[i] = OP_TO_INT.get(op.Key, OP_ADD)
+
+            # Store path reference as index
+            path_indices_col[i] = path_dict[path_key]
+
+            # Serialize and store operation value
+            values_col.append(dump_any(op.new_value))
+
+        # Step 4: Pack data into compact dictionary format
+        # Using single-character keys to reduce serialized size
+        data = {
+            "p": path_list,  # paths: deduplicated path table
+            "o": ops_col.tobytes(),  # ops: operation types as bytes
+            "i": path_indices_col.tobytes(),  # indices: path references as bytes
+            "v": values_col,  # values: operation values
+            "t": index_type  # type array type for path indices
+        }
+
+        # Step 5: Serialize with msgpack (efficient binary format)
+        binary = msgpack.packb(data, use_bin_type=True)
+
+        # Step 6: Compress with zstd (faster than lzma, similar compression ratio)
+        compressed_data = _compressor.compress(binary)
+
+        return compressed_data
+
+    @classmethod
+    def from_bytes(cls, b: bytes) -> "ReplayPatch":
+        """
+        Deserialize a replay patch from compressed bytes.
+
+        Reverses the serialization process:
+        1. Decompress with zstd
+        2. Unpack msgpack data
+        3. Reconstruct arrays from bytes
+        4. Rebuild operations using path lookup table
+
+        Args:
+            b: Compressed binary data from to_bytes()
+
+        Returns:
+            ReplayPatch: Reconstructed patch object
+        """
+        # Step 1: Decompress the data
+        decompressed_data = _decompressor.decompress(b)
+
+        # Step 2: Unpack msgpack binary format
+        data = msgpack.unpackb(decompressed_data, raw=False)
+
+        # Extract columnar data
+        path_list = data["p"]  # Deduplicated paths
+        ops_bytes = data["o"]  # Operation types as bytes
+        path_indices_bytes = data["i"]  # Path indices as bytes
+        values_col = data["v"]  # Operation values
+        idx_type = data.get("t", "I")  # Array type for indices (H or I)
+
+        # Step 3: Reconstruct arrays from byte data
+        # Operation types (unsigned bytes)
+        ops_col = array('B')
+        ops_col.frombytes(ops_bytes)
+
+        # Path indices (16 or 32-bit unsigned integers)
+        path_indices_col = array(idx_type)
+        path_indices_col.frombytes(path_indices_bytes)
+
+        # Step 4: Rebuild the patch object
+        patch = cls()
+
+        # Iterate through operations and reconstruct each one
+        for i in range(len(ops_col)):
+            # Get operation components
+            op_int = ops_col[i]  # Operation type as integer
+            path_idx = path_indices_col[i]  # Path index into lookup table
+            value = values_col[i]  # Operation value
+            path = path_list[path_idx]  # Resolve path from lookup table
+
+            # Convert operation integer back to character and add to patch
+            op_char = INT_TO_OP[op_int]
+            if op_char == "a":
+                patch.add_op(path, value)
+            elif op_char == "p":
+                patch.replace_op(path, value)
+            elif op_char == "r":
+                patch.remove_op(path)
+
+        return patch
 
 
 class BidirectionalReplayPatch:
