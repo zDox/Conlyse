@@ -11,6 +11,8 @@ from typing import Union
 
 from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.logger_config import get_logger
+import msgpack
+import lzma
 
 logger = get_logger()
 
@@ -80,6 +82,13 @@ class ReplayPatch:
     def __init__(self):
         """Initialize an empty replay patch."""
         self.operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]] = []
+
+    def __eq__(self, other):
+        """Check equality between two ReplayPatch instances."""
+        if not isinstance(other, ReplayPatch):
+            return False
+
+        return self.operations == other.operations
 
     def add_op(self, path: list[str], new_value: Any) -> None:
         """
@@ -160,6 +169,7 @@ class ReplayPatch:
         Returns:
             JSON string representation of all operations
         """
+
         operations = [(op.Key, op.path, dump_any(op.new_value)) for op in self.operations]
         return json.dumps(operations)
 
@@ -185,6 +195,61 @@ class ReplayPatch:
             elif key == "r":
                 instance.remove_op(path)
         return instance
+
+    def to_bytes(self) -> bytes:
+        path_dict = {}
+        path_list = []
+        for op in self.operations:
+            path = json.dumps(op.path)
+            if path not in path_dict:
+                if not path:
+                    logger.error("Empty path in replay patch operation.")
+                path_dict[path] = len(path_list)
+                path_list.append(path)
+
+        ops_col = []
+        path_indices_col = []
+        values_col = []
+
+        for op in self.operations:
+            path = json.dumps(op.path)
+            if not path or path not in path_dict:
+                logger.error("Empty or unknown path in replay patch operation.")
+            ops_col.append(op.Key)
+            path_indices_col.append(path_dict[path])
+            values_col.append(dump_any(op.new_value))
+
+        data = {
+            "paths": path_list,
+            "ops": ops_col,
+            "path_indices": path_indices_col,
+            "values": values_col
+        }
+
+        binary =  msgpack.packb(data, use_bin_type=True)
+        compressed_data = lzma.compress(binary)
+        return compressed_data
+
+    @classmethod
+    def from_bytes(cls, b: bytes) -> "ReplayPatch":
+        decompressed_data = lzma.decompress(b)
+        data = msgpack.unpackb(decompressed_data, raw=False)
+        path_list = data["paths"]
+        ops_col = data["ops"]
+        path_indices_col = data["path_indices"]
+        values_col = data["values"]
+
+        patch = cls()
+        for op, path_idx, value in zip(ops_col, path_indices_col, values_col):
+            path = json.loads(path_list[path_idx])
+            if op == "a":
+                patch.add_op(path,value)
+            elif op == "p":
+                patch.replace_op(path,value)
+            elif op == "r":
+                patch.remove_op(path)
+        return patch
+
 
 
 class BidirectionalReplayPatch:

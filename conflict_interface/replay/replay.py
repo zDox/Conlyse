@@ -77,7 +77,8 @@ class Replay:
         filename: str, 
         mode: Literal['r', 'w', 'a'], 
         game_id: int = None, 
-        player_id: int = None
+        player_id: int = None,
+        cache_patches: bool = False # Whether to load all patches into memory when opening in read/append mode
     ):
         """
         Initialize a replay file.
@@ -99,15 +100,18 @@ class Replay:
         self.game_id = game_id
         self.player_id = player_id
         self.conn: Optional[Connection] = None
+        self.cache_patches = cache_patches
 
         self._start_time: int = 0
         self._last_time: Optional[int] = None
 
-        # In-memory caches (only patches and timestamps, no game states)
-        self._patches: Dict[tuple[int, int], ReplayPatch] = {}  # (from_ts, to_ts) -> patch
+        # In-memory lists of timestamps, are always loaded
         self._timestamps: List[int] = []
         self._game_state_timestamps: List[int] = []
-        self._static_map_data: Optional[dict] = None
+
+        # In-memory caches (only patches and timestamps, no game states)
+        # Value is None if patch not loaded yet (from disk on demand)
+        self._patches: Dict[tuple[int, int], ReplayPatch | None] = {}  # (from_ts, to_ts) -> patch
 
     def __enter__(self):
         """
@@ -132,7 +136,10 @@ class Replay:
             self._write_information()
         elif self.mode in ('r', 'a'):
             self._load_information()
-            self._load_into_memory()  # Load patches and timestamps, not game states
+            self.load_game_state_timestamps()
+            if self.cache_patches:
+                self.load_patches_and_patch_timestamps()
+            self.load_patch_timestamps()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -149,33 +156,41 @@ class Replay:
         """Close the replay file (alternative to using as context manager)."""
         self.__exit__(None, None, None)
 
-    def _load_into_memory(self):
+    def load_patches_from_disk_into_cache(self):
         """
-        Load patches and timestamps into memory for fast access.
-        
-        Game states are kept on disk and loaded on demand to reduce memory usage.
-        This method loads:
-        - Timestamps of all game state snapshots
-        - All patches for time travel
-        - Static map data
+        Load patches into memory for fast access.
         """
+        # Load patches
+        cursor = self.conn.execute(f"SELECT from_timestamp, to_timestamp, patch FROM {TABLE_PATCHES}")
+        for from_ts, to_ts, patch_str in cursor.fetchall():
+            self._patches[(from_ts, to_ts)] = ReplayPatch.from_string(patch_str)
+
+
+    def load_game_state_timestamps(self):
         # Load game state timestamps (but not the states themselves)
         cursor = self.conn.execute(f"SELECT timestamp FROM {TABLE_GAME_STATE}")
         self._game_state_timestamps = [row[0] for row in cursor.fetchall()]
         self._game_state_timestamps.sort()
 
-        # Load patches
+    def load_patch_timestamps(self):
+        # Load patch timestamps (but not the patches themselves)
+        cursor = self.conn.execute(f"SELECT from_timestamp, to_timestamp, patch FROM {TABLE_PATCHES}")
+        for from_ts, to_ts, patch_str in cursor.fetchall():
+            self._patches[(from_ts, to_ts)] = None  # Placeholder for lazy loading
+            if to_ts not in self._timestamps:
+                self._timestamps.append(to_ts)
+        self._timestamps.sort()
+
+    def load_patches_and_patch_timestamps(self):
+        """
+        Load patches and timestamps into memory for fast access.
+        """
         cursor = self.conn.execute(f"SELECT from_timestamp, to_timestamp, patch FROM {TABLE_PATCHES}")
         for from_ts, to_ts, patch_str in cursor.fetchall():
             self._patches[(from_ts, to_ts)] = ReplayPatch.from_string(patch_str)
             if to_ts not in self._timestamps:
                 self._timestamps.append(to_ts)
         self._timestamps.sort()
-
-        # Load static map data
-        cursor = self.conn.execute(f"SELECT data FROM {TABLE_STATIC_MAP_DATA}")
-        if static_data := cursor.fetchone():
-            self._static_map_data = json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
 
     def _create_tables(self):
         """Create SQLite database schema for replay storage."""
@@ -343,7 +358,7 @@ class Replay:
                 # Search for a patch that starts at current and ends before or at target
                 for (from_ts, to_ts), patch in self._patches.items():
                     if from_ts == current and to_ts > from_ts and to_ts <= target:
-                        next_patch = (to_ts, patch)
+                        next_patch = (to_ts, self.get_patch(from_ts, to_ts))
                         break
                 if not next_patch:
                     break  # No more patches available, stop here
@@ -357,7 +372,7 @@ class Replay:
                 # Search for a backward patch that starts at current and ends at or after target
                 for (from_ts, to_ts), patch in self._patches.items():
                     if from_ts == current and to_ts < from_ts and to_ts >= target:
-                        next_patch = (to_ts, patch)
+                        next_patch = (to_ts, self.get_patch(from_ts, to_ts))
                         break
                 if not next_patch:
                     break  # No more patches available, stop here
@@ -441,8 +456,21 @@ class Replay:
         Raises:
             Exception: If the patch is not found
         """
-        if (from_timestamp, to_timestamp) in self._patches:
+        if (from_timestamp, to_timestamp) not in self._patches:
+            raise Exception(f"No patch found with from_timestamp {from_timestamp} and to_timestamp {to_timestamp}")
+        if self._patches[(from_timestamp, to_timestamp)] is not None:
+            # Patch already loaded in memory
             return self._patches[(from_timestamp, to_timestamp)]
+
+        # Load patch from disk
+        cursor = self.conn.execute(
+            f"SELECT patch FROM {TABLE_PATCHES} WHERE from_timestamp = ? AND to_timestamp = ?",
+            (from_timestamp, to_timestamp))
+        row = cursor.fetchone()
+        if row:
+            patch_obj = ReplayPatch.from_string(row[0])
+            self._patches[(from_timestamp, to_timestamp)] = patch_obj
+            return patch_obj
         raise Exception(f"No patch found with from_timestamp {from_timestamp} and to_timestamp {to_timestamp}")
 
     def get_timestamps(self) -> List[int]:
@@ -536,36 +564,45 @@ class Replay:
         """
         self._validate_write_mode()
         self._validate_game_player_ids(game_id, player_id)
-        
-        if self._static_map_data is not None:
+
+        # Check if static map data already exists
+        cursor = self.conn.execute(f"SELECT COUNT(*) FROM {TABLE_STATIC_MAP_DATA}")
+        if cursor.fetchone()[0] > 0:
             return
-            
-        self._static_map_data = static_map_data
+
         compressed_data = zlib.compress(json.dumps(static_map_data).encode('utf-8'))
         self.conn.execute(f"INSERT INTO {TABLE_STATIC_MAP_DATA} (data) VALUES (?)", (compressed_data,))
         self.conn.commit()
 
-    def get_initial_game_state(self) -> dict:
+    def load_initial_game_state(self) -> dict:
         """
-        Retrieve the initial game state.
+        Loads the initial game state from disk and returns it.
+        It does not cache the game state in memory.
         
         Returns:
             The game state dictionary from the start of the replay
         """
-        return self._get_game_state(self._start_time)
+        return self._load_game_state(self._start_time)
 
-    def get_static_map_data(self) -> dict:
+    def load_static_map_data(self) -> dict:
         """
-        Retrieve static map data.
+        Loads the static map data from disk and returns it.
+        It does not cache the game state in memory.
         
         Returns:
             The static map data dictionary, or empty dict if not set
         """
-        return self._static_map_data or {}
+        # Load static map data
+        cursor = self.conn.execute(f"SELECT data FROM {TABLE_STATIC_MAP_DATA}")
+        if static_data := cursor.fetchone():
+            static_map_data = json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
+            return static_map_data
+        raise Exception("No static map data found in replay")
 
-    def _get_game_state(self, timestamp: int) -> dict:
+    def _load_game_state(self, timestamp: int) -> dict:
         """
         Load a game state from disk.
+        It does not cache the game state in memory.
         
         Args:
             timestamp: Timestamp in milliseconds
@@ -581,3 +618,29 @@ class Replay:
         if row:
             return json.loads(zlib.decompress(row[0]).decode('utf-8'))
         raise Exception(f"No game state found at {timestamp}")
+
+    def check_integrity(self) -> bool:
+        time_stamps = self.get_timestamps()
+        current_ts = self.start_time
+        error_detected = False
+        for next_ts in time_stamps:
+            try:
+                self._jump_from_to(current_ts, next_ts)
+            except Exception as e:
+                logger.error(f"Integrity check failed jumping Forwards from {current_ts} to {next_ts}: {e}")
+                error_detected = True
+            current_ts = next_ts
+
+        current_ts = self.last_time
+        time_stamps = list(reversed(time_stamps))
+        for next_ts in time_stamps:
+            try:
+                self._jump_from_to(current_ts, next_ts)
+            except Exception as e:
+                logger.error(f"Integrity check failed jumping Backwards from {current_ts} to {next_ts}: {e}")
+                error_detected = True
+            current_ts = next_ts
+
+        return error_detected
+
+
