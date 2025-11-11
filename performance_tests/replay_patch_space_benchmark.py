@@ -1,4 +1,3 @@
-from mypyc.irbuild.util import bytes_from_str
 
 from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import ReplayPatch
@@ -39,6 +38,10 @@ class ReplaySpaceBenchmark:
             total_binary_space += byte_format_size
             patch_count += 1
 
+            # print progress in percent
+            if patch_count % max(1, len(patches) // 10) == 0:
+                print(f"Processed {patch_count}/{len(patches)} patches ({(patch_count / len(patches)) * 100:.1f}%)")
+
         # Compute stats
         avg_string_size = total_string_space / patch_count if patch_count else 0
         avg_binary_size = total_binary_space / patch_count if patch_count else 0
@@ -54,6 +57,7 @@ class ReplaySpaceBenchmark:
 
     def run_time_benchmark(self):
         replay = Replay(self.replay_file, "r")
+        replay.open()
         replay.load_patches_from_disk_into_cache()
         patches = list(replay._patches.values())
 
@@ -67,6 +71,7 @@ class ReplaySpaceBenchmark:
         for patch in patches:
             _ = patch.to_string()
         string_serialize_time = time.time() - start
+        print(f"Patch -> String 1/4 took: {string_serialize_time:.4f} s")
 
         # -------------------------
         # PATCH -> BYTES (serialization)
@@ -75,6 +80,7 @@ class ReplaySpaceBenchmark:
         for patch in patches:
             _ = patch.to_bytes()
         bytes_serialize_time = time.time() - start
+        print(f"Patch -> Bytes 2/4 took: {bytes_serialize_time:.4f} s")
 
         # -------------------------
         # STRING -> PATCH (deserialization)
@@ -84,6 +90,7 @@ class ReplaySpaceBenchmark:
         for s in string_formats:
             _ = ReplayPatch.from_string(s)
         string_deserialize_time = time.time() - start
+        print(f"String -> Patch 3/4 took: {string_deserialize_time:.4f} s")
 
         # -------------------------
         # BYTES -> PATCH (deserialization)
@@ -93,17 +100,18 @@ class ReplaySpaceBenchmark:
         for b in bytes_formats:
             _ = ReplayPatch.from_bytes(b)
         bytes_deserialize_time = time.time() - start
+        print(f"Bytes -> Patch 4/4 took: {bytes_deserialize_time:.4f} s")
 
         # -------------------------
         # Print results
         # -------------------------
         print("Serialization time (patch -> format):")
         print(f"  String JSON: {string_serialize_time:.4f} s")
-        print(f"  Binary MsgPack+LZMA: {bytes_serialize_time:.4f} s")
+        print(f"  Binary MsgPack+ZSTD: {bytes_serialize_time:.4f} s")
 
         print("Deserialization time (format -> patch):")
         print(f"  String JSON: {string_deserialize_time:.4f} s")
-        print(f"  Binary MsgPack+LZMA: {bytes_deserialize_time:.4f} s")
+        print(f"  Binary MsgPack+ZSTD: {bytes_deserialize_time:.4f} s")
 
         print("\nRatios (string_time / binary_time):")
         print(f"  Serialization speed ratio: {string_serialize_time / bytes_serialize_time:.2f}x")
@@ -113,6 +121,8 @@ class ReplaySpaceBenchmark:
 if __name__ == "__main__":
     benchmark = ReplaySpaceBenchmark("../examples/replay.db")
     benchmark.run_space_test()
+    benchmark.run_time_benchmark()
+
 
 
 
