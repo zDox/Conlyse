@@ -279,7 +279,7 @@ class ReplayPatch:
             "o": ops_col.tobytes(),  # ops: operation types as bytes
             "i": path_indices_col.tobytes(),  # indices: path references as bytes
             "v": values_col,  # values: operation values
-            "t": index_type  # type: array type for path indices
+            "t": index_type  # type array type for path indices
         }
 
         # Step 5: Serialize with msgpack (efficient binary format)

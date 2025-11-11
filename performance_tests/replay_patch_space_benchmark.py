@@ -16,8 +16,11 @@ class ReplaySpaceBenchmark:
         total_binary_space = 0
         total_string_space = 0
         patch_count = 0
+        max_ops = 0
 
         for patch in patches:
+            if len(patch.operations) > max_ops:
+                max_ops = len(patch.operations)
             assert isinstance(patch, ReplayPatch)
 
             # Serialize
@@ -54,6 +57,8 @@ class ReplaySpaceBenchmark:
         print(f"Average string size per patch: {avg_string_size:.2f} bytes")
         print(f"Average binary size per patch: {avg_binary_size:.2f} bytes")
         print(f"Compression ratio (string/binary): {compression_ratio:.2f}x")
+
+        print(f"Max operations in a single patch: {max_ops}")
 
     def run_time_benchmark(self):
         replay = Replay(self.replay_file, "r")
