@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout,
                              QHBoxLayout, QLabel, QPushButton, QListWidget,
                              QListWidgetItem, QScrollArea, QFrame, QGridLayout)
@@ -334,6 +335,7 @@ class ReplayListPage(Page):
             self.selected_replay = current.data(Qt.ItemDataRole.UserRole)
             self.update_details()
 
+    @pyqtSlot()
     def toggle_theme(self):
         self.app.style_manager.toggle_theme()
 

@@ -13,6 +13,7 @@ class QtABCMeta(ABCMeta, type(QWidget)):
 
 
 class Page(QWidget, metaclass=QtABCMeta):
+    HEADER = True
     def __init__(self, app):
         super().__init__()
 

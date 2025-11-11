@@ -28,3 +28,7 @@ class AssetManager:
 
     def is_loaded_asset(self, asset_name: str):
         return asset_name in self.assets
+
+    def unload_asset(self, asset_name: str):
+        if asset_name in self.assets:
+            del self.assets[asset_name]
