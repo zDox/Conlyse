@@ -91,11 +91,10 @@ class Replay:
         self._patch_timestamps: List[tuple[int, int]] = []
 
     def __enter__(self):
-        self.open()
+        return self.open()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-        self.__exit__(None, None, None)
 
     def open(self):
         if self.mode == 'w':

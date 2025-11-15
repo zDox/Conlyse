@@ -122,10 +122,9 @@ class ReplayDatabase:
             f"SELECT from_timestamp, to_timestamp FROM {TABLE_PATCHES} ORDER BY from_timestamp ")
         return cursor.fetchall()
 
-    def write_patch(self, from_ts: int, to_ts: int, patch: str):
+    def write_patch(self, from_ts: int, to_ts: int, patch_str: str):
         """Write patch to database."""
-        # Move database write logic here
-        patch_str = ReplayPatch.from_string(patch)
+
         self.conn.execute(
             f"INSERT INTO {TABLE_PATCHES} (from_timestamp, to_timestamp, patch) VALUES (?, ?, ?)",
             (from_ts, to_ts, patch_str)
