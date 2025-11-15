@@ -30,10 +30,10 @@ class ReplayInterface(GameInterface):
         self.replay.open()
         logger.debug(f"Loading Game State from disk took {time() - t1} seconds")
         t2 = time()
-        self.game_state = parse_any(GameState, self.replay.load_initial_game_state(), self)
+        self.game_state = self.replay.load_initial_game_state(self)
         logger.debug(f"GameState parse took {time() - t2} seconds")
         t3 = time()
-        self.static_map_data = parse_any(StaticMapData, self.replay.load_static_map_data(), self)
+        self.static_map_data = self.replay.load_static_map_data(self)
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
         self._update_player_id()
         self.game_id = self.replay.game_id
@@ -78,7 +78,7 @@ class ReplayInterface(GameInterface):
             return
 
         if time_stamp < self.replay.start_time:
-            self.game_state = parse_any(GameState, self.replay.load_initial_game_state(), self)
+            self.game_state = parse_any(GameState, self.replay.load_initial_game_state(self), self)
             return
 
         patches, self.last_patch_time = self.replay.jump_from_to(self.last_patch_time, time_stamp)

@@ -401,24 +401,6 @@ class BidirectionalReplayPatch:
         """
         self.backward_patch = ReplayPatch.from_string(string)
 
-    def forward_to_string(self) -> str:
-        """
-        Serialize the forward patch to a JSON string.
-        
-        Returns:
-            JSON string representation of the forward patch
-        """
-        return self.forward_patch.to_string()
-
-    def backward_to_string(self) -> str:
-        """
-        Serialize the backward patch to a JSON string.
-        
-        Returns:
-            JSON string representation of the backward patch
-        """
-        return self.backward_patch.to_string()
-
     def add(self, path: list[str], old_value: Any, new_value: Any) -> None:
         """
         Record an add operation in both directions.

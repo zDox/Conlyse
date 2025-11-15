@@ -11,7 +11,7 @@ if __name__ == "__main__":
     username, password, email, proxy_url = load_credentials()
     itf = HubInterface()
     itf.login("QOfUgzqsvWoiMv", "kuHxGrfxPlHbJW")
-    game = itf.join_game(10569649, replay_filename="test_replay1.db")
+    game = itf.join_game(10569649, replay_filename="benchmark_replay_206.db")
     while True:
         game.update()
         sleep(10)

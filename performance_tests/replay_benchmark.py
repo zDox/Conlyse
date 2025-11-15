@@ -18,12 +18,14 @@ import argparse
 import sys
 import time
 import tracemalloc
-from datetime import datetime, UTC
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any
+from typing import List
+from typing import Tuple
 
+from conflict_interface.interface.game_interface import GameInterface
+from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.replay import Replay
-from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 class BenchmarkResult:
@@ -89,7 +91,7 @@ class ReplayBenchmark:
         self.replay_file = replay_file
         self.results: List[BenchmarkResult] = []
 
-    def run_benchmark(self, name: str, func, *args, **kwargs) -> BenchmarkResult:
+    def run_benchmark(self, name: str, func, *args, **kwargs) -> tuple[BenchmarkResult, Any | None]:
         """Run a single benchmark with timing and memory tracking."""
         result = BenchmarkResult(name)
 
@@ -130,7 +132,7 @@ class ReplayBenchmark:
 
         if replay:
             # Get number of patches from database
-            cursor = replay.conn.execute("SELECT COUNT(*) FROM patches")
+            cursor = replay.db.conn.execute("SELECT COUNT(*) FROM patches")
             patch_count = cursor.fetchone()[0]
 
             result.operations = 1  # Opening is 1 operation
@@ -241,7 +243,7 @@ class ReplayBenchmark:
     def benchmark_patch_retrieval(self, replay: Replay, num_retrievals: int = 1000) -> BenchmarkResult:
         """Benchmark patch retrieval from database."""
         # Get patch keys from database
-        cursor = replay.conn.execute("SELECT from_timestamp, to_timestamp FROM patches LIMIT ?", (num_retrievals,))
+        cursor = replay.db.conn.execute("SELECT from_timestamp, to_timestamp FROM patches LIMIT ?", (num_retrievals,))
         patch_keys = cursor.fetchall()
 
         if not patch_keys:
@@ -265,16 +267,16 @@ class ReplayBenchmark:
         result, count = self.run_benchmark("Patch Retrieval", retrieve_patches)
         result.operations = count
 
-        cursor = replay.conn.execute("SELECT COUNT(*) FROM patches")
+        cursor = replay.db.conn.execute("SELECT COUNT(*) FROM patches")
         total_patches = cursor.fetchone()[0]
         result.details['total_patches'] = total_patches
 
         return result
 
-    def benchmark_initial_state_load(self, replay: Replay) -> BenchmarkResult:
+    def benchmark_initial_state_load(self, replay: Replay, ritf) -> BenchmarkResult:
         """Benchmark loading the initial game state from disk."""
         def load_initial_state():
-            return replay.load_initial_game_state()
+            return replay.load_initial_game_state(ritf)
 
         result, state = self.run_benchmark("Load Initial Game State", load_initial_state)
         result.operations = 1
@@ -284,10 +286,10 @@ class ReplayBenchmark:
 
         return result
 
-    def benchmark_static_map_data(self, replay: Replay) -> BenchmarkResult:
+    def benchmark_static_map_data(self, replay: Replay, itf: GameInterface) -> BenchmarkResult:
         """Benchmark loading static map data."""
         def load_static_data():
-            return replay.load_static_map_data()
+            return replay.load_static_map_data(itf)
 
         result, data = self.run_benchmark("Load Static Map Data", load_static_data)
         result.operations = 1
@@ -301,7 +303,7 @@ class ReplayBenchmark:
         """Run all benchmarks in sequence."""
         print(f"Starting benchmark suite for: {self.replay_file}")
         print(f"File size: {Path(self.replay_file).stat().st_size / (1024 * 1024):.2f} MB\n")
-
+        ritf = ReplayInterface(self.replay_file)
         # Load replay
         load_result, replay = self.benchmark_load()
         print(load_result)
@@ -312,8 +314,8 @@ class ReplayBenchmark:
 
         try:
             # Run all benchmarks
-            print(self.benchmark_initial_state_load(replay))
-            print(self.benchmark_static_map_data(replay))
+            print(self.benchmark_initial_state_load(replay, ritf))
+            print(self.benchmark_static_map_data(replay, ritf))
             print(self.benchmark_forward_time_travel(replay))
             print(self.benchmark_backward_time_travel(replay))
             print(self.benchmark_random_access(replay))
