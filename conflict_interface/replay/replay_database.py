@@ -143,14 +143,12 @@ class ReplayDatabase:
         cursor = self.conn.execute(f"SELECT timestamp FROM {TABLE_GAME_STATE}")
         return [row[0] for row in cursor.fetchall()]
 
-    def read_game_state(self, timestamp: int, itf: GameInterface) -> GameState:
+    def read_game_state(self, timestamp: int) -> GameState:
         cursor = self.conn.execute(f"SELECT data FROM {TABLE_GAME_STATE} WHERE timestamp = ?", (timestamp,))
         row = cursor.fetchone()
         if row:
             data = row[0]
-            game_state =  pickle.loads(self._decompressor.decompress(data))
-            game_state.set_game(itf)
-            return game_state
+            return pickle.loads(self._decompressor.decompress(data))
         raise Exception(f"No game state found at {timestamp}")
 
     def write_game_state(self, timestamp: int, game_state: GameState):
@@ -166,7 +164,7 @@ class ReplayDatabase:
             (timestamp, compressed_data))
         self.conn.commit()
 
-    def read_static_map_data(self, itf: GameInterface) -> StaticMapData:
+    def read_static_map_data(self) -> StaticMapData:
         """
         Load static map data from disk.
 
@@ -176,9 +174,7 @@ class ReplayDatabase:
         cursor = self.conn.execute(f"SELECT data FROM {TABLE_STATIC_MAP_DATA}")
         if row := cursor.fetchone():
             data = row[0]
-            static_map_data = pickle.loads(self._decompressor.decompress(data))
-            static_map_data.set_game(itf)
-            return static_map_data
+            return pickle.loads(self._decompressor.decompress(data))
 
         raise Exception(f"No static map data found")
 

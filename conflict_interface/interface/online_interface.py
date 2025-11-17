@@ -58,7 +58,8 @@ class OnlineInterface(GameInterface):
                                     static_map_data = static_map_data)
         else:
             with Replay(filename=self.replay_filename, mode="a", game_id=self.game_id, player_id=self.player_id) as r:
-                old_game_state = r.load_initial_game_state(self)
+                old_game_state = r.load_initial_game_state()
+                old_game_state.set_game(self)
                 uptodate_patches, last_patch_time = r.jump_from_to(r.start_time, self.client_time())
                 for uptodate_patch in uptodate_patches:
                     apply_patch_any(uptodate_patch, old_game_state, self)

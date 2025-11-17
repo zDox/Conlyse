@@ -411,24 +411,26 @@ class Replay:
         ReplayValidator.validate_game_player_ids(self.get_metadata(), game_id, player_id)
         self.db.write_static_map_data(static_map_data)
 
-    def load_static_map_data(self, itf: GameInterface) -> StaticMapData:
+    def load_static_map_data(self) -> StaticMapData:
         """
         Load static map data from disk.
+        The Loaded GameObject has no reference to any GameInterface.
 
         Returns:
             The static map data dictionary
         """
-        return self.db.read_static_map_data(itf)
+        return self.db.read_static_map_data()
 
-    def load_initial_game_state(self, itf: GameInterface) -> GameState:
+    def load_initial_game_state(self) -> GameState:
         """
         Loads the initial game state from disk and returns it.
         It does not cache the game state in memory.
+        The Loaded Game_state has no reference to the GameInterface.
         
         Returns:
             The game state dictionary from the start of the replay
         """
-        return self.db.read_game_state(self._start_time, itf)
+        return self.db.read_game_state(self._start_time)
 
 
     def check_integrity(self) -> bool:
