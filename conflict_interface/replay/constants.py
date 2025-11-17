@@ -1,4 +1,4 @@
-REPLAY_VERSION = 3
+REPLAY_VERSION = 206
 class CorruptReplay(Exception):
     """Raised when a replay file is corrupted or has an invalid format."""
     pass

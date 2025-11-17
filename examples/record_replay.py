@@ -10,8 +10,8 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     username, password, email, proxy_url = load_credentials()
     itf = HubInterface()
-    itf.login("Juicy8533", "REMOVED_SECRET")
-    game = itf.join_game(10563895, replay_filename="replay.db")
+    itf.login("QOfUgzqsvWoiMv", "kuHxGrfxPlHbJW")
+    game = itf.join_game(10569649, replay_filename="benchmark_replay_206.db")
     while True:
         game.update()
         sleep(10)

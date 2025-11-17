@@ -1,14 +1,20 @@
 import json
+import pickle
 import sqlite3
 import zlib
 from sqlite3 import Connection
 from typing import Optional
 
+from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.constants import CorruptReplay
 from conflict_interface.replay.replay_metadata import ReplayMetadata
 from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.replay.replay_validator import ReplayValidator
+
+import zstandard as zstd
 
 logger = get_logger()
 
@@ -27,6 +33,8 @@ class ReplayDatabase:
 
     def __init__(self):
         self.conn: Optional[Connection] = None
+        self._compressor = zstd.ZstdCompressor(level=3)
+        self._decompressor = zstd.ZstdDecompressor()
 
     def connect(self, filename):
         self.conn = sqlite3.connect(filename)
@@ -112,8 +120,8 @@ class ReplayDatabase:
         patches = {}
         cursor = self.conn.execute(f"SELECT from_timestamp, to_timestamp, patch FROM {TABLE_PATCHES}")
         for row in cursor.fetchall():
-            from_ts, to_ts, patch_str = row
-            patches[(from_ts, to_ts)] = ReplayPatch.from_string(patch_str)
+            from_ts, to_ts, patch_binary = row
+            patches[(from_ts, to_ts)] = ReplayPatch.from_bytes(bytes(patch_binary))
         return patches
 
     def read_patch_timestamps(self) -> list[tuple[int, int]]:
@@ -122,13 +130,12 @@ class ReplayDatabase:
             f"SELECT from_timestamp, to_timestamp FROM {TABLE_PATCHES} ORDER BY from_timestamp ")
         return cursor.fetchall()
 
-    def write_patch(self, from_ts: int, to_ts: int, patch: str):
+    def write_patch(self, from_ts: int, to_ts: int, patch_binary: bytes):
         """Write patch to database."""
-        # Move database write logic here
-        patch_str = ReplayPatch.from_string(patch)
+
         self.conn.execute(
             f"INSERT INTO {TABLE_PATCHES} (from_timestamp, to_timestamp, patch) VALUES (?, ?, ?)",
-            (from_ts, to_ts, patch_str)
+            (from_ts, to_ts, patch_binary)
         )
         self.conn.commit()
 
@@ -136,22 +143,28 @@ class ReplayDatabase:
         cursor = self.conn.execute(f"SELECT timestamp FROM {TABLE_GAME_STATE}")
         return [row[0] for row in cursor.fetchall()]
 
-    def read_game_state(self, timestamp: int) -> dict:
+    def read_game_state(self, timestamp: int) -> GameState:
         cursor = self.conn.execute(f"SELECT data FROM {TABLE_GAME_STATE} WHERE timestamp = ?", (timestamp,))
         row = cursor.fetchone()
         if row:
-            return json.loads(zlib.decompress(row[0]).decode('utf-8'))
+            data = row[0]
+            return pickle.loads(self._decompressor.decompress(data))
         raise Exception(f"No game state found at {timestamp}")
 
-    def write_game_state(self, timestamp: int, game_state: dict):
+    def write_game_state(self, timestamp: int, game_state: GameState):
         """Write compressed game state."""
-        compressed_data = zlib.compress(json.dumps(game_state).encode('utf-8'))
+        game_state.set_game(None)
+
+        compressed_data = self._compressor.compress(
+                pickle.dumps(game_state)
+            )
+
         self.conn.execute(
             f"INSERT INTO {TABLE_GAME_STATE} (timestamp, data) VALUES (?, ?)",
             (timestamp, compressed_data))
         self.conn.commit()
 
-    def read_static_map_data(self) -> dict:
+    def read_static_map_data(self) -> StaticMapData:
         """
         Load static map data from disk.
 
@@ -159,11 +172,13 @@ class ReplayDatabase:
             The static map data dictionary, or empty dict if not set
         """
         cursor = self.conn.execute(f"SELECT data FROM {TABLE_STATIC_MAP_DATA}")
-        if static_data := cursor.fetchone():
-            return json.loads(zlib.decompress(static_data[0]).decode('utf-8'))
-        return {}
+        if row := cursor.fetchone():
+            data = row[0]
+            return pickle.loads(self._decompressor.decompress(data))
 
-    def write_static_map_data(self, static_map_data: dict):
+        raise Exception(f"No static map data found")
+
+    def write_static_map_data(self, static_map_data: StaticMapData):
         """
         Store static map data to disk.
 
@@ -177,7 +192,11 @@ class ReplayDatabase:
         if cursor.fetchone()[0] > 0:
             return
 
-        compressed_data = zlib.compress(json.dumps(static_map_data).encode('utf-8'))
+        static_map_data.set_game(None)
+
+        compressed_data = self._compressor.compress(
+            pickle.dumps(static_map_data)
+        )
         self.conn.execute(f"INSERT INTO {TABLE_STATIC_MAP_DATA} (data) VALUES (?)", (compressed_data,))
         self.conn.commit()
 

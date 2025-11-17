@@ -13,6 +13,9 @@ from typing import Literal
 from typing import Optional
 from typing import Tuple
 
+from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.constants import MS_PER_SECOND
 from conflict_interface.replay.constants import REPLAY_VERSION
@@ -91,11 +94,10 @@ class Replay:
         self._patch_timestamps: List[tuple[int, int]] = []
 
     def __enter__(self):
-        self.open()
+        return self.open()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-        self.__exit__(None, None, None)
 
     def open(self):
         if self.mode == 'w':
@@ -357,13 +359,13 @@ class Replay:
         self._timestamps.append(time_stamp_ms)
         forward_ts = (self._last_time or self._start_time, time_stamp_ms)
         backward_ts = (time_stamp_ms, self._last_time or self._start_time)
-        self.db.write_patch(forward_ts[0], forward_ts[1], replay_patch.forward_to_string())
-        self.db.write_patch(backward_ts[0], backward_ts[1], replay_patch.backward_to_string())
+        self.db.write_patch(forward_ts[0], forward_ts[1], replay_patch.forward_patch.to_bytes())
+        self.db.write_patch(backward_ts[0], backward_ts[1], replay_patch.backward_patch.to_bytes())
 
         self._last_time = time_stamp_ms
         self.db.write_metadata(self.get_metadata())
 
-    def record_initial_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: dict):
+    def record_initial_game_state(self, time_stamp: datetime, game_id: int, player_id: int, game_state: GameState):
         """
         Record the initial game state snapshot.
         
@@ -392,7 +394,7 @@ class Replay:
         self._last_time = time_stamp_ms
         self.db.write_metadata(self.get_metadata())
 
-    def record_static_map_data(self, static_map_data: dict, game_id: int, player_id: int):
+    def record_static_map_data(self, static_map_data: StaticMapData, game_id: int, player_id: int):
         """
         Record static map data that doesn't change during the game.
         
@@ -409,19 +411,21 @@ class Replay:
         ReplayValidator.validate_game_player_ids(self.get_metadata(), game_id, player_id)
         self.db.write_static_map_data(static_map_data)
 
-    def load_static_map_data(self) -> dict:
+    def load_static_map_data(self) -> StaticMapData:
         """
         Load static map data from disk.
+        The Loaded GameObject has no reference to any GameInterface.
 
         Returns:
             The static map data dictionary
         """
         return self.db.read_static_map_data()
 
-    def load_initial_game_state(self) -> dict:
+    def load_initial_game_state(self) -> GameState:
         """
         Loads the initial game state from disk and returns it.
         It does not cache the game state in memory.
+        The Loaded Game_state has no reference to the GameInterface.
         
         Returns:
             The game state dictionary from the start of the replay

@@ -345,7 +345,6 @@ def parse_enum(cls: type[Enum], json_obj: str | int) -> Enum:
         except ValueError:
             raise ValueError(f"Unknown enum value {json_obj} for {cls}")
 
-
 def parse_any(cls: Any, json_obj: Any, game: GameInterface = None) -> DataclassType:
     if json_obj is None:
         return None
@@ -373,7 +372,6 @@ def parse_any(cls: Any, json_obj: Any, game: GameInterface = None) -> DataclassT
         return COMPLEX_PARSE_MAPPING[get_origin(cls)](cls, json_obj, game)
     else:
         raise ValueError(f"Unknown type {cls}: not in TYPE_MAPPING, origin is {get_origin(cls)}")
-
 
 def dump_dataclass(obj: object) -> dict[str , Any]:
     if not is_dataclass(obj):
@@ -452,3 +450,48 @@ class GameObject:
         if cls._type_hints is None:
             cls._type_hints = get_type_hints(cls)
         return cls._type_hints
+
+    def set_game(self, game: GameInterface | None):
+        """
+        Sets the game instance for this object and all nested GameObjects.
+
+        Args:
+            game: The central game instance.
+        """
+        self.game = game
+        for key in self.get_mapping().keys():
+            value = getattr(self, key)
+            self._set_game_recursive(value, game)
+
+    def _set_game_recursive(self, value: Any, game: GameInterface | None):
+        """
+        Recursively sets the game instance for nested GameObjects.
+
+        Args:
+            value: The value to traverse.
+            game: The central game instance.
+        """
+        if value is None:
+            return
+
+        if isinstance(value, GameObject):
+            value.set_game(game)
+        elif is_dataclass(value):
+            # Handle dataclasses that might contain GameObjects
+            if hasattr(value, "MAPPING"):
+                mapping = getattr(type(value), "MAPPING")
+                for python_var_name in mapping.keys():
+                    nested_value = getattr(value, python_var_name)
+                    self._set_game_recursive(nested_value, game)
+        elif isinstance(value, list):
+            # Handles list and all custom list types (Vector, LinkedList, etc.)
+            for item in value:
+                self._set_game_recursive(item, game)
+        elif isinstance(value, dict):
+            # Handles dict and all custom map types (HashMap, TreeMap, etc.)
+            for (key, value) in value.items():
+                self._set_game_recursive(key, game)
+                self._set_game_recursive(value, game)
+
+
+

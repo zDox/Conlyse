@@ -11,7 +11,7 @@ from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from conflict_interface.data_types.game_api_types.login_action import LoginAction
-from conflict_interface.data_types.game_object import dump_any
+from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_object import parse_game_object
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
@@ -44,29 +44,28 @@ class OnlineInterface(GameInterface):
 
         self.replay_filename = replay_filename
 
-    def _handle_replay_init(self, static_map_data: dict):
+    def _handle_replay_init(self, static_map_data: StaticMapData):
         if not os.path.exists(self.replay_filename):
             with Replay(filename=self.replay_filename, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
                 r.record_initial_game_state(
                                     time_stamp = self.client_time(),
                                     game_id = self.game_id,
                                     player_id = self.player_id,
-                                    game_state = dump_any(self.game_state))
+                                    game_state = self.game_state)
                 r.record_static_map_data(
                                     game_id = self.game_id,
                                     player_id = self.player_id,
                                     static_map_data = static_map_data)
         else:
             with Replay(filename=self.replay_filename, mode="a", game_id=self.game_id, player_id=self.player_id) as r:
-                old_game_state = parse_game_object(GameState, r.load_initial_game_state(), self)
+                old_game_state = r.load_initial_game_state()
+                old_game_state.set_game(self)
                 uptodate_patches, last_patch_time = r.jump_from_to(r.start_time, self.client_time())
                 for uptodate_patch in uptodate_patches:
                     apply_patch_any(uptodate_patch, old_game_state, self)
 
                 rp = make_bireplay_patch(old_game_state, self.game_state)
                 r.record_bipatch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp)
-                current_time = int(self.client_time().timestamp() * 1000)
-                r._write_game_state(current_time, dump_any(self.game_state))
 
         self.replay = Replay(self.replay_filename, mode="a")
         self.replay.open()
@@ -122,11 +121,10 @@ class OnlineInterface(GameInterface):
                 self.game_state = self.action_handler.create_game_state_action(use_queue=False)
 
         json_static_map_data = self.game_api.get_static_map_data()
+        static_map_data = parse_any(StaticMapData, json_static_map_data, self)
 
         if self.replay_filename:
-            self._handle_replay_init(json_static_map_data)
-
-        static_map_data = parse_game_object(StaticMapData, json_static_map_data, self)
+            self._handle_replay_init(static_map_data)
 
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
 
@@ -186,7 +184,6 @@ class OnlineInterface(GameInterface):
                                      player_id=self.player_id,
                                      replay_patch=rp)
                 current_time = int(self.client_time().timestamp() * 1000)
-                r._write_game_state(current_time, dump_any(small_game_state))
 
     """
     Utility functions

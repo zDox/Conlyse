@@ -3,10 +3,8 @@ Performance benchmark for Replay system.
 
 This benchmark tests various performance aspects of the replay system:
 - Loading time and memory usage
-- Forward time travel (sequential patch application)
-- Backward time travel (reverse patch application)
-- Random access (jumping to arbitrary timestamps)
-- Patch retrieval and application overhead
+- Calculate patches (forward, backward, and random time travel)
+- Client time operations (set_client_time benchmark)
 
 Usage:
     python replay_benchmark.py <replay_file.db>
@@ -18,12 +16,13 @@ import argparse
 import sys
 import time
 import tracemalloc
-from datetime import datetime, UTC
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any, List, Tuple
+from datetime import datetime, timezone
 
+from conflict_interface.interface.game_interface import GameInterface
+from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.replay import Replay
-from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 class BenchmarkResult:
@@ -61,18 +60,18 @@ class BenchmarkResult:
             f"\n{'=' * 80}",
             f"Benchmark: {self.name}",
             f"{'=' * 80}",
-            f"Duration:          {self.duration:.4f} seconds",
-            f"Operations:        {self.operations}",
-            f"Ops/sec:           {self.ops_per_second:.2f}",
-            f"Memory Before:     {self.format_size(self.memory_before)}",
-            f"Memory After:      {self.format_size(self.memory_after)}",
-            f"Memory Delta:      {self.format_size(self.memory_delta)}",
-            f"Memory Peak:       {self.format_size(self.memory_peak)}",
+            f"Duration: {self.duration:.4f} seconds",
+            f"Operations: {self.operations}",
+            f"Ops/sec: {self.ops_per_second:.2f}",
+            f"Memory Before: {self.format_size(self.memory_before)}",
+            f"Memory After: {self.format_size(self.memory_after)}",
+            f"Memory Delta: {self.format_size(self.memory_delta)}",
+            f"Memory Peak: {self.format_size(self.memory_peak)}",
         ]
 
         if self.operations > 0:
             time_per_op = (self.duration / self.operations) * 1000
-            lines.append(f"Time/operation:    {time_per_op:.4f} ms")
+            lines.append(f"Time/operation: {time_per_op:.4f} ms")
 
         if self.details:
             lines.append("\nDetails:")
@@ -85,11 +84,12 @@ class BenchmarkResult:
 class ReplayBenchmark:
     """Comprehensive benchmark suite for Replay system."""
 
-    def __init__(self, replay_file: str):
+    def __init__(self, replay_file: str, quick_mode: bool = False):
         self.replay_file = replay_file
+        self.quick_mode = quick_mode
         self.results: List[BenchmarkResult] = []
 
-    def run_benchmark(self, name: str, func, *args, **kwargs) -> BenchmarkResult:
+    def run_benchmark(self, name: str, func, *args, **kwargs) -> Tuple[BenchmarkResult, Any]:
         """Run a single benchmark with timing and memory tracking."""
         result = BenchmarkResult(name)
 
@@ -130,7 +130,7 @@ class ReplayBenchmark:
 
         if replay:
             # Get number of patches from database
-            cursor = replay.conn.execute("SELECT COUNT(*) FROM patches")
+            cursor = replay.db.conn.execute("SELECT COUNT(*) FROM patches")
             patch_count = cursor.fetchone()[0]
 
             result.operations = 1  # Opening is 1 operation
@@ -139,6 +139,7 @@ class ReplayBenchmark:
             result.details['total_patches_in_db'] = patch_count
             result.details['game_id'] = replay.game_id
             result.details['player_id'] = replay.player_id
+
             if replay.start_time:
                 result.details['start_time'] = replay.start_time.isoformat()
             if replay.last_time:
@@ -146,128 +147,136 @@ class ReplayBenchmark:
 
         return result, replay
 
-    def benchmark_forward_time_travel(self, replay: Replay) -> BenchmarkResult:
-        """Benchmark sequential forward time travel through all timestamps."""
+    def benchmark_calculate_patches(self, replay: Replay) -> BenchmarkResult:
+        """Benchmark patch calculation: forward, backward, and random time travel."""
         timestamps = replay.get_timestamps()
-        if not timestamps:
-            result = BenchmarkResult("Forward Time Travel")
-            result.details['status'] = 'skipped'
-            result.details['reason'] = 'no timestamps'
-            return result
 
-        def forward_travel():
-            current_ts = replay._start_time
-            patch_count = 0
-
-            for ts in timestamps:
-                patches = replay._jump_from_to(current_ts, ts)
-                patch_count += len(patches)
-                current_ts = ts
-
-            return patch_count
-
-        result, patch_count = self.run_benchmark("Forward Time Travel", forward_travel)
-        result.operations = len(timestamps)
-        result.details['patches_applied'] = patch_count
-        result.details['avg_patches_per_jump'] = patch_count / len(timestamps) if timestamps else 0
-
-        return result
-
-    def benchmark_backward_time_travel(self, replay: Replay) -> BenchmarkResult:
-        """Benchmark sequential backward time travel through all timestamps."""
-        timestamps = replay.get_timestamps()
-        if not timestamps:
-            result = BenchmarkResult("Backward Time Travel")
-            result.details['status'] = 'skipped'
-            result.details['reason'] = 'no timestamps'
-            return result
-
-        def backward_travel():
-            current_ts = timestamps[-1] if timestamps else replay._start_time
-            patch_count = 0
-
-            for ts in reversed(timestamps[:-1]):
-                patches = replay._jump_from_to(current_ts, ts)
-                patch_count += len(patches)
-                current_ts = ts
-
-            # Jump back to start
-            patches = replay._jump_from_to(current_ts, replay._start_time)
-            patch_count += len(patches)
-
-            return patch_count
-
-        result, patch_count = self.run_benchmark("Backward Time Travel", backward_travel)
-        result.operations = len(timestamps)
-        result.details['patches_applied'] = patch_count
-        result.details['avg_patches_per_jump'] = patch_count / len(timestamps) if timestamps else 0
-
-        return result
-
-    def benchmark_random_access(self, replay: Replay, num_jumps: int = 100) -> BenchmarkResult:
-        """Benchmark random access to timestamps."""
-        timestamps = replay.get_timestamps()
         if len(timestamps) < 2:
-            result = BenchmarkResult("Random Access")
+            result = BenchmarkResult("Calculate Patches")
             result.details['status'] = 'skipped'
             result.details['reason'] = 'insufficient timestamps'
             return result
 
         import random
 
-        def random_access():
-            # Create random pairs of timestamps
-            jump_pairs = []
-            for _ in range(min(num_jumps, len(timestamps) * len(timestamps))):
+        def calculate_patches():
+            stats = {
+                'forward_patches': 0,
+                'backward_patches': 0,
+                'random_patches': 0,
+                'forward_jumps': 0,
+                'backward_jumps': 0,
+                'random_jumps': 0
+            }
+
+            # Forward time travel
+            current_ts = replay._start_time
+            for ts in timestamps:
+                patches = replay._jump_from_to(current_ts, ts)
+                stats['forward_patches'] += len(patches)
+                stats['forward_jumps'] += 1
+                current_ts = ts
+
+            # Backward time travel
+            current_ts = timestamps[-1] if timestamps else replay._start_time
+            for ts in reversed(timestamps[:-1]):
+                patches = replay._jump_from_to(current_ts, ts)
+                stats['backward_patches'] += len(patches)
+                stats['backward_jumps'] += 1
+                current_ts = ts
+
+            # Jump back to start
+            patches = replay._jump_from_to(current_ts, replay._start_time)
+            stats['backward_patches'] += len(patches)
+            stats['backward_jumps'] += 1
+
+            # Random access
+            num_random_jumps = 100 if self.quick_mode else 1000
+            num_random_jumps = min(num_random_jumps, len(timestamps) * 10)
+
+            for _ in range(num_random_jumps):
                 start = random.choice(timestamps)
                 end = random.choice(timestamps)
-                jump_pairs.append((start, end))
-
-            patch_count = 0
-            for start, end in jump_pairs:
                 patches = replay._jump_from_to(start, end)
-                patch_count += len(patches)
+                stats['random_patches'] += len(patches)
+                stats['random_jumps'] += 1
 
-            return len(jump_pairs), patch_count
+            return stats
 
-        result, (jumps, patch_count) = self.run_benchmark("Random Access", random_access)
-        result.operations = jumps
-        result.details['jumps'] = jumps
-        result.details['patches_applied'] = patch_count
-        result.details['avg_patches_per_jump'] = patch_count / jumps if jumps else 0
+        result, stats = self.run_benchmark("Calculate Patches", calculate_patches)
+
+        if stats:
+            total_jumps = stats['forward_jumps'] + stats['backward_jumps'] + stats['random_jumps']
+            total_patches = stats['forward_patches'] + stats['backward_patches'] + stats['random_patches']
+
+            result.operations = total_jumps
+            result.details['total_patches_calculated'] = total_patches
+            result.details['total_jumps'] = total_jumps
+            result.details['avg_patches_per_jump'] = total_patches / total_jumps if total_jumps else 0
+            result.details['forward_jumps'] = stats['forward_jumps']
+            result.details['forward_patches'] = stats['forward_patches']
+            result.details['backward_jumps'] = stats['backward_jumps']
+            result.details['backward_patches'] = stats['backward_patches']
+            result.details['random_jumps'] = stats['random_jumps']
+            result.details['random_patches'] = stats['random_patches']
 
         return result
 
-    def benchmark_patch_retrieval(self, replay: Replay, num_retrievals: int = 1000) -> BenchmarkResult:
-        """Benchmark patch retrieval from database."""
-        # Get patch keys from database
-        cursor = replay.conn.execute("SELECT from_timestamp, to_timestamp FROM patches LIMIT ?", (num_retrievals,))
-        patch_keys = cursor.fetchall()
+    def benchmark_client_time(self, replay: Replay, ritf: ReplayInterface) -> BenchmarkResult:
+        """Benchmark set_client_time operations."""
+        timestamps = replay.get_timestamps()
 
-        if not patch_keys:
-            result = BenchmarkResult("Patch Retrieval")
+        if len(timestamps) < 2:
+            result = BenchmarkResult("Client Time Operations")
             result.details['status'] = 'skipped'
-            result.details['reason'] = 'no patches'
+            result.details['reason'] = 'insufficient timestamps'
             return result
 
         import random
 
-        def retrieve_patches():
-            count = 0
-            sample_size = min(num_retrievals, len(patch_keys))
-            for _ in range(sample_size):
-                key = random.choice(patch_keys)
-                patch = replay.get_patch(key[0], key[1])
-                if patch:
-                    count += 1
-            return count
+        def client_time_ops():
+            stats = {
+                'set_time_calls': 0,
+                'forward_moves': 0,
+                'backward_moves': 0,
+                'random_moves': 0
+            }
 
-        result, count = self.run_benchmark("Patch Retrieval", retrieve_patches)
-        result.operations = count
+            # Forward sequential moves
+            for ts in timestamps:
+                dt = datetime.fromtimestamp(ts / 1000.0, tz=timezone.utc)
+                ritf.set_client_time(dt)
+                stats['set_time_calls'] += 1
+                stats['forward_moves'] += 1
 
-        cursor = replay.conn.execute("SELECT COUNT(*) FROM patches")
-        total_patches = cursor.fetchone()[0]
-        result.details['total_patches'] = total_patches
+            # Backward sequential moves
+            for ts in reversed(timestamps):
+                dt = datetime.fromtimestamp(ts / 1000.0, tz=timezone.utc)
+                ritf.set_client_time(dt)
+                stats['set_time_calls'] += 1
+                stats['backward_moves'] += 1
+
+            # Random moves
+            num_random = 50 if self.quick_mode else len(timestamps)//2
+            num_random = min(num_random, len(timestamps))
+
+            for _ in range(num_random):
+                ts = random.choice(timestamps)
+                dt = datetime.fromtimestamp(ts / 1000.0, tz=timezone.utc)
+                ritf.set_client_time(dt)
+                stats['set_time_calls'] += 1
+                stats['random_moves'] += 1
+
+            return stats
+
+        result, stats = self.run_benchmark("Client Time Operations", client_time_ops)
+
+        if stats:
+            result.operations = stats['set_time_calls']
+            result.details['total_set_time_calls'] = stats['set_time_calls']
+            result.details['forward_moves'] = stats['forward_moves']
+            result.details['backward_moves'] = stats['backward_moves']
+            result.details['random_moves'] = stats['random_moves']
 
         return result
 
@@ -300,7 +309,11 @@ class ReplayBenchmark:
     def run_all_benchmarks(self) -> List[BenchmarkResult]:
         """Run all benchmarks in sequence."""
         print(f"Starting benchmark suite for: {self.replay_file}")
-        print(f"File size: {Path(self.replay_file).stat().st_size / (1024 * 1024):.2f} MB\n")
+        print(f"File size: {Path(self.replay_file).stat().st_size / (1024 * 1024):.2f} MB")
+        print(f"Mode: {'Quick' if self.quick_mode else 'Full'}\n")
+
+        ritf = ReplayInterface(self.replay_file)
+        ritf.open()
 
         # Load replay
         load_result, replay = self.benchmark_load()
@@ -314,11 +327,8 @@ class ReplayBenchmark:
             # Run all benchmarks
             print(self.benchmark_initial_state_load(replay))
             print(self.benchmark_static_map_data(replay))
-            print(self.benchmark_forward_time_travel(replay))
-            print(self.benchmark_backward_time_travel(replay))
-            print(self.benchmark_random_access(replay))
-            print(self.benchmark_patch_retrieval(replay))
-
+            print(self.benchmark_calculate_patches(replay))
+            print(self.benchmark_client_time(replay, ritf))
         finally:
             replay.close()
 
@@ -336,10 +346,10 @@ class ReplayBenchmark:
         total_duration = sum(r.duration for r in self.results)
         successful = sum(1 for r in self.results if r.details.get('status') != 'failed')
 
-        print(f"Total Benchmarks:  {len(self.results)}")
-        print(f"Successful:        {successful}")
-        print(f"Failed:            {len(self.results) - successful}")
-        print(f"Total Time:        {total_duration:.4f} seconds")
+        print(f"Total Benchmarks: {len(self.results)}")
+        print(f"Successful: {successful}")
+        print(f"Failed: {len(self.results) - successful}")
+        print(f"Total Time: {total_duration:.4f} seconds")
 
         print(f"\n{'Benchmark':<40} {'Duration':<15} {'Ops/sec':<15}")
         print(f"{'-' * 40} {'-' * 15} {'-' * 15}")
@@ -358,14 +368,17 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python replay_benchmark.py ../examples/replay.db
-  python replay_benchmark.py C:\\path\\to\\replay.db
+    python replay_benchmark.py ../examples/replay.db
+    python replay_benchmark.py C:\\path\\to\\replay.db
+    python replay_benchmark.py replay.db --quick
         """
     )
+
     parser.add_argument(
         'replay_file',
         help='Path to the replay database file (.db)'
     )
+
     parser.add_argument(
         '--quick',
         action='store_true',
@@ -380,7 +393,7 @@ Examples:
         return 1
 
     # Run benchmarks
-    benchmark = ReplayBenchmark(args.replay_file)
+    benchmark = ReplayBenchmark(args.replay_file, quick_mode=args.quick)
     benchmark.run_all_benchmarks()
 
     return 0
@@ -388,4 +401,3 @@ Examples:
 
 if __name__ == "__main__":
     sys.exit(main())
-
