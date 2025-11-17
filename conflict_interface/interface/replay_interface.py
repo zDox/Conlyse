@@ -11,6 +11,7 @@ from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.apply_replay import apply_patch_any
 from conflict_interface.replay.replay import Replay
+import bisect
 
 logger = get_logger()
 
@@ -24,6 +25,7 @@ class ReplayInterface(GameInterface):
         self.current_time: datetime | None = None
         self.game_id: int | None = None
         self.last_patch_time = None
+        self.time_stamps = None
 
     def open(self):
         t1 = time()
@@ -94,7 +96,24 @@ class ReplayInterface(GameInterface):
         self._update_player_id()
 
     def get_timestamps(self) -> list[datetime]:
-        return [datetime.fromtimestamp(ts / 1000, tz=UTC) for ts in self.replay.get_timestamps()]
+        time_stamps = self.replay.get_timestamps()
+        if not self.time_stamps or len(time_stamps) != len(self.time_stamps):
+             self.time_stamps =[datetime.fromtimestamp(ts / 1000, tz=UTC) for ts in time_stamps]
+        return self.time_stamps
+
+    def get_next_timestamp(self, timestamp = None) -> datetime | None:
+        if not timestamp: timestamp = self.current_time
+
+        ts = self.get_timestamps()
+        i = bisect.bisect_right(ts, timestamp)
+        return ts[i] if i < len(ts) else None
+
+    def get_previous_timestamp(self) -> datetime | None:
+        ts = self.get_timestamps()
+        # bisect_left gives the insertion point before any equal items
+        i = bisect.bisect_left(ts, self.current_time)
+        # the previous element (if any) is i - 1
+        return ts[i - 1] if i > 0 else None
 
     def average_update_frequency(self) -> timedelta:
         """
