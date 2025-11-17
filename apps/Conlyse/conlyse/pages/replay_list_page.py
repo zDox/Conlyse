@@ -1,26 +1,43 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
+from PyQt6.QtCore import QSize
+from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtSlot
-from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout,
-                             QHBoxLayout, QLabel, QPushButton, QListWidget,
-                             QListWidgetItem, QScrollArea, QFrame, QGridLayout)
-from PyQt6.QtCore import Qt, QSize
-from conlyse.utils.formating import format_bytes, format_date
-from conlyse.pages.page import Page
-from conlyse.managers.style_manager import Theme
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtWidgets import QFrame
+from PyQt6.QtWidgets import QGridLayout
+from PyQt6.QtWidgets import QHBoxLayout
+from PyQt6.QtWidgets import QLabel
+from PyQt6.QtWidgets import QListWidget
+from PyQt6.QtWidgets import QListWidgetItem
+from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QPushButton
+from PyQt6.QtWidgets import QScrollArea
+from PyQt6.QtWidgets import QVBoxLayout
+from PyQt6.QtWidgets import QWidget
+from conflict_interface.replay.replay import Replay
 
-# RM ----------------------------
-from conlyse.utils.mock_replay import *
-# -------------------------------
+from conlyse.logger import get_logger
+from conlyse.managers.style_manager import Theme
+from conlyse.pages.page import Page
 
 if TYPE_CHECKING:
     from conlyse.app import App
 
+logger = get_logger()
+
 class ReplayListItem(QWidget):
-    def __init__(self, replay, parent=None):
+    def __init__(self, replay_data, parent=None):
         super().__init__(parent)
-        self.replay = replay
+        self.day_label = None
+        self.length_label = None
+        self.mode_label = None
+        self.status_label = None
+        self.game_id_label = None
+        self.replay_data: dict = replay_data
         self.setup_ui()
 
     def setup_ui(self):
@@ -30,15 +47,15 @@ class ReplayListItem(QWidget):
         # Top row with game ID and status
         top_layout = QHBoxLayout()
 
-        self.game_id_label = QLabel(f"📄 {self.replay.game_id}")
+        self.game_id_label = QLabel(f"📄 {self.replay_data.get('game_id', 'Unknown')}")
         self.game_id_label.setObjectName("listItemTitle")
         top_layout.addWidget(self.game_id_label)
 
         top_layout.addStretch()
 
-        self.status_label = QLabel(f"{'▶' if self.replay.status == 'Running' else '⏹'} {self.replay.status}")
+        self.status_label = QLabel(f"{'▶' if self.replay_data.get('status', 'Running') == 'Running' else '⏹'} {self.replay_data.get('status', 'Running')}")
         self.status_label.setObjectName("listItemStatus")
-        if self.replay.status == 'Running':
+        if self.replay_data.get('status', 'Running') == 'Running':
             self.status_label.setProperty("status", "running")
         else:
             self.status_label.setProperty("status", "ended")
@@ -47,7 +64,7 @@ class ReplayListItem(QWidget):
         layout.addLayout(top_layout)
 
         # Game mode
-        self.mode_label = QLabel(self.replay.game_mode)
+        self.mode_label = QLabel(self.replay_data.get('game_mode', 'Unknown'))
         self.mode_label.setObjectName("listItemMode")
         layout.addWidget(self.mode_label)
 
@@ -55,11 +72,11 @@ class ReplayListItem(QWidget):
         info_layout = QHBoxLayout()
         info_layout.setSpacing(16)
 
-        self.length_label = QLabel(f"🕐 {self.replay.length}")
+        self.length_label = QLabel(f"🕐 {self.replay_data.get('length', '-1')}")
         self.length_label.setObjectName("listItemInfo")
         info_layout.addWidget(self.length_label)
 
-        self.day_label = QLabel(f"📅 Day {self.replay.game_day}")
+        self.day_label = QLabel(f"📅 Day {self.replay_data.get('day', '-1')}")
         self.day_label.setObjectName("listItemInfo")
         info_layout.addWidget(self.day_label)
 
@@ -75,8 +92,27 @@ class ReplayListPage(Page):
     def __init__(self, app, parent=None):
         super().__init__(parent)
 
+        self.details_content_layout = None
+        self.details_content = None
+        self.details_separator = None
+        self.details_title_label = None
+        self.details_layout = None
+        self.details_frame = None
+        self.list_frame = None
+        self.list_separator = None
+        self.badge_label = None
+        self.replay_list = None
+        self.open_replay_btn = None
+        self.list_title_label = None
+        self.subheader_label = None
+        self.header_label = None
         self.app: App = app
-        self.selected_replay = MOCK_REPLAYS[0]
+        self.selected_replay: Replay | None = None
+
+        self.selected_filepath: str | None = None
+
+        self.theme_toggle = None
+
 
     def setup_ui(self):
         # Main layout
@@ -135,12 +171,19 @@ class ReplayListPage(Page):
         self.list_title_label.setObjectName("cardTitle")
         header_layout.addWidget(self.list_title_label)
 
-        self.badge_label = QLabel(str(len(MOCK_REPLAYS)))
+        self.badge_label = QLabel(str(len(self.app.replay_manager.get_replays().values())))
         self.badge_label.setObjectName("badge")
         self.badge_label.setMaximumWidth(40)
         self.badge_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header_layout.addWidget(self.badge_label)
         header_layout.addStretch()
+
+        # Open button in top right
+        self.open_replay_btn = QPushButton("▶ Open")
+        self.open_replay_btn.setObjectName("primary")
+        self.open_replay_btn.setMaximumWidth(100)
+        self.open_replay_btn.clicked.connect(self.on_open_replay)
+        header_layout.addWidget(self.open_replay_btn)
 
         list_layout.addLayout(header_layout)
 
@@ -154,10 +197,11 @@ class ReplayListPage(Page):
         self.replay_list.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
         self.replay_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-        for replay in MOCK_REPLAYS:
+        for replay in self.app.replay_manager.get_replays().values():
+            replay_data = {} # TODO
             item = QListWidgetItem(self.replay_list)
             item.setSizeHint(QSize(340, 90))
-            widget = ReplayListItem(replay)
+            widget = ReplayListItem(replay_data)
             self.replay_list.setItemWidget(item, widget)
             item.setData(Qt.ItemDataRole.UserRole, replay)
 
@@ -218,8 +262,6 @@ class ReplayListPage(Page):
         if not self.selected_replay:
             return
 
-        r = self.selected_replay
-
         # Status section
         status_layout = QHBoxLayout()
 
@@ -228,16 +270,16 @@ class ReplayListPage(Page):
         status_title.setObjectName("statusTitle")
         status_left.addWidget(status_title)
 
-        status_date = QLabel(format_date(r.started_timestamp))
+        status_date = QLabel("-1")
         status_date.setObjectName("sectionLabel")
         status_left.addWidget(status_date)
         status_layout.addLayout(status_left)
 
         status_layout.addStretch()
 
-        status_badge = QLabel(f"{'▶' if r.status == 'Running' else '⏹'} {r.status}")
+        status_badge = QLabel(f"{'▶' if True else '⏹'}") # TODO
         status_badge.setObjectName("statusBadge")
-        if r.status == 'Running':
+        if True: # TODO
             status_badge.setProperty("status", "running")
         else:
             status_badge.setProperty("status", "ended")
@@ -254,20 +296,20 @@ class ReplayListPage(Page):
         grid.setColumnStretch(1, 1)
 
         # Row 0
-        self.add_info_field(grid, 0, 0, "📄 Game ID", r.game_id)
-        self.add_info_field(grid, 0, 1, "🎮 Game Mode", r.game_mode)
+        self.add_info_field(grid, 0, 0, "📄 Game ID", "-1")
+        self.add_info_field(grid, 0, 1, "🎮 Game Mode", "WW III")
 
         # Row 1
-        self.add_info_field(grid, 1, 0, "🕐 Replay Length", r.length)
-        self.add_info_field(grid, 1, 1, "📅 Game Day", f"Day {r.game_day}")
+        self.add_info_field(grid, 1, 0, "🕐 Replay Length", "-1")
+        self.add_info_field(grid, 1, 1, "📅 Game Day", f"Day {-1}")
 
         # Row 2
-        self.add_info_field(grid, 2, 0, "⚡ Game Speed", r.game_speed)
-        self.add_info_field(grid, 2, 1, "📍 Player Country", r.player_country)
+        self.add_info_field(grid, 2, 0, "⚡ Game Speed", "-1")
+        self.add_info_field(grid, 2, 1, "📍 Player Country", "-1")
 
         # Row 3
-        self.add_info_field(grid, 3, 0, "💾 File Size", format_bytes(r.size_bytes))
-        self.add_info_field(grid, 3, 1, "📅 Started", format_date(r.started_timestamp))
+        self.add_info_field(grid, 3, 0, "💾 File Size", "-1")
+        self.add_info_field(grid, 3, 1, "📅 Started", "-1")
 
         self.details_content_layout.addLayout(grid)
 
@@ -278,7 +320,7 @@ class ReplayListPage(Page):
         path_label.setObjectName("sectionLabel")
         self.details_content_layout.addWidget(path_label)
 
-        path_value = QLabel(r.file_path)
+        path_value = QLabel(self.selected_filepath if self.selected_filepath else "Unknown")
         path_value.setObjectName("codeBlock")
         path_value.setWordWrap(True)
         self.details_content_layout.addWidget(path_value)
@@ -288,7 +330,7 @@ class ReplayListPage(Page):
         # Actions
         actions_layout = QHBoxLayout()
 
-        open_btn = QPushButton("▶ Open Replay")
+        open_btn = QPushButton("▶ Analyze Replay")
         open_btn.setObjectName("primary")
         actions_layout.addWidget(open_btn)
 
@@ -298,6 +340,18 @@ class ReplayListPage(Page):
 
         self.details_content_layout.addLayout(actions_layout)
         self.details_content_layout.addStretch()
+
+        # rebuild replay list to ensure it's up to date
+        self.replay_list.clear()
+        for replay in self.app.replay_manager.get_replays().values():
+            replay_data = {} # TODO
+            item = QListWidgetItem(self.replay_list)
+            item.setSizeHint(QSize(340, 90))
+            widget = ReplayListItem(replay_data)
+            self.replay_list.setItemWidget(item, widget)
+            item.setData(Qt.ItemDataRole.UserRole, replay)
+
+        
 
     def add_separator(self):
         separator = QFrame()
@@ -331,7 +385,7 @@ class ReplayListPage(Page):
             elif item.layout():
                 self.clear_layout(item.layout())
 
-    def on_replay_selected(self, current, previous):
+    def on_replay_selected(self, current):
         if current:
             self.selected_replay = current.data(Qt.ItemDataRole.UserRole)
             self.update_details()
@@ -351,11 +405,45 @@ class ReplayListPage(Page):
         # Update details to refresh any dynamic content
         self.update_details()
 
+    def on_open_replay(self):
+        default_path = self.app.config_manager.get("file.default_open_path", "")
+        replay_file_extension = self.app.config_manager.get("file.replay_file_extension", ".db")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Replay Database",
+            default_path,  # Starting directory (empty = last used directory)
+            f"Replay Files (*{replay_file_extension});;All Files (*.*)"
+        )
+
+        if not file_path:
+            return
+
+        # File was selected
+        logger.debug(f"Selected replay file: {file_path}")
+        success = self.app.replay_manager.open_new_replay(file_path)
+        if success:
+            # Refresh the page to show the new replay
+            self.selected_replay = self.app.replay_manager.get_replays()[file_path]
+            self.selected_filepath = file_path
+            self.update_details()
+        else:
+            # summon pyqt message box to show error
+
+            msg = QMessageBox()
+            msg.setObjectName("errorMessageBox")
+            msg.setIcon(QMessageBox.Icon.Critical)
+            msg.setWindowTitle("Error Opening Replay")
+            msg.setText("Failed to open the selected replay file. It may be corrupted or invalid.")
+            msg.exec()
+
+
+
     def clean_up(self):
-        self.clear_layout()
+        self.clear_layout(self.layout())
 
     def update(self):
         pass
 
     def setup(self, context):
         self.setup_ui()
+

@@ -5,6 +5,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtWidgets import QMainWindow
 
+from conlyse.managers.replay_manager import ReplayManager
 from logger import setup_logger
 from managers.config_manager import ConfigManager
 from managers.event_manager import EventManager
@@ -22,13 +23,14 @@ logger = get_logger()
 class App:
     def __init__(self):
         self.q_app : QApplication = QApplication(sys.argv)
-        self.q_window : QMainWindow = MainWindow()
+        self.q_window : MainWindow = MainWindow()
 
         self.asset_manager = AssetManager(self)
         self.config_manager = ConfigManager(self)
         self.event_handler : EventManager = EventManager(self)
         self.style_manager = StyleManager(self)
         self.page_manager : PageManager = PageManager(self)
+        self.replay_manager : ReplayManager = ReplayManager(self)
 
         self.frame_timer : QTimer = QTimer()
 

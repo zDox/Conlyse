@@ -87,6 +87,12 @@ class PageManager:
         self.current_page_type = self.next_page_type
         self.next_page_type = None
 
+        if self.current_page.HEADER:
+            self.app.q_window.header.show()
+        else:
+            self.app.q_window.header.hide()
+
+
         self.stack.addWidget(self.current_page)
         self.stack.setCurrentWidget(self.current_page)
         self.app.style_manager.update_style()
