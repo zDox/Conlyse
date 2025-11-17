@@ -108,10 +108,12 @@ class ReplayInterface(GameInterface):
         i = bisect.bisect_right(ts, timestamp)
         return ts[i] if i < len(ts) else None
 
-    def get_previous_timestamp(self) -> datetime | None:
+    def get_previous_timestamp(self, timestamp = None) -> datetime | None:
+        if not timestamp: timestamp = self.current_time
+
         ts = self.get_timestamps()
         # bisect_left gives the insertion point before any equal items
-        i = bisect.bisect_left(ts, self.current_time)
+        i = bisect.bisect_left(ts, timestamp)
         # the previous element (if any) is i - 1
         return ts[i - 1] if i > 0 else None
 
