@@ -137,7 +137,6 @@ class HookSystem:
             return
             
         path = operation.path
-        print(path)
         # Find matching hooks
         for hook in self.hooks:
             if hook.matches(path, change_type):
@@ -149,8 +148,7 @@ class HookSystem:
                     new_value=new_value
                 )
                 self.queued_hooks.append(queued)
-                logger.debug(f"Queued hook for path: {'.'.join(str(p) for p in path)}")
-                
+
     def execute_queued_hooks(self) -> None:
         """
         Execute all queued hooks and clear the queue.
