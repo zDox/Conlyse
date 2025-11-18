@@ -30,7 +30,6 @@ if __name__ == "__main__":
     jump_count = 0
     while next_tstamp is not None:
         try:
-            # print(f"# {jump_count+1} Jumping to {next_tstamp}/{datetime_to_unix_ms(ritf.current_time)}")
             ritf.jump_to_next_patch()
             jump_count += 1
             current_tstamp = next_tstamp
