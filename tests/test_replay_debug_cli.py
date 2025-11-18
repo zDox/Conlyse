@@ -290,6 +290,113 @@ class TestReplayDebugCLI(unittest.TestCase):
         self.assertIn("states/player_state", output)
         self.assertIn("game_info", output)
         self.assertIn("TOTAL", output)
+    
+    @patch('conflict_interface.cli.replay_debug.cli.Replay')
+    def test_view_patch_with_limit(self, mock_replay_class):
+        """Test viewing a patch with a limit parameter."""
+        # Setup mock replay
+        mock_replay = Mock()
+        
+        # Create a patch with multiple operations
+        patch = ReplayPatch()
+        for i in range(10):
+            patch.add_op(["states", "test", str(i)], f"value_{i}")
+        
+        mock_replay.db.read_patches.return_value = {
+            (1000, 2000): patch,
+        }
+        
+        self.cli.replay = mock_replay
+        self.cli._load_all_patches()
+        
+        # Capture stdout
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        self.cli.view_patch_by_index(1, limit=5)
+        
+        sys.stdout = sys.__stdout__
+        
+        output = captured_output.getvalue()
+        self.assertIn("Showing first 5 operations", output)
+        self.assertIn("and 5 more operations", output)
+    
+    @patch('conflict_interface.cli.replay_debug.cli.Replay')
+    def test_display_metadata(self, mock_replay_class):
+        """Test displaying replay metadata."""
+        # Setup mock replay
+        mock_replay = Mock()
+        mock_replay.get_metadata.return_value = Mock(
+            version=206,
+            game_id=12345,
+            player_id=67890,
+            start_time=1672531200000,
+            last_time=1672531800000
+        )
+        mock_replay.db.read_patches.return_value = {
+            (1000, 2000): ReplayPatch(),
+            (2000, 1000): ReplayPatch(),
+        }
+        
+        self.cli.replay = mock_replay
+        self.cli._load_all_patches()
+        
+        # Capture stdout
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        self.cli.display_metadata()
+        
+        sys.stdout = sys.__stdout__
+        
+        output = captured_output.getvalue()
+        self.assertIn("Replay Metadata", output)
+        self.assertIn("Version:     206", output)
+        self.assertIn("Game ID:     12345", output)
+        self.assertIn("Player ID:   67890", output)
+        self.assertIn("Duration:", output)
+        self.assertIn("10.00 minutes", output)
+    
+    @patch('conflict_interface.cli.replay_debug.cli.Replay')
+    def test_view_patch_shows_before_after_values(self, mock_replay_class):
+        """Test that view patch shows before and after values."""
+        # Setup mock replay
+        mock_replay = Mock()
+        
+        # Create forward and backward patches
+        forward_patch = ReplayPatch()
+        forward_patch.replace_op(["states", "gold"], 1500)
+        forward_patch.add_op(["states", "turn"], 1)
+        
+        backward_patch = ReplayPatch()
+        backward_patch.replace_op(["states", "gold"], 1000)  # old value
+        backward_patch.remove_op(["states", "turn"])
+        
+        mock_replay.db.read_patches.return_value = {
+            (1000, 2000): forward_patch,
+            (2000, 1000): backward_patch,
+        }
+        
+        self.cli.replay = mock_replay
+        self.cli._load_all_patches()
+        
+        # Capture stdout
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        self.cli.view_patch_by_index(1)
+        
+        sys.stdout = sys.__stdout__
+        
+        output = captured_output.getvalue()
+        # Should show before and after columns
+        self.assertIn("Before", output)
+        self.assertIn("After", output)
+        # For replace operation, should show old value (1000) and new value (1500)
+        self.assertIn("1000", output)
+        self.assertIn("1500", output)
+        # For add operation, should show <not set>
+        self.assertIn("<not set>", output)
 
 
 class TestReplayPatchOperations(unittest.TestCase):
