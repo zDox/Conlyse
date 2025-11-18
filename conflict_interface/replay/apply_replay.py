@@ -156,7 +156,6 @@ def recur_path(
         return recur_path(getattr(obj, key), obj.get_type_hints_cached()[key], path, game_state, game)
     elif isinstance(obj, list):
         if int(key) >= len(obj):
-            print(f"{path}")
             raise ValueError(f"List index {key} out of range for list of length {len(obj)} for {str(obj)[:100]}")
         return recur_path(obj[int(key)], get_args(obj_type)[0], path, game_state, game)
     elif isinstance(obj, dict):
