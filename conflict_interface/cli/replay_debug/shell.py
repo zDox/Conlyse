@@ -31,14 +31,15 @@ def print_interactive_help():
     print("""
 Available Commands:
   list-patches (lp)                           - List all patches with indices
-  view-patch (vp) <index>                     - View a patch by its index number
-  view-patch (vp) <from_ts> <to_ts>           - View a specific patch by timestamps
+  view-patch (vp) <index> [--limit N]         - View a patch by its index number
+  view-patch (vp) <from_ts> <to_ts> [--limit N] - View a specific patch by timestamps
   view-operations-by-path (vop) <path> [opts] - View operations by path
     Options: --limit N, --direction forward|backward|both, --full-width
   operations-overview (oo) [--direction ...]  - Show operations overview
   count-operations (co)                       - Count all operations
   count-operations-by-path (cop) <path> [...] - Count operations by path
     Options: --direction forward|backward|both
+  metadata (md)                               - Display replay metadata
   help (?)                                    - Show this help
   exit, quit, q                               - Exit the shell
 
@@ -50,9 +51,11 @@ Navigation:
 Examples:
   list-patches
   vp 1                                         # View first patch from list
+  vp 1 --limit 50                             # View first 50 operations of patch 1
   vop "states/map_state" --direction forward --full-width
   oo --direction forward
   cop "states/player_state"
+  metadata                                     # Show replay metadata
         """)
 
 
@@ -104,15 +107,26 @@ def run_interactive_shell(cli):
                 
                 elif command == "view-patch" or command == "vp":
                     if len(args) < 2:
-                        print("Usage: view-patch <index> OR view-patch <from_timestamp> <to_timestamp>")
+                        print("Usage: view-patch <index> [--limit N] OR view-patch <from_timestamp> <to_timestamp> [--limit N]")
                         continue
                     
+                    # Parse optional --limit argument
+                    limit = None
+                    if '--limit' in args:
+                        idx = args.index('--limit')
+                        if idx + 1 < len(args):
+                            try:
+                                limit = int(args[idx + 1])
+                            except ValueError:
+                                print("Error: --limit value must be an integer")
+                                continue
+                    
                     # Check if single argument (index) or two arguments (timestamps)
-                    if len(args) == 2:
+                    if len(args) == 2 or (len(args) > 2 and args[2].startswith('--')):
                         # Single argument - treat as index
                         try:
                             index = int(args[1])
-                            cli.view_patch_by_index(index)
+                            cli.view_patch_by_index(index, limit)
                         except ValueError:
                             print("Error: Index must be an integer")
                     else:
@@ -120,9 +134,12 @@ def run_interactive_shell(cli):
                         try:
                             from_ts = int(args[1])
                             to_ts = int(args[2])
-                            cli.view_patch(from_ts, to_ts)
+                            cli.view_patch(from_ts, to_ts, limit)
                         except ValueError:
                             print("Error: Timestamps must be integers")
+                
+                elif command == "metadata" or command == "md":
+                    cli.display_metadata()
                 
                 elif command == "view-operations-by-path" or command == "vop":
                     if len(args) < 2:
