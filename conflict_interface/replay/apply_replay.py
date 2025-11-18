@@ -180,7 +180,22 @@ def apply_patch_any(rp: ReplayPatch, game_state: GameState, game: GameInterface)
         raise ValueError(f"Expected game state but got {type(game_state)}")
     for op in rp.operations:
         obj, pos, obj_type = recur_path(game_state, GameState, op.path.copy(), game_state, game)
+        
+        # Store old value for hook system (before applying operation)
+        old_value = None
+        if isinstance(op, ReplaceOperation):
+            if isinstance(obj, GameObject):
+                if hasattr(obj, pos):
+                    old_value = getattr(obj, pos)
+            elif isinstance(obj, (list, dict)):
+                old_value = obj.get(pos) if isinstance(obj, dict) else (obj[pos] if pos < len(obj) else None)
+        
+        # Apply the operation
         apply_operation(op, obj, obj_type, pos, game)
+        
+        # Queue hook for this operation
+        if hasattr(game, '_hook_system'):
+            game._hook_system.queue_hook_from_operation(op, old_value)
 
 def apply_operation(op: Operation, obj: GameObject | list | dict, obj_type, pos: int | str, game):
     """

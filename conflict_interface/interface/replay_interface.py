@@ -94,6 +94,10 @@ class ReplayInterface(GameInterface):
         self.current_time = time_stamp
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
         self._update_player_id()
+        
+        # Execute all queued hooks after jump operation is complete
+        if hasattr(self, '_hook_system'):
+            self._hook_system.execute_queued_hooks()
 
     def get_timestamps(self) -> list[datetime]:
         time_stamps = self.replay.get_timestamps()

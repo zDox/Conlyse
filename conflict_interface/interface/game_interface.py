@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from functools import wraps
-from typing import Optional
+from typing import Callable, Optional
 from typing import TYPE_CHECKING
 
 from conflict_interface.data_types.army_state.army import Army
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException
+from conflict_interface.interface.hook_system import HookSystem, ChangeType
 
 logger = get_logger()
 
@@ -37,6 +38,7 @@ class GameInterface:
     def __init__(self):
         self.player_id = 0
         self.game_state: GameState | None = None
+        self._hook_system = HookSystem()
 
     @property
     def online(self) -> OnlineInterface:
@@ -529,3 +531,49 @@ class GameInterface:
     @country_selected
     def get_resource_entry(self, resource_id: ResourceType) -> ResourceEntry | None:
         return self.get_my_resource_profile().get_resource_entry(resource_id)
+
+    """
+    Hook System Events
+    """
+    def on_province_add(self, callback: Callable) -> None:
+        """
+        Register a callback for when a province is added to the map.
+        
+        The callback will be called with the new Province as input:
+        callback(change_type, path, old_value, new_value)
+        where new_value is the Province that was added.
+        
+        Args:
+            callback: Function to call when a province is added
+        """
+        pattern = "states.map_state.map.provinces.?"
+        self._hook_system.register_hook(pattern, callback, {ChangeType.ADD})
+        
+    def on_province_remove(self, callback: Callable) -> None:
+        """
+        Register a callback for when a province is removed from the map.
+        
+        The callback will be called with the id of the removed province:
+        callback(change_type, path, old_value, new_value)
+        where path[-1] contains the province id that was removed.
+        
+        Args:
+            callback: Function to call when a province is removed
+        """
+        pattern = "states.map_state.map.provinces.?"
+        self._hook_system.register_hook(pattern, callback, {ChangeType.REMOVE})
+        
+    def on_province_attribute_change(self, callback: Callable, attribute: str) -> None:
+        """
+        Register a callback for when an attribute of a province changes.
+        
+        The callback will be called with the province object:
+        callback(change_type, path, old_value, new_value)
+        where new_value is the new attribute value.
+        
+        Args:
+            callback: Function to call when the province attribute changes
+            attribute: The name of the attribute to watch (e.g., "owner_id")
+        """
+        pattern = f"states.map_state.map.provinces.?.{attribute}"
+        self._hook_system.register_hook(pattern, callback, {ChangeType.REPLACE})
