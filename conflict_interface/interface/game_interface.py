@@ -540,14 +540,16 @@ class GameInterface:
         Register a callback for when a province is added to the map.
         
         The callback will be called with the new Province as input:
-        callback(change_type, path, old_value, new_value)
+        callback(new_value)
         where new_value is the Province that was added.
         
         Args:
             callback: Function to call when a province is added
         """
         pattern = "states.map_state.map.locations.?"
-        self._hook_system.register_hook(pattern, callback, {ChangeType.ADD})
+        def wrapper(change_type, path, old_value, new_value):
+            callback(new_value)
+        self._hook_system.register_hook(pattern, wrapper, {ChangeType.ADD})
         
     def on_province_remove(self, callback: Callable) -> None:
         """
@@ -561,7 +563,9 @@ class GameInterface:
             callback: Function to call when a province is removed
         """
         pattern = "states.map_state.map.locations.?"
-        self._hook_system.register_hook(pattern, callback, {ChangeType.REMOVE})
+        def wrapper(change_type, path, old_value, new_value):
+            callback(old_value)
+        self._hook_system.register_hook(pattern, wrapper, {ChangeType.REMOVE})
         
     def on_province_attribute_change(self, callback: Callable, attribute: str) -> None:
         """
@@ -576,4 +580,8 @@ class GameInterface:
             attribute: The name of the attribute to watch (e.g., "owner_id")
         """
         pattern = f"states.map_state.map.locations.?.{attribute}"
-        self._hook_system.register_hook(pattern, callback, {ChangeType.REPLACE})
+        def wrapper(change_type, path, old_value, new_value):
+            province_id = self.game_state.states.map_state.map.province_index_to_id(int(path[-2]))
+            province = self.get_province(province_id)
+            callback(province, old_value, new_value)
+        self._hook_system.register_hook(pattern, wrapper, {ChangeType.REPLACE})

@@ -30,36 +30,70 @@ class HookRegistration:
     pattern: list[str]  # Path pattern with potential wildcards
     callback: Callable
     change_types: set[ChangeType]  # Which change types trigger this hook
-    
+
     def matches(self, path: list[str], change_type: ChangeType) -> bool:
         """
         Check if this hook matches a given path and change type.
-        
+
+        Wildcard rules:
+        - '?' matches exactly one path element
+        - '$' matches zero or more path elements (variable length)
+
         Args:
             path: The actual path where a change occurred
             change_type: The type of change that occurred
-            
+
         Returns:
             True if this hook should be triggered for this change
         """
         if change_type not in self.change_types:
             return False
-            
-        # Pattern must not be longer than path
-        if len(self.pattern) > len(path):
+
+        return self._match_pattern(self.pattern, path)
+
+    def _match_pattern(self, pattern: list[str], path: list[str]) -> bool:
+        """
+        Recursively match pattern against path.
+
+        Args:
+            pattern: Pattern elements to match
+            path: Path elements to match against
+
+        Returns:
+            True if pattern matches path
+        """
+        # Base case: both empty means match
+        if not pattern and not path:
+            return True
+
+        # Pattern empty but path has elements: no match
+        if not pattern:
             return False
-            
-        # Check each component of the pattern
-        for i, pattern_part in enumerate(self.pattern):
-            if pattern_part == "?":
-                # Wildcard matches any value
-                continue
-            elif pattern_part != str(path[i]):
-                # Non-wildcard must match exactly
-                return False
-                
-        # Pattern matches if all components matched
-        return True
+
+        # Path empty but pattern has elements
+        if not path:
+            # Only matches if remaining pattern is just '$' wildcards
+            return all(p == '$' for p in pattern)
+
+        current_pattern = pattern[0]
+
+        if current_pattern == '$':
+            # '$' can match 0 or more elements
+            # Try matching with 0 elements (skip the '$')
+            if self._match_pattern(pattern[1:], path):
+                return True
+            # Try matching with 1 or more elements (consume path element, keep '$')
+            return self._match_pattern(pattern, path[1:])
+
+        elif current_pattern == '?':
+            # '?' matches exactly one element
+            return self._match_pattern(pattern[1:], path[1:])
+
+        else:
+            # Literal match required
+            if current_pattern == path[0]:
+                return self._match_pattern(pattern[1:], path[1:])
+            return False
 
 
 @dataclass

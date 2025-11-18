@@ -93,6 +93,11 @@ class Map(GameObject):
                 self._province_id_to_index[province.id] = i
         return self._province_id_to_index.get(province_id)
 
+    def province_index_to_id(self, index: int) -> int | None:
+        if index < 0 or index >= len(self.locations):
+            return None
+        return self.locations[index].id
+
     def clear_cache(self):
         self._province_id_to_index = None
         self._provinces = None
