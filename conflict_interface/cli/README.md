@@ -6,10 +6,9 @@ A command-line tool for debugging and inspecting Conflict Interface replay files
 
 The Replay Debug CLI Tool provides commands to analyze replay files (.db), including:
 - Listing all patches (forward and backward)
-- Viewing specific patch operations
+- Viewing all operations in a specific patch
 - Viewing all operations that start with a specific path
-- **NEW**: Viewing operations from forward patches only
-- **NEW**: Operations overview showing statistics grouped by state
+- Operations overview showing statistics grouped by state
 - Counting operations across all patches
 - Counting operations by path prefix
 
@@ -197,9 +196,7 @@ Each patch contains three types of operations:
 ### Path Format
 
 Operations use a path-based system to identify locations in the game state:
-- `states/map_state/province/1` - A province in the map state
-- `states/player_state/gold` - Player's gold amount
-- `game_info/turn` - Current turn number
+- `states/map_state/map/locations/1` - A province in the map state
 
 ## Troubleshooting
 
@@ -217,9 +214,3 @@ The replay file may be corrupted or empty. Try with a different replay file.
 
 ### Database Error
 If you encounter database errors, the replay file may be from a different version or corrupted.
-
-## See Also
-
-- [Replay Interface Documentation](../../interface/replay_interface.py)
-- [Replay Patch Format](../../replay/replay_patch.py)
-- [Replay Database Schema](../../replay/replay_database.py)
