@@ -383,24 +383,6 @@ class BidirectionalReplayPatch:
         instance.backward_patch = backward
         return instance
 
-    def forward_from_string(self, string: str) -> None:
-        """
-        Deserialize the forward patch from a JSON string.
-        
-        Args:
-            string: JSON string representation of the forward patch
-        """
-        self.forward_patch = ReplayPatch.from_string(string)
-
-    def backward_from_string(self, string: str) -> None:
-        """
-        Deserialize the backward patch from a JSON string.
-        
-        Args:
-            string: JSON string representation of the backward patch
-        """
-        self.backward_patch = ReplayPatch.from_string(string)
-
     def add(self, path: list[str], old_value: Any, new_value: Any) -> None:
         """
         Record an add operation in both directions.

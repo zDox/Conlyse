@@ -7,4 +7,3 @@ class CorruptReplay(Exception):
 MANDATORY_KEYS = ["version", "game_id", "player_id", "start_time"]
 
 # Timestamp conversion factor (milliseconds per second)
-MS_PER_SECOND = 1000

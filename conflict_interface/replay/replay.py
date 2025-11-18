@@ -6,7 +6,6 @@ over time and playing them back. Replays are stored in SQLite databases with
 support for bidirectional time travel through patches.
 """
 import os
-from datetime import UTC
 from datetime import datetime
 from typing import List
 from typing import Literal
@@ -15,9 +14,7 @@ from typing import Tuple
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
-from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.constants import MS_PER_SECOND
 from conflict_interface.replay.constants import REPLAY_VERSION
 from conflict_interface.replay.replay_cache import ReplayCache
 from conflict_interface.replay.replay_database import ReplayDatabase
@@ -25,6 +22,8 @@ from conflict_interface.replay.replay_metadata import ReplayMetadata
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.replay.replay_validator import ReplayValidator
+from conflict_interface.utils.helper import datetime_to_unix_ms
+from conflict_interface.utils.helper import unix_ms_to_datetime
 
 logger = get_logger()
 
@@ -55,12 +54,12 @@ class Replay:
         game_id: ID of the game being recorded/played
         player_id: ID of the player whose perspective is being recorded
     """
-    
+
     def __init__(
-        self, 
-        filename: str, 
-        mode: Literal['r', 'w', 'a'], 
-        game_id: int = None, 
+        self,
+        filename: str,
+        mode: Literal['r', 'w', 'a'],
+        game_id: int = None,
         player_id: int = None
     ):
         """
@@ -156,6 +155,7 @@ class Replay:
     def load_patch_timestamps(self):
         # Load patch timestamps (but not the patches themselves)
         for (from_ts, to_ts) in self.db.read_patch_timestamps():
+            self._patch_timestamps.append((from_ts, to_ts))
             if to_ts not in self._timestamps:
                 self._timestamps.append(to_ts)
         self._timestamps.sort()
@@ -186,7 +186,7 @@ class Replay:
         Returns:
             The start time in UTC, or None if not set
         """
-        return datetime.fromtimestamp(self._start_time / MS_PER_SECOND, tz=UTC) if self._start_time else None
+        return unix_ms_to_datetime(self._start_time)
 
     @property
     def last_time(self) -> Optional[datetime]:
@@ -196,22 +196,9 @@ class Replay:
         Returns:
             The last recorded time in UTC, or None if not set
         """
-        return datetime.fromtimestamp(self._last_time / MS_PER_SECOND, tz=UTC) if self._last_time else None
+        return unix_ms_to_datetime(self._last_time)
 
-    @staticmethod
-    def datetime_to_ms(dt: datetime) -> int:
-        """
-        Convert datetime to milliseconds timestamp.
-        
-        Args:
-            dt: Datetime to convert
-            
-        Returns:
-            Timestamp in milliseconds
-        """
-        return int(dt.timestamp() * MS_PER_SECOND)
-
-    def _jump_from_to(self, start: int, target: int) -> List[ReplayPatch]:
+    def _find_patch_path(self, start: int, target: int) -> List[ReplayPatch]:
         """
         Calculate the sequence of patches needed to jump between timestamps.
         
@@ -237,7 +224,7 @@ class Replay:
 
         patches = []
         current = start
-        
+
         # Forward time travel: Find patches that move us closer to target
         if target > start:
             while current < target:
@@ -251,7 +238,7 @@ class Replay:
                     break  # No more patches available, stop here
                 current, patch = next_patch
                 patches.append(patch)
-                
+
         # Backward time travel: Find patches that move us back toward target
         elif target < start:
             while current > target:
@@ -265,7 +252,7 @@ class Replay:
                     break  # No more patches available, stop here
                 current, patch = next_patch
                 patches.append(patch)
-                
+
         return patches
 
     def find_patch_path(self, start: datetime, target: datetime) -> Tuple[List[ReplayPatch], datetime]:
@@ -279,14 +266,14 @@ class Replay:
         Returns:
             Tuple of (list of patches to apply, actual target datetime reached)
         """
-        start_ms = int(start.timestamp() * MS_PER_SECOND)
-        target_ms = int(target.timestamp() * MS_PER_SECOND)
+        start_ms = datetime_to_unix_ms(start)
+        target_ms = datetime_to_unix_ms(target)
 
         # Snap to nearest available timestamps
         start_ms = max([ts for ts in self._timestamps + [self._start_time] if ts <= start_ms], default=self._start_time)
         target_ms = max([ts for ts in self._timestamps if ts <= target_ms], default=self._start_time)
 
-        return self._jump_from_to(start_ms, target_ms), datetime.fromtimestamp(target_ms / MS_PER_SECOND, tz=UTC)
+        return self._find_patch_path(start_ms, target_ms), unix_ms_to_datetime(target_ms)
 
     def get_patch(self, from_timestamp: int, to_timestamp: int) -> ReplayPatch:
         """
@@ -302,14 +289,15 @@ class Replay:
         Raises:
             Exception: If the patch is not found
         """
-        if self.cache.has_patch((from_timestamp, to_timestamp))  is not None:
+        if self.cache.has_patch((from_timestamp, to_timestamp)):
             # Patch already loaded in memory
-            return self.cache.get_patch((from_timestamp, to_timestamp))
-
+            patch = self.cache.get_patch((from_timestamp, to_timestamp))
+            return patch
         patch = self.db.read_patch(from_timestamp, to_timestamp)
-        if patch:
-            self.cache.add_patch((from_timestamp, to_timestamp), patch)
-        raise Exception(f"No patch found with from_timestamp {from_timestamp} and to_timestamp {to_timestamp}")
+        if patch is None:
+            raise Exception(f"Patch not found from {from_timestamp} to {to_timestamp}")
+        self.cache.add_patch((from_timestamp, to_timestamp), patch)
+        return patch
 
     def get_timestamps(self) -> List[int]:
         """
@@ -330,9 +318,9 @@ class Replay:
         return self._game_state_timestamps
 
     def record_bipatch(
-        self, 
-        time_stamp: datetime, 
-        game_id: int, 
+        self,
+        time_stamp: datetime,
+        game_id: int,
         player_id: int,
         replay_patch: BidirectionalReplayPatch
     ):
@@ -439,7 +427,7 @@ class Replay:
         error_detected = False
         for next_ts in time_stamps:
             try:
-                self._jump_from_to(current_ts, next_ts)
+                self._find_patch_path(current_ts, next_ts)
             except Exception as e:
                 logger.error(f"Integrity check failed jumping Forwards from {current_ts} to {next_ts}: {e}")
                 error_detected = True
@@ -449,7 +437,7 @@ class Replay:
         time_stamps = list(reversed(time_stamps))
         for next_ts in time_stamps:
             try:
-                self._jump_from_to(current_ts, next_ts)
+                self._find_patch_path(current_ts, next_ts)
             except Exception as e:
                 logger.error(f"Integrity check failed jumping Backwards from {current_ts} to {next_ts}: {e}")
                 error_detected = True

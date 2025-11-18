@@ -110,10 +110,10 @@ class ReplayDatabase:
         # Load patch from disk
         cursor = self.conn.execute(
             f"SELECT patch FROM {TABLE_PATCHES} WHERE from_timestamp = ? AND to_timestamp = ?",
-            (from_ts, to_ts))
+            (from_ts, to_ts, ))
         row = cursor.fetchone()
         if row:
-            return ReplayPatch.from_string(row[0])
+            return ReplayPatch.from_bytes(row[0])
 
     def read_patches(self) -> dict[tuple[int, int], ReplayPatch]:
         """Read all patches from database."""
