@@ -10,7 +10,7 @@ from time import time
 
 from deepdiff import DeepDiff
 
-from build.lib.conflict_interface.utils.helper import unix_ms_to_datetime
+from conflict_interface.utils.helper import unix_ms_to_datetime
 from conflict_interface.data_types.army_state.army_state import ArmyState
 from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.game_object import dump_any
