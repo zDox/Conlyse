@@ -142,13 +142,13 @@ class ReplayDebugCLI:
         if len(patch.operations) > 20:
             print(f"\n... and {len(patch.operations) - 20} more operations")
     
-    def view_operations_by_path(self, path_prefix: str, limit: int = 50, forward_only: bool = False):
+    def view_operations_by_path(self, path_prefix: str, limit: int = 50, direction: str = 'both'):
         """View all operations that start with a specific path across all patches.
         
         Args:
             path_prefix: Path prefix to filter by
             limit: Maximum number of operations to display (default: 50)
-            forward_only: If True, only include operations from forward patches (default: False)
+            direction: Direction filter - 'both', 'forward', or 'backward' (default: 'both')
         """
         if not self.replay:
             print("Error: Replay not opened.")
@@ -167,17 +167,19 @@ class ReplayDebugCLI:
         for from_ts, to_ts, patch in self.all_patches:
             is_forward = to_ts > from_ts
             
-            # Skip backward patches if forward_only is True
-            if forward_only and not is_forward:
+            # Apply direction filter
+            if direction == 'forward' and not is_forward:
+                continue
+            elif direction == 'backward' and is_forward:
                 continue
                 
-            direction = "Forward" if is_forward else "Backward"
+            direction_label = "Forward" if is_forward else "Backward"
             for op in patch.operations:
                 if self._path_starts_with(op.path, path_parts):
                     matching_operations.append({
                         'from_ts': from_ts,
                         'to_ts': to_ts,
-                        'direction': direction,
+                        'direction': direction_label,
                         'operation': op
                     })
         
@@ -185,7 +187,14 @@ class ReplayDebugCLI:
             print(f"\nNo operations found with path starting with: {path_prefix}")
             return
         
-        filter_text = " (forward patches only)" if forward_only else ""
+        # Create appropriate filter text
+        if direction == 'forward':
+            filter_text = " (forward patches only)"
+        elif direction == 'backward':
+            filter_text = " (backward patches only)"
+        else:
+            filter_text = ""
+            
         print(f"\nOperations with path starting with: '{path_prefix}'{filter_text}")
         print(f"Total matching operations: {len(matching_operations)}")
         print(f"Showing first {min(limit, len(matching_operations))} operations:")
@@ -249,12 +258,12 @@ class ReplayDebugCLI:
         if len(self.all_patches) > 0:
             print(f"\nAverage operations per patch: {total_operations / len(self.all_patches):.2f}")
     
-    def count_operations_by_path(self, path_prefix: str, forward_only: bool = False):
+    def count_operations_by_path(self, path_prefix: str, direction: str = 'both'):
         """Count operations that start with a specific path.
         
         Args:
             path_prefix: Path prefix to filter by
-            forward_only: If True, only count operations from forward patches (default: False)
+            direction: Direction filter - 'both', 'forward', or 'backward' (default: 'both')
         """
         if not self.replay:
             print("Error: Replay not opened.")
@@ -275,8 +284,10 @@ class ReplayDebugCLI:
         for from_ts, to_ts, patch in self.all_patches:
             is_forward = to_ts > from_ts
             
-            # Skip backward patches if forward_only is True
-            if forward_only and not is_forward:
+            # Apply direction filter
+            if direction == 'forward' and not is_forward:
+                continue
+            elif direction == 'backward' and is_forward:
                 continue
                 
             for op in patch.operations:
@@ -289,19 +300,30 @@ class ReplayDebugCLI:
                     else:
                         matching_backward += 1
         
-        filter_text = " (forward patches only)" if forward_only else ""
+        # Create appropriate filter text
+        if direction == 'forward':
+            filter_text = " (forward patches only)"
+        elif direction == 'backward':
+            filter_text = " (backward patches only)"
+        else:
+            filter_text = ""
+            
         print(f"\nPath prefix: '{path_prefix}'{filter_text}")
         
-        if forward_only:
-            forward_patch_count = sum(1 for from_ts, to_ts, _ in self.all_patches if to_ts > from_ts)
-            print(f"Total patches analyzed: {forward_patch_count}")
+        # Count patches based on direction filter
+        if direction == 'forward':
+            patch_count = sum(1 for from_ts, to_ts, _ in self.all_patches if to_ts > from_ts)
+        elif direction == 'backward':
+            patch_count = sum(1 for from_ts, to_ts, _ in self.all_patches if to_ts < from_ts)
         else:
-            print(f"Total patches analyzed: {len(self.all_patches)}")
+            patch_count = len(self.all_patches)
             
+        print(f"Total patches analyzed: {patch_count}")
         print(f"Total operations: {total_operations}")
         print(f"Matching operations: {matching_operations}")
         
-        if not forward_only:
+        # Only show breakdown if analyzing both directions
+        if direction == 'both':
             print(f"  In forward patches:  {matching_forward}")
             print(f"  In backward patches: {matching_backward}")
         
@@ -309,11 +331,11 @@ class ReplayDebugCLI:
             percentage = (matching_operations / total_operations) * 100
             print(f"Percentage: {percentage:.2f}%")
     
-    def operations_overview(self, forward_only: bool = False):
+    def operations_overview(self, direction: str = 'both'):
         """Show an overview of operations grouped by state and operation type.
         
         Args:
-            forward_only: If True, only analyze operations from forward patches (default: False)
+            direction: Direction filter - 'both', 'forward', or 'backward' (default: 'both')
         """
         if not self.replay:
             print("Error: Replay not opened.")
@@ -331,8 +353,10 @@ class ReplayDebugCLI:
         for from_ts, to_ts, patch in self.all_patches:
             is_forward = to_ts > from_ts
             
-            # Skip backward patches if forward_only is True
-            if forward_only and not is_forward:
+            # Apply direction filter
+            if direction == 'forward' and not is_forward:
+                continue
+            elif direction == 'backward' and is_forward:
                 continue
             
             for op in patch.operations:
@@ -355,15 +379,28 @@ class ReplayDebugCLI:
                 state_stats[state_name][op.Key] += 1
         
         # Display results
-        filter_text = " (forward patches only)" if forward_only else ""
+        if direction == 'forward':
+            filter_text = " (forward patches only)"
+        elif direction == 'backward':
+            filter_text = " (backward patches only)"
+        else:
+            filter_text = ""
+            
         print(f"\nOperations Overview{filter_text}")
         print("=" * 90)
         
-        if forward_only:
-            forward_patch_count = sum(1 for from_ts, to_ts, _ in self.all_patches if to_ts > from_ts)
-            print(f"Analyzed patches: {forward_patch_count} (forward only)")
+        # Count patches based on direction filter
+        if direction == 'forward':
+            patch_count = sum(1 for from_ts, to_ts, _ in self.all_patches if to_ts > from_ts)
+            direction_label = "forward only"
+        elif direction == 'backward':
+            patch_count = sum(1 for from_ts, to_ts, _ in self.all_patches if to_ts < from_ts)
+            direction_label = "backward only"
         else:
-            print(f"Analyzed patches: {len(self.all_patches)} (forward + backward)")
+            patch_count = len(self.all_patches)
+            direction_label = "forward + backward"
+            
+        print(f"Analyzed patches: {patch_count} ({direction_label})")
         
         print(f"Total operations: {total_ops}")
         print()
@@ -429,19 +466,28 @@ Examples:
   %(prog)s replay.db view-patch 1638360000000 1638360060000
   
   # View operations starting with a specific path (forward patches only)
-  %(prog)s replay.db view-operations-by-path "states/map_state" --forward-only
+  %(prog)s replay.db view-operations-by-path "states/map_state" --direction forward
+  
+  # View operations from backward patches only
+  %(prog)s replay.db view-operations-by-path "states/player_state" --direction backward
   
   # Get operations overview by state
   %(prog)s replay.db operations-overview
   
   # Get operations overview for forward patches only
-  %(prog)s replay.db operations-overview --forward-only
+  %(prog)s replay.db operations-overview --direction forward
+  
+  # Get operations overview for backward patches only
+  %(prog)s replay.db operations-overview --direction backward
   
   # Count all operations
   %(prog)s replay.db count-operations
   
   # Count operations starting with a path (forward patches only)
-  %(prog)s replay.db count-operations-by-path "states/map_state" --forward-only
+  %(prog)s replay.db count-operations-by-path "states/map_state" --direction forward
+  
+  # Count operations from backward patches only
+  %(prog)s replay.db count-operations-by-path "states/map_state" --direction backward
         """
     )
     
@@ -490,9 +536,10 @@ Examples:
         help="Maximum number of operations to display (default: 50)"
     )
     view_ops_parser.add_argument(
-        "--forward-only",
-        action="store_true",
-        help="Only include operations from forward patches"
+        "--direction",
+        choices=['both', 'forward', 'backward'],
+        default='both',
+        help="Filter by patch direction: 'both' (default), 'forward', or 'backward'"
     )
     
     # operations-overview command (NEW)
@@ -501,9 +548,10 @@ Examples:
         help="Show overview of operations grouped by state"
     )
     overview_parser.add_argument(
-        "--forward-only",
-        action="store_true",
-        help="Only analyze operations from forward patches"
+        "--direction",
+        choices=['both', 'forward', 'backward'],
+        default='both',
+        help="Filter by patch direction: 'both' (default), 'forward', or 'backward'"
     )
     
     # count-operations command
@@ -522,9 +570,10 @@ Examples:
         help="Path prefix to filter by (e.g., 'states/map_state')"
     )
     count_by_path_parser.add_argument(
-        "--forward-only",
-        action="store_true",
-        help="Only count operations from forward patches"
+        "--direction",
+        choices=['both', 'forward', 'backward'],
+        default='both',
+        help="Filter by patch direction: 'both' (default), 'forward', or 'backward'"
     )
     
     args = parser.parse_args()
@@ -547,16 +596,16 @@ Examples:
         elif args.command == "view-patch":
             cli.view_patch(args.from_timestamp, args.to_timestamp)
         elif args.command == "view-operations-by-path":
-            forward_only = getattr(args, 'forward_only', False)
-            cli.view_operations_by_path(args.path_prefix, args.limit, forward_only)
+            direction = getattr(args, 'direction', 'both')
+            cli.view_operations_by_path(args.path_prefix, args.limit, direction)
         elif args.command == "operations-overview":
-            forward_only = getattr(args, 'forward_only', False)
-            cli.operations_overview(forward_only)
+            direction = getattr(args, 'direction', 'both')
+            cli.operations_overview(direction)
         elif args.command == "count-operations":
             cli.count_operations()
         elif args.command == "count-operations-by-path":
-            forward_only = getattr(args, 'forward_only', False)
-            cli.count_operations_by_path(args.path_prefix, forward_only)
+            direction = getattr(args, 'direction', 'both')
+            cli.count_operations_by_path(args.path_prefix, direction)
         else:
             print(f"Unknown command: {args.command}")
             return 1

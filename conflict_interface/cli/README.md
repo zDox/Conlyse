@@ -8,6 +8,8 @@ The Replay Debug CLI Tool provides commands to analyze replay files (.db), inclu
 - Listing all patches (forward and backward)
 - Viewing specific patch operations
 - Viewing all operations that start with a specific path
+- **NEW**: Viewing operations from forward patches only
+- **NEW**: Operations overview showing statistics grouped by state
 - Counting operations across all patches
 - Counting operations by path prefix
 

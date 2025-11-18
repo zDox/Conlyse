@@ -214,12 +214,44 @@ class TestReplayDebugCLI(unittest.TestCase):
         captured_output = io.StringIO()
         sys.stdout = captured_output
         
-        self.cli.view_operations_by_path("states/map_state", limit=10, forward_only=True)
+        self.cli.view_operations_by_path("states/map_state", limit=10, direction='forward')
         
         sys.stdout = sys.__stdout__
         
         output = captured_output.getvalue()
         self.assertIn("forward patches only", output)
+        self.assertIn("Total matching operations: 1", output)
+    
+    def test_view_operations_by_path_backward_only(self):
+        """Test viewing operations by path with backward-only filter."""
+        # Setup mock replay with patches
+        mock_replay = Mock()
+        
+        # Create test patches with different paths
+        patch1 = ReplayPatch()
+        patch1.add_op(["states", "map_state", "province", "1"], "province_1")
+        
+        patch2 = ReplayPatch()
+        patch2.remove_op(["states", "map_state", "province", "1"])
+        
+        mock_replay.db.read_patches.return_value = {
+            (1000, 2000): patch1,  # Forward
+            (2000, 1000): patch2,  # Backward
+        }
+        
+        self.cli.replay = mock_replay
+        self.cli._load_all_patches()
+        
+        # Capture stdout
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        self.cli.view_operations_by_path("states/map_state", limit=10, direction='backward')
+        
+        sys.stdout = sys.__stdout__
+        
+        output = captured_output.getvalue()
+        self.assertIn("backward patches only", output)
         self.assertIn("Total matching operations: 1", output)
     
     def test_operations_overview(self):
@@ -248,7 +280,7 @@ class TestReplayDebugCLI(unittest.TestCase):
         captured_output = io.StringIO()
         sys.stdout = captured_output
         
-        self.cli.operations_overview(forward_only=False)
+        self.cli.operations_overview(direction='both')
         
         sys.stdout = sys.__stdout__
         
