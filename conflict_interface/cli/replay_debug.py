@@ -142,12 +142,13 @@ class ReplayDebugCLI:
         if len(patch.operations) > 20:
             print(f"\n... and {len(patch.operations) - 20} more operations")
     
-    def view_operations_by_path(self, path_prefix: str, limit: int = 50):
+    def view_operations_by_path(self, path_prefix: str, limit: int = 50, forward_only: bool = False):
         """View all operations that start with a specific path across all patches.
         
         Args:
             path_prefix: Path prefix to filter by
             limit: Maximum number of operations to display (default: 50)
+            forward_only: If True, only include operations from forward patches (default: False)
         """
         if not self.replay:
             print("Error: Replay not opened.")
@@ -164,7 +165,13 @@ class ReplayDebugCLI:
         
         # Collect all matching operations from all patches
         for from_ts, to_ts, patch in self.all_patches:
-            direction = "Forward" if to_ts > from_ts else "Backward"
+            is_forward = to_ts > from_ts
+            
+            # Skip backward patches if forward_only is True
+            if forward_only and not is_forward:
+                continue
+                
+            direction = "Forward" if is_forward else "Backward"
             for op in patch.operations:
                 if self._path_starts_with(op.path, path_parts):
                     matching_operations.append({
@@ -178,7 +185,8 @@ class ReplayDebugCLI:
             print(f"\nNo operations found with path starting with: {path_prefix}")
             return
         
-        print(f"\nOperations with path starting with: '{path_prefix}'")
+        filter_text = " (forward patches only)" if forward_only else ""
+        print(f"\nOperations with path starting with: '{path_prefix}'{filter_text}")
         print(f"Total matching operations: {len(matching_operations)}")
         print(f"Showing first {min(limit, len(matching_operations))} operations:")
         print("-" * 100)
@@ -241,11 +249,12 @@ class ReplayDebugCLI:
         if len(self.all_patches) > 0:
             print(f"\nAverage operations per patch: {total_operations / len(self.all_patches):.2f}")
     
-    def count_operations_by_path(self, path_prefix: str):
+    def count_operations_by_path(self, path_prefix: str, forward_only: bool = False):
         """Count operations that start with a specific path.
         
         Args:
             path_prefix: Path prefix to filter by
+            forward_only: If True, only count operations from forward patches (default: False)
         """
         if not self.replay:
             print("Error: Replay not opened.")
@@ -265,6 +274,11 @@ class ReplayDebugCLI:
         
         for from_ts, to_ts, patch in self.all_patches:
             is_forward = to_ts > from_ts
+            
+            # Skip backward patches if forward_only is True
+            if forward_only and not is_forward:
+                continue
+                
             for op in patch.operations:
                 total_operations += 1
                 # Check if operation path starts with the given prefix
@@ -275,16 +289,111 @@ class ReplayDebugCLI:
                     else:
                         matching_backward += 1
         
-        print(f"\nPath prefix: '{path_prefix}'")
-        print(f"Total patches analyzed: {len(self.all_patches)}")
+        filter_text = " (forward patches only)" if forward_only else ""
+        print(f"\nPath prefix: '{path_prefix}'{filter_text}")
+        
+        if forward_only:
+            forward_patch_count = sum(1 for from_ts, to_ts, _ in self.all_patches if to_ts > from_ts)
+            print(f"Total patches analyzed: {forward_patch_count}")
+        else:
+            print(f"Total patches analyzed: {len(self.all_patches)}")
+            
         print(f"Total operations: {total_operations}")
         print(f"Matching operations: {matching_operations}")
-        print(f"  In forward patches:  {matching_forward}")
-        print(f"  In backward patches: {matching_backward}")
+        
+        if not forward_only:
+            print(f"  In forward patches:  {matching_forward}")
+            print(f"  In backward patches: {matching_backward}")
         
         if total_operations > 0:
             percentage = (matching_operations / total_operations) * 100
             print(f"Percentage: {percentage:.2f}%")
+    
+    def operations_overview(self, forward_only: bool = False):
+        """Show an overview of operations grouped by state and operation type.
+        
+        Args:
+            forward_only: If True, only analyze operations from forward patches (default: False)
+        """
+        if not self.replay:
+            print("Error: Replay not opened.")
+            return
+        
+        if not self.all_patches:
+            print("No patches found in replay.")
+            return
+        
+        # Dictionary to store counts: {state_path: {op_type: count}}
+        state_stats = {}
+        total_ops = 0
+        
+        # Collect statistics
+        for from_ts, to_ts, patch in self.all_patches:
+            is_forward = to_ts > from_ts
+            
+            # Skip backward patches if forward_only is True
+            if forward_only and not is_forward:
+                continue
+            
+            for op in patch.operations:
+                total_ops += 1
+                
+                # Extract the state path (first level after 'states' or root if not under 'states')
+                if len(op.path) > 0:
+                    if op.path[0] == "states" and len(op.path) > 1:
+                        state_name = f"states/{op.path[1]}"
+                    else:
+                        state_name = op.path[0]
+                else:
+                    state_name = "<root>"
+                
+                # Initialize state if not seen before
+                if state_name not in state_stats:
+                    state_stats[state_name] = {'a': 0, 'p': 0, 'r': 0}
+                
+                # Count operation by type
+                state_stats[state_name][op.Key] += 1
+        
+        # Display results
+        filter_text = " (forward patches only)" if forward_only else ""
+        print(f"\nOperations Overview{filter_text}")
+        print("=" * 90)
+        
+        if forward_only:
+            forward_patch_count = sum(1 for from_ts, to_ts, _ in self.all_patches if to_ts > from_ts)
+            print(f"Analyzed patches: {forward_patch_count} (forward only)")
+        else:
+            print(f"Analyzed patches: {len(self.all_patches)} (forward + backward)")
+        
+        print(f"Total operations: {total_ops}")
+        print()
+        print(f"{'State':<35} {'Add':<10} {'Replace':<10} {'Remove':<10} {'Total':<10}")
+        print("-" * 90)
+        
+        # Sort states by total operations (descending)
+        sorted_states = sorted(
+            state_stats.items(),
+            key=lambda x: sum(x[1].values()),
+            reverse=True
+        )
+        
+        for state_name, counts in sorted_states:
+            add_count = counts['a']
+            replace_count = counts['p']
+            remove_count = counts['r']
+            total_count = add_count + replace_count + remove_count
+            
+            print(f"{state_name:<35} {add_count:<10} {replace_count:<10} {remove_count:<10} {total_count:<10}")
+        
+        print("-" * 90)
+        
+        # Summary totals
+        total_add = sum(counts['a'] for counts in state_stats.values())
+        total_replace = sum(counts['p'] for counts in state_stats.values())
+        total_remove = sum(counts['r'] for counts in state_stats.values())
+        
+        print(f"{'TOTAL':<35} {total_add:<10} {total_replace:<10} {total_remove:<10} {total_ops:<10}")
+
     
     def _path_starts_with(self, path: list, prefix: list) -> bool:
         """Check if a path starts with a given prefix.
@@ -319,14 +428,20 @@ Examples:
   # View a specific patch
   %(prog)s replay.db view-patch 1638360000000 1638360060000
   
-  # View operations starting with a specific path
-  %(prog)s replay.db view-operations-by-path "states/map_state"
+  # View operations starting with a specific path (forward patches only)
+  %(prog)s replay.db view-operations-by-path "states/map_state" --forward-only
+  
+  # Get operations overview by state
+  %(prog)s replay.db operations-overview
+  
+  # Get operations overview for forward patches only
+  %(prog)s replay.db operations-overview --forward-only
   
   # Count all operations
   %(prog)s replay.db count-operations
   
-  # Count operations starting with a path
-  %(prog)s replay.db count-operations-by-path "states/map_state"
+  # Count operations starting with a path (forward patches only)
+  %(prog)s replay.db count-operations-by-path "states/map_state" --forward-only
         """
     )
     
@@ -374,6 +489,22 @@ Examples:
         default=50,
         help="Maximum number of operations to display (default: 50)"
     )
+    view_ops_parser.add_argument(
+        "--forward-only",
+        action="store_true",
+        help="Only include operations from forward patches"
+    )
+    
+    # operations-overview command (NEW)
+    overview_parser = subparsers.add_parser(
+        "operations-overview",
+        help="Show overview of operations grouped by state"
+    )
+    overview_parser.add_argument(
+        "--forward-only",
+        action="store_true",
+        help="Only analyze operations from forward patches"
+    )
     
     # count-operations command
     subparsers.add_parser(
@@ -389,6 +520,11 @@ Examples:
     count_by_path_parser.add_argument(
         "path_prefix",
         help="Path prefix to filter by (e.g., 'states/map_state')"
+    )
+    count_by_path_parser.add_argument(
+        "--forward-only",
+        action="store_true",
+        help="Only count operations from forward patches"
     )
     
     args = parser.parse_args()
@@ -411,11 +547,16 @@ Examples:
         elif args.command == "view-patch":
             cli.view_patch(args.from_timestamp, args.to_timestamp)
         elif args.command == "view-operations-by-path":
-            cli.view_operations_by_path(args.path_prefix, args.limit)
+            forward_only = getattr(args, 'forward_only', False)
+            cli.view_operations_by_path(args.path_prefix, args.limit, forward_only)
+        elif args.command == "operations-overview":
+            forward_only = getattr(args, 'forward_only', False)
+            cli.operations_overview(forward_only)
         elif args.command == "count-operations":
             cli.count_operations()
         elif args.command == "count-operations-by-path":
-            cli.count_operations_by_path(args.path_prefix)
+            forward_only = getattr(args, 'forward_only', False)
+            cli.count_operations_by_path(args.path_prefix, forward_only)
         else:
             print(f"Unknown command: {args.command}")
             return 1

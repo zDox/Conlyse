@@ -189,6 +189,75 @@ class TestReplayDebugCLI(unittest.TestCase):
         self.assertIn("Matching operations: 2", output)
         self.assertIn("In forward patches:  1", output)
         self.assertIn("In backward patches: 1", output)
+    
+    def test_view_operations_by_path_forward_only(self):
+        """Test viewing operations by path with forward-only filter."""
+        # Setup mock replay with patches
+        mock_replay = Mock()
+        
+        # Create test patches with different paths
+        patch1 = ReplayPatch()
+        patch1.add_op(["states", "map_state", "province", "1"], "province_1")
+        
+        patch2 = ReplayPatch()
+        patch2.remove_op(["states", "map_state", "province", "1"])
+        
+        mock_replay.db.read_patches.return_value = {
+            (1000, 2000): patch1,  # Forward
+            (2000, 1000): patch2,  # Backward
+        }
+        
+        self.cli.replay = mock_replay
+        self.cli._load_all_patches()
+        
+        # Capture stdout
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        self.cli.view_operations_by_path("states/map_state", limit=10, forward_only=True)
+        
+        sys.stdout = sys.__stdout__
+        
+        output = captured_output.getvalue()
+        self.assertIn("forward patches only", output)
+        self.assertIn("Total matching operations: 1", output)
+    
+    def test_operations_overview(self):
+        """Test operations overview grouped by state."""
+        # Setup mock replay
+        mock_replay = Mock()
+        
+        # Create patches with different states
+        patch1 = ReplayPatch()
+        patch1.add_op(["states", "map_state", "data"], "value1")
+        patch1.replace_op(["states", "player_state", "gold"], 100)
+        patch1.remove_op(["game_info", "old"])
+        
+        patch2 = ReplayPatch()
+        patch2.add_op(["states", "map_state", "data2"], "value2")
+        
+        mock_replay.db.read_patches.return_value = {
+            (1000, 2000): patch1,
+            (2000, 3000): patch2,
+        }
+        
+        self.cli.replay = mock_replay
+        self.cli._load_all_patches()
+        
+        # Capture stdout
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        self.cli.operations_overview(forward_only=False)
+        
+        sys.stdout = sys.__stdout__
+        
+        output = captured_output.getvalue()
+        self.assertIn("Operations Overview", output)
+        self.assertIn("states/map_state", output)
+        self.assertIn("states/player_state", output)
+        self.assertIn("game_info", output)
+        self.assertIn("TOTAL", output)
 
 
 class TestReplayPatchOperations(unittest.TestCase):
