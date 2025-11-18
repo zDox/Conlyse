@@ -25,7 +25,9 @@ class ReplayInterface(GameInterface):
         self.current_time: datetime | None = None
         self.game_id: int | None = None
         self.last_patch_time = None
-        self.time_stamps = None
+        self._time_stamps_cache = None  # Cache for converted datetime timestamps
+        self._raw_timestamps_ref = None  # Reference to replay's timestamp list
+        self.current_timestamp_index: int = 0
 
     def open(self):
         t1 = time()
@@ -43,6 +45,11 @@ class ReplayInterface(GameInterface):
         self.game_id = self.replay.game_id
         self.current_time = self.replay.start_time
         self.last_patch_time = self.replay.start_time
+
+        # Store reference to replay's timestamps and convert once
+        self._raw_timestamps_ref = self.replay.get_timestamps()
+        self._time_stamps_cache = [datetime.fromtimestamp(ts / 1000, tz=UTC) for ts in self._raw_timestamps_ref]
+
         logger.debug(f"Loading and setting static map data took {time() - t3} seconds")
 
     def close(self):
@@ -75,7 +82,10 @@ class ReplayInterface(GameInterface):
     def end_time(self) -> datetime:
         return self.replay.last_time
 
-    def set_client_time(self, time_stamp: datetime) -> None:
+    def jump_to(self, time_stamp: datetime) -> None:
+        """
+        Jumps to the specified timestamp in the replay.
+        """
         if self.current_time == time_stamp:
             return
         if time_stamp < self.replay.start_time == self.current_time:
@@ -87,34 +97,57 @@ class ReplayInterface(GameInterface):
 
             return
 
-        patches, self.last_patch_time = self.replay.jump_from_to(self.last_patch_time, time_stamp)
+        patches, self.last_patch_time = self.replay.find_patch_path(self.last_patch_time, time_stamp)
         for rp in patches:
             apply_patch_any(rp, self.game_state, self)
 
         self.current_time = time_stamp
+
+        # Update the current timestamp index for O(1) next/previous operations
+        self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
+
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
         self._update_player_id()
 
     def get_timestamps(self) -> list[datetime]:
-        time_stamps = self.replay.get_timestamps()
-        if not self.time_stamps or len(time_stamps) != len(self.time_stamps):
-             self.time_stamps =[datetime.fromtimestamp(ts / 1000, tz=UTC) for ts in time_stamps]
-        return self.time_stamps
+        """
+        Get all timestamps in the replay as datetime objects.
+
+        Returns:
+            Cached list of datetime timestamps (O(1) operation)
+        """
+        return self._time_stamps_cache
 
     def get_next_timestamp(self, timestamp = None) -> datetime | None:
-        if not timestamp: timestamp = self.current_time
+        """
+        Gets the next timestamp after the given timestamp.
+        O(1) when timestamp is None, O(log n) when a specific timestamp is provided.
+        """
+        ts = self._time_stamps_cache
 
-        ts = self.get_timestamps()
+        if timestamp is None:
+            # Use cached index for O(1) lookup
+            next_idx = self.current_timestamp_index + 1
+            return ts[next_idx] if next_idx < len(ts) else None
+
+        # Fallback for custom timestamp (O(log n))
         i = bisect.bisect_right(ts, timestamp)
         return ts[i] if i < len(ts) else None
 
     def get_previous_timestamp(self, timestamp = None) -> datetime | None:
-        if not timestamp: timestamp = self.current_time
+        """
+        Gets the previous timestamp before the given timestamp.
+        O(1) when timestamp is None, O(log n) when a specific timestamp is provided.
+        """
+        ts = self._time_stamps_cache
 
-        ts = self.get_timestamps()
-        # bisect_left gives the insertion point before any equal items
+        if timestamp is None:
+            # Use cached index for O(1) lookup
+            prev_idx = self.current_timestamp_index - 1
+            return ts[prev_idx] if prev_idx >= 0 else None
+
+        # Fallback for custom timestamp (O(log n))
         i = bisect.bisect_left(ts, timestamp)
-        # the previous element (if any) is i - 1
         return ts[i - 1] if i > 0 else None
 
     def average_update_frequency(self) -> timedelta:
