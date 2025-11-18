@@ -26,7 +26,7 @@ if __name__ == "__main__":
     time_stamps = len(ritf.get_timestamps())
     amount_patches = len(ritf.get_timestamps())
     for timestamp in ritf.get_timestamps():
-        ritf.set_client_time(timestamp)
+        ritf.jump_to(timestamp)
     t3 = time()
     print(list(ritf.get_map().provinces.values())[0].name)
     print(f"Setting time took {t3 - t2} seconds for {amount_patches} patches. {(t3 - t2) / amount_patches} seconds per patch.")
