@@ -25,7 +25,7 @@ else:
 try:
     timestamps = replay.get_timestamps()
     if len(timestamps) >= 2:
-        patches = replay._jump_from_to(replay._start_time, timestamps[0])
+        patches = replay._find_patch_path(replay._start_time, timestamps[0])
         print(f"Successfully jumped, got {len(patches)} patches")
 except Exception as e:
     print(f"Error jumping: {e}")

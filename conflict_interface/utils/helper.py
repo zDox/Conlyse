@@ -1,8 +1,9 @@
 import inspect
 from datetime import datetime, timedelta, UTC
+from typing import Optional
 from typing import get_args
 from typing import get_origin
-
+MS_PER_SECOND = 1000
 
 # Helper functions for parsing a mapped value
 
@@ -16,6 +17,22 @@ def unix_to_datetime(timestamp):
     elif len(str(timestamp)) == 13:
         return datetime.fromtimestamp(int(timestamp)/1000, UTC)
 
+def unix_ms_to_datetime(dt: int) -> Optional[datetime]:
+    if dt is None:
+        return None
+    return datetime.fromtimestamp(float(dt) / MS_PER_SECOND, tz=UTC)
+
+def datetime_to_unix_ms(dt: datetime) -> int:
+    """
+    Convert datetime to milliseconds timestamp.
+
+    Args:
+        dt: Datetime to convert
+
+    Returns:
+        Timestamp in milliseconds
+    """
+    return int(dt.timestamp() * MS_PER_SECOND)
 
 def safe_issubclass(obj, cls):
     """
