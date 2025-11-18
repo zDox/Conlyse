@@ -8,6 +8,7 @@ and count operations by path.
 """
 import argparse
 import os
+import readline
 import shlex
 import sys
 from datetime import datetime, UTC
@@ -15,6 +16,32 @@ from typing import Optional, List, Tuple
 
 from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import ReplayPatch
+
+# Constants for column widths and formatting
+COLUMN_WIDTH_INDEX = 5
+COLUMN_WIDTH_PATCH = 25
+COLUMN_WIDTH_PATCH_FULL = 30
+COLUMN_WIDTH_DIRECTION = 8
+COLUMN_WIDTH_TYPE = 8
+COLUMN_WIDTH_PATH_COMPACT = 35
+COLUMN_WIDTH_PATH_FULL = 60
+COLUMN_WIDTH_VALUE_COMPACT = 15
+COLUMN_WIDTH_TIMESTAMP = 20
+COLUMN_WIDTH_OPS = 8
+COLUMN_WIDTH_STATE = 35
+COLUMN_WIDTH_COUNT = 10
+
+# Default values
+DEFAULT_LIMIT = 50
+DEFAULT_DIRECTION = 'both'
+
+# Shell prompt
+SHELL_PROMPT = "replay-debug> "
+
+# Separator widths
+SEPARATOR_WIDTH_COMPACT = 100
+SEPARATOR_WIDTH_FULL = 150
+SEPARATOR_WIDTH_OVERVIEW = 90
 
 
 class ReplayDebugCLI:
@@ -80,15 +107,16 @@ class ReplayDebugCLI:
         print(f"Start time: {self.replay.start_time}")
         print(f"End time: {self.replay.last_time}")
         print("\nAll patches (including forward and backward):")
-        print("-" * 100)
-        print(f"{'#':<5} {'From Timestamp':<20} {'To Timestamp':<20} {'Direction':<10} {'Ops':<8}")
-        print("-" * 100)
+        print("Note: Use 'vp <index>' to view a patch by its index number")
+        print("-" * SEPARATOR_WIDTH_COMPACT)
+        print(f"{'#':<{COLUMN_WIDTH_INDEX}} {'From Timestamp':<{COLUMN_WIDTH_TIMESTAMP}} {'To Timestamp':<{COLUMN_WIDTH_TIMESTAMP}} {'Direction':<{COLUMN_WIDTH_DIRECTION}} {'Ops':<{COLUMN_WIDTH_OPS}}")
+        print("-" * SEPARATOR_WIDTH_COMPACT)
         
         for i, (from_ts, to_ts, patch) in enumerate(self.all_patches):
             from_dt = datetime.fromtimestamp(from_ts / 1000, tz=UTC).isoformat()
             to_dt = datetime.fromtimestamp(to_ts / 1000, tz=UTC).isoformat()
             direction = "Forward" if to_ts > from_ts else "Backward"
-            print(f"{i+1:<5} {from_dt:<20} {to_dt:<20} {direction:<10} {len(patch.operations):<8}")
+            print(f"{i+1:<{COLUMN_WIDTH_INDEX}} {from_dt:<{COLUMN_WIDTH_TIMESTAMP}} {to_dt:<{COLUMN_WIDTH_TIMESTAMP}} {direction:<{COLUMN_WIDTH_DIRECTION}} {len(patch.operations):<{COLUMN_WIDTH_OPS}}")
     
     def view_patch(self, from_timestamp: int, to_timestamp: int):
         """View operations in a specific patch.
@@ -112,6 +140,37 @@ class ReplayDebugCLI:
             print(f"Error: No patch found from {from_timestamp} to {to_timestamp}")
             return
         
+        self._display_patch_details(from_timestamp, to_timestamp, patch)
+    
+    def view_patch_by_index(self, index: int):
+        """View operations in a patch by its index from list_patches.
+        
+        Args:
+            index: 1-based index of the patch (as shown in list_patches)
+        """
+        if not self.replay:
+            print("Error: Replay not opened.")
+            return
+        
+        if not self.all_patches:
+            print("No patches found in replay.")
+            return
+        
+        if index < 1 or index > len(self.all_patches):
+            print(f"Error: Invalid patch index {index}. Valid range: 1-{len(self.all_patches)}")
+            return
+        
+        from_ts, to_ts, patch = self.all_patches[index - 1]
+        self._display_patch_details(from_ts, to_ts, patch)
+    
+    def _display_patch_details(self, from_timestamp: int, to_timestamp: int, patch: ReplayPatch):
+        """Display details of a specific patch.
+        
+        Args:
+            from_timestamp: Starting timestamp
+            to_timestamp: Ending timestamp
+            patch: The ReplayPatch object to display
+        """
         direction = "Forward" if to_timestamp > from_timestamp else "Backward"
         
         print(f"\nPatch: {from_timestamp} -> {to_timestamp} ({direction})")
@@ -144,13 +203,13 @@ class ReplayDebugCLI:
         if len(patch.operations) > 20:
             print(f"\n... and {len(patch.operations) - 20} more operations")
     
-    def view_operations_by_path(self, path_prefix: str, limit: int = 50, direction: str = 'both', full_width: bool = False):
+    def view_operations_by_path(self, path_prefix: str, limit: int = DEFAULT_LIMIT, direction: str = DEFAULT_DIRECTION, full_width: bool = False):
         """View all operations that start with a specific path across all patches.
         
         Args:
             path_prefix: Path prefix to filter by
-            limit: Maximum number of operations to display (default: 50)
-            direction: Direction filter - 'both', 'forward', or 'backward' (default: 'both')
+            limit: Maximum number of operations to display (default: DEFAULT_LIMIT)
+            direction: Direction filter - 'both', 'forward', or 'backward' (default: DEFAULT_DIRECTION)
             full_width: If True, don't truncate paths and values (default: False)
         """
         if not self.replay:
@@ -204,9 +263,9 @@ class ReplayDebugCLI:
         
         if full_width:
             # Full width output - no truncation
-            print("-" * 150)
-            print(f"{'#':<5} {'Patch':<30} {'Dir':<8} {'Type':<8} {'Path':<60} {'Value'}")
-            print("-" * 150)
+            print("-" * SEPARATOR_WIDTH_FULL)
+            print(f"{'#':<{COLUMN_WIDTH_INDEX}} {'Patch':<{COLUMN_WIDTH_PATCH_FULL}} {'Dir':<{COLUMN_WIDTH_DIRECTION}} {'Type':<{COLUMN_WIDTH_TYPE}} {'Path':<{COLUMN_WIDTH_PATH_FULL}} {'Value'}")
+            print("-" * SEPARATOR_WIDTH_FULL)
             
             for i, match in enumerate(matching_operations[:limit]):
                 from_dt = datetime.fromtimestamp(match['from_ts'] / 1000, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
@@ -215,35 +274,35 @@ class ReplayDebugCLI:
                 value_str = str(op.new_value)
                 
                 patch_label = f"{match['from_ts']}→{match['to_ts']}"
-                if len(patch_label) > 30:
-                    patch_label = f"...{patch_label[-27:]}"
+                if len(patch_label) > COLUMN_WIDTH_PATCH_FULL:
+                    patch_label = f"...{patch_label[-(COLUMN_WIDTH_PATCH_FULL-3):]}"
                 
-                # For full width, still limit path to 60 chars for readability, but show full value
-                if len(path_str) > 60:
-                    path_str = path_str[:57] + "..."
+                # For full width, still limit path for readability, but show full value
+                if len(path_str) > COLUMN_WIDTH_PATH_FULL:
+                    path_str = path_str[:(COLUMN_WIDTH_PATH_FULL-3)] + "..."
                 
-                print(f"{i+1:<5} {patch_label:<30} {match['direction']:<8} {op.Key:<8} {path_str:<60} {value_str}")
+                print(f"{i+1:<{COLUMN_WIDTH_INDEX}} {patch_label:<{COLUMN_WIDTH_PATCH_FULL}} {match['direction']:<{COLUMN_WIDTH_DIRECTION}} {op.Key:<{COLUMN_WIDTH_TYPE}} {path_str:<{COLUMN_WIDTH_PATH_FULL}} {value_str}")
         else:
             # Compact output with truncation
-            print("-" * 100)
-            print(f"{'#':<5} {'Patch':<25} {'Dir':<8} {'Type':<8} {'Path':<35} {'Value':<15}")
-            print("-" * 100)
+            print("-" * SEPARATOR_WIDTH_COMPACT)
+            print(f"{'#':<{COLUMN_WIDTH_INDEX}} {'Patch':<{COLUMN_WIDTH_PATCH}} {'Dir':<{COLUMN_WIDTH_DIRECTION}} {'Type':<{COLUMN_WIDTH_TYPE}} {'Path':<{COLUMN_WIDTH_PATH_COMPACT}} {'Value':<{COLUMN_WIDTH_VALUE_COMPACT}}")
+            print("-" * SEPARATOR_WIDTH_COMPACT)
             
             for i, match in enumerate(matching_operations[:limit]):
                 from_dt = datetime.fromtimestamp(match['from_ts'] / 1000, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
                 op = match['operation']
                 path_str = "/".join(str(p) for p in op.path)
-                if len(path_str) > 35:
-                    path_str = path_str[:32] + "..."
+                if len(path_str) > COLUMN_WIDTH_PATH_COMPACT:
+                    path_str = path_str[:(COLUMN_WIDTH_PATH_COMPACT-3)] + "..."
                 value_str = str(op.new_value)
-                if len(value_str) > 15:
-                    value_str = value_str[:12] + "..."
+                if len(value_str) > COLUMN_WIDTH_VALUE_COMPACT:
+                    value_str = value_str[:(COLUMN_WIDTH_VALUE_COMPACT-3)] + "..."
                 
                 patch_label = f"{match['from_ts']}→{match['to_ts']}"
-                if len(patch_label) > 25:
-                    patch_label = f"...{patch_label[-22:]}"
+                if len(patch_label) > COLUMN_WIDTH_PATCH:
+                    patch_label = f"...{patch_label[-(COLUMN_WIDTH_PATCH-3):]}"
                 
-                print(f"{i+1:<5} {patch_label:<25} {match['direction']:<8} {op.Key:<8} {path_str:<35} {value_str:<15}")
+                print(f"{i+1:<{COLUMN_WIDTH_INDEX}} {patch_label:<{COLUMN_WIDTH_PATCH}} {match['direction']:<{COLUMN_WIDTH_DIRECTION}} {op.Key:<{COLUMN_WIDTH_TYPE}} {path_str:<{COLUMN_WIDTH_PATH_COMPACT}} {value_str:<{COLUMN_WIDTH_VALUE_COMPACT}}")
         
         if len(matching_operations) > limit:
             print(f"\n... and {len(matching_operations) - limit} more operations")
@@ -414,7 +473,7 @@ class ReplayDebugCLI:
             filter_text = ""
             
         print(f"\nOperations Overview{filter_text}")
-        print("=" * 90)
+        print("=" * SEPARATOR_WIDTH_OVERVIEW)
         
         # Count patches based on direction filter
         if direction == 'forward':
@@ -431,8 +490,8 @@ class ReplayDebugCLI:
         
         print(f"Total operations: {total_ops}")
         print()
-        print(f"{'State':<35} {'Add':<10} {'Replace':<10} {'Remove':<10} {'Total':<10}")
-        print("-" * 90)
+        print(f"{'State':<{COLUMN_WIDTH_STATE}} {'Add':<{COLUMN_WIDTH_COUNT}} {'Replace':<{COLUMN_WIDTH_COUNT}} {'Remove':<{COLUMN_WIDTH_COUNT}} {'Total':<{COLUMN_WIDTH_COUNT}}")
+        print("-" * SEPARATOR_WIDTH_OVERVIEW)
         
         # Sort states by total operations (descending)
         sorted_states = sorted(
@@ -447,26 +506,43 @@ class ReplayDebugCLI:
             remove_count = counts['r']
             total_count = add_count + replace_count + remove_count
             
-            print(f"{state_name:<35} {add_count:<10} {replace_count:<10} {remove_count:<10} {total_count:<10}")
+            print(f"{state_name:<{COLUMN_WIDTH_STATE}} {add_count:<{COLUMN_WIDTH_COUNT}} {replace_count:<{COLUMN_WIDTH_COUNT}} {remove_count:<{COLUMN_WIDTH_COUNT}} {total_count:<{COLUMN_WIDTH_COUNT}}")
         
-        print("-" * 90)
+        print("-" * SEPARATOR_WIDTH_OVERVIEW)
         
         # Summary totals
         total_add = sum(counts['a'] for counts in state_stats.values())
         total_replace = sum(counts['p'] for counts in state_stats.values())
         total_remove = sum(counts['r'] for counts in state_stats.values())
         
-        print(f"{'TOTAL':<35} {total_add:<10} {total_replace:<10} {total_remove:<10} {total_ops:<10}")
+        print(f"{'TOTAL':<{COLUMN_WIDTH_STATE}} {total_add:<{COLUMN_WIDTH_COUNT}} {total_replace:<{COLUMN_WIDTH_COUNT}} {total_remove:<{COLUMN_WIDTH_COUNT}} {total_ops:<{COLUMN_WIDTH_COUNT}}")
     
     def interactive_shell(self):
         """Run an interactive shell for executing commands."""
+        # Enable readline for command history (arrow keys)
+        try:
+            import readline
+            # Set up history file
+            histfile = os.path.expanduser("~/.replay_debug_history")
+            try:
+                readline.read_history_file(histfile)
+                readline.set_history_length(1000)
+            except FileNotFoundError:
+                pass
+            # Save history on exit
+            import atexit
+            atexit.register(readline.write_history_file, histfile)
+        except ImportError:
+            # readline not available on this platform
+            pass
+        
         print(f"\nReplay Debug Shell - {self.filename}")
         print("Type 'help' for available commands, 'exit' or 'quit' to exit\n")
         
         while True:
             try:
                 # Get user input
-                user_input = input("replay-debug> ").strip()
+                user_input = input(SHELL_PROMPT).strip()
                 
                 if not user_input:
                     continue
@@ -499,15 +575,26 @@ class ReplayDebugCLI:
                         self.list_patches()
                     
                     elif command == "view-patch" or command == "vp":
-                        if len(args) < 3:
-                            print("Usage: view-patch <from_timestamp> <to_timestamp>")
+                        if len(args) < 2:
+                            print("Usage: view-patch <index> OR view-patch <from_timestamp> <to_timestamp>")
                             continue
-                        try:
-                            from_ts = int(args[1])
-                            to_ts = int(args[2])
-                            self.view_patch(from_ts, to_ts)
-                        except ValueError:
-                            print("Error: Timestamps must be integers")
+                        
+                        # Check if single argument (index) or two arguments (timestamps)
+                        if len(args) == 2:
+                            # Single argument - treat as index
+                            try:
+                                index = int(args[1])
+                                self.view_patch_by_index(index)
+                            except ValueError:
+                                print("Error: Index must be an integer")
+                        else:
+                            # Two arguments - treat as timestamps
+                            try:
+                                from_ts = int(args[1])
+                                to_ts = int(args[2])
+                                self.view_patch(from_ts, to_ts)
+                            except ValueError:
+                                print("Error: Timestamps must be integers")
                     
                     elif command == "view-operations-by-path" or command == "vop":
                         if len(args) < 2:
@@ -515,8 +602,8 @@ class ReplayDebugCLI:
                             continue
                         
                         path_prefix = args[1]
-                        limit = 50
-                        direction = 'both'
+                        limit = DEFAULT_LIMIT
+                        direction = DEFAULT_DIRECTION
                         full_width = False
                         
                         # Parse optional arguments
@@ -537,7 +624,7 @@ class ReplayDebugCLI:
                         self.view_operations_by_path(path_prefix, limit, direction, full_width)
                     
                     elif command == "operations-overview" or command == "oo":
-                        direction = 'both'
+                        direction = DEFAULT_DIRECTION
                         if '--direction' in args:
                             idx = args.index('--direction')
                             if idx + 1 < len(args):
@@ -554,7 +641,7 @@ class ReplayDebugCLI:
                             continue
                         
                         path_prefix = args[1]
-                        direction = 'both'
+                        direction = DEFAULT_DIRECTION
                         
                         if '--direction' in args:
                             idx = args.index('--direction')
@@ -583,8 +670,9 @@ class ReplayDebugCLI:
         """Print help for interactive mode."""
         print("""
 Available Commands:
-  list-patches (lp)                           - List all patches
-  view-patch (vp) <from_ts> <to_ts>           - View a specific patch
+  list-patches (lp)                           - List all patches with indices
+  view-patch (vp) <index>                     - View a patch by its index number
+  view-patch (vp) <from_ts> <to_ts>           - View a specific patch by timestamps
   view-operations-by-path (vop) <path> [opts] - View operations by path
     Options: --limit N, --direction forward|backward|both, --full-width
   operations-overview (oo) [--direction ...]  - Show operations overview
@@ -594,8 +682,13 @@ Available Commands:
   help (?)                                    - Show this help
   exit, quit, q                               - Exit the shell
 
+Navigation:
+  - Use UP/DOWN arrow keys to cycle through command history
+  - After 'list-patches', use 'vp <index>' to quickly view a patch
+
 Examples:
   list-patches
+  vp 1                                         # View first patch from list
   vop "states/map_state" --direction forward --full-width
   oo --direction forward
   cop "states/player_state"
@@ -712,8 +805,8 @@ Single Command Mode:
                 return 1
             
             path_prefix = cmd_args[0]
-            limit = 50
-            direction = 'both'
+            limit = DEFAULT_LIMIT
+            direction = DEFAULT_DIRECTION
             full_width = args.full_width
             
             # Parse optional arguments
@@ -734,7 +827,7 @@ Single Command Mode:
             cli.view_operations_by_path(path_prefix, limit, direction, full_width)
         
         elif command == "operations-overview":
-            direction = 'both'
+            direction = DEFAULT_DIRECTION
             if '--direction' in cmd_args:
                 idx = cmd_args.index('--direction')
                 if idx + 1 < len(cmd_args):
@@ -751,7 +844,7 @@ Single Command Mode:
                 return 1
             
             path_prefix = cmd_args[0]
-            direction = 'both'
+            direction = DEFAULT_DIRECTION
             
             if '--direction' in cmd_args:
                 idx = cmd_args.index('--direction')
