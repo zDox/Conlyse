@@ -156,6 +156,7 @@ class Replay:
     def load_patch_timestamps(self):
         # Load patch timestamps (but not the patches themselves)
         for (from_ts, to_ts) in self.db.read_patch_timestamps():
+            self._patch_timestamps.append((from_ts, to_ts))
             if to_ts not in self._timestamps:
                 self._timestamps.append(to_ts)
         self._timestamps.sort()
@@ -237,15 +238,17 @@ class Replay:
 
         patches = []
         current = start
-        
+        print(f"Jumping from {start} to {target}")
         # Forward time travel: Find patches that move us closer to target
         if target > start:
             while current < target:
                 next_patch = None
                 # Search for a patch that starts at current and ends before or at target
                 for from_ts, to_ts in self._patch_timestamps:
+                    print(f"Checking patch from {from_ts} to {to_ts} for current {current} and target {target}")
                     if from_ts == current and from_ts < to_ts <= target:
                         next_patch = (to_ts, self.get_patch(from_ts, to_ts))
+                        print(f"Found next patch {next_patch[1]} to {to_ts}")
                         break
                 if not next_patch:
                     break  # No more patches available, stop here
@@ -302,7 +305,7 @@ class Replay:
         Raises:
             Exception: If the patch is not found
         """
-        if self.cache.has_patch((from_timestamp, to_timestamp))  is not None:
+        if self.cache.has_patch((from_timestamp, to_timestamp)):
             # Patch already loaded in memory
             return self.cache.get_patch((from_timestamp, to_timestamp))
 

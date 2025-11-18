@@ -8,18 +8,19 @@ import zstandard as zstd
 
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
+from conflict_interface.logger_config import setup_library_logger
 
 
 @dataclass
 class B:
     foo: int
 if __name__ == "__main__":
-    #setup_library_logger(logging.DEBUG)
-    #logging.basicConfig(level=logging.DEBUG)
+    setup_library_logger(logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
 
     gitf = GameInterface()
     t1 = time()
-    ritf = ReplayInterface("test_replay3.db")
+    ritf = ReplayInterface("benchmark_replay_206.db")
 
     ritf.open()
     t2 = time()
@@ -28,7 +29,6 @@ if __name__ == "__main__":
     for timestamp in ritf.get_timestamps():
         ritf.jump_to(timestamp)
     t3 = time()
-    print(list(ritf.get_map().provinces.values())[0].name)
     print(f"Setting time took {t3 - t2} seconds for {amount_patches} patches. {(t3 - t2) / amount_patches} seconds per patch.")
     print(f"Loading took {t2 - t1} seconds.")
     ritf.close()

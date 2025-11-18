@@ -546,7 +546,7 @@ class GameInterface:
         Args:
             callback: Function to call when a province is added
         """
-        pattern = "states.map_state.map.provinces.?"
+        pattern = "states.map_state.map.locations.?"
         self._hook_system.register_hook(pattern, callback, {ChangeType.ADD})
         
     def on_province_remove(self, callback: Callable) -> None:
@@ -560,7 +560,7 @@ class GameInterface:
         Args:
             callback: Function to call when a province is removed
         """
-        pattern = "states.map_state.map.provinces.?"
+        pattern = "states.map_state.map.locations.?"
         self._hook_system.register_hook(pattern, callback, {ChangeType.REMOVE})
         
     def on_province_attribute_change(self, callback: Callable, attribute: str) -> None:
@@ -575,5 +575,5 @@ class GameInterface:
             callback: Function to call when the province attribute changes
             attribute: The name of the attribute to watch (e.g., "owner_id")
         """
-        pattern = f"states.map_state.map.provinces.?.{attribute}"
+        pattern = f"states.map_state.map.locations.?.{attribute}"
         self._hook_system.register_hook(pattern, callback, {ChangeType.REPLACE})

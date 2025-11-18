@@ -137,7 +137,7 @@ class HookSystem:
             return
             
         path = operation.path
-        
+        print(path)
         # Find matching hooks
         for hook in self.hooks:
             if hook.matches(path, change_type):

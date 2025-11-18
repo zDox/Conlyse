@@ -113,7 +113,7 @@ class ReplayDatabase:
             (from_ts, to_ts))
         row = cursor.fetchone()
         if row:
-            return ReplayPatch.from_string(row[0])
+            return ReplayPatch.from_bytes(row[0])
 
     def read_patches(self) -> dict[tuple[int, int], ReplayPatch]:
         """Read all patches from database."""

@@ -98,6 +98,8 @@ class ReplayInterface(GameInterface):
             return
 
         patches, self.last_patch_time = self.replay.find_patch_path(self.last_patch_time, time_stamp)
+        print(f"Applying patches: {patches}")
+        print(f"Last patch time: {self.last_patch_time}, Target time: {time_stamp}")
         for rp in patches:
             apply_patch_any(rp, self.game_state, self)
 
