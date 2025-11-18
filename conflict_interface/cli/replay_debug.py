@@ -7,6 +7,8 @@ Provides commands to open replays, list patches, view patch operations,
 and count operations by path.
 """
 import argparse
+import os
+import shlex
 import sys
 from datetime import datetime, UTC
 from typing import Optional, List, Tuple
@@ -142,13 +144,14 @@ class ReplayDebugCLI:
         if len(patch.operations) > 20:
             print(f"\n... and {len(patch.operations) - 20} more operations")
     
-    def view_operations_by_path(self, path_prefix: str, limit: int = 50, direction: str = 'both'):
+    def view_operations_by_path(self, path_prefix: str, limit: int = 50, direction: str = 'both', full_width: bool = False):
         """View all operations that start with a specific path across all patches.
         
         Args:
             path_prefix: Path prefix to filter by
             limit: Maximum number of operations to display (default: 50)
             direction: Direction filter - 'both', 'forward', or 'backward' (default: 'both')
+            full_width: If True, don't truncate paths and values (default: False)
         """
         if not self.replay:
             print("Error: Replay not opened.")
@@ -198,25 +201,49 @@ class ReplayDebugCLI:
         print(f"\nOperations with path starting with: '{path_prefix}'{filter_text}")
         print(f"Total matching operations: {len(matching_operations)}")
         print(f"Showing first {min(limit, len(matching_operations))} operations:")
-        print("-" * 100)
-        print(f"{'#':<5} {'Patch':<25} {'Dir':<8} {'Type':<8} {'Path':<35} {'Value':<15}")
-        print("-" * 100)
         
-        for i, match in enumerate(matching_operations[:limit]):
-            from_dt = datetime.fromtimestamp(match['from_ts'] / 1000, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
-            op = match['operation']
-            path_str = "/".join(str(p) for p in op.path)
-            if len(path_str) > 35:
-                path_str = path_str[:32] + "..."
-            value_str = str(op.new_value)
-            if len(value_str) > 15:
-                value_str = value_str[:12] + "..."
+        if full_width:
+            # Full width output - no truncation
+            print("-" * 150)
+            print(f"{'#':<5} {'Patch':<30} {'Dir':<8} {'Type':<8} {'Path':<60} {'Value'}")
+            print("-" * 150)
             
-            patch_label = f"{match['from_ts']}→{match['to_ts']}"
-            if len(patch_label) > 25:
-                patch_label = f"...{patch_label[-22:]}"
+            for i, match in enumerate(matching_operations[:limit]):
+                from_dt = datetime.fromtimestamp(match['from_ts'] / 1000, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
+                op = match['operation']
+                path_str = "/".join(str(p) for p in op.path)
+                value_str = str(op.new_value)
+                
+                patch_label = f"{match['from_ts']}→{match['to_ts']}"
+                if len(patch_label) > 30:
+                    patch_label = f"...{patch_label[-27:]}"
+                
+                # For full width, still limit path to 60 chars for readability, but show full value
+                if len(path_str) > 60:
+                    path_str = path_str[:57] + "..."
+                
+                print(f"{i+1:<5} {patch_label:<30} {match['direction']:<8} {op.Key:<8} {path_str:<60} {value_str}")
+        else:
+            # Compact output with truncation
+            print("-" * 100)
+            print(f"{'#':<5} {'Patch':<25} {'Dir':<8} {'Type':<8} {'Path':<35} {'Value':<15}")
+            print("-" * 100)
             
-            print(f"{i+1:<5} {patch_label:<25} {match['direction']:<8} {op.Key:<8} {path_str:<35} {value_str:<15}")
+            for i, match in enumerate(matching_operations[:limit]):
+                from_dt = datetime.fromtimestamp(match['from_ts'] / 1000, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
+                op = match['operation']
+                path_str = "/".join(str(p) for p in op.path)
+                if len(path_str) > 35:
+                    path_str = path_str[:32] + "..."
+                value_str = str(op.new_value)
+                if len(value_str) > 15:
+                    value_str = value_str[:12] + "..."
+                
+                patch_label = f"{match['from_ts']}→{match['to_ts']}"
+                if len(patch_label) > 25:
+                    patch_label = f"...{patch_label[-22:]}"
+                
+                print(f"{i+1:<5} {patch_label:<25} {match['direction']:<8} {op.Key:<8} {path_str:<35} {value_str:<15}")
         
         if len(matching_operations) > limit:
             print(f"\n... and {len(matching_operations) - limit} more operations")
@@ -430,6 +457,149 @@ class ReplayDebugCLI:
         total_remove = sum(counts['r'] for counts in state_stats.values())
         
         print(f"{'TOTAL':<35} {total_add:<10} {total_replace:<10} {total_remove:<10} {total_ops:<10}")
+    
+    def interactive_shell(self):
+        """Run an interactive shell for executing commands."""
+        print(f"\nReplay Debug Shell - {self.filename}")
+        print("Type 'help' for available commands, 'exit' or 'quit' to exit\n")
+        
+        while True:
+            try:
+                # Get user input
+                user_input = input("replay-debug> ").strip()
+                
+                if not user_input:
+                    continue
+                
+                # Check for exit commands
+                if user_input.lower() in ['exit', 'quit', 'q']:
+                    print("Exiting...")
+                    break
+                
+                # Check for help
+                if user_input.lower() in ['help', '?']:
+                    self._print_interactive_help()
+                    continue
+                
+                # Parse the command
+                try:
+                    args = shlex.split(user_input)
+                except ValueError as e:
+                    print(f"Error parsing command: {e}")
+                    continue
+                
+                if not args:
+                    continue
+                
+                command = args[0]
+                
+                # Execute commands
+                try:
+                    if command == "list-patches" or command == "lp":
+                        self.list_patches()
+                    
+                    elif command == "view-patch" or command == "vp":
+                        if len(args) < 3:
+                            print("Usage: view-patch <from_timestamp> <to_timestamp>")
+                            continue
+                        try:
+                            from_ts = int(args[1])
+                            to_ts = int(args[2])
+                            self.view_patch(from_ts, to_ts)
+                        except ValueError:
+                            print("Error: Timestamps must be integers")
+                    
+                    elif command == "view-operations-by-path" or command == "vop":
+                        if len(args) < 2:
+                            print("Usage: view-operations-by-path <path_prefix> [--limit N] [--direction forward|backward|both] [--full-width]")
+                            continue
+                        
+                        path_prefix = args[1]
+                        limit = 50
+                        direction = 'both'
+                        full_width = False
+                        
+                        # Parse optional arguments
+                        i = 2
+                        while i < len(args):
+                            if args[i] == '--limit' and i + 1 < len(args):
+                                limit = int(args[i + 1])
+                                i += 2
+                            elif args[i] == '--direction' and i + 1 < len(args):
+                                direction = args[i + 1]
+                                i += 2
+                            elif args[i] == '--full-width':
+                                full_width = True
+                                i += 1
+                            else:
+                                i += 1
+                        
+                        self.view_operations_by_path(path_prefix, limit, direction, full_width)
+                    
+                    elif command == "operations-overview" or command == "oo":
+                        direction = 'both'
+                        if '--direction' in args:
+                            idx = args.index('--direction')
+                            if idx + 1 < len(args):
+                                direction = args[idx + 1]
+                        
+                        self.operations_overview(direction)
+                    
+                    elif command == "count-operations" or command == "co":
+                        self.count_operations()
+                    
+                    elif command == "count-operations-by-path" or command == "cop":
+                        if len(args) < 2:
+                            print("Usage: count-operations-by-path <path_prefix> [--direction forward|backward|both]")
+                            continue
+                        
+                        path_prefix = args[1]
+                        direction = 'both'
+                        
+                        if '--direction' in args:
+                            idx = args.index('--direction')
+                            if idx + 1 < len(args):
+                                direction = args[idx + 1]
+                        
+                        self.count_operations_by_path(path_prefix, direction)
+                    
+                    else:
+                        print(f"Unknown command: {command}")
+                        print("Type 'help' for available commands")
+                
+                except Exception as e:
+                    print(f"Error executing command: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            except KeyboardInterrupt:
+                print("\nUse 'exit' or 'quit' to exit")
+                continue
+            except EOFError:
+                print("\nExiting...")
+                break
+    
+    def _print_interactive_help(self):
+        """Print help for interactive mode."""
+        print("""
+Available Commands:
+  list-patches (lp)                           - List all patches
+  view-patch (vp) <from_ts> <to_ts>           - View a specific patch
+  view-operations-by-path (vop) <path> [opts] - View operations by path
+    Options: --limit N, --direction forward|backward|both, --full-width
+  operations-overview (oo) [--direction ...]  - Show operations overview
+  count-operations (co)                       - Count all operations
+  count-operations-by-path (cop) <path> [...] - Count operations by path
+    Options: --direction forward|backward|both
+  help (?)                                    - Show this help
+  exit, quit, q                               - Exit the shell
+
+Examples:
+  list-patches
+  vop "states/map_state" --direction forward --full-width
+  oo --direction forward
+  cop "states/player_state"
+        """)
 
     
     def _path_starts_with(self, path: list, prefix: list) -> bool:
@@ -458,36 +628,20 @@ def main():
         description="Replay Debug CLI Tool - Inspect and debug replay files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  # Open a replay and list all patches (including forward and backward)
+Interactive Mode:
+  # Start interactive shell (recommended)
+  %(prog)s replay.db
+  
+  # Then run commands without repeating the replay path:
+  replay-debug> list-patches
+  replay-debug> vop "states/map_state" --direction forward --full-width
+  replay-debug> exit
+
+Single Command Mode:
+  # Run a single command and exit
   %(prog)s replay.db list-patches
-  
-  # View a specific patch
-  %(prog)s replay.db view-patch 1638360000000 1638360060000
-  
-  # View operations starting with a specific path (forward patches only)
   %(prog)s replay.db view-operations-by-path "states/map_state" --direction forward
-  
-  # View operations from backward patches only
-  %(prog)s replay.db view-operations-by-path "states/player_state" --direction backward
-  
-  # Get operations overview by state
   %(prog)s replay.db operations-overview
-  
-  # Get operations overview for forward patches only
-  %(prog)s replay.db operations-overview --direction forward
-  
-  # Get operations overview for backward patches only
-  %(prog)s replay.db operations-overview --direction backward
-  
-  # Count all operations
-  %(prog)s replay.db count-operations
-  
-  # Count operations starting with a path (forward patches only)
-  %(prog)s replay.db count-operations-by-path "states/map_state" --direction forward
-  
-  # Count operations from backward patches only
-  %(prog)s replay.db count-operations-by-path "states/map_state" --direction backward
         """
     )
     
@@ -496,90 +650,26 @@ Examples:
         help="Path to the replay database file (.db)"
     )
     
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
-    # list-patches command
-    subparsers.add_parser(
-        "list-patches",
-        help="List all patches in the replay with timestamps (including forward and backward)"
+    parser.add_argument(
+        "command",
+        nargs='?',
+        help="Command to execute. If omitted, starts interactive shell."
     )
     
-    # view-patch command
-    view_parser = subparsers.add_parser(
-        "view-patch",
-        help="View operations in a specific patch"
-    )
-    view_parser.add_argument(
-        "from_timestamp",
-        type=int,
-        help="Starting timestamp (in milliseconds)"
-    )
-    view_parser.add_argument(
-        "to_timestamp",
-        type=int,
-        help="Ending timestamp (in milliseconds)"
+    # Add --full-width flag for better output
+    parser.add_argument(
+        "--full-width",
+        action="store_true",
+        help="Don't truncate paths and values in output"
     )
     
-    # view-operations-by-path command (NEW)
-    view_ops_parser = subparsers.add_parser(
-        "view-operations-by-path",
-        help="View all operations that start with a specific path across all patches"
-    )
-    view_ops_parser.add_argument(
-        "path_prefix",
-        help="Path prefix to filter by (e.g., 'states/map_state')"
-    )
-    view_ops_parser.add_argument(
-        "--limit",
-        type=int,
-        default=50,
-        help="Maximum number of operations to display (default: 50)"
-    )
-    view_ops_parser.add_argument(
-        "--direction",
-        choices=['both', 'forward', 'backward'],
-        default='both',
-        help="Filter by patch direction: 'both' (default), 'forward', or 'backward'"
-    )
+    # Parse known args to handle both interactive and command modes
+    args, remaining = parser.parse_known_args()
     
-    # operations-overview command (NEW)
-    overview_parser = subparsers.add_parser(
-        "operations-overview",
-        help="Show overview of operations grouped by state"
-    )
-    overview_parser.add_argument(
-        "--direction",
-        choices=['both', 'forward', 'backward'],
-        default='both',
-        help="Filter by patch direction: 'both' (default), 'forward', or 'backward'"
-    )
-    
-    # count-operations command
-    subparsers.add_parser(
-        "count-operations",
-        help="Count total number of operations across all patches"
-    )
-    
-    # count-operations-by-path command
-    count_by_path_parser = subparsers.add_parser(
-        "count-operations-by-path",
-        help="Count operations that start with a specific path"
-    )
-    count_by_path_parser.add_argument(
-        "path_prefix",
-        help="Path prefix to filter by (e.g., 'states/map_state')"
-    )
-    count_by_path_parser.add_argument(
-        "--direction",
-        choices=['both', 'forward', 'backward'],
-        default='both',
-        help="Filter by patch direction: 'both' (default), 'forward', or 'backward'"
-    )
-    
-    args = parser.parse_args()
-    
-    if not args.command:
+    # Check if replay file is provided
+    if not args.replay_file:
         parser.print_help()
+        print("\nError: replay_file is required")
         return 1
     
     # Create CLI instance
@@ -590,25 +680,91 @@ Examples:
         return 1
     
     try:
-        # Execute the requested command
-        if args.command == "list-patches":
+        # If no command provided, start interactive shell
+        if not args.command:
+            cli.interactive_shell()
+            return 0
+        
+        # Otherwise, execute the single command
+        # Re-parse with the command as first argument of remaining
+        command = args.command
+        cmd_args = remaining
+        
+        # Execute commands based on command name
+        if command == "list-patches":
             cli.list_patches()
-        elif args.command == "view-patch":
-            cli.view_patch(args.from_timestamp, args.to_timestamp)
-        elif args.command == "view-operations-by-path":
-            direction = getattr(args, 'direction', 'both')
-            cli.view_operations_by_path(args.path_prefix, args.limit, direction)
-        elif args.command == "operations-overview":
-            direction = getattr(args, 'direction', 'both')
+        
+        elif command == "view-patch":
+            if len(cmd_args) < 2:
+                print("Usage: view-patch <from_timestamp> <to_timestamp>")
+                return 1
+            try:
+                from_ts = int(cmd_args[0])
+                to_ts = int(cmd_args[1])
+                cli.view_patch(from_ts, to_ts)
+            except ValueError:
+                print("Error: Timestamps must be integers")
+                return 1
+        
+        elif command == "view-operations-by-path":
+            if len(cmd_args) < 1:
+                print("Usage: view-operations-by-path <path_prefix> [--limit N] [--direction forward|backward|both] [--full-width]")
+                return 1
+            
+            path_prefix = cmd_args[0]
+            limit = 50
+            direction = 'both'
+            full_width = args.full_width
+            
+            # Parse optional arguments
+            i = 1
+            while i < len(cmd_args):
+                if cmd_args[i] == '--limit' and i + 1 < len(cmd_args):
+                    limit = int(cmd_args[i + 1])
+                    i += 2
+                elif cmd_args[i] == '--direction' and i + 1 < len(cmd_args):
+                    direction = cmd_args[i + 1]
+                    i += 2
+                elif cmd_args[i] == '--full-width':
+                    full_width = True
+                    i += 1
+                else:
+                    i += 1
+            
+            cli.view_operations_by_path(path_prefix, limit, direction, full_width)
+        
+        elif command == "operations-overview":
+            direction = 'both'
+            if '--direction' in cmd_args:
+                idx = cmd_args.index('--direction')
+                if idx + 1 < len(cmd_args):
+                    direction = cmd_args[idx + 1]
+            
             cli.operations_overview(direction)
-        elif args.command == "count-operations":
+        
+        elif command == "count-operations":
             cli.count_operations()
-        elif args.command == "count-operations-by-path":
-            direction = getattr(args, 'direction', 'both')
-            cli.count_operations_by_path(args.path_prefix, direction)
+        
+        elif command == "count-operations-by-path":
+            if len(cmd_args) < 1:
+                print("Usage: count-operations-by-path <path_prefix> [--direction forward|backward|both]")
+                return 1
+            
+            path_prefix = cmd_args[0]
+            direction = 'both'
+            
+            if '--direction' in cmd_args:
+                idx = cmd_args.index('--direction')
+                if idx + 1 < len(cmd_args):
+                    direction = cmd_args[idx + 1]
+            
+            cli.count_operations_by_path(path_prefix, direction)
+        
         else:
-            print(f"Unknown command: {args.command}")
+            print(f"Unknown command: {command}")
+            print("Available commands: list-patches, view-patch, view-operations-by-path, operations-overview, count-operations, count-operations-by-path")
             return 1
+    
     finally:
         cli.close_replay()
     
