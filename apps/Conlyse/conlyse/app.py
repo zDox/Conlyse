@@ -3,19 +3,19 @@ import sys
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtWidgets import QMainWindow
 
 from conlyse.managers.replay_manager import ReplayManager
-from logger import setup_logger
-from managers.config_manager import ConfigManager
-from managers.event_manager import EventManager
-from managers.style_manager import StyleManager
-from managers.asset_manager import AssetManager
-from logger import get_logger
-from main_window import MainWindow
-from managers.page_manager import PageManager
-from utils.enums import PageType
-from pages.replay_list_page import ReplayListPage
+from conlyse.pages.replay_load_page import ReplayLoadPage
+from conlyse.logger import setup_logger
+from conlyse.managers.config_manager import ConfigManager
+from conlyse.managers.event_manager import EventManager
+from conlyse.managers.style_manager import StyleManager
+from conlyse.managers.asset_manager import AssetManager
+from conlyse.logger import get_logger
+from conlyse.main_window import MainWindow
+from conlyse.managers.page_manager import PageManager
+from conlyse.utils.enums import PageType
+from conlyse.pages.replay_list_page import ReplayListPage
 
 logger = get_logger()
 
@@ -42,6 +42,8 @@ class App:
         logger.debug("Loading application...")
         # Register pages
         self.page_manager.register_page(PageType.ReplayListPage, ReplayListPage)
+        self.page_manager.register_page(PageType.ReplayLoadPage, ReplayLoadPage)
+        #self.page_manager.register_page(PageType.PlayerListPage, PlayerListPage)
 
         # Connect buttons
 

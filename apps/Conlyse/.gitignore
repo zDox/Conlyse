@@ -6,3 +6,4 @@
 /conlyse/managers/__pycache__
 /conlyse/utils/__pycache__
 config.json
+/conlyse/managers/events/__pycache__

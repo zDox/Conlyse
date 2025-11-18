@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QSize
@@ -23,11 +24,13 @@ from conflict_interface.replay.replay import Replay
 from conlyse.logger import get_logger
 from conlyse.managers.style_manager import Theme
 from conlyse.pages.page import Page
+from conlyse.utils.enums import PageType
 
 if TYPE_CHECKING:
     from conlyse.app import App
 
 logger = get_logger()
+
 
 class ReplayListItem(QWidget):
     def __init__(self, replay_data, parent=None):
@@ -53,7 +56,8 @@ class ReplayListItem(QWidget):
 
         top_layout.addStretch()
 
-        self.status_label = QLabel(f"{'▶' if self.replay_data.get('status', 'Running') == 'Running' else '⏹'} {self.replay_data.get('status', 'Running')}")
+        self.status_label = QLabel(
+            f"{'▶' if self.replay_data.get('status', 'Running') == 'Running' else '⏹'} {self.replay_data.get('status', 'Running')}")
         self.status_label.setObjectName("listItemStatus")
         if self.replay_data.get('status', 'Running') == 'Running':
             self.status_label.setProperty("status", "running")
@@ -108,13 +112,29 @@ class ReplayListPage(Page):
         self.header_label = None
         self.app: App = app
         self.selected_replay: Replay | None = None
-
         self.selected_filepath: str | None = None
-
         self.theme_toggle = None
 
+        # Track if UI has been set up
+        self._ui_initialized = False
+        # Track previous replay count for update detection
+        self._previous_replay_count = 0
+
+    def setup(self, context):
+        """Called when page is opened - initialize UI"""
+        if not self._ui_initialized:
+            self.setup_ui()
+            self._ui_initialized = True
+
+        # Reset selection and refresh on page open
+        self.selected_replay = None
+        self.selected_filepath = None
+        self._previous_replay_count = len(self.app.replay_manager.get_replays())
+        self.refresh_replay_list()
+        self.update_details()
 
     def setup_ui(self):
+        """One-time UI initialization"""
         # Main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(32, 32, 32, 32)
@@ -157,6 +177,7 @@ class ReplayListPage(Page):
         main_layout.addLayout(content_layout)
 
     def setup_replay_list(self, parent_layout):
+        """Setup the replay list panel"""
         self.list_frame = QFrame()
         self.list_frame.setObjectName("card")
         self.list_frame.setMinimumWidth(380)
@@ -171,7 +192,7 @@ class ReplayListPage(Page):
         self.list_title_label.setObjectName("cardTitle")
         header_layout.addWidget(self.list_title_label)
 
-        self.badge_label = QLabel(str(len(self.app.replay_manager.get_replays().values())))
+        self.badge_label = QLabel("0")
         self.badge_label.setObjectName("badge")
         self.badge_label.setMaximumWidth(40)
         self.badge_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -196,22 +217,13 @@ class ReplayListPage(Page):
         self.replay_list = QListWidget()
         self.replay_list.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
         self.replay_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
-        for replay in self.app.replay_manager.get_replays().values():
-            replay_data = {} # TODO
-            item = QListWidgetItem(self.replay_list)
-            item.setSizeHint(QSize(340, 90))
-            widget = ReplayListItem(replay_data)
-            self.replay_list.setItemWidget(item, widget)
-            item.setData(Qt.ItemDataRole.UserRole, replay)
-
-        self.replay_list.setCurrentRow(0)
         self.replay_list.currentItemChanged.connect(self.on_replay_selected)
 
         list_layout.addWidget(self.replay_list)
         parent_layout.addWidget(self.list_frame)
 
     def setup_details_panel(self, parent_layout):
+        """Setup the details panel"""
         self.details_frame = QFrame()
         self.details_frame.setObjectName("card")
         self.details_layout = QVBoxLayout(self.details_frame)
@@ -243,9 +255,51 @@ class ReplayListPage(Page):
         self.details_layout.addWidget(scroll)
         parent_layout.addWidget(self.details_frame)
 
-        self.update_details()
+    def update(self):
+        """Called every frame - check for changes and update if needed"""
+        if not self._ui_initialized:
+            return
+
+        # Check if replay count has changed
+        current_replay_count = len(self.app.replay_manager.get_replays())
+        if current_replay_count != self._previous_replay_count:
+            self._previous_replay_count = current_replay_count
+            self.refresh_replay_list()
+
+            # Update badge
+            self.badge_label.setText(str(current_replay_count))
+
+    def refresh_replay_list(self):
+        """Refresh the replay list with current data"""
+        # Store current selection
+        current_row = self.replay_list.currentRow()
+
+        # Clear and rebuild
+        self.replay_list.clear()
+
+        for replay in self.app.replay_manager.get_replays().values():
+            replay_data = {}  # TODO: populate with actual data
+            item = QListWidgetItem(self.replay_list)
+            item.setSizeHint(QSize(340, 90))
+            widget = ReplayListItem(replay_data)
+            self.replay_list.setItemWidget(item, widget)
+            item.setData(Qt.ItemDataRole.UserRole, replay)
+
+        # Update badge
+        self.badge_label.setText(str(self.replay_list.count()))
+
+        # Restore selection or select first item
+        if self.replay_list.count() > 0:
+            if current_row >= 0 and current_row < self.replay_list.count():
+                self.replay_list.setCurrentRow(current_row)
+            else:
+                self.replay_list.setCurrentRow(0)
 
     def update_details(self):
+        """Update the details panel with selected replay info"""
+        # Hide the details content to prevent flickering during update
+        self.details_content.setVisible(False)
+
         # Completely clear and delete all widgets
         while self.details_content_layout.count():
             item = self.details_content_layout.takeAt(0)
@@ -260,6 +314,7 @@ class ReplayListPage(Page):
         QApplication.processEvents()
 
         if not self.selected_replay:
+            self.details_content.setVisible(True)
             return
 
         # Status section
@@ -277,9 +332,9 @@ class ReplayListPage(Page):
 
         status_layout.addStretch()
 
-        status_badge = QLabel(f"{'▶' if True else '⏹'}") # TODO
+        status_badge = QLabel(f"{'▶' if True else '⏹'}")  # TODO
         status_badge.setObjectName("statusBadge")
-        if True: # TODO
+        if True:  # TODO
             status_badge.setProperty("status", "running")
         else:
             status_badge.setProperty("status", "ended")
@@ -330,35 +385,30 @@ class ReplayListPage(Page):
         # Actions
         actions_layout = QHBoxLayout()
 
-        open_btn = QPushButton("▶ Analyze Replay")
-        open_btn.setObjectName("primary")
-        actions_layout.addWidget(open_btn)
+        analyze_btn = QPushButton("▶ Analyze Replay")
+        analyze_btn.setObjectName("primary")
+        actions_layout.addWidget(analyze_btn)
+        analyze_btn.clicked.connect(self.on_analyze_clicked)
 
         delete_btn = QPushButton("Delete Replay")
         delete_btn.setObjectName("secondary")
         actions_layout.addWidget(delete_btn)
+        delete_btn.clicked.connect(self.on_delete_clicked)
 
         self.details_content_layout.addLayout(actions_layout)
         self.details_content_layout.addStretch()
 
-        # rebuild replay list to ensure it's up to date
-        self.replay_list.clear()
-        for replay in self.app.replay_manager.get_replays().values():
-            replay_data = {} # TODO
-            item = QListWidgetItem(self.replay_list)
-            item.setSizeHint(QSize(340, 90))
-            widget = ReplayListItem(replay_data)
-            self.replay_list.setItemWidget(item, widget)
-            item.setData(Qt.ItemDataRole.UserRole, replay)
-
-        
+        # Show the details content after all widgets are added
+        self.details_content.setVisible(True)
 
     def add_separator(self):
+        """Add a separator line to the details panel"""
         separator = QFrame()
         separator.setObjectName("separator")
         self.details_content_layout.addWidget(separator)
 
     def add_info_field(self, grid, row, col, label_text, value_text):
+        """Add an info field to the grid"""
         container = QVBoxLayout()
         container.setSpacing(0)
 
@@ -386,18 +436,18 @@ class ReplayListPage(Page):
                 self.clear_layout(item.layout())
 
     def on_replay_selected(self, current):
+        """Handle replay selection change"""
         if current:
             self.selected_replay = current.data(Qt.ItemDataRole.UserRole)
             self.update_details()
 
     @pyqtSlot()
     def toggle_theme(self):
+        """Toggle between light and dark theme"""
         self.app.style_manager.toggle_theme()
 
         # Update theme toggle button text
-
         if self.app.style_manager.get_current_theme() == Theme.DARK:
-
             self.theme_toggle.setText("☀️ Light Mode")
         else:
             self.theme_toggle.setText("🌙 Dark Mode")
@@ -406,12 +456,13 @@ class ReplayListPage(Page):
         self.update_details()
 
     def on_open_replay(self):
+        """Handle opening a new replay file"""
         default_path = self.app.config_manager.get("file.default_open_path", "")
         replay_file_extension = self.app.config_manager.get("file.replay_file_extension", ".db")
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Open Replay Database",
-            default_path,  # Starting directory (empty = last used directory)
+            default_path,
             f"Replay Files (*{replay_file_extension});;All Files (*.*)"
         )
 
@@ -422,13 +473,14 @@ class ReplayListPage(Page):
         logger.debug(f"Selected replay file: {file_path}")
         success = self.app.replay_manager.open_new_replay(file_path)
         if success:
-            # Refresh the page to show the new replay
+            # Update tracking and refresh
+            self._previous_replay_count = len(self.app.replay_manager.get_replays())
             self.selected_replay = self.app.replay_manager.get_replays()[file_path]
             self.selected_filepath = file_path
+            self.refresh_replay_list()
             self.update_details()
         else:
-            # summon pyqt message box to show error
-
+            # Show error message box
             msg = QMessageBox()
             msg.setObjectName("errorMessageBox")
             msg.setIcon(QMessageBox.Icon.Critical)
@@ -436,14 +488,38 @@ class ReplayListPage(Page):
             msg.setText("Failed to open the selected replay file. It may be corrupted or invalid.")
             msg.exec()
 
+    def on_analyze_clicked(self):
+        """Handle analyze replay button click"""
+        assert(self.selected_filepath is not None)
+        self.app.page_manager.switch_to(PageType.ReplayLoadPage, next_page=PageType.PlayerListPage, replay_path=self.selected_filepath)
 
+
+    def on_delete_clicked(self):
+        """Handle delete replay button click"""
+        if not self.selected_replay:
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Delete Replay",
+            "Are you sure you want to delete this replay? This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.app.replay_manager.remove_replay(self.selected_filepath)
+            self._previous_replay_count = len(self.app.replay_manager.get_replays())
+            self.selected_replay = None
+            self.selected_filepath = None
+            self.refresh_replay_list()
+            self.update_details()
 
     def clean_up(self):
-        self.clear_layout(self.layout())
+        """Called when page is closed - cleanup resources"""
+        # Disconnect signals to prevent updates while not visible
+        if self.replay_list:
+            self.replay_list.currentItemChanged.disconnect(self.on_replay_selected)
 
-    def update(self):
-        pass
-
-    def setup(self, context):
-        self.setup_ui()
-
+        # Clear references to help with garbage collection
+        self.selected_replay = None
+        self.selected_filepath = None

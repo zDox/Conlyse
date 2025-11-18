@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from threading import Thread
 from typing import TYPE_CHECKING
 
 from conflict_interface.interface.replay_interface import ReplayInterface
-from conflict_interface.replay.replay import Replay
 
 from conlyse.logger import get_logger
+from conlyse.managers.events.ReplayLoadCompleteEvent import ReplayLoadCompleteEvent
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -15,11 +16,41 @@ logger = get_logger()
 class ReplayManager:
     def __init__(self, app : App):
         self.app = app
-        self.replays: dict[str, Replay] = {}
+        self.replays: dict[str, ReplayInterface] = {}
 
-    def add_replay(self, file_path: str, replay: Replay):
+    def is_valid_replay(self, file_path: str) -> bool:
+        if not file_path in self.replays: return False
+        if self.replays[file_path] is None: return False
+        return True
+
+    def add_replay(self, file_path: str, replay: ReplayInterface):
         self.replays.update({file_path: replay})
         pass
+
+    def _load_replay(self, file_path: str):
+        """
+        Loads a replay from the given file path.
+
+        :param file_path: Path to the replay file
+        :return: Replay object if loaded successfully, None otherwise
+        """
+        ritf = ReplayInterface(file_path)
+        try:
+            ritf.open()
+            self.app.event_handler.publish_async(ReplayLoadCompleteEvent(file_path, ritf))
+        except Exception as e:
+            logger.warning(f"Failed to load replay: {e}")
+
+    def load_replay_async(self, file_path: str):
+        """
+        Loads a replay asynchronously.
+
+        :param file_path: Path to the replay file
+        :return: Replay object if loaded successfully, None otherwise
+        """
+
+        thread = Thread(target=self._load_replay, args=(file_path,))
+        thread.start()
 
     def open_new_replay(self, file_path: str) -> bool:
         """
@@ -34,7 +65,7 @@ class ReplayManager:
         ritf = ReplayInterface(file_path)
         try:
             ritf.open()
-            self.add_replay(file_path, ritf.replay)
+            self.add_replay(file_path, ritf)
             ritf.close()
         except Exception as e:
             logger.warning(f"Failed to open replay: {e}")
@@ -48,3 +79,7 @@ class ReplayManager:
 
     def clear_replays(self):
         self.replays = []
+
+    def remove_replay(self, file_path: str):
+        if file_path in self.replays:
+            del self.replays[file_path]

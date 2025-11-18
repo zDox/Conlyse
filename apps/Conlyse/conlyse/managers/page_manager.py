@@ -36,7 +36,9 @@ class PageManager:
 
     def switch_to(self, next_page_type: PageType, **kwargs):
         if next_page_type not in self.pages:
-            raise Exception(f"Page type {next_page_type} is not registered in PageManager")
+            raise Exception(
+                f"Page type {type(next_page_type)} {next_page_type} is not registered in PageManager {str(self.pages)} {[type(k) for k in self.pages.keys()]}."
+            )
         if next_page_type == self.current_page_type and not self.current_page_type:
             return
         self.next_page_type = next_page_type
