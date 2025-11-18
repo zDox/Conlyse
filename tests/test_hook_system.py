@@ -25,7 +25,7 @@ class TestHookRegistration(unittest.TestCase):
         # Should not match wrong change type
         self.assertFalse(hook.matches(["states", "map_state", "map", "provinces"], ChangeType.REMOVE))
         
-    def test_wildcard_match(self):
+    def test_wildcard_single_level_match(self):
         """Test wildcard matching with ?."""
         hook = HookRegistration(
             pattern=["states", "map_state", "map", "provinces", "?"],
@@ -40,8 +40,24 @@ class TestHookRegistration(unittest.TestCase):
         # Should not match shorter path
         self.assertFalse(hook.matches(["states", "map_state", "map", "provinces"], ChangeType.ADD))
         
-        # Should match longer path (hook pattern is prefix)
+        # Should not match longer path (hook pattern is prefix)
+        self.assertFalse(hook.matches(["states", "map_state", "map", "provinces", "123", "owner_id"], ChangeType.ADD))
+
+    def test_wildcard_multiple_levels(self):
+        """Test wildcard matching with multiple levels by using the $ wildcard."""
+        hook = HookRegistration(
+            pattern=["states", "map_state", "map", "provinces", "$"],
+            callback=Mock(),
+            change_types={ChangeType.ADD}
+        )
+        # Should match any sub-path under provinces
+        self.assertTrue(hook.matches(["states", "map_state", "map", "provinces", "123"], ChangeType.ADD))
         self.assertTrue(hook.matches(["states", "map_state", "map", "provinces", "123", "owner_id"], ChangeType.ADD))
+        self.assertTrue(hook.matches(["states", "map_state", "map", "provinces", "123", "attributes", "name"], ChangeType.ADD))
+        # Should not match different base path
+        self.assertFalse(hook.matches(["states", "map_state", "map", "cities", "123"], ChangeType.ADD))
+        # Should not match wrong change type
+        self.assertFalse(hook.matches(["states", "map_state", "map", "provinces", "123"], ChangeType.REMOVE))
         
     def test_attribute_match(self):
         """Test matching specific attributes."""
