@@ -17,10 +17,10 @@ def unix_to_datetime(timestamp):
     elif len(str(timestamp)) == 13:
         return datetime.fromtimestamp(int(timestamp)/1000, UTC)
 
-def unix_ms_to_datetime(dt: int) -> Optional[datetime]:
-    if dt is None:
+def unix_ms_to_datetime(timestamp_ms: int) -> Optional[datetime]:
+    if timestamp_ms is None:
         return None
-    return datetime.fromtimestamp(float(dt) / MS_PER_SECOND, tz=UTC)
+    return datetime.fromtimestamp(float(timestamp_ms) / MS_PER_SECOND, tz=UTC)
 
 def datetime_to_unix_ms(dt: datetime) -> int:
     """
