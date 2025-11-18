@@ -5,6 +5,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
 from conlyse.managers.replay_manager import ReplayManager
+from conlyse.pages.player_list_page import PlayerListPage
 from conlyse.pages.replay_load_page import ReplayLoadPage
 from conlyse.logger import setup_logger
 from conlyse.managers.config_manager import ConfigManager
@@ -43,7 +44,7 @@ class App:
         # Register pages
         self.page_manager.register_page(PageType.ReplayListPage, ReplayListPage)
         self.page_manager.register_page(PageType.ReplayLoadPage, ReplayLoadPage)
-        #self.page_manager.register_page(PageType.PlayerListPage, PlayerListPage)
+        self.page_manager.register_page(PageType.PlayerListPage, PlayerListPage)
 
         # Connect buttons
 
