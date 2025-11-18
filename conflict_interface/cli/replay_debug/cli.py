@@ -82,12 +82,13 @@ class ReplayDebugCLI:
             direction = "Forward" if to_ts > from_ts else "Backward"
             print_patch_list_row(i + 1, from_ts, to_ts, direction, len(patch.operations))
     
-    def view_patch(self, from_timestamp: int, to_timestamp: int):
+    def view_patch(self, from_timestamp: int, to_timestamp: int, limit: int = None):
         """View operations in a specific patch.
         
         Args:
             from_timestamp: Starting timestamp
             to_timestamp: Ending timestamp
+            limit: Maximum number of operations to display (default: None shows all)
         """
         if not self.replay:
             print("Error: Replay not opened.")
@@ -104,13 +105,14 @@ class ReplayDebugCLI:
             print(f"Error: No patch found from {from_timestamp} to {to_timestamp}")
             return
         
-        self._display_patch_details(from_timestamp, to_timestamp, patch)
+        self._display_patch_details(from_timestamp, to_timestamp, patch, limit)
     
-    def view_patch_by_index(self, index: int):
+    def view_patch_by_index(self, index: int, limit: int = None):
         """View operations in a patch by its index from list_patches.
         
         Args:
             index: 1-based index of the patch (as shown in list_patches)
+            limit: Maximum number of operations to display (default: None shows all)
         """
         if not self.replay:
             print("Error: Replay not opened.")
@@ -125,17 +127,29 @@ class ReplayDebugCLI:
             return
         
         from_ts, to_ts, patch = self.all_patches[index - 1]
-        self._display_patch_details(from_ts, to_ts, patch)
+        self._display_patch_details(from_ts, to_ts, patch, limit)
     
-    def _display_patch_details(self, from_timestamp: int, to_timestamp: int, patch: ReplayPatch):
+    def _display_patch_details(self, from_timestamp: int, to_timestamp: int, patch: ReplayPatch, limit: int = None):
         """Display details of a specific patch.
         
         Args:
             from_timestamp: Starting timestamp
             to_timestamp: Ending timestamp
             patch: The ReplayPatch object to display
+            limit: Maximum number of operations to display (default: 20)
         """
+        if limit is None:
+            limit = 20
+            
         direction = "Forward" if to_timestamp > from_timestamp else "Backward"
+        
+        # Find the corresponding opposite direction patch for getting old values
+        opposite_patch = None
+        for from_ts, to_ts, p in self.all_patches:
+            # Find the patch going the opposite direction between same timestamps
+            if from_ts == to_timestamp and to_ts == from_timestamp:
+                opposite_patch = p
+                break
         
         print(f"\nPatch: {from_timestamp} -> {to_timestamp} ({direction})")
         print(f"From: {format_timestamp(from_timestamp)}")
@@ -153,17 +167,59 @@ class ReplayDebugCLI:
         print(f"  Replace: {type_counts['p']}")
         print(f"  Remove:  {type_counts['r']}")
         
-        print("\nFirst 20 operations:")
-        print("-" * 80)
-        for i, op in enumerate(patch.operations[:20]):
-            path_str = format_operation_path(op.path)
-            value_str = str(op.new_value)
-            if len(value_str) > 50:
-                value_str = value_str[:47] + "..."
-            print(f"{i+1:4d}. {op.Key:7s} {path_str:40s} -> {value_str}")
+        # Build a map of opposite patch operations by path for quick lookup
+        opposite_ops = {}
+        if opposite_patch:
+            for op in opposite_patch.operations:
+                path_key = tuple(op.path)
+                opposite_ops[path_key] = op
         
-        if len(patch.operations) > 20:
-            print(f"\n... and {len(patch.operations) - 20} more operations")
+        print(f"\nShowing first {min(limit, len(patch.operations))} operations:")
+        print("-" * 120)
+        print(f"{'#':>4}  {'Type':<7}  {'Path':<40}  {'Before':<25}  {'After':<25}")
+        print("-" * 120)
+        
+        for i, op in enumerate(patch.operations[:limit]):
+            path_str = format_operation_path(op.path)
+            if len(path_str) > 40:
+                path_str = path_str[:37] + "..."
+            
+            # Determine before and after values based on operation type
+            before_str = ""
+            after_str = ""
+            path_key = tuple(op.path)
+            
+            if op.Key == 'a':  # Add operation
+                before_str = "<not set>"
+                after_str = str(op.new_value)
+                # Check opposite for old value (should be a remove operation)
+                if path_key in opposite_ops and opposite_ops[path_key].Key == 'r':
+                    # Remove operations don't have a value, so we keep "<not set>"
+                    pass
+            elif op.Key == 'p':  # Replace operation
+                after_str = str(op.new_value)
+                # Look for the opposite replace to get the old value
+                if path_key in opposite_ops and opposite_ops[path_key].Key == 'p':
+                    before_str = str(opposite_ops[path_key].new_value)
+                else:
+                    before_str = "<unknown>"
+            elif op.Key == 'r':  # Remove operation
+                before_str = "<unknown>"
+                after_str = "<removed>"
+                # Check opposite for old value (should be an add operation)
+                if path_key in opposite_ops and opposite_ops[path_key].Key == 'a':
+                    before_str = str(opposite_ops[path_key].new_value)
+            
+            # Truncate values for display
+            if len(before_str) > 25:
+                before_str = before_str[:22] + "..."
+            if len(after_str) > 25:
+                after_str = after_str[:22] + "..."
+                
+            print(f"{i+1:4d}. {op.Key:<7}  {path_str:<40}  {before_str:<25}  {after_str:<25}")
+        
+        if len(patch.operations) > limit:
+            print(f"\n... and {len(patch.operations) - limit} more operations (use --limit to see more)")
     
     def _get_patch_index(self, from_ts: int, to_ts: int) -> int:
         """Get the 1-based index of a patch.
@@ -491,3 +547,41 @@ class ReplayDebugCLI:
             if str(path[i]) != str(part):
                 return False
         return True
+    
+    def display_metadata(self):
+        """Display metadata information about the replay."""
+        if not self.replay:
+            print("Error: Replay not opened.")
+            return
+        
+        metadata = self.replay.get_metadata()
+        
+        print("\nReplay Metadata")
+        print("=" * 80)
+        print(f"File:        {self.filename}")
+        print(f"Version:     {metadata.version}")
+        print(f"Game ID:     {metadata.game_id}")
+        print(f"Player ID:   {metadata.player_id}")
+        print(f"Start Time:  {format_timestamp(metadata.start_time)} ({metadata.start_time} ms)")
+        print(f"Last Time:   {format_timestamp(metadata.last_time)} ({metadata.last_time} ms)")
+        
+        # Calculate duration
+        duration_ms = metadata.last_time - metadata.start_time
+        duration_sec = duration_ms / 1000
+        duration_min = duration_sec / 60
+        duration_hours = duration_min / 60
+        
+        print(f"\nDuration:    {duration_ms} ms")
+        if duration_hours >= 1:
+            print(f"             {duration_hours:.2f} hours")
+        elif duration_min >= 1:
+            print(f"             {duration_min:.2f} minutes")
+        else:
+            print(f"             {duration_sec:.2f} seconds")
+        
+        # Show patch statistics
+        if self.all_patches:
+            forward_patches = sum(1 for from_ts, to_ts, _ in self.all_patches if to_ts > from_ts)
+            backward_patches = len(self.all_patches) - forward_patches
+            print(f"\nPatches:     {len(self.all_patches)} total")
+            print(f"             {forward_patches} forward, {backward_patches} backward")
