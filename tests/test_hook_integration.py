@@ -1,11 +1,11 @@
 import unittest
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import Mock
 
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.hook_system import ChangeType
-from conflict_interface.replay.replay_patch import AddOperation, RemoveOperation, ReplaceOperation, ReplayPatch
-from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import RemoveOperation
+from conflict_interface.replay.replay_patch import ReplaceOperation
 
 
 class TestGameInterfaceHookIntegration(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestGameInterfaceHookIntegration(unittest.TestCase):
         # Check hook was registered
         self.assertEqual(len(self.game_interface._hook_system.hooks), 1)
         hook = self.game_interface._hook_system.hooks[0]
-        self.assertEqual(hook.pattern, ["states", "map_state", "map", "provinces", "?"])
+        self.assertEqual(hook.pattern, ["states", "map_state", "map", "locations", "?"])
         self.assertEqual(hook.change_types, {ChangeType.ADD})
         
     def test_on_province_remove_registration(self):
@@ -38,7 +38,7 @@ class TestGameInterfaceHookIntegration(unittest.TestCase):
         # Check hook was registered
         self.assertEqual(len(self.game_interface._hook_system.hooks), 1)
         hook = self.game_interface._hook_system.hooks[0]
-        self.assertEqual(hook.pattern, ["states", "map_state", "map", "provinces", "?"])
+        self.assertEqual(hook.pattern, ["states", "map_state", "map", "locations", "?"])
         self.assertEqual(hook.change_types, {ChangeType.REMOVE})
         
     def test_on_province_attribute_change_registration(self):
@@ -49,7 +49,7 @@ class TestGameInterfaceHookIntegration(unittest.TestCase):
         # Check hook was registered
         self.assertEqual(len(self.game_interface._hook_system.hooks), 1)
         hook = self.game_interface._hook_system.hooks[0]
-        self.assertEqual(hook.pattern, ["states", "map_state", "map", "provinces", "?", "owner_id"])
+        self.assertEqual(hook.pattern, ["states", "map_state", "map", "locations", "?", "owner_id"])
         self.assertEqual(hook.change_types, {ChangeType.REPLACE})
         
     def test_multiple_event_registrations(self):
@@ -72,7 +72,7 @@ class TestGameInterfaceHookIntegration(unittest.TestCase):
         
         # Simulate an add operation
         op = AddOperation(
-            path=["states", "map_state", "map", "provinces", "123"],
+            path=["states", "map_state", "map", "locations", "123"],
             new_value={"id": 123, "name": "Test Province"}
         )
         
@@ -91,7 +91,7 @@ class TestGameInterfaceHookIntegration(unittest.TestCase):
         self.game_interface.on_province_remove(callback)
         
         # Simulate a remove operation
-        op = RemoveOperation(path=["states", "map_state", "map", "provinces", "123"])
+        op = RemoveOperation(path=["states", "map_state", "map", "locations", "123"])
         
         self.game_interface._hook_system.queue_hook_from_operation(op)
         self.game_interface._hook_system.execute_queued_hooks()
@@ -109,7 +109,7 @@ class TestGameInterfaceHookIntegration(unittest.TestCase):
         
         # Simulate a replace operation
         op = ReplaceOperation(
-            path=["states", "map_state", "map", "provinces", "123", "owner_id"],
+            path=["states", "map_state", "map", "locations", "123", "owner_id"],
             new_value=42
         )
         
@@ -133,7 +133,7 @@ class TestGameInterfaceHookIntegration(unittest.TestCase):
         
         # Trigger only add operation
         op = AddOperation(
-            path=["states", "map_state", "map", "provinces", "123"],
+            path=["states", "map_state", "map", "locations", "123"],
             new_value={}
         )
         
@@ -158,7 +158,7 @@ class TestApplyReplayIntegration(unittest.TestCase):
         
         # Directly queue an operation
         op = AddOperation(
-            path=["states", "map_state", "map", "provinces", "123"],
+            path=["states", "map_state", "map", "locations", "123"],
             new_value={"id": 123}
         )
         
@@ -175,7 +175,7 @@ class TestApplyReplayIntegration(unittest.TestCase):
         
         # Queue operation
         op = AddOperation(
-            path=["states", "map_state", "map", "provinces", "123"],
+            path=["states", "map_state", "map", "locations", "123"],
             new_value={"id": 123}
         )
         game._hook_system.queue_hook_from_operation(op)
@@ -213,7 +213,7 @@ class TestHookSystemPerformance(unittest.TestCase):
         
         for i in range(100):
             op = AddOperation(
-                path=["states", "map_state", "map", "provinces", str(i)],
+                path=["states", "map_state", "map", "locations", str(i)],
                 new_value={"id": i}
             )
             game._hook_system.queue_hook_from_operation(op)
@@ -241,7 +241,7 @@ class TestHookSystemPerformance(unittest.TestCase):
         # Queue many operations
         for i in range(1000):
             op = AddOperation(
-                path=["states", "map_state", "map", "provinces", str(i)],
+                path=["states", "map_state", "map", "locations", str(i)],
                 new_value={"id": i}
             )
             game._hook_system.queue_hook_from_operation(op)
@@ -303,11 +303,11 @@ class TestHookSystemEdgeCases(unittest.TestCase):
         
         # Change both attributes
         op1 = ReplaceOperation(
-            path=["states", "map_state", "map", "provinces", "123", "owner_id"],
+            path=["states", "map_state", "map", "locations", "123", "owner_id"],
             new_value=42
         )
         op2 = ReplaceOperation(
-            path=["states", "map_state", "map", "provinces", "123", "name"],
+            path=["states", "map_state", "map", "locations", "123", "name"],
             new_value="New Name"
         )
         

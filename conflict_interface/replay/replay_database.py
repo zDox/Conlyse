@@ -33,14 +33,19 @@ class ReplayDatabase:
 
     def __init__(self):
         self.conn: Optional[Connection] = None
-        self._compressor = zstd.ZstdCompressor(level=3)
-        self._decompressor = zstd.ZstdDecompressor()
+        self._compressor = None
+        self._decompressor = None
 
     def connect(self, filename):
+        self._compressor = zstd.ZstdCompressor(level=3)
+        self._decompressor = zstd.ZstdDecompressor()
         self.conn = sqlite3.connect(filename)
 
     def disconnect(self):
         self.conn.close()
+        self.conn = None
+        self._compressor = None
+        self._decompressor = None
 
     def create_tables(self):
         """Create SQLite database schema for replay storage."""
