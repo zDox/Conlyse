@@ -45,7 +45,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "replay-debug=conflict_interface.cli.replay_debug:main",
+            "replay-debug=conflict_interface.cli.replay_debug.__main__:main",
         ],
     },
 )
