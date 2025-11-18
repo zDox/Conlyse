@@ -172,7 +172,7 @@ class ReplayBenchmark:
             # Forward time travel
             current_ts = replay._start_time
             for ts in timestamps:
-                patches = replay._jump_from_to(current_ts, ts)
+                patches = replay._find_patch_path(current_ts, ts)
                 stats['forward_patches'] += len(patches)
                 stats['forward_jumps'] += 1
                 current_ts = ts
@@ -180,13 +180,13 @@ class ReplayBenchmark:
             # Backward time travel
             current_ts = timestamps[-1] if timestamps else replay._start_time
             for ts in reversed(timestamps[:-1]):
-                patches = replay._jump_from_to(current_ts, ts)
+                patches = replay._find_patch_path(current_ts, ts)
                 stats['backward_patches'] += len(patches)
                 stats['backward_jumps'] += 1
                 current_ts = ts
 
             # Jump back to start
-            patches = replay._jump_from_to(current_ts, replay._start_time)
+            patches = replay._find_patch_path(current_ts, replay._start_time)
             stats['backward_patches'] += len(patches)
             stats['backward_jumps'] += 1
 
@@ -197,7 +197,7 @@ class ReplayBenchmark:
             for _ in range(num_random_jumps):
                 start = random.choice(timestamps)
                 end = random.choice(timestamps)
-                patches = replay._jump_from_to(start, end)
+                patches = replay._find_patch_path(start, end)
                 stats['random_patches'] += len(patches)
                 stats['random_jumps'] += 1
 
