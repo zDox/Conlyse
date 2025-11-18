@@ -1,7 +1,7 @@
 import logging
 import time
 
-from build.lib.conflict_interface.utils.helper import datetime_to_unix_ms
+from conflict_interface.utils.helper import datetime_to_unix_ms
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
