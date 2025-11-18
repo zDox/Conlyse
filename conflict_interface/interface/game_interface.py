@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException
-from conflict_interface.interface.hook_system import HookSystem, ChangeType
+from conflict_interface.hook_system import HookSystem, ChangeType
 
 logger = get_logger()
 

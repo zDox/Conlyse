@@ -1,7 +1,7 @@
 import unittest
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
-from conflict_interface.interface.hook_system import HookSystem, ChangeType, HookRegistration, QueuedHook
+from conflict_interface.hook_system import HookSystem, ChangeType, HookRegistration
 from conflict_interface.replay.replay_patch import AddOperation, RemoveOperation, ReplaceOperation
 
 

@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import Mock
 
 from conflict_interface.interface.game_interface import GameInterface
-from conflict_interface.interface.hook_system import ChangeType
+from conflict_interface.hook_system import ChangeType
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
