@@ -245,14 +245,14 @@ class ReplayBenchmark:
             # Forward sequential moves
             for ts in timestamps:
                 dt = datetime.fromtimestamp(ts / 1000.0, tz=timezone.utc)
-                ritf.set_client_time(dt)
+                ritf.jump_to(dt)
                 stats['set_time_calls'] += 1
                 stats['forward_moves'] += 1
 
             # Backward sequential moves
             for ts in reversed(timestamps):
                 dt = datetime.fromtimestamp(ts / 1000.0, tz=timezone.utc)
-                ritf.set_client_time(dt)
+                ritf.jump_to(dt)
                 stats['set_time_calls'] += 1
                 stats['backward_moves'] += 1
 
@@ -263,7 +263,7 @@ class ReplayBenchmark:
             for _ in range(num_random):
                 ts = random.choice(timestamps)
                 dt = datetime.fromtimestamp(ts / 1000.0, tz=timezone.utc)
-                ritf.set_client_time(dt)
+                ritf.jump_to(dt)
                 stats['set_time_calls'] += 1
                 stats['random_moves'] += 1
 

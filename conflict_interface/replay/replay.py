@@ -268,7 +268,7 @@ class Replay:
                 
         return patches
 
-    def jump_from_to(self, start: datetime, target: datetime) -> Tuple[List[ReplayPatch], datetime]:
+    def find_patch_path(self, start: datetime, target: datetime) -> Tuple[List[ReplayPatch], datetime]:
         """
         Jump between two datetimes, snapping to nearest available timestamps.
         
@@ -316,18 +316,18 @@ class Replay:
         Get all timestamps where patches exist.
         
         Returns:
-            Sorted list of timestamps in milliseconds
+            Sorted list of timestamps in milliseconds (direct reference, do not modify)
         """
-        return self._timestamps.copy()
+        return self._timestamps
 
     def get_game_state_timestamps(self) -> List[int]:
         """
         Get all timestamps where complete game states are stored.
         
         Returns:
-            Sorted list of timestamps in milliseconds
+            Sorted list of timestamps in milliseconds (direct reference, do not modify)
         """
-        return self._game_state_timestamps.copy()
+        return self._game_state_timestamps
 
     def record_bipatch(
         self, 
