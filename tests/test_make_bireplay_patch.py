@@ -336,7 +336,6 @@ class TestMakeBireplayPatch(unittest.TestCase):
         self.assertEqual(forward_ops[1].path, ['units', 1])
         self.assertEqual(forward_ops[1].new_value, dump_any(MockUnit(id=2, health=90)))
 
-        print(bi_patch.backward_patch.debug_str())
         # Verify backward removes (in reverse order)
         self.assertEqual(backward_ops[0].Key, "r")
         self.assertEqual(backward_ops[0].path, ['units', 1])
