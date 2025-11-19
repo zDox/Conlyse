@@ -46,6 +46,7 @@ setup(
     entry_points={
         "console_scripts": [
             "replay-debug=conflict_interface.cli.replay_debug.__main__:main",
+            "recorder=conflict_interface.cli.recorder.__main__:main",
         ],
     },
 )
