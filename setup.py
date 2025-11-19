@@ -45,6 +45,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
+            "recorder=tools.recorder.__main__:main",
             "replay-debug=tools.replay_debug.__main__:main",
         ],
     },

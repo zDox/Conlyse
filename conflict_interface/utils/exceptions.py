@@ -58,7 +58,7 @@ class CountryUnselectedException(Exception):
     pass
 
 class GameActivationErrorCodes(Enum):
-    USER_NOT_FOUND = -3
+    USER_NOT_FOUND = -3 # Joined to many games in a short time
     GAME_NOT_FOUND = -4
     USER_EXISTED = -5
     COUNTRY_SELECTION_REQUESTED = -6

@@ -42,3 +42,5 @@ main.js
 *.js
 /tests/full_test_data_6_v191.json
 tests/full_test_data_1_v206.json
+/tools/recorder/config.json
+/recordings/
