@@ -4,9 +4,9 @@ Main entry point for the Replay Debug CLI Tool.
 import argparse
 import sys
 
-from .cli import ReplayDebugCLI
-from .shell import run_interactive_shell
-from .constants import DEFAULT_LIMIT, DEFAULT_DIRECTION
+from tools.replay_debug.cli import ReplayDebugCLI
+from tools.replay_debug.shell import run_interactive_shell
+from tools.replay_debug.constants import DEFAULT_LIMIT, DEFAULT_DIRECTION
 
 
 def main():
