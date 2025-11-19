@@ -45,7 +45,7 @@ class TestReplayDebugCLI(unittest.TestCase):
         prefix = ["states", "map_state", "provinces"]
         self.assertFalse(self.cli._path_starts_with(path, prefix))
     
-    @patch('conflict_interface.cli.replay_debug.cli.Replay')
+    @patch('tools.replay_debug.cli.Replay')
     def test_open_replay_success(self, mock_replay_class):
         """Test successfully opening a replay."""
         mock_replay = Mock()
@@ -58,7 +58,7 @@ class TestReplayDebugCLI(unittest.TestCase):
         mock_replay_class.assert_called_once_with("test_replay.db", 'r')
         mock_replay.open.assert_called_once()
     
-    @patch('conflict_interface.cli.replay_debug.cli.Replay')
+    @patch('tools.replay_debug.cli.Replay')
     def test_open_replay_file_not_found(self, mock_replay_class):
         """Test opening a non-existent replay file."""
         mock_replay_class.side_effect = FileNotFoundError()
@@ -74,7 +74,7 @@ class TestReplayDebugCLI(unittest.TestCase):
         self.assertFalse(result)
         self.assertIn("not found", captured_output.getvalue())
     
-    @patch('conflict_interface.cli.replay_debug.cli.Replay')
+    @patch('tools.replay_debug.cli.Replay')
     def test_list_patches(self, mock_replay_class):
         """Test listing patches."""
         # Setup mock replay
@@ -291,7 +291,7 @@ class TestReplayDebugCLI(unittest.TestCase):
         self.assertIn("game_info", output)
         self.assertIn("TOTAL", output)
     
-    @patch('conflict_interface.cli.replay_debug.cli.Replay')
+    @patch('tools.replay_debug.cli.Replay')
     def test_view_patch_with_limit(self, mock_replay_class):
         """Test viewing a patch with a limit parameter."""
         # Setup mock replay
@@ -321,7 +321,7 @@ class TestReplayDebugCLI(unittest.TestCase):
         self.assertIn("Showing first 5 operations", output)
         self.assertIn("and 5 more operations", output)
     
-    @patch('conflict_interface.cli.replay_debug.cli.Replay')
+    @patch('tools.replay_debug.cli.Replay')
     def test_display_metadata(self, mock_replay_class):
         """Test displaying replay metadata."""
         # Setup mock replay
@@ -357,7 +357,7 @@ class TestReplayDebugCLI(unittest.TestCase):
         self.assertIn("Duration:", output)
         self.assertIn("10.00 minutes", output)
     
-    @patch('conflict_interface.cli.replay_debug.cli.Replay')
+    @patch('tools.replay_debug.cli.Replay')
     def test_view_patch_shows_before_after_values(self, mock_replay_class):
         """Test that view patch shows before and after values."""
         # Setup mock replay
