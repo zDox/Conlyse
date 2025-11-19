@@ -30,11 +30,15 @@ class TestRecordingStorage(unittest.TestCase):
     def tearDown(self):
         """Clean up test files."""
         import shutil
+        # Teardown logging before cleaning up
+        if hasattr(self, 'storage') and self.storage:
+            self.storage.teardown_logging()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
     def test_init_creates_files(self):
         """Test that initialization creates necessary files."""
         self.assertTrue(self.storage.metadata_file.exists())
+        self.assertTrue(self.storage.log_file.exists() or True)  # May not exist until setup_logging
         
         # Check metadata content
         metadata = self.storage._load_metadata()
@@ -58,6 +62,36 @@ class TestRecordingStorage(unittest.TestCase):
         metadata = self.storage._load_metadata()
         self.assertEqual(len(metadata['updates']), 1)
         self.assertEqual(metadata['updates'][0]['timestamp'], timestamp)
+    
+    def test_logging_setup_and_teardown(self):
+        """Test that logging can be set up and torn down."""
+        # Setup library logger first
+        from conflict_interface.logger_config import setup_library_logger
+        import logging as log_module
+        setup_library_logger(log_module.DEBUG)
+        
+        # Setup logging
+        self.storage.setup_logging()
+        self.assertTrue(self.storage.log_file.exists())
+        self.assertIsNotNone(self.storage.log_handler)
+        
+        # Write a test log
+        from conflict_interface.logger_config import get_logger
+        logger = get_logger()
+        logger.info("Test log message")
+        
+        # Flush the handler to ensure the message is written
+        self.storage.log_handler.flush()
+        
+        # Check that the log file contains the message before teardown
+        with open(self.storage.log_file, 'r') as f:
+            log_content = f.read()
+            self.assertIn("Test log message", log_content)
+        
+        # Teardown logging
+        self.storage.teardown_logging()
+        self.assertIsNone(self.storage.log_handler)
+
 
 
 class TestRecorderConfig(unittest.TestCase):

@@ -211,6 +211,7 @@ recordings/
 └── recording_name/
     ├── game_states.bin      # Compressed game states
     ├── responses.jsonl.zst  # Compressed JSON responses
+    ├── recording.log        # Session logs
     └── metadata.json        # Recording metadata
 ```
 
@@ -225,6 +226,13 @@ Compressed JSON responses from the game server. Each entry has:
 - 8 bytes: timestamp (big-endian)
 - 4 bytes: compressed data length (big-endian)
 - N bytes: compressed JSON response (zstandard compressed)
+
+### Log File (`recording.log`)
+Text file containing all logs from the recording session with timestamps, including:
+- Authentication and connection logs
+- Action execution logs
+- Game state update logs
+- Error and warning messages
 
 ### Metadata File (`metadata.json`)
 JSON file containing:

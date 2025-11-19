@@ -45,6 +45,10 @@ class RecordingStorage:
         self.game_states_file = self.output_path / "game_states.bin"
         self.responses_file = self.output_path / "responses.jsonl.zst"
         self.metadata_file = self.output_path / "metadata.json"
+        self.log_file = self.output_path / "recording.log"
+        
+        # Log handler for capturing logs
+        self.log_handler: Optional[logging.FileHandler] = None
         
         # Initialize files
         self._init_files()
@@ -112,6 +116,30 @@ class RecordingStorage:
         self._save_metadata(metadata)
         
         logger.info(f"Saved update at timestamp {timestamp}")
+    
+    def setup_logging(self):
+        """Set up file logging for the recording session."""
+        # Create a file handler for the log file
+        self.log_handler = logging.FileHandler(self.log_file, mode='w', encoding='utf-8')
+        self.log_handler.setLevel(logging.DEBUG)
+        
+        # Use the same format as the console handler
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s.%(module)s - %(levelname)s - %(message)s"
+        )
+        self.log_handler.setFormatter(formatter)
+        
+        # Add the handler to the logger
+        logger.addHandler(self.log_handler)
+        logger.info(f"Log recording started to: {self.log_file}")
+    
+    def teardown_logging(self):
+        """Remove the file logging handler."""
+        if self.log_handler:
+            logger.info("Log recording completed")
+            logger.removeHandler(self.log_handler)
+            self.log_handler.close()
+            self.log_handler = None
 
 
 class Recorder:
@@ -144,6 +172,10 @@ class Recorder:
         
         output_path = os.path.join(output_dir, recording_name)
         self.storage = RecordingStorage(output_path)
+        
+        # Set up log file recording
+        self.storage.setup_logging()
+        
         logger.info(f"Recording storage initialized at: {output_path}")
     
     def _monkey_patch_game_api(self):
@@ -568,25 +600,30 @@ class Recorder:
         Returns:
             bool: True if successful, False otherwise
         """
-        # Setup storage
-        self._setup_storage()
-        
-        # Login
-        if not self.login():
-            return False
-        
-        # Find and join game
-        if not self.find_and_join_game():
-            return False
-        
-        # Execute actions
-        actions = self.config.get('actions', [])
-        logger.info(f"Executing {len(actions)} actions")
-        
-        for i, action in enumerate(actions):
-            logger.info(f"Executing action {i+1}/{len(actions)}: {action.get('type')}")
-            if not self.execute_action(action):
-                logger.warning(f"Action {i+1} failed, continuing...")
-        
-        logger.info("Recording completed successfully")
-        return True
+        try:
+            # Setup storage
+            self._setup_storage()
+            
+            # Login
+            if not self.login():
+                return False
+            
+            # Find and join game
+            if not self.find_and_join_game():
+                return False
+            
+            # Execute actions
+            actions = self.config.get('actions', [])
+            logger.info(f"Executing {len(actions)} actions")
+            
+            for i, action in enumerate(actions):
+                logger.info(f"Executing action {i+1}/{len(actions)}: {action.get('type')}")
+                if not self.execute_action(action):
+                    logger.warning(f"Action {i+1} failed, continuing...")
+            
+            logger.info("Recording completed successfully")
+            return True
+        finally:
+            # Always teardown logging, even if there was an error
+            if self.storage:
+                self.storage.teardown_logging()
