@@ -9,24 +9,20 @@ This module tests the replay patch application functionality, including:
 """
 import unittest
 from dataclasses import dataclass
-from typing import Optional, Union, Dict
+from typing import Optional, Dict
 
 from conflict_interface.data_types.game_object import GameObject, parse_any, dump_any
 from conflict_interface.data_types.game_state.game_state import GameState, States
 from conflict_interface.interface.game_interface import GameInterface
-from conflict_interface.replay.apply_replay import (
-    apply_patch_any,
-    apply_operation,
-    get_list_element_type,
-    recur_path,
-)
-from conflict_interface.replay.replay_patch import (
-    AddOperation,
-    RemoveOperation,
-    ReplaceOperation,
-    ReplayPatch,
-)
 from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.replay.apply_replay import apply_operation
+from conflict_interface.replay.apply_replay import apply_patch_any
+from conflict_interface.replay.apply_replay import get_list_element_type
+from conflict_interface.replay.apply_replay import recur_path
+from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import RemoveOperation
+from conflict_interface.replay.replay_patch import ReplaceOperation
+from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 # Mock GameObject classes for testing
