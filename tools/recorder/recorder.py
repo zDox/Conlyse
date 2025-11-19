@@ -30,8 +30,8 @@ class Recorder:
             config: Configuration dictionary
         """
         self.config = config
-        self.interface: Optional[HubInterface] = None
-        self.game: Optional[OnlineInterface] = None
+        self.hub_itf: Optional[HubInterface] = None
+        self.game_itf: Optional[OnlineInterface] = None
         self.storage: Optional[RecordingStorage] = None
         
         # Track the last server response for recording
@@ -58,14 +58,14 @@ class Recorder:
         Monkey patch the game API to intercept server responses.
         This allows us to capture the raw JSON without affecting replay functionality.
         """
-        original_request_method = self.game.game_api.make_game_server_request
+        original_request_method = self.game_itf.game_api.make_game_server_request
         
         def patched_request(*args, **kwargs):
             response = original_request_method(*args, **kwargs)
             self._last_response = response
             return response
         
-        self.game.game_api.make_game_server_request = patched_request
+        self.game_itf.game_api.make_game_server_request = patched_request
         logger.debug("Game API patched to capture responses")
     
     def login(self) -> bool:
@@ -84,14 +84,14 @@ class Recorder:
             return False
         
         try:
-            self.interface = HubInterface()
+            self.hub_itf = HubInterface()
             
             # Set proxy if provided
             if proxy_url:
                 proxy = {'http': proxy_url, 'https': proxy_url}
-                self.interface.set_proxy(proxy)
+                self.hub_itf.set_proxy(proxy)
             
-            self.interface.login(username, password)
+            self.hub_itf.login(username, password)
             logger.info(f"Successfully logged in as {username}")
             return True
         except Exception as e:
@@ -131,11 +131,11 @@ class Recorder:
             start_time = time()
 
             while True:
-                games = self.interface.get_global_games(
+                games = self.hub_itf.get_global_games(
                     scenario_id=scenario_id,
                     state=HubGameState.READY_TO_JOIN
                 )
-                my_games = self.interface.get_my_games()
+                my_games = self.hub_itf.get_my_games()
                 # Filter games we haven't joined yet
                 available_games = [game for game in games
                                    if not any(my_game.game_id == game_id for my_game in my_games) and
@@ -182,15 +182,15 @@ class Recorder:
             bool: True if successful, False otherwise
         """
         # Join the game (without replay functionality)
-        self.game = self.interface.join_game(game_id, replay_filename=None)
+        self.game_itf = self.hub_itf.join_game(game_id, replay_filename=None)
         
         # Patch the game API to capture responses
         self._monkey_patch_game_api()
         
         # Try to select country if specified
         if country_name:
-            if not self.game.is_country_selected():
-                playable_countries = self.game.get_playable_countries()
+            if not self.game_itf.is_country_selected():
+                playable_countries = self.game_itf.get_playable_countries()
                 
                 # Find country by name
                 selected_country = None
@@ -203,7 +203,7 @@ class Recorder:
                     logger.error(f"Country '{country_name}' not available in game {game_id}")
                     return False
                 
-                self.game.select_country(country_id=selected_country.player_id)
+                self.game_itf.select_country(country_id=selected_country.player_id)
                 logger.info(f"Selected country: {selected_country.name} in game {game_id}")
                 
                 # Update to apply country selection
@@ -217,17 +217,17 @@ class Recorder:
     
     def _save_current_state(self):
         """Save the current game state and last response."""
-        if self.game and self.storage and self._last_response:
+        if self.game_itf and self.storage and self._last_response:
             timestamp = time()
             self.storage.save_update(
-                self.game.game_state,
+                self.game_itf.game_state,
                 self._last_response,
                 timestamp
             )
     
     def _update_and_save(self):
         """Update game state and save it. This ensures state is always saved after update."""
-        self.game.update()
+        self.game_itf.update()
         self._save_current_state()
     
     def execute_action(self, action: dict) -> bool:
@@ -286,12 +286,12 @@ class Recorder:
         
         logger.info(f"Building {building_name} (tier {tier}) in {city_name}")
         
-        city = next(iter(self.game.get_my_provinces(name=city_name).values()), None)
+        city = next(iter(self.game_itf.get_my_provinces(name=city_name).values()), None)
         if not city:
             logger.error(f"City '{city_name}' not found")
             return False
         
-        upgrade_type = self.game.get_upgrade_type_by_name_and_tier(building_name, tier)
+        upgrade_type = self.game_itf.get_upgrade_type_by_name_and_tier(building_name, tier)
         if not upgrade_type:
             logger.error(f"Upgrade type '{building_name}' tier {tier} not found")
             return False
@@ -311,7 +311,7 @@ class Recorder:
         
         logger.info(f"Canceling construction in {city_name}")
         
-        city = next(iter(self.game.get_my_provinces(name=city_name).values()), None)
+        city = next(iter(self.game_itf.get_my_provinces(name=city_name).values()), None)
         if not city:
             logger.error(f"City '{city_name}' not found")
             return False
@@ -328,12 +328,12 @@ class Recorder:
         
         logger.info(f"Mobilizing {unit_name} (tier {tier}) in {city_name}")
         
-        city = next(iter(self.game.get_my_provinces(name=city_name).values()), None)
+        city = next(iter(self.game_itf.get_my_provinces(name=city_name).values()), None)
         if not city:
             logger.error(f"City '{city_name}' not found")
             return False
         
-        unit_type = self.game.get_unit_type_by_name_and_tier(unit_name, tier)
+        unit_type = self.game_itf.get_unit_type_by_name_and_tier(unit_name, tier)
         if not unit_type:
             logger.error(f"Unit type '{unit_name}' tier {tier} not found")
             return False
@@ -350,7 +350,7 @@ class Recorder:
         
         logger.info(f"Canceling mobilization in {city_name}")
         
-        city = next(iter(self.game.get_my_provinces(name=city_name).values()), None)
+        city = next(iter(self.game_itf.get_my_provinces(name=city_name).values()), None)
         if not city:
             logger.error(f"City '{city_name}' not found")
             return False
@@ -366,7 +366,7 @@ class Recorder:
         
         logger.info(f"Researching {research_name} (tier {tier})")
         
-        research_type = self.game.get_research_type_by_name_and_tier(research_name, tier)
+        research_type = self.game_itf.get_research_type_by_name_and_tier(research_name, tier)
         if not research_type:
             logger.error(f"Research type '{research_name}' tier {tier} not found")
             return False
@@ -382,9 +382,9 @@ class Recorder:
         logger.info(f"Canceling research {research_name} (tier {tier})")
         
         # Get current research state
-        if self.game.game_state and self.game.game_state.states.research_state:
-            research_state = self.game.game_state.states.research_state
-            research_id = self.game.get_research_type_by_name_and_tier(research_name, tier)
+        if self.game_itf.game_state and self.game_itf.game_state.states.research_state:
+            research_state = self.game_itf.game_state.states.research_state
+            research_id = self.game_itf.get_research_type_by_name_and_tier(research_name, tier)
             research_state.cancel_research(research_id)
             self._update_and_save()
             return True
@@ -426,9 +426,9 @@ class Recorder:
         army_number = action.get('army_number')
         
         if army_id:
-            return self.game.get_army(army_id)
+            return self.game_itf.get_army(army_id)
         elif army_number:
-            return self.game.get_my_army_by_number(army_number)
+            return self.game_itf.get_my_army_by_number(army_number)
         else:
             logger.error("Either army_id or army_number must be specified")
             return None
@@ -441,7 +441,7 @@ class Recorder:
         if not army:
             return False
         
-        province = self.game.get_provinces_by_name(province_name)
+        province = self.game_itf.get_provinces_by_name(province_name)
         if not province:
             logger.error(f"Province '{province_name}' not found")
             return False
@@ -461,7 +461,7 @@ class Recorder:
         if not army:
             return False
         
-        province = self.game.get_provinces_by_name(province_name)
+        province = self.game_itf.get_provinces_by_name(province_name)
         if not province:
             logger.error(f"Province '{province_name}' not found")
             return False
@@ -481,7 +481,7 @@ class Recorder:
         if not army:
             return False
         
-        province = self.game.get_provinces_by_name(province_name)
+        province = self.game_itf.get_provinces_by_name(province_name)
         if not province:
             logger.error(f"Province '{province_name}' not found")
             return False
