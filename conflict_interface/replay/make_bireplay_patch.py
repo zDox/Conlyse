@@ -118,7 +118,7 @@ def make_replay_patch_list(rp: ReplayPatch, path: list[str], self: list[Any], ot
         self: Starting list state
         other: Target list state
     """
-    # Special cases where either list of GameObject and they dont have an id. Or ProductionList
+    # Special cases where either list of GameObject and they don't have an id. Or ProductionList
     if len(other) != 0:
         if isinstance(other[0], GameObject) and not hasattr(other[0], "id"):
             if self != other:
