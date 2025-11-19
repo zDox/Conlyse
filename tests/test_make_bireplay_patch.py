@@ -10,7 +10,6 @@ from typing import List
 from typing import Optional
 
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch, ReplayPatch
 from conflict_interface.data_types.game_object import dump_any
