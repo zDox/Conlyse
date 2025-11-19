@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
-from conflict_interface.hook_system import HookSystem, ChangeType, HookRegistration
+from conflict_interface.hook_system import HookSystem, ChangeType, Hook
 from conflict_interface.replay.replay_patch import AddOperation, RemoveOperation, ReplaceOperation
 
 
@@ -10,7 +10,7 @@ class TestHookRegistration(unittest.TestCase):
     
     def test_exact_match(self):
         """Test exact path matching without wildcards."""
-        hook = HookRegistration(
+        hook = Hook(
             pattern=["states", "map_state", "map", "provinces"],
             callback=Mock(),
             change_types={ChangeType.ADD}
@@ -27,7 +27,7 @@ class TestHookRegistration(unittest.TestCase):
         
     def test_wildcard_single_level_match(self):
         """Test wildcard matching with ?."""
-        hook = HookRegistration(
+        hook = Hook(
             pattern=["states", "map_state", "map", "provinces", "?"],
             callback=Mock(),
             change_types={ChangeType.ADD, ChangeType.REMOVE}
@@ -45,7 +45,7 @@ class TestHookRegistration(unittest.TestCase):
 
     def test_wildcard_multiple_levels(self):
         """Test wildcard matching with multiple levels by using the $ wildcard."""
-        hook = HookRegistration(
+        hook = Hook(
             pattern=["states", "map_state", "map", "provinces", "$"],
             callback=Mock(),
             change_types={ChangeType.ADD}
@@ -61,7 +61,7 @@ class TestHookRegistration(unittest.TestCase):
         
     def test_attribute_match(self):
         """Test matching specific attributes."""
-        hook = HookRegistration(
+        hook = Hook(
             pattern=["states", "map_state", "map", "provinces", "?", "owner_id"],
             callback=Mock(),
             change_types={ChangeType.REPLACE}
@@ -87,7 +87,7 @@ class TestHookRegistration(unittest.TestCase):
         
     def test_multiple_wildcards(self):
         """Test multiple wildcards in pattern."""
-        hook = HookRegistration(
+        hook = Hook(
             pattern=["states", "?", "?", "provinces", "?"],
             callback=Mock(),
             change_types={ChangeType.ADD}
@@ -105,7 +105,7 @@ class TestHookRegistration(unittest.TestCase):
         
     def test_pattern_longer_than_path(self):
         """Test that pattern longer than path doesn't match."""
-        hook = HookRegistration(
+        hook = Hook(
             pattern=["states", "map_state", "map", "provinces", "?", "owner_id"],
             callback=Mock(),
             change_types={ChangeType.ADD}

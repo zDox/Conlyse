@@ -9,6 +9,10 @@ from typing import Callable, Any, TYPE_CHECKING
 from dataclasses import dataclass
 from enum import Enum
 
+from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import RemoveOperation
+from conflict_interface.replay.replay_patch import ReplaceOperation
+
 if TYPE_CHECKING:
     from conflict_interface.replay.replay_patch import Operation
 
@@ -25,7 +29,7 @@ class ChangeType(Enum):
 
 
 @dataclass
-class HookRegistration:
+class Hook:
     """Represents a registered hook with its pattern and callback."""
     pattern: list[str]  # Path pattern with potential wildcards
     callback: Callable
@@ -117,7 +121,7 @@ class HookSystem:
     
     def __init__(self):
         """Initialize the hook system."""
-        self.hooks: list[HookRegistration] = []
+        self.hooks: list[Hook] = []
         self.queued_hooks: list[QueuedHook] = []
         
     def register_hook(
@@ -138,7 +142,7 @@ class HookSystem:
             change_types = {ChangeType.ADD, ChangeType.REMOVE, ChangeType.REPLACE}
             
         pattern = path_pattern.split(".")
-        hook = HookRegistration(pattern, callback, change_types)
+        hook = Hook(pattern, callback, change_types)
         self.hooks.append(hook)
         logger.debug(f"Registered hook for pattern: {path_pattern}")
         
@@ -154,8 +158,7 @@ class HookSystem:
             operation: The replay operation that occurred
             old_value: The old value before the operation (for replace operations)
         """
-        from conflict_interface.replay.replay_patch import AddOperation, RemoveOperation, ReplaceOperation
-        
+
         # Determine change type
         if isinstance(operation, AddOperation):
             change_type = ChangeType.ADD
@@ -167,7 +170,7 @@ class HookSystem:
             change_type = ChangeType.REPLACE
             new_value = operation.new_value
         else:
-            logger.warning(f"Unknown operation type: {type(operation)}")
+            logger.error(f"Unknown operation type: {type(operation)}")
             return
             
         path = operation.path
