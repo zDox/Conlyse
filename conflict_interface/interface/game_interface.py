@@ -93,7 +93,7 @@ class GameInterface:
 
     @country_selected
     def get_my_army_by_number(self, army_number: int) -> Army | None:
-        return next(iter(self.get_my_armies(owner_id=self.player_id, army_number=army_number).values()), None)
+        return next(iter(self.get_my_armies(army_number=army_number).values()), None)
 
     @country_selected
     def get_armies_in_province(self, province_id: int) -> list[Army]:
@@ -488,6 +488,19 @@ class GameInterface:
             details about each completed research.
         """
         return dict(self.game_state.states.research_state.completed_researches)
+
+    @country_selected
+    def has_item_unlocked(self, item_id: int) -> bool:
+        """
+        Checks if a specific research item has been unlocked by the player.
+
+        Parameters:
+            item_id (int): The unique identifier of the research item to check.
+        Returns:
+            bool: True if the item has been unlocked, False otherwise.
+        """
+        return item_id in self.game_state.states.research_state.has_unlocked_item(item_id)
+
 
     """
     ResourceState(4)

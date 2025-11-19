@@ -6,6 +6,7 @@ from datetime import datetime
 from time import sleep, time
 from typing import Optional
 
+from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
 from tools.recorder.storage import RecordingStorage
 from tools.recorder.utils import parse_duration
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
@@ -57,14 +58,14 @@ class Recorder:
         Monkey patch the game API to intercept server responses.
         This allows us to capture the raw JSON without affecting replay functionality.
         """
-        original_request_method = self.game.game_api.request
+        original_request_method = self.game.game_api.make_game_server_request
         
         def patched_request(*args, **kwargs):
             response = original_request_method(*args, **kwargs)
             self._last_response = response
             return response
         
-        self.game.game_api.request = patched_request
+        self.game.game_api.make_game_server_request = patched_request
         logger.debug("Game API patched to capture responses")
     
     def login(self) -> bool:
@@ -326,7 +327,9 @@ class Recorder:
             logger.error(f"Unit type '{unit_name}' tier {tier} not found")
             return False
         
-        city.mobilize_unit_by_id(unit_type.id)
+        _, action_result = city.mobilize_unit_by_id(unit_type.id)
+        if action_result != UpdateProvinceActionResult.Ok:
+            logger.error(f"Could not mobilize unit {unit_name} (tier {tier}) in {city_name} reason: {action_result}")
         self._update_and_save()
         return True
     
@@ -363,16 +366,17 @@ class Recorder:
     
     def _cancel_research(self, action: dict) -> bool:
         """Cancel research."""
-        logger.info(f"Canceling research")
+        research_name = action.get('research_name')
+        tier = action.get('tier')
+        logger.info(f"Canceling research {research_name} (tier {tier})")
         
         # Get current research state
         if self.game.game_state and self.game.game_state.states.research_state:
             research_state = self.game.game_state.states.research_state
-            if research_state.current_research:
-                research_id = research_state.current_research.research_type_id
-                research_state.cancel_research(research_id)
-                self._update_and_save()
-                return True
+            research_id = self.game.get_research_type_by_name_and_tier(research_name, tier)
+            research_state.cancel_research(research_id)
+            self._update_and_save()
+            return True
         
         logger.warning("No active research to cancel")
         return False

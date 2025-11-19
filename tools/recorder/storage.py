@@ -10,6 +10,7 @@ from typing import Optional
 
 import zstandard as zstd
 
+from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.logger_config import get_logger
 
 logger = get_logger()
@@ -65,7 +66,7 @@ class RecordingStorage:
                 return json.load(f)
         return {"version": "1.0", "updates": []}
     
-    def save_update(self, game_state, response_json: dict, timestamp: float):
+    def save_update(self, game_state: GameState, response_json: dict, timestamp: float):
         """
         Save a game update with compressed game state and response.
         
@@ -75,7 +76,10 @@ class RecordingStorage:
             timestamp: Timestamp of the update
         """
         # Compress and save game state
+        ritf = game_state.game
+        game_state.set_game(None)
         game_state_bytes = pickle.dumps(game_state)
+        game_state.set_game(ritf)
         compressed_state = self._compressor.compress(game_state_bytes)
         
         # Convert timestamp to integer milliseconds

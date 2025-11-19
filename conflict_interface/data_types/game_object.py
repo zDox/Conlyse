@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import MISSING as DATACLASS_MISSING
+from dataclasses import fields
 from dataclasses import is_dataclass
 from datetime import UTC
 from enum import Enum
@@ -459,8 +460,13 @@ class GameObject:
             game: The central game instance.
         """
         self.game = game
-        for key in self.get_mapping().keys():
-            value = getattr(self, key)
+        """
+        Iterate over all fields of the dataclass. We cannot iterate over the get_mapping() 
+        because static_map_data in Map is not in the mapping but needs to have the game set.
+        as it is a GameObject.
+        """
+        for f in fields(self):
+            value = getattr(self, f.name)
             self._set_game_recursive(value, game)
 
     def _set_game_recursive(self, value: Any, game: GameInterface | None):
