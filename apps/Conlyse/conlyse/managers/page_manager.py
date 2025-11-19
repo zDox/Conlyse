@@ -22,7 +22,7 @@ class PageManager:
         self.next_page_type: PageType | None = None
 
         self.app = app
-        self.stack: QStackedWidget = app.q_window.stacked_widget  # QStackedWidget that holds the pages
+        self.stack: QStackedWidget = app.main_window.stacked_widget  # QStackedWidget that holds the pages
 
         # Context is used to hold the args the current page passes to the next page
         self.context = {}
@@ -90,9 +90,9 @@ class PageManager:
         self.next_page_type = None
 
         if self.current_page.HEADER:
-            self.app.q_window.header.show()
+            self.app.main_window.header.show()
         else:
-            self.app.q_window.header.hide()
+            self.app.main_window.header.hide()
 
 
         self.stack.addWidget(self.current_page)

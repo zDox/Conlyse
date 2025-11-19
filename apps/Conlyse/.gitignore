@@ -7,3 +7,4 @@
 /conlyse/utils/__pycache__
 config.json
 /conlyse/managers/events/__pycache__
+*.pyc

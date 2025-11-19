@@ -25,7 +25,6 @@ class ReplayManager:
 
     def add_replay(self, file_path: str, replay: ReplayInterface):
         self.replays.update({file_path: replay})
-        pass
 
     def _load_replay(self, file_path: str):
         """
@@ -37,7 +36,7 @@ class ReplayManager:
         ritf = ReplayInterface(file_path)
         try:
             ritf.open()
-            self.app.event_handler.publish_async(ReplayLoadCompleteEvent(file_path, ritf))
+            self.app.event_handler.publish(ReplayLoadCompleteEvent(file_path, ritf))
         except Exception as e:
             logger.warning(f"Failed to load replay: {e}")
 
