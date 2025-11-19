@@ -445,4 +445,17 @@ class Replay:
 
         return error_detected
 
+    @staticmethod
+    def datetime_to_ms(dt: datetime) -> int:
+        """
+        Convert datetime to milliseconds timestamp.
+        
+        Args:
+            dt: Datetime to convert
+            
+        Returns:
+            Timestamp in milliseconds
+        """
+        return datetime_to_unix_ms(dt)
+
 
