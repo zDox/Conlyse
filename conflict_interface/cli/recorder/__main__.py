@@ -54,8 +54,7 @@ Example configuration file:
     },
     {
       "type": "sleep_with_updates",
-      "duration": 5,
-      "unit": "minutes",
+      "duration": "5m",
       "update_interval": 30
     }
   ]

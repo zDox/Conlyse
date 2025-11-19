@@ -110,10 +110,9 @@ class TestRecorderConfig(unittest.TestCase):
     
     def test_sleep_action(self):
         """Test SleepAction creation."""
-        action = SleepAction(duration=10, unit="minutes")
+        action = SleepAction(duration="5m")
         self.assertEqual(action.type, "sleep")
-        self.assertEqual(action.duration, 10)
-        self.assertEqual(action.unit, "minutes")
+        self.assertEqual(action.duration, "5m")
     
     def test_recorder_config(self):
         """Test RecorderConfig creation."""

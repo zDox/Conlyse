@@ -2,7 +2,7 @@
 Configuration schema for the recorder CLI tool.
 """
 from dataclasses import dataclass
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Union
 
 
 @dataclass
@@ -55,16 +55,14 @@ class CancelResearchAction:
 class SleepAction:
     """Sleep action configuration without updates."""
     type: Literal["sleep"] = "sleep"
-    duration: float = 0.0  # in seconds
-    unit: Literal["seconds", "minutes"] = "seconds"
+    duration: Union[str, int, float] = 0  # Default: seconds. Use suffix for minutes (e.g., "5m")
 
 
 @dataclass
 class SleepWithUpdatesAction:
     """Sleep action configuration with periodic updates."""
     type: Literal["sleep_with_updates"] = "sleep_with_updates"
-    duration: float = 0.0  # in seconds
-    unit: Literal["seconds", "minutes"] = "seconds"
+    duration: Union[str, int, float] = 0  # Default: seconds. Use suffix for minutes (e.g., "5m")
     update_interval: float = 10.0  # in seconds, default 10 seconds
 
 

@@ -134,12 +134,14 @@ Wait for a specified duration without updating the game state.
 ```json
 {
   "type": "sleep",
-  "duration": 10,
-  "unit": "minutes"
+  "duration": "10m"
 }
 ```
 
-Units can be `"seconds"` or `"minutes"`.
+**Duration format:**
+- Number without suffix (default: seconds): `10`, `30`, `60`
+- With 's' suffix for seconds: `"30s"`, `"60s"`
+- With 'm' suffix for minutes: `"5m"`, `"10m"`, `"1.5m"`
 
 ### Sleep with Updates
 Wait for a specified duration while periodically updating the game state.
@@ -147,12 +149,13 @@ Wait for a specified duration while periodically updating the game state.
 ```json
 {
   "type": "sleep_with_updates",
-  "duration": 5,
-  "unit": "minutes",
+  "duration": "5m",
   "update_interval": 30
 }
 ```
 
+**Parameters:**
+- `duration`: Duration to sleep (see format above)
 - `update_interval`: Seconds between updates (default: 10)
 
 ### Army Actions

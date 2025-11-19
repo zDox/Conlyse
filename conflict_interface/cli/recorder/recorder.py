@@ -1,145 +1,19 @@
 """
-Core recorder class for recording game sessions.
-
-This recorder operates independently of the replay system and stores:
-1. Compressed game state after each update
-2. Compressed JSON responses from the game server
+Main recorder class for game recording.
 """
-import json
-import logging
 import os
-import pickle
 from datetime import datetime
-from pathlib import Path
 from time import sleep, time
 from typing import Optional
 
-import zstandard as zstd
-
-from conflict_interface.data_types.game_object import dump_any
+from conflict_interface.cli.recorder.storage import RecordingStorage
+from conflict_interface.cli.recorder.utils import parse_duration
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
 from conflict_interface.logger_config import get_logger
 
 logger = get_logger()
-
-
-class RecordingStorage:
-    """Handles storage of recorded game data."""
-    
-    def __init__(self, output_path: str):
-        """
-        Initialize recording storage.
-        
-        Args:
-            output_path: Path to the output directory for recordings
-        """
-        self.output_path = Path(output_path)
-        self.output_path.mkdir(parents=True, exist_ok=True)
-        
-        # Create compressor
-        self._compressor = zstd.ZstdCompressor(level=3)
-        
-        # Storage for game states and responses
-        self.game_states_file = self.output_path / "game_states.bin"
-        self.responses_file = self.output_path / "responses.jsonl.zst"
-        self.metadata_file = self.output_path / "metadata.json"
-        self.log_file = self.output_path / "recording.log"
-        
-        # Log handler for capturing logs
-        self.log_handler: Optional[logging.FileHandler] = None
-        
-        # Initialize files
-        self._init_files()
-    
-    def _init_files(self):
-        """Initialize recording files."""
-        # Create metadata
-        metadata = {
-            "version": "1.0",
-            "created_at": datetime.now().isoformat(),
-            "updates": []
-        }
-        self._save_metadata(metadata)
-    
-    def _save_metadata(self, metadata: dict):
-        """Save metadata to file."""
-        with open(self.metadata_file, 'w') as f:
-            json.dump(metadata, f, indent=2)
-    
-    def _load_metadata(self) -> dict:
-        """Load metadata from file."""
-        if self.metadata_file.exists():
-            with open(self.metadata_file, 'r') as f:
-                return json.load(f)
-        return {"version": "1.0", "updates": []}
-    
-    def save_update(self, game_state, response_json: dict, timestamp: float):
-        """
-        Save a game update with compressed game state and response.
-        
-        Args:
-            game_state: The game state object
-            response_json: The JSON response from the server
-            timestamp: Timestamp of the update
-        """
-        # Compress and save game state
-        game_state_bytes = pickle.dumps(game_state)
-        compressed_state = self._compressor.compress(game_state_bytes)
-        
-        # Convert timestamp to integer milliseconds
-        timestamp_ms = int(timestamp * 1000)
-        
-        with open(self.game_states_file, 'ab') as f:
-            # Write timestamp and length, then compressed data
-            f.write(timestamp_ms.to_bytes(8, 'big'))
-            f.write(len(compressed_state).to_bytes(4, 'big'))
-            f.write(compressed_state)
-        
-        # Compress and save JSON response
-        response_str = json.dumps(response_json)
-        compressed_response = self._compressor.compress(response_str.encode('utf-8'))
-        
-        with open(self.responses_file, 'ab') as f:
-            # Write timestamp and length, then compressed data
-            f.write(timestamp_ms.to_bytes(8, 'big'))
-            f.write(len(compressed_response).to_bytes(4, 'big'))
-            f.write(compressed_response)
-        
-        # Update metadata
-        metadata = self._load_metadata()
-        metadata["updates"].append({
-            "timestamp": timestamp,
-            "datetime": datetime.fromtimestamp(timestamp).isoformat()
-        })
-        self._save_metadata(metadata)
-        
-        logger.info(f"Saved update at timestamp {timestamp}")
-    
-    def setup_logging(self):
-        """Set up file logging for the recording session."""
-        # Create a file handler for the log file
-        self.log_handler = logging.FileHandler(self.log_file, mode='w', encoding='utf-8')
-        self.log_handler.setLevel(logging.DEBUG)
-        
-        # Use the same format as the console handler
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s.%(module)s - %(levelname)s - %(message)s"
-        )
-        self.log_handler.setFormatter(formatter)
-        
-        # Add the handler to the logger
-        logger.addHandler(self.log_handler)
-        logger.info(f"Log recording started to: {self.log_file}")
-    
-    def teardown_logging(self):
-        """Remove the file logging handler."""
-        if self.log_handler:
-            logger.info("Log recording completed")
-            logger.removeHandler(self.log_handler)
-            self.log_handler.close()
-            self.log_handler = None
 
 
 class Recorder:
@@ -226,9 +100,10 @@ class Recorder:
     def find_and_join_game(self) -> bool:
         """
         Find a game with the specified scenario_id and join it.
+        Tries multiple games until country selection succeeds.
         
         Returns:
-            bool: True if successfully joined, False otherwise
+            bool: True if successfully joined and selected country, False otherwise
         """
         scenario_id = self.config.get('scenario_id')
         country_name = self.config.get('country_name')
@@ -246,49 +121,56 @@ class Recorder:
             
             my_games = self.interface.get_my_games()
             
-            # Find a game we haven't joined yet
-            selected_game = None
-            for game in games:
-                if game.game_id not in my_games:
-                    selected_game = game
-                    break
+            # Filter games we haven't joined yet
+            available_games = [game for game in games if game.game_id not in my_games]
             
-            if not selected_game:
+            if not available_games:
                 logger.error(f"No available games found for scenario {scenario_id}")
                 return False
             
-            logger.info(f"Joining game: {selected_game.game_id}")
-            
-            # Join the game (without replay functionality)
-            self.game = self.interface.join_game(selected_game.game_id, replay_filename=None)
-            
-            # Patch the game API to capture responses
-            self._monkey_patch_game_api()
-            
-            # Select country if specified
-            if country_name:
-                if not self.game.is_country_selected():
-                    playable_countries = self.game.get_playable_countries()
+            # Try each game until we successfully select the desired country
+            for game_info in available_games:
+                logger.info(f"Attempting to join game: {game_info.game_id}")
+                
+                try:
+                    # Join the game (without replay functionality)
+                    self.game = self.interface.join_game(game_info.game_id, replay_filename=None)
                     
-                    # Find country by name
-                    selected_country = None
-                    for country_id, country in playable_countries.items():
-                        if country.name.lower() == country_name.lower():
-                            selected_country = country
-                            break
+                    # Patch the game API to capture responses
+                    self._monkey_patch_game_api()
                     
-                    if not selected_country:
-                        logger.warning(f"Country '{country_name}' not found, selecting first available")
-                        selected_country = next(iter(playable_countries.values()))
+                    # Try to select country if specified
+                    if country_name:
+                        if not self.game.is_country_selected():
+                            playable_countries = self.game.get_playable_countries()
+                            
+                            # Find country by name
+                            selected_country = None
+                            for country_id, country in playable_countries.items():
+                                if country.name.lower() == country_name.lower():
+                                    selected_country = country
+                                    break
+                            
+                            if not selected_country:
+                                logger.warning(f"Country '{country_name}' not available in game {game_info.game_id}, trying next game")
+                                continue  # Try next game
+                            
+                            self.game.select_country(country_id=selected_country.player_id)
+                            logger.info(f"Selected country: {selected_country.name} in game {game_info.game_id}")
+                            
+                            # Update to apply country selection
+                            self._update_and_save()
                     
-                    self.game.select_country(country_id=selected_country.player_id)
-                    logger.info(f"Selected country: {selected_country.name}")
+                    # Successfully joined and selected country
+                    return True
                     
-                    # Update to apply country selection
-                    self.game.update()
-                    self._save_current_state()
+                except Exception as e:
+                    logger.warning(f"Failed to join/select country in game {game_info.game_id}: {e}, trying next game")
+                    continue
             
-            return True
+            # If we get here, we tried all games and none worked
+            logger.error(f"Could not find a suitable game with available country '{country_name}'")
+            return False
             
         except Exception as e:
             logger.error(f"Failed to find and join game: {e}")
@@ -303,6 +185,11 @@ class Recorder:
                 self._last_response,
                 timestamp
             )
+    
+    def _update_and_save(self):
+        """Update game state and save it. This ensures state is always saved after update."""
+        self.game.update()
+        self._save_current_state()
     
     def execute_action(self, action: dict) -> bool:
         """
@@ -373,8 +260,7 @@ class Recorder:
         possible_upgrade = city.get_possible_upgrade(id=upgrade_type.id)
         if city.is_upgrade_buildable(possible_upgrade):
             city.build_upgrade(possible_upgrade)
-            self.game.update()
-            self._save_current_state()
+            self._update_and_save()
             return True
         else:
             logger.error(f"Cannot build {building_name} in {city_name}")
@@ -392,8 +278,7 @@ class Recorder:
             return False
         
         city.cancel_construction()
-        self.game.update()
-        self._save_current_state()
+        self._update_and_save()
         return True
     
     def _mobilize_unit(self, action: dict) -> bool:
@@ -415,8 +300,7 @@ class Recorder:
             return False
         
         city.mobilize_unit_by_id(unit_type.id)
-        self.game.update()
-        self._save_current_state()
+        self._update_and_save()
         return True
     
     def _cancel_mobilization(self, action: dict) -> bool:
@@ -431,8 +315,7 @@ class Recorder:
             return False
         
         city.cancel_mobilization()
-        self.game.update()
-        self._save_current_state()
+        self._update_and_save()
         return True
     
     def _research(self, action: dict) -> bool:
@@ -448,8 +331,7 @@ class Recorder:
             return False
         
         research_type.research()
-        self.game.update()
-        self._save_current_state()
+        self._update_and_save()
         return True
     
     def _cancel_research(self, action: dict) -> bool:
@@ -462,8 +344,7 @@ class Recorder:
             if research_state.current_research:
                 research_id = research_state.current_research.research_type_id
                 research_state.cancel_research(research_id)
-                self.game.update()
-                self._save_current_state()
+                self._update_and_save()
                 return True
         
         logger.warning("No active research to cancel")
@@ -471,36 +352,29 @@ class Recorder:
     
     def _sleep(self, action: dict) -> bool:
         """Sleep without updates."""
-        duration = action.get('duration', 0)
-        unit = action.get('unit', 'seconds')
+        duration_input = action.get('duration', 0)
+        duration_seconds = parse_duration(duration_input)
         
-        if unit == 'minutes':
-            duration = duration * 60
-        
-        logger.info(f"Sleeping for {duration} seconds without updates")
-        sleep(duration)
+        logger.info(f"Sleeping for {duration_seconds} seconds without updates")
+        sleep(duration_seconds)
         return True
     
     def _sleep_with_updates(self, action: dict) -> bool:
         """Sleep with periodic updates."""
-        duration = action.get('duration', 0)
-        unit = action.get('unit', 'seconds')
+        duration_input = action.get('duration', 0)
+        duration_seconds = parse_duration(duration_input)
         update_interval = action.get('update_interval', 10)
         
-        if unit == 'minutes':
-            duration = duration * 60
-        
-        logger.info(f"Sleeping for {duration} seconds with updates every {update_interval} seconds")
+        logger.info(f"Sleeping for {duration_seconds} seconds with updates every {update_interval} seconds")
         
         elapsed = 0
-        while elapsed < duration:
-            wait_time = min(update_interval, duration - elapsed)
+        while elapsed < duration_seconds:
+            wait_time = min(update_interval, duration_seconds - elapsed)
             sleep(wait_time)
             elapsed += wait_time
             
-            if elapsed < duration:
-                self.game.update()
-                self._save_current_state()
+            if elapsed < duration_seconds:
+                self._update_and_save()
         
         return True
     
@@ -534,8 +408,7 @@ class Recorder:
         logger.info(f"Army {army.army_number} patrolling to {province_name}")
         
         army.patrol(target)
-        self.game.update()
-        self._save_current_state()
+        self._update_and_save()
         return True
     
     def _army_move(self, action: dict) -> bool:
@@ -555,8 +428,7 @@ class Recorder:
         logger.info(f"Army {army.army_number} moving to {province_name}")
         
         army.set_waypoint(target)
-        self.game.update()
-        self._save_current_state()
+        self._update_and_save()
         return True
     
     def _army_attack(self, action: dict) -> bool:
@@ -576,8 +448,7 @@ class Recorder:
         logger.info(f"Army {army.army_number} attacking {province_name}")
         
         army.attack_point(target)
-        self.game.update()
-        self._save_current_state()
+        self._update_and_save()
         return True
     
     def _army_cancel_commands(self, action: dict) -> bool:
@@ -589,8 +460,7 @@ class Recorder:
         logger.info(f"Canceling commands for army {army.army_number}")
         
         army.cancel_commands()
-        self.game.update()
-        self._save_current_state()
+        self._update_and_save()
         return True
     
     def run(self) -> bool:
