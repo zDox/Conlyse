@@ -535,40 +535,6 @@ class GameInterface:
     """
     Hook System Events
     """
-    def on_province_add(self, callback: Callable) -> None:
-        """
-        Register a callback for when a province is added to the map.
-        
-        The callback will be called with the new Province as input:
-        callback(province)
-        where province is the Province that was added.
-        
-        Args:
-            callback: Function to call when a province is added
-        """
-        pattern = "states.map_state.map.locations.?"
-        def wrapper(change_type, path, old_value, new_value):
-            callback(new_value)
-        self._hook_system.register_hook(pattern, wrapper, {ChangeType.ADD})
-        
-    def on_province_remove(self, callback: Callable) -> None:
-        """
-        Register a callback for when a province is removed from the map.
-        
-        The callback will be called with the id of the removed province:
-        callback(province)
-        where province is the Province that was removed.
-        
-        Args:
-            callback: Function to call when a province is removed
-        """
-        pattern = "states.map_state.map.locations.?"
-        def wrapper(change_type, path, old_value, new_value):
-            province_id = self.game_state.states.map_state.map.province_index_to_id(int(path[-1]))
-            province = self.get_province(province_id)
-            callback(province)
-        self._hook_system.register_hook(pattern, wrapper, {ChangeType.REMOVE})
-        
     def on_province_attribute_change(self, callback: Callable, attribute: str) -> None:
         """
         Register a callback for when an attribute of a province changes.
