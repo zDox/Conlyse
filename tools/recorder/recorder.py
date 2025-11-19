@@ -118,43 +118,54 @@ class Recorder:
             except Exception as e:
                 logger.error(f"Failed to join game {game_id}: {e}")
                 return False
-        
+
         # Otherwise, find and join a new game
         if not scenario_id:
             logger.error("Either game_id or scenario_id is required")
             return False
-        
+
         try:
-            # Find games with the scenario
-            games = self.interface.get_global_games(
-                scenario_id=scenario_id,
-                state=HubGameState.READY_TO_JOIN
-            )
-            
-            my_games = self.interface.get_my_games()
-            
-            # Filter games we haven't joined yet
-            available_games = [game for game in games if game.game_id not in my_games]
-            
-            if not available_games:
-                logger.error(f"No available games found for scenario {scenario_id}")
-                return False
-            
+            # Poll for games with the scenario until one becomes available
+            poll_interval = self.config.get('poll_interval', 30)  # seconds between polls
+            max_wait = self.config.get('max_wait')  # optional timeout in seconds
+            start_time = time()
+
+            while True:
+                games = self.interface.get_global_games(
+                    scenario_id=scenario_id,
+                    state=HubGameState.READY_TO_JOIN
+                )
+                my_games = self.interface.get_my_games()
+                # Filter games we haven't joined yet
+                available_games = [game for game in games
+                                   if not any(my_game.game_id == game_id for my_game in my_games) and
+                                   game.open_slots >= 10]
+
+                if available_games:
+                    break
+
+                logger.info(f"No available games found for scenario {scenario_id}, waiting {poll_interval}s")
+                if max_wait is not None and (time() - start_time) >= max_wait:
+                    logger.error(f"Timed out waiting for new game for scenario {scenario_id}")
+                    return False
+
+                sleep(poll_interval)
+
             # Try each game until we successfully select the desired country
             for game_info in available_games:
                 logger.info(f"Attempting to join game: {game_info.game_id}")
-                
+
                 try:
                     if self._join_game(game_info.game_id, country_name):
                         return True
                 except Exception as e:
                     logger.warning(f"Failed to join/select country in game {game_info.game_id}: {e}, trying next game")
                     continue
-            
+
             # If we get here, we tried all games and none worked
             logger.error(f"Could not find a suitable game with available country '{country_name}'")
             return False
-            
+
         except Exception as e:
             logger.error(f"Failed to find and join game: {e}")
             return False
@@ -184,7 +195,7 @@ class Recorder:
                 # Find country by name
                 selected_country = None
                 for country_id, country in playable_countries.items():
-                    if country.name.lower() == country_name.lower():
+                    if country.nation_name.lower() == country_name.lower():
                         selected_country = country
                         break
                 

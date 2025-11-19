@@ -27,7 +27,7 @@ class RecordingStorage:
             output_path: Path to the output directory for recordings
         """
         self.output_path = Path(output_path)
-        self.output_path.mkdir(parents=True, exist_ok=True)
+        self.output_path.mkdir(parents=True)
         
         # Create compressor
         self._compressor = zstd.ZstdCompressor(level=3)
