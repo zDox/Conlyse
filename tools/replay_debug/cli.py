@@ -1,13 +1,10 @@
 """
 Main CLI class for the Replay Debug Tool.
 """
-from typing import Optional, List, Tuple
-from datetime import datetime, UTC
+from typing import Optional
+from typing import Tuple
 
 from conflict_interface.replay.replay import Replay
-from conflict_interface.replay.replay_patch import ReplayPatch
-
-from .constants import *
 from .formatters import *
 
 

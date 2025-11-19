@@ -2,10 +2,10 @@
 import unittest
 import sys
 import io
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime, UTC
 
-from conflict_interface.cli.replay_debug import ReplayDebugCLI
+from tools.replay_debug import ReplayDebugCLI
 from conflict_interface.replay.replay_patch import ReplayPatch, AddOperation, ReplaceOperation, RemoveOperation
 
 
