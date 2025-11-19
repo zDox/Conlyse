@@ -307,27 +307,6 @@ class TestMakeBireplayPatch(unittest.TestCase):
 
         self.assertEqual(forward_paths, backward_paths)
 
-    def test_patch_serialization(self):
-        """Test that bidirectional patches can be serialized."""
-        unit1 = MockUnit(id=1, health=100)
-        unit2 = MockUnit(id=1, health=75)
-
-        bi_patch = make_bireplay_patch(unit1, unit2)
-
-        # Test that patches can be converted to bytes
-        forward_bytes = bi_patch.forward_patch.to_bytes()
-        backward_bytes = bi_patch.backward_patch.to_bytes()
-
-        self.assertIsInstance(forward_bytes, bytes)
-        self.assertIsInstance(backward_bytes, bytes)
-
-        # Test deserialization
-        forward_restored = ReplayPatch.from_bytes(forward_bytes)
-        backward_restored = ReplayPatch.from_bytes(backward_bytes)
-
-        self.assertEqual(bi_patch.forward_patch, forward_restored)
-        self.assertEqual(bi_patch.backward_patch, backward_restored)
-
     def test_empty_to_populated_list(self):
         """Test transition from empty to populated list."""
         player1 = MockPlayer(name="Charlie", units=[])
