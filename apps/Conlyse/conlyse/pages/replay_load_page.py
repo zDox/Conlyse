@@ -125,3 +125,8 @@ class ReplayLoadPage(Page):
 
         # Reset animation state
         self.animation_state = 0
+
+        # Unsubscribe from events
+        self.app.event_handler.unsubscribe(ReplayLoadCompleteEvent, self.on_replay_load_complete)
+
+        # Labels get cleaned up by Qt parent-child system

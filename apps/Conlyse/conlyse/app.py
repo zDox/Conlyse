@@ -24,7 +24,7 @@ logger = get_logger()
 class App:
     def __init__(self):
         self.q_app : QApplication = QApplication(sys.argv)
-        self.q_window : MainWindow = MainWindow()
+        self.main_window : MainWindow = MainWindow()
 
         self.asset_manager = AssetManager(self)
         self.config_manager = ConfigManager(self)
@@ -58,7 +58,7 @@ class App:
         self.frame_timer.start()
 
         # Start the application by showing the main window
-        self.q_window.show()
+        self.main_window.show()
 
         sys.exit(self.q_app.exec())
 
@@ -66,7 +66,7 @@ class App:
         # Per-frame logic
         self.page_manager.update()
         # Trigger repaint if needed
-        self.q_window.update()
+        self.main_window.update()
 
 
 
