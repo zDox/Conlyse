@@ -94,20 +94,73 @@ class ReplayInterface(GameInterface):
         if time_stamp < self.replay.start_time:
             self.game_state = self.replay.load_initial_game_state()
             self.game_state.set_game(self)
-
             return
 
-        patches, self.last_patch_time = self.replay.find_patch_path(self.last_patch_time, time_stamp)
-        for rp in patches:
-            apply_patch_any(rp, self.game_state, self)
-
-        self.current_time = time_stamp
+        patches, _ = self.replay.find_patch_path(self.last_patch_time, time_stamp)
+        self._apply_patches_and_update_state(patches, time_stamp)
 
         # Update the current timestamp index for O(1) next/previous operations
         self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
 
+    def _apply_patches_and_update_state(self, patches, target_time: datetime) -> None:
+        """
+        Helper method to apply patches and update game state.
+        Reduces code duplication across jump methods.
+        """
+        for patch in patches:
+            apply_patch_any(patch, self.game_state, self)
+
+        self.current_time = target_time
+        self.last_patch_time = target_time
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
         self._update_player_id()
+
+        if hasattr(self, '_hook_system'):
+            self._hook_system.execute_queued_hooks()
+
+    def jump_to_next_patch(self) -> bool:
+        """
+        Jumps to the next patch in the replay.
+        Optimized for O(1) sequential forward traversal.
+
+        Returns:
+            True if successfully jumped to next patch, False if at end of replay.
+        """
+        next_timestamp = self.get_next_timestamp()
+
+        if next_timestamp is None:
+            return False
+
+        patches, _ = self.replay.find_patch_path(self.current_time, next_timestamp)
+
+        if patches:
+            self._apply_patches_and_update_state(patches, next_timestamp)
+            self.current_timestamp_index += 1
+
+        return True
+
+    def jump_to_previous_patch(self) -> bool:
+        """
+        Jumps to the previous patch in the replay.
+        Requires reloading from initial state and applying patches up to target.
+
+        Returns:
+            True if successfully jumped to previous patch, False if at start of replay.
+        """
+        previous_timestamp = self.get_previous_timestamp()
+
+        if previous_timestamp is None or previous_timestamp < self.replay.start_time:
+            return False
+
+        # Need to reload and replay from start since patches can't be unapplied
+        self.game_state = self.replay.load_initial_game_state()
+        self.game_state.set_game(self)
+
+        patches, _ = self.replay.find_patch_path(self.replay.start_time, previous_timestamp)
+        self._apply_patches_and_update_state(patches, previous_timestamp)
+        self.current_timestamp_index -= 1
+
+        return True
 
     def get_timestamps(self) -> list[datetime]:
         """

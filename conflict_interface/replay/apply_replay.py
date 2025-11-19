@@ -149,6 +149,8 @@ def recur_path(
             raise ValueError(f"Object {str(obj)[:100]} has no attribute '{key}'")
         return recur_path(getattr(obj, key), obj.get_type_hints_cached()[key], path, game_state, game)
     elif isinstance(obj, list):
+        if int(key) >= len(obj):
+            raise ValueError(f"List index {key} out of range for list of length {len(obj)} for {str(obj)[:100]}")
         return recur_path(obj[int(key)], get_args(obj_type)[0], path, game_state, game)
     elif isinstance(obj, dict):
         inner_type = get_inner_type(obj_type, obj)
@@ -174,7 +176,21 @@ def apply_patch_any(rp: ReplayPatch, game_state: GameState, game: GameInterface)
         raise ValueError(f"Expected game state but got {type(game_state)}")
     for op in rp.operations:
         obj, pos, obj_type = recur_path(game_state, GameState, op.path.copy(), game_state, game)
-        apply_operation(op, obj, obj_type, pos, game)
+        if hasattr(game, '_hook_system'):
+            # Store old value for hook system (before applying operation)
+            old_value = None
+            if isinstance(op, ReplaceOperation):
+                if isinstance(obj, GameObject):
+                    if hasattr(obj, pos):
+                        old_value = getattr(obj, pos)
+                elif isinstance(obj, (list, dict)):
+                    old_value = obj.get(pos) if isinstance(obj, dict) else (obj[pos] if pos < len(obj) else None)
+
+            # Apply the operation
+            apply_operation(op, obj, obj_type, pos, game)
+            game._hook_system.queue_hook_from_operation(op, old_value)
+        else:
+            apply_operation(op, obj, obj_type, pos, game)
 
 def apply_operation(op: Operation, obj: GameObject | list | dict, obj_type, pos: int | str, game):
     """
