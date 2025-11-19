@@ -22,7 +22,7 @@ class PageManager:
         self.next_page_type: PageType | None = None
 
         self.app = app
-        self.stack: QStackedWidget = app.q_window.stacked_widget  # QStackedWidget that holds the pages
+        self.stack: QStackedWidget = app.main_window.stacked_widget  # QStackedWidget that holds the pages
 
         # Context is used to hold the args the current page passes to the next page
         self.context = {}
@@ -36,7 +36,9 @@ class PageManager:
 
     def switch_to(self, next_page_type: PageType, **kwargs):
         if next_page_type not in self.pages:
-            raise Exception(f"Page type {next_page_type} is not registered in PageManager")
+            raise Exception(
+                f"Page type {type(next_page_type)} {next_page_type} is not registered in PageManager {str(self.pages)} {[type(k) for k in self.pages.keys()]}."
+            )
         if next_page_type == self.current_page_type and not self.current_page_type:
             return
         self.next_page_type = next_page_type
@@ -86,6 +88,12 @@ class PageManager:
         self.current_page.setup(self.context)
         self.current_page_type = self.next_page_type
         self.next_page_type = None
+
+        if self.current_page.HEADER:
+            self.app.main_window.header.show()
+        else:
+            self.app.main_window.header.hide()
+
 
         self.stack.addWidget(self.current_page)
         self.stack.setCurrentWidget(self.current_page)

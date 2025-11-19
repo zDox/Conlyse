@@ -7,6 +7,8 @@ class PageType(Enum):
     ProvinceListPage = auto()
     CountryListPage = auto()
     MapPage = auto()
+    ReplayLoadPage = auto()
+    PlayerListPage = auto()
 
 class Theme(Enum):
     LIGHT = auto()
