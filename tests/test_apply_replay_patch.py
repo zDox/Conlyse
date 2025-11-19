@@ -11,7 +11,7 @@ import unittest
 from dataclasses import dataclass
 from typing import Optional, Dict
 
-from conflict_interface.data_types.game_object import GameObject, parse_any, dump_any
+from conflict_interface.data_types.game_object import GameObject, dump_any
 from conflict_interface.data_types.game_state.game_state import GameState, States
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.data_types.custom_types import HashMap
@@ -60,19 +60,6 @@ class MockPlayer(GameObject):
         "resources": "resources",
     }
 
-
-@dataclass
-class MockGameState(GameObject):
-    """Mock game state for testing - simplified version without GameState inheritance."""
-    C = "MockGameState"
-
-    player: Optional[MockPlayer] = None
-    turn: int = 0
-
-    MAPPING = {
-        "player": "player",
-        "turn": "turn",
-    }
 
 
 class TestGetListElementType(unittest.TestCase):
@@ -270,7 +257,7 @@ class TestApplyOperation(unittest.TestCase):
         player = MockPlayer(name="Test", units=[], score=0)
         player.resources = {"key1": 100, "key2": 200}
 
-        initial_len = len(player.resources.keys())
+        initial_len = len(player.resources)
         op = RemoveOperation(path=["resources", "key1"])
         parent, pos, target_type = recur_path(
             player,
@@ -281,7 +268,7 @@ class TestApplyOperation(unittest.TestCase):
         )
         apply_operation(op, parent, dict, pos, self.game)
 
-        self.assertEqual(len(player.resources.keys()), initial_len - 1)
+        self.assertEqual(len(player.resources), initial_len - 1)
         self.assertEqual(player.resources.get("key1"), None)
         self.assertEqual(player.resources.get("key2"), 200)
 
