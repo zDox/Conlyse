@@ -187,6 +187,12 @@ class Recorder:
         # Patch the game API to capture responses
         self._monkey_patch_game_api()
         
+        # Save static map data after joining the game
+        if self.game and self.game.game_state and self.game.game_state.states.map_state:
+            static_map_data = self.game.game_state.states.map_state.map.static_map_data
+            if static_map_data and self.storage:
+                self.storage.save_static_map_data(static_map_data)
+        
         # Try to select country if specified
         if country_name:
             if not self.game.is_country_selected():

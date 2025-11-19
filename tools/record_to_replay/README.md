@@ -64,6 +64,7 @@ The converter expects a recording directory with the following structure:
 ```
 recording_dir/
 ├── game_states.bin      # Required: Binary file with compressed game states
+├── static_map_data.bin  # Optional: Compressed static map data
 ├── responses.jsonl.zst  # Optional: Compressed JSON responses (not used by converter)
 ├── recording.log        # Optional: Session logs
 └── metadata.json        # Optional: Recording metadata

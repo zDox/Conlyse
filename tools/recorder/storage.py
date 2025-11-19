@@ -11,6 +11,7 @@ from typing import Optional
 import zstandard as zstd
 
 from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.logger_config import get_logger
 
 logger = get_logger()
@@ -35,6 +36,7 @@ class RecordingStorage:
         # Storage for game states and responses
         self.game_states_file = self.output_path / "game_states.bin"
         self.responses_file = self.output_path / "responses.jsonl.zst"
+        self.static_map_data_file = self.output_path / "static_map_data.bin"
         self.metadata_file = self.output_path / "metadata.json"
         self.log_file = self.output_path / "recording.log"
         
@@ -126,6 +128,23 @@ class RecordingStorage:
         # Add the handler to the logger
         logger.addHandler(self.log_handler)
         logger.info(f"Log recording started to: {self.log_file}")
+    
+    def save_static_map_data(self, static_map_data: StaticMapData):
+        """
+        Save static map data to file.
+        
+        Args:
+            static_map_data: The static map data object
+        """
+        # Pickle and compress
+        static_map_data_bytes = pickle.dumps(static_map_data)
+        compressed_data = self._compressor.compress(static_map_data_bytes)
+        
+        # Write to file
+        with open(self.static_map_data_file, 'wb') as f:
+            f.write(compressed_data)
+        
+        logger.info("Saved static map data")
     
     def teardown_logging(self):
         """Remove the file logging handler."""

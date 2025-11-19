@@ -216,6 +216,7 @@ The recorder creates a directory structure with the following files:
 recordings/
 └── recording_name/
     ├── game_states.bin      # Compressed game states
+    ├── static_map_data.bin  # Compressed static map data
     ├── responses.jsonl.zst  # Compressed JSON responses
     ├── recording.log        # Session logs
     └── metadata.json        # Recording metadata
@@ -226,6 +227,13 @@ Binary file containing compressed game states. Each entry has:
 - 8 bytes: timestamp (big-endian)
 - 4 bytes: compressed data length (big-endian)
 - N bytes: compressed game state (zstandard compressed pickle)
+
+### Static Map Data File (`static_map_data.bin`)
+Binary file containing compressed static map data (zstandard compressed pickle).
+This data includes:
+- Province boundaries and locations
+- Connection graph between provinces
+- Static province information
 
 ### Responses File (`responses.jsonl.zst`)
 Compressed JSON responses from the game server. Each entry has:
