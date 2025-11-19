@@ -244,3 +244,5 @@ def apply_operation(op: Operation, obj: GameObject | list | dict, obj_type, pos:
                     obj.pop(pos)
                 else:
                     logger.warning(f"Key {pos} not in {str(obj)[:100]}")
+            else:
+                raise ValueError(f"Can only remove from List or Dict not {type(obj)}")
