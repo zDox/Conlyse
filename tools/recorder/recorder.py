@@ -6,8 +6,8 @@ from datetime import datetime
 from time import sleep, time
 from typing import Optional
 
-from conflict_interface.cli.recorder.storage import RecordingStorage
-from conflict_interface.cli.recorder.utils import parse_duration
+from tools.recorder.storage import RecordingStorage
+from tools.recorder.utils import parse_duration
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface

@@ -5,18 +5,14 @@ import json
 import os
 import tempfile
 import unittest
-from pathlib import Path
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 
-from conflict_interface.cli.recorder.config_schema import (
+from tools.recorder.config_schema import (
     BuildUpgradeAction,
-    MobilizeUnitAction,
     RecorderConfig,
     SleepAction,
-    SleepWithUpdatesAction,
-    ArmyMoveAction,
 )
-from conflict_interface.cli.recorder.recorder import Recorder, RecordingStorage
+from tools.recorder.recorder import Recorder, RecordingStorage
 
 
 class TestRecordingStorage(unittest.TestCase):
@@ -261,7 +257,7 @@ class TestRecorderCLI(unittest.TestCase):
     
     def test_load_config_file(self):
         """Test loading configuration from file."""
-        from conflict_interface.cli.recorder.__main__ import load_config_file
+        from tools.recorder.__main__ import load_config_file
         
         # Create temporary config file
         config_data = {

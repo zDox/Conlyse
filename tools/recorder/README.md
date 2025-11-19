@@ -251,8 +251,9 @@ JSON file containing:
 You can also use the recorder programmatically:
 
 **Join a new game:**
+
 ```python
-from conflict_interface.cli.recorder import Recorder
+from tools.recorder import Recorder
 
 config = {
     "username": "your_username",
@@ -273,8 +274,9 @@ success = recorder.run()
 ```
 
 **Join an existing game (for testing):**
+
 ```python
-from conflict_interface.cli.recorder import Recorder
+from tools.recorder import Recorder
 
 config = {
     "username": "your_username",

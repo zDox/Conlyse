@@ -6,7 +6,7 @@ import json
 import logging
 import sys
 
-from conflict_interface.cli.recorder.recorder import Recorder
+from tools.recorder.recorder import Recorder
 from conflict_interface.logger_config import setup_library_logger
 
 
