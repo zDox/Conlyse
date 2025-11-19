@@ -102,18 +102,6 @@ class PlayerListPage(Page):
 
         header_layout.addStretch()
 
-        # Export button
-        self.export_button = QPushButton("📊 Export Data")
-        self.export_button.setObjectName("player_list_export_button")
-        self.export_button.clicked.connect(self._on_export_clicked)
-        header_layout.addWidget(self.export_button)
-
-        # Back button
-        self.back_button = QPushButton("← Back to Replays")
-        self.back_button.setObjectName("player_list_back_button")
-        self.back_button.clicked.connect(self._on_back_clicked)
-        header_layout.addWidget(self.back_button)
-
         main_layout.addLayout(header_layout)
 
         # ===== Data Grid =====
