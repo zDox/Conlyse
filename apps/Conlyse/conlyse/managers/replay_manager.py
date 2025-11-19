@@ -17,6 +17,7 @@ class ReplayManager:
     def __init__(self, app : App):
         self.app = app
         self.replays: dict[str, ReplayInterface] = {}
+        self.active_replay_path: str | None = None
 
     def is_valid_replay(self, file_path: str) -> bool:
         if not file_path in self.replays: return False
@@ -25,6 +26,7 @@ class ReplayManager:
 
     def add_replay(self, file_path: str, replay: ReplayInterface):
         self.replays.update({file_path: replay})
+        pass
 
     def _load_replay(self, file_path: str):
         """
@@ -36,7 +38,9 @@ class ReplayManager:
         ritf = ReplayInterface(file_path)
         try:
             ritf.open()
-            self.app.event_handler.publish(ReplayLoadCompleteEvent(file_path, ritf))
+            ritf.replay.load_patches_from_disk_into_cache()
+            self.active_replay_path = file_path
+            self.app.event_handler.publish_async(ReplayLoadCompleteEvent(file_path, ritf))
         except Exception as e:
             logger.warning(f"Failed to load replay: {e}")
 

@@ -42,6 +42,7 @@ class ReplayLoadPage(Page):
     def setup(self, context):
         """Called when page is opened - initialize UI and start animation"""
         self.replay_path = context.get("replay_path", None)
+
         if not self.replay_path or not self.app.replay_manager.is_valid_replay(self.replay_path):
             logger.error(f"Invalid replay path provided to ReplayLoadPage: {self.replay_path}")
             self.app.page_manager.switch_to(PageType.ReplayListPage)
@@ -114,7 +115,7 @@ class ReplayLoadPage(Page):
         if event.replay_file_path != self.replay_path:
             return
 
-        #self.app.page_manager.switch_to(PageType.PlayerListPage, replay_interface=event.replay_interface)
+        self.app.page_manager.switch_to(PageType.PlayerListPage, replay_interface=event.replay_interface)
 
     def clean_up(self):
         """Called when page is closed - stop animation"""

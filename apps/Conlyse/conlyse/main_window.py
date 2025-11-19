@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QStackedWidget
 from PyQt6.QtWidgets import QVBoxLayout
 from PyQt6.QtWidgets import QWidget
 
-from conlyse.pages.header import Header
+from conlyse.widgets.header import Header
 
 
 class MainWindow(QMainWindow):

@@ -19,7 +19,6 @@ from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtWidgets import QScrollArea
 from PyQt6.QtWidgets import QVBoxLayout
 from PyQt6.QtWidgets import QWidget
-from conflict_interface.replay.replay import Replay
 
 from conlyse.logger import get_logger
 from conlyse.managers.style_manager import Theme
@@ -111,7 +110,6 @@ class ReplayListPage(Page):
         self.subheader_label = None
         self.header_label = None
         self.app: App = app
-        self.selected_replay: Replay | None = None
         self.selected_filepath: str | None = None
         self.theme_toggle = None
 
@@ -128,7 +126,7 @@ class ReplayListPage(Page):
 
         # Reset selection and refresh on page open
         self.selected_replay = None
-        self.selected_filepath = None
+        self.selected_filepath = self.app.replay_manager.active_replay_path
         self._previous_replay_count = len(self.app.replay_manager.get_replays())
         self.refresh_replay_list()
         self.update_details()
