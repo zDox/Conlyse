@@ -99,17 +99,28 @@ class Recorder:
     
     def find_and_join_game(self) -> bool:
         """
-        Find a game with the specified scenario_id and join it.
+        Find a game with the specified scenario_id and join it, or join a specific game_id.
         Tries multiple games until country selection succeeds.
         
         Returns:
             bool: True if successfully joined and selected country, False otherwise
         """
+        game_id = self.config.get('game_id')
         scenario_id = self.config.get('scenario_id')
         country_name = self.config.get('country_name')
         
+        # If game_id is provided, join that specific game directly
+        if game_id:
+            logger.info(f"Joining existing game: {game_id}")
+            try:
+                return self._join_game(game_id, country_name)
+            except Exception as e:
+                logger.error(f"Failed to join game {game_id}: {e}")
+                return False
+        
+        # Otherwise, find and join a new game
         if not scenario_id:
-            logger.error("scenario_id is required")
+            logger.error("Either game_id or scenario_id is required")
             return False
         
         try:
@@ -133,37 +144,8 @@ class Recorder:
                 logger.info(f"Attempting to join game: {game_info.game_id}")
                 
                 try:
-                    # Join the game (without replay functionality)
-                    self.game = self.interface.join_game(game_info.game_id, replay_filename=None)
-                    
-                    # Patch the game API to capture responses
-                    self._monkey_patch_game_api()
-                    
-                    # Try to select country if specified
-                    if country_name:
-                        if not self.game.is_country_selected():
-                            playable_countries = self.game.get_playable_countries()
-                            
-                            # Find country by name
-                            selected_country = None
-                            for country_id, country in playable_countries.items():
-                                if country.name.lower() == country_name.lower():
-                                    selected_country = country
-                                    break
-                            
-                            if not selected_country:
-                                logger.warning(f"Country '{country_name}' not available in game {game_info.game_id}, trying next game")
-                                continue  # Try next game
-                            
-                            self.game.select_country(country_id=selected_country.player_id)
-                            logger.info(f"Selected country: {selected_country.name} in game {game_info.game_id}")
-                            
-                            # Update to apply country selection
-                            self._update_and_save()
-                    
-                    # Successfully joined and selected country
-                    return True
-                    
+                    if self._join_game(game_info.game_id, country_name):
+                        return True
                 except Exception as e:
                     logger.warning(f"Failed to join/select country in game {game_info.game_id}: {e}, trying next game")
                     continue
@@ -175,6 +157,51 @@ class Recorder:
         except Exception as e:
             logger.error(f"Failed to find and join game: {e}")
             return False
+    
+    def _join_game(self, game_id: int, country_name: Optional[str]) -> bool:
+        """
+        Join a specific game and optionally select a country.
+        
+        Args:
+            game_id: The game ID to join
+            country_name: Optional country name to select
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # Join the game (without replay functionality)
+        self.game = self.interface.join_game(game_id, replay_filename=None)
+        
+        # Patch the game API to capture responses
+        self._monkey_patch_game_api()
+        
+        # Try to select country if specified
+        if country_name:
+            if not self.game.is_country_selected():
+                playable_countries = self.game.get_playable_countries()
+                
+                # Find country by name
+                selected_country = None
+                for country_id, country in playable_countries.items():
+                    if country.name.lower() == country_name.lower():
+                        selected_country = country
+                        break
+                
+                if not selected_country:
+                    logger.error(f"Country '{country_name}' not available in game {game_id}")
+                    return False
+                
+                self.game.select_country(country_id=selected_country.player_id)
+                logger.info(f"Selected country: {selected_country.name} in game {game_id}")
+                
+                # Update to apply country selection
+                self._update_and_save()
+            else:
+                logger.info(f"Country already selected in game {game_id}")
+        
+        # Successfully joined
+        logger.info(f"Successfully joined game {game_id}")
+        return True
     
     def _save_current_state(self):
         """Save the current game state and last response."""

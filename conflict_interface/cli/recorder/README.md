@@ -48,8 +48,11 @@ The recorder uses a JSON configuration file with the following structure:
 - `password`: Your password
 
 ### Game Selection
-- `scenario_id`: The scenario ID to join
+- `scenario_id`: The scenario ID to join (optional if `game_id` is provided)
+- `game_id`: (Optional) Join a specific existing game ID instead of finding a new one
 - `country_name`: (Optional) Specific country to play as
+
+**Note:** Use `game_id` for testing with existing games. If provided, the recorder will join that specific game instead of searching for a new one. This is useful for testing without creating new game sessions.
 
 ### Output Settings
 - `output_dir`: Directory to save recordings (default: "./recordings")
@@ -247,6 +250,7 @@ JSON file containing:
 
 You can also use the recorder programmatically:
 
+**Join a new game:**
 ```python
 from conflict_interface.cli.recorder import Recorder
 
@@ -260,6 +264,27 @@ config = {
             "city_name": "Washington",
             "building_name": "Arms Industry",
             "tier": 1
+        }
+    ]
+}
+
+recorder = Recorder(config)
+success = recorder.run()
+```
+
+**Join an existing game (for testing):**
+```python
+from conflict_interface.cli.recorder import Recorder
+
+config = {
+    "username": "your_username",
+    "password": "your_password",
+    "game_id": 12345678,  # Join this specific game
+    "country_name": "USA",  # Optional: select specific country
+    "actions": [
+        {
+            "type": "sleep",
+            "duration": "1m"
         }
     ]
 }

@@ -117,6 +117,7 @@ class RecorderConfig:
     
     # Game selection
     scenario_id: int = 0
+    game_id: Optional[int] = None  # Optional: Join specific game ID instead of finding new one
     country_name: Optional[str] = None
     
     # Output settings
