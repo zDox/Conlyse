@@ -19,7 +19,7 @@ from conflict_interface.game_api import GameApi
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.apply_replay import apply_patch_any
-from conflict_interface.replay.apply_replay import make_bireplay_patch
+from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
