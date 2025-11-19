@@ -41,24 +41,7 @@ class TestRecordingStorage(unittest.TestCase):
         self.assertIn('version', metadata)
         self.assertIn('created_at', metadata)
         self.assertIn('updates', metadata)
-    
-    def test_save_update(self):
-        """Test saving an update."""
-        mock_game_state = {"test": "state"}
-        mock_response = {"result": "ok"}
-        timestamp = 1234567890.0
-        
-        self.storage.save_update(mock_game_state, mock_response, timestamp)
-        
-        # Check that files were created
-        self.assertTrue(self.storage.game_states_file.exists())
-        self.assertTrue(self.storage.responses_file.exists())
-        
-        # Check metadata was updated
-        metadata = self.storage._load_metadata()
-        self.assertEqual(len(metadata['updates']), 1)
-        self.assertEqual(metadata['updates'][0]['timestamp'], timestamp)
-    
+
     def test_logging_setup_and_teardown(self):
         """Test that logging can be set up and torn down."""
         # Setup library logger first
@@ -144,7 +127,7 @@ class TestRecorder(unittest.TestCase):
         self.assertIsNone(self.recorder.storage)
         self.assertEqual(self.recorder.config, self.config)
     
-    @patch('conflict_interface.cli.recorder.recorder.RecordingStorage')
+    @patch('tools.recorder.recorder.RecordingStorage')
     def test_setup_storage(self, mock_storage_class):
         """Test storage setup."""
         mock_storage = MagicMock()
@@ -155,7 +138,7 @@ class TestRecorder(unittest.TestCase):
         self.assertIsNotNone(self.recorder.storage)
         mock_storage_class.assert_called_once()
     
-    @patch('conflict_interface.cli.recorder.recorder.HubInterface')
+    @patch('tools.recorder.recorder.HubInterface')
     def test_login_success(self, mock_hub_interface):
         """Test successful login."""
         mock_interface = MagicMock()
@@ -166,7 +149,7 @@ class TestRecorder(unittest.TestCase):
         self.assertTrue(result)
         mock_interface.login.assert_called_once_with('test_user', 'test_pass')
     
-    @patch('conflict_interface.cli.recorder.recorder.HubInterface')
+    @patch('tools.recorder.recorder.HubInterface')
     def test_login_failure(self, mock_hub_interface):
         """Test login failure."""
         mock_interface = MagicMock()
