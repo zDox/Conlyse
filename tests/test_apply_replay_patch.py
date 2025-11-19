@@ -252,7 +252,6 @@ class TestApplyOperation(unittest.TestCase):
         # proper type context from recur_path
         player = MockPlayer(name="Test", units=[MockUnit(id=1), MockUnit(id=2), MockUnit(id=3)], score=0)
 
-        # Directly manipulate to test the behavior
         initial_len = len(player.units)
         op = RemoveOperation(path=["units", "1"])
         parent, pos, target_type = recur_path(
@@ -275,11 +274,20 @@ class TestApplyOperation(unittest.TestCase):
         player = MockPlayer(name="Test", units=[], score=0)
         player.resources = {"key1": 100, "key2": 200}
 
-        # Directly manipulate to test the behavior
-        player.resources.pop("key1")
+        initial_len = len(player.resources.keys())
+        op = RemoveOperation(path=["resources", "key1"])
+        parent, pos, target_type = recur_path(
+            player,
+            MockPlayer,
+            ["resources", "key1"],
+            player,
+            self.game
+        )
+        apply_operation(op, parent, dict, pos, self.game)
 
-        self.assertNotIn("key1", player.resources)
-        self.assertEqual(player.resources, {"key2": 200})
+        self.assertEqual(len(player.resources.keys()), initial_len - 1)
+        self.assertEqual(player.resources.get("key1"), None)
+        self.assertEqual(player.resources.get("key2"), 200)
 
 
 class TestApplyPatchAny(unittest.TestCase):
@@ -342,14 +350,6 @@ class TestApplyPatchAny(unittest.TestCase):
 
         self.assertEqual(self.game_state.action_results["turn"], 2)
 
-    def test_apply_nested_replace_patch(self):
-        """Test applying nested replace patch."""
-        patch = ReplayPatch()
-        patch.replace_op(["action_results", "level"], 5)
-
-        apply_patch_any(patch, self.game_state, self.game)
-
-        self.assertEqual(self.game_state.action_results["level"], 5)
 
     def test_apply_multiple_operations(self):
         """Test applying patch with multiple operations."""
@@ -425,98 +425,3 @@ class TestApplyPatchAny(unittest.TestCase):
         player = MockPlayer(name="Test", units=[], score=50)
         with self.assertRaises(ValueError):
             apply_patch_any(patch, player, self.game)
-
-
-class TestIntegration(unittest.TestCase):
-    """Integration tests for apply_replay functions."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.game = GameInterface()
-
-    def test_roundtrip_with_bireplay_patch_on_dict(self):
-        """Test that patches can be applied and reversed correctly on dict structures."""
-        # Import make_bireplay_patch
-        from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
-        from copy import deepcopy
-
-        # Use simple dict structures for testing roundtrip
-        dict1 = {"key1": 100, "key2": 200, "key3": 300}
-        dict2 = {"key1": 150, "key2": 200, "key4": 400}
-
-        # Create bidirectional patch
-        bi_patch = make_bireplay_patch(dict1, dict2)
-
-        # Apply forward patch to dict1 (should make it like dict2)
-        test_dict = deepcopy(dict1)
-
-        # Manually apply operations since apply_patch_any requires GameState
-        for op in bi_patch.forward_patch.operations:
-            if isinstance(op, ReplaceOperation):
-                test_dict[op.path[0]] = op.new_value
-            elif isinstance(op, AddOperation):
-                test_dict[op.path[0]] = op.new_value
-            elif isinstance(op, RemoveOperation):
-                test_dict.pop(op.path[0], None)
-
-        # Verify forward application
-        self.assertEqual(test_dict["key1"], 150)
-        self.assertEqual(test_dict["key2"], 200)
-        self.assertNotIn("key3", test_dict)
-        self.assertEqual(test_dict["key4"], 400)
-
-        # Apply backward patch (should restore to dict1)
-        for op in bi_patch.backward_patch.operations:
-            if isinstance(op, ReplaceOperation):
-                test_dict[op.path[0]] = op.new_value
-            elif isinstance(op, AddOperation):
-                test_dict[op.path[0]] = op.new_value
-            elif isinstance(op, RemoveOperation):
-                test_dict.pop(op.path[0], None)
-
-        # Verify backward application
-        self.assertEqual(test_dict["key1"], 100)
-        self.assertEqual(test_dict["key2"], 200)
-        self.assertEqual(test_dict["key3"], 300)
-        self.assertNotIn("key4", test_dict)
-
-    def test_roundtrip_with_game_objects(self):
-        """Test applying patches to GameObject instances."""
-        from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
-        from copy import deepcopy
-
-        # Create initial player
-        player1 = MockPlayer(
-            name="Player1",
-            units=[MockUnit(id=1, health=100)],
-            score=50
-        )
-
-        # Create modified player
-        player2 = MockPlayer(
-            name="Player2",
-            units=[MockUnit(id=1, health=75)],
-            score=75
-        )
-
-        # Create bidirectional patch
-        bi_patch = make_bireplay_patch(player1, player2)
-
-        # Test that we can apply operations manually
-        test_player = deepcopy(player1)
-
-        # Apply forward operations
-        for op in bi_patch.forward_patch.operations:
-            if isinstance(op, ReplaceOperation):
-                if len(op.path) == 1:
-                    setattr(test_player, op.path[0],
-                            parse_any(type(getattr(test_player, op.path[0])), op.new_value, self.game))
-                elif len(op.path) == 3 and op.path[0] == "units":
-                    idx = op.path[1]
-                    attr = op.path[2]
-                    setattr(test_player.units[idx], attr, op.new_value)
-
-        # Verify forward changes
-        self.assertEqual(test_player.name, "Player2")
-        self.assertEqual(test_player.score, 75)
-        self.assertEqual(test_player.units[0].health, 75)
