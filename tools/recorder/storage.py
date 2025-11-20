@@ -12,7 +12,7 @@ import zstandard as zstd
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
-from conflict_interface.logger_config import get_logger
+from tools.recorder.recorder_logger import get_logger
 
 logger = get_logger()
 
@@ -38,10 +38,12 @@ class RecordingStorage:
         self.responses_file = self.output_path / "responses.jsonl.zst"
         self.static_map_data_file = self.output_path / "static_map_data.bin"
         self.metadata_file = self.output_path / "metadata.json"
-        self.log_file = self.output_path / "recording.log"
-        
-        # Log handler for capturing logs
-        self.log_handler: Optional[logging.FileHandler] = None
+
+        self.recorder_log_file = self.output_path / "recording.log"
+        self.library_log_file = self.output_path / "library.log"
+        self.recorder_log_file_handler = None
+        self.library_log_file_handler = None
+
         
         # Initialize files
         self._init_files()
@@ -114,21 +116,25 @@ class RecordingStorage:
         logger.info(f"Saved update at timestamp {timestamp}")
     
     def setup_logging(self):
-        """Set up file logging for the recording session."""
-        # Create a file handler for the log file
-        self.log_handler = logging.FileHandler(self.log_file, mode='w', encoding='utf-8')
-        self.log_handler.setLevel(logging.DEBUG)
-        
-        # Use the same format as the console handler
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s.%(module)s - %(levelname)s - %(message)s"
-        )
-        self.log_handler.setFormatter(formatter)
-        
-        # Add the handler to the logger
-        logger.addHandler(self.log_handler)
-        logger.info(f"Log recording started to: {self.log_file}")
-    
+        library_logger = logging.getLogger("con_itf")
+        recording_logger = logging.getLogger("rec")
+
+        def add_file_handler(logger, filename, level=logging.DEBUG, formatter=None):
+            file_handler = logging.FileHandler(filename)
+            file_handler.setLevel(level)
+            if formatter is None:
+                formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+            return file_handler
+
+        # Add file handlers when ready
+        self.library_log_file_handler = add_file_handler(library_logger, self.library_log_file)
+        self.recorder_log_file_handler = add_file_handler(recording_logger, self.recorder_log_file)
+
+        logger.info(f"Log recording started to: {self.recorder_log_file}")
+        library_logger.info(f"Library log recording started to: {self.library_log_file}")
+
     def save_static_map_data(self, static_map_data: StaticMapData):
         """
         Save static map data to file.
@@ -151,8 +157,14 @@ class RecordingStorage:
     
     def teardown_logging(self):
         """Remove the file logging handler."""
-        if self.log_handler:
+        if self.recorder_log_file_handler:
             logger.info("Log recording completed")
-            logger.removeHandler(self.log_handler)
-            self.log_handler.close()
-            self.log_handler = None
+            logger.removeHandler(self.recorder_log_file_handler)
+            self.recorder_log_file_handler.close()
+            self.recorder_log_file_handler = None
+        if self.library_log_file_handler:
+            library_logger = logging.getLogger("con_itf")
+            library_logger.info("Library log recording completed")
+            library_logger.removeHandler(self.library_log_file_handler)
+            self.library_log_file_handler.close()
+            self.library_log_file_handler = None

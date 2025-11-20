@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -9,7 +8,9 @@ from collections import defaultdict
 from tools.recorder.account import Account
 from tools.recorder.proxy import Proxy
 from tools.recorder.proxy import get_proxies
+from tools.recorder.recorder_logger import get_logger
 
+logger = get_logger()
 
 @dataclass
 class AccountPoolStatus:
@@ -47,7 +48,7 @@ class AccountPool:
             with open(path, 'w') as f:
                 json.dump({"accounts": [account.to_dict() for account in self.accounts]}, f, indent=4)
         except IOError as e:
-            logging.error(f"Error writing to accounts.json: {e}")
+            logger.error(f"Error writing to accounts.json: {e}")
 
     def load_token(self, file: str) -> None:
         if not os.path.exists(file):
@@ -75,7 +76,7 @@ class AccountPool:
                     for json_account in json_accounts:
                         self.accounts.append(Account.from_dict(json_account))
             except (json.JSONDecodeError, IOError) as e:
-                logging.error(f"Warning: Error reading accounts.json: {e}. Starting fresh.")
+                logger.error(f"Warning: Error reading accounts.json: {e}. Starting fresh.")
 
         """
         After loading the accounts from file we need to check if all proxies are still valid.
@@ -88,7 +89,7 @@ class AccountPool:
         for account in self.accounts:
             proxy = self.proxies.get(account.proxy_id)
             if proxy is None:
-                logging.warning(
+                logger.warning(
                     f"Warning: Account {account.username} has a proxy ID {account.proxy_id} that does not exist")
                 accounts_missing_proxies.append(account)
             elif proxy.id in assigned_proxy_ids:
@@ -98,12 +99,12 @@ class AccountPool:
                 unassigned_proxy_ids.remove(account.proxy_id)
 
         if len(accounts_missing_proxies) > len(unassigned_proxy_ids):
-            logging.warning("Not enough unassigned proxies to assign proxies to accounts")
+            logger.warning("Not enough unassigned proxies to assign proxies to accounts")
 
         for account in accounts_missing_proxies:
             if len(unassigned_proxy_ids) == 0:
                 # Remove accounts that cannot be assigned a proxy
-                logging.warning(f"Removing account {account.username} due to lack of available proxies")
+                logger.warning(f"Removing account {account.username} due to lack of available proxies")
                 self.accounts.remove(account)
                 continue
             proxy_id = unassigned_proxy_ids.pop()

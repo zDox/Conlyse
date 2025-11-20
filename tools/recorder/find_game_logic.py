@@ -6,9 +6,9 @@ from time import sleep, time
 from typing import Optional, Set
 from conflict_interface.utils.exceptions import GameActivationException, GameActivationErrorCodes
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
-from conflict_interface.logger_config import get_logger
 from tools.recorder.account_pool import AccountPool
 from tools.recorder.account import Account
+from tools.recorder.recorder_logger import get_logger
 
 logger = get_logger()
 

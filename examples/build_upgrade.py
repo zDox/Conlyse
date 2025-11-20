@@ -9,9 +9,9 @@ if __name__ == "__main__":
     username, password, email, proxy_url = load_credentials()
     interface = HubInterface()
     interface.login(username, password)
-    game = interface.join_game(9709744)
-    city = next(iter(game.get_my_provinces(name="Rabat").values()))
-    arms_lvl_1 = game.get_upgrade_type_by_name_and_tier('Arms Industry', 3)
+    game = interface.join_game(10573372)
+    city = next(iter(game.get_my_provinces(name="Bamako").values()))
+    arms_lvl_1 = game.get_upgrade_type_by_name_and_tier('Army Base', 1)
     modable_upgrade = city.get_possible_upgrade(id=arms_lvl_1.id)
     if city.is_upgrade_buildable(modable_upgrade):
         print(f"Queued to build upgrade of type: {arms_lvl_1.upgrade_name} in Province {city.name}")

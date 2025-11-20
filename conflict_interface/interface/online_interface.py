@@ -155,6 +155,11 @@ class OnlineInterface(GameInterface):
                                                            selected_team_id=team_id,
                                                            random_team_country_selection=random_country_team)
         self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+        """
+        After performing the default login action, we need to update the game as we then get
+        the player specific data, like ArmyState or Properties of Provinces
+        """
+        self.update()
 
     def update(self):
         """

@@ -76,30 +76,27 @@ For a complete list of action types and their parameters, see the documentation.
         help='Path to the configuration JSON file'
     )
     
-    parser.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        help='Enable verbose logging (DEBUG level)'
-    )
-    
-    parser.add_argument(
-        '-q', '--quiet',
-        action='store_true',
-        help='Quiet mode (only ERROR level)'
-    )
-    
     args = parser.parse_args()
     
-    # Setup logging
-    if args.quiet:
-        log_level = logging.ERROR
-    elif args.verbose:
-        log_level = logging.DEBUG
-    else:
-        log_level = logging.INFO
-    
-    setup_library_logger(log_level)
-    
+    # Setup logging Recoding to console and Library turned off
+    # ----------------------------
+    # Create loggers first
+    # ----------------------------
+    library_logger = logging.getLogger("con_itf")
+    library_logger.setLevel(logging.DEBUG)
+    library_logger.propagate = False  # prevent console output by default
+
+    recording_logger = logging.getLogger("rec")
+    recording_logger.setLevel(logging.DEBUG)
+    recording_logger.propagate = False
+
+    # Optional: add a console handler to recording logger now
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(logging.Formatter("%(levelname)s - %(message)s"))
+    recording_logger.addHandler(console_handler)
+
+
     # Load configuration
     config = load_config_file(args.config)
     
@@ -108,10 +105,7 @@ For a complete list of action types and their parameters, see the documentation.
     account_pool_path = config.get('account_pool_path')
     if account_pool_path:
         try:
-            logger = logging.getLogger('con_itf')
-            logger.info(f"Loading account pool from: {account_pool_path}")
             account_pool = AccountPool.from_json(account_pool_path)
-            logger.info(f"Account pool loaded with {len(account_pool.accounts)} accounts")
         except Exception as e:
             print(f"Error loading account pool from {account_pool_path}: {e}")
             sys.exit(1)

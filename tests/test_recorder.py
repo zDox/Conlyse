@@ -34,7 +34,7 @@ class TestRecordingStorage(unittest.TestCase):
     def test_init_creates_files(self):
         """Test that initialization creates necessary files."""
         self.assertTrue(self.storage.metadata_file.exists())
-        self.assertTrue(self.storage.log_file.exists() or True)  # May not exist until setup_logging
+        self.assertTrue(self.storage.recorder_log_file.exists() or True)  # May not exist until setup_logging
         
         # Check metadata content
         metadata = self.storage._load_metadata()
@@ -51,8 +51,8 @@ class TestRecordingStorage(unittest.TestCase):
         
         # Setup logging
         self.storage.setup_logging()
-        self.assertTrue(self.storage.log_file.exists())
-        self.assertIsNotNone(self.storage.log_handler)
+        self.assertTrue(self.storage.recorder_log_file.exists())
+        self.assertIsNotNone(self.storage.recorder_log_handler)
         
         # Write a test log
         from conflict_interface.logger_config import get_logger
@@ -60,16 +60,16 @@ class TestRecordingStorage(unittest.TestCase):
         logger.info("Test log message")
         
         # Flush the handler to ensure the message is written
-        self.storage.log_handler.flush()
+        self.storage.recorder_log_handler.flush()
         
         # Check that the log file contains the message before teardown
-        with open(self.storage.log_file, 'r') as f:
+        with open(self.storage.recorder_log_file, 'r') as f:
             log_content = f.read()
             self.assertIn("Test log message", log_content)
         
         # Teardown logging
         self.storage.teardown_logging()
-        self.assertIsNone(self.storage.log_handler)
+        self.assertIsNone(self.storage.recorder_log_handler)
 
 
 
