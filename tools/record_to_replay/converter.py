@@ -163,24 +163,6 @@ class RecordToReplayConverter:
         logger.info(f"Read {len(json_responses)} JSON responses from recording")
         return json_responses
     
-    def _create_patch_from_json(self, prev_state: GameState, json_response: dict, game_interface) -> BidirectionalReplayPatch:
-        """
-        Create a bidirectional patch by parsing JSON response and applying it to previous state.
-        
-        Args:
-            prev_state: Previous game state
-            json_response: JSON response to apply
-            game_interface: Game interface for parsing context
-            
-        Returns:
-            BidirectionalReplayPatch
-        """
-        # Parse JSON response into GameState
-        new_state = parse_any(GameState, json_response, game_interface)
-        
-        # Create bidirectional patch using the parsed states
-        return make_bireplay_patch(prev_state, new_state)
-    
     def convert(self, output_file: str, game_id: int = None, player_id: int = None) -> bool:
         """
         Convert the recording to a replay file.
@@ -304,6 +286,9 @@ class RecordToReplayConverter:
         """
         Convert using JSON-based approach (parse JSON responses and apply updates).
         
+        Uses the GameState.update() method to create patches, which allows for more
+        accurate tracking of state changes compared to comparing final states.
+        
         Args:
             output_file: Path to the output replay database file
             game_id: Game ID (extracted from first state if not provided)
@@ -381,8 +366,8 @@ class RecordToReplayConverter:
                     player_id=player_id
                 )
             
-            # Process JSON responses and create patches
-            prev_state = first_state
+            # Process JSON responses and create patches using update method
+            current_state = first_state
             response_idx = 0
             
             # Skip the first response if it's a placeholder (contains "note" field)
@@ -401,8 +386,17 @@ class RecordToReplayConverter:
                     new_state = parse_any(GameState, json_response, mock_game)
                     new_state.set_game(mock_game)
                     
-                    # Create bidirectional patch
-                    bipatch = make_bireplay_patch(prev_state, new_state)
+                    # Create a bidirectional replay patch object
+                    bipatch = BidirectionalReplayPatch()
+                    
+                    # Use the update method to record changes in the patch
+                    # Make a deep copy of current state to apply update
+                    import copy
+                    updated_state = copy.deepcopy(current_state)
+                    updated_state.set_game(mock_game)
+                    
+                    # Call update with the bipatch to record differences
+                    updated_state.update(new_state, path=[], rp=bipatch)
                     
                     # Record the patch
                     replay.record_bipatch(
@@ -412,8 +406,8 @@ class RecordToReplayConverter:
                         replay_patch=bipatch
                     )
                     
-                    prev_state = new_state
-                    mock_game.game_state = new_state
+                    current_state = updated_state
+                    mock_game.game_state = updated_state
                     
                 except Exception as e:
                     logger.error(f"Error processing JSON response at {current_datetime}: {e}")
