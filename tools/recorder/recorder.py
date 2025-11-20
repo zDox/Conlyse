@@ -34,8 +34,8 @@ class Recorder:
             account_pool: Optional AccountPool for multi-account support
         """
         self.config = config
-        self.interface: Optional[HubInterface] = None
-        self.game: Optional[OnlineInterface] = None
+        self.hub_itf: Optional[HubInterface] = None
+        self.game_itf: Optional[OnlineInterface] = None
         self.storage: Optional[RecordingStorage] = None
         self.account_pool: Optional[AccountPool] = account_pool
         self.current_account: Optional[Account] = None
@@ -65,7 +65,7 @@ class Recorder:
         Monkey patch the game API to intercept server requests and responses.
         This allows us to capture both the raw request and response JSON without affecting replay functionality.
         """
-        original_request_method = self.game.game_api.make_game_server_request
+        original_request_method = self.game_itf.game_api.make_game_server_request
         
         def patched_request(*args, **kwargs):
             # Capture the request parameters
@@ -78,7 +78,7 @@ class Recorder:
             self._last_response = response
             return response
         
-        self.game.game_api.make_game_server_request = patched_request
+        self.game_itf.game_api.make_game_server_request = patched_request
         logger.debug("Game API patched to capture requests and responses")
 
     def login(self, account: Optional[Account] = None) -> bool:
@@ -99,7 +99,7 @@ class Recorder:
     def _login_with_account(self, account: Account) -> bool:
         """Login using an Account object from the account pool."""
         try:
-            self.interface = account.get_interface()
+            self.hub_itf = account.get_interface()
             self.current_account = account
             logger.info(f"Successfully logged in with account: {account.username}")
             return True
@@ -118,13 +118,13 @@ class Recorder:
             return False
 
         try:
-            self.interface = HubInterface()
+            self.hub_itf = HubInterface()
 
             if proxy_url:
                 proxy = {'http': proxy_url, 'https': proxy_url}
-                self.interface.set_proxy(proxy)
+                self.hub_itf.set_proxy(proxy)
 
-            self.interface.login(username, password)
+            self.hub_itf.login(username, password)
             logger.info(f"Successfully logged in as {username}")
             return True
         except Exception as e:
@@ -140,7 +140,7 @@ class Recorder:
         """
         game_finder = GameFinder(
             config=self.config,
-            interface=self.interface,
+            interface=self.hub_itf,
             account_pool=self.account_pool,
             current_account=self.current_account,
             join_game_callback=self._join_game,
@@ -169,8 +169,8 @@ class Recorder:
             bool: True if successful, False otherwise
         """
         # Patch and join the game
-        self.interface.join_game = self._create_patched_join_game()
-        self.game = self.interface.join_game(game_id, replay_filename=None)
+        self.hub_itf.join_game = self._create_patched_join_game()
+        self.game_itf = self.hub_itf.join_game(game_id, replay_filename=None)
 
         # Save initial game state and static map data
         self._save_initial_game_data()
@@ -191,18 +191,18 @@ class Recorder:
             from conflict_interface.interface.online_interface import OnlineInterface
 
             # Request first join if needed
-            if not self.interface.is_in_game(game_id) and not guest:
+            if not self.hub_itf.is_in_game(game_id) and not guest:
                 logger.info(f"User is not in game {game_id}. Requesting first join...")
-                self.interface.api.request_first_join(game_id)
+                self.hub_itf.api.request_first_join(game_id)
 
             logger.info(f"Joining game {game_id} as guest={guest}...")
 
             # Create the game interface
             game_interface = OnlineInterface(
                 game_id=game_id,
-                session=self.interface.api.session,
-                auth_details=deepcopy(self.interface.api.auth),
-                proxy=self.interface.api.proxy,
+                session=self.hub_itf.api.session,
+                auth_details=deepcopy(self.hub_itf.api.auth),
+                proxy=self.hub_itf.api.proxy,
                 guest=guest,
                 replay_filename=replay_filename
             )
@@ -235,7 +235,7 @@ class Recorder:
 
     def _save_initial_game_data(self):
         """Save initial game state and static map data after joining."""
-        if not (self.game and self.game.game_state and self.storage):
+        if not (self.game_itf and self.game_itf.game_state and self.storage):
             return
 
         # Save initial game state
@@ -243,7 +243,7 @@ class Recorder:
             timestamp = time()
             request_data = self._last_request if self._last_request else {"note": "No request captured"}
             self.storage.save_update(
-                self.game.game_state,
+                self.game_itf.game_state,
                 request_data,
                 self._last_response,
                 timestamp
@@ -254,7 +254,7 @@ class Recorder:
             initial_response = {"note": "Initial game state from join_game"}
             timestamp = time()
             self.storage.save_update(
-                self.game.game_state,
+                self.game_itf.game_state,
                 initial_request,
                 initial_response,
                 timestamp
@@ -262,18 +262,18 @@ class Recorder:
             logger.info("Saved initial game state from join_game with mock request and response")
 
         # Save static map data
-        if self.game.game_state.states.map_state:
-            static_map_data = self.game.game_state.states.map_state.map.static_map_data
+        if self.game_itf.game_state.states.map_state:
+            static_map_data = self.game_itf.game_state.states.map_state.map.static_map_data
             if static_map_data:
                 self.storage.save_static_map_data(static_map_data)
 
     def _select_country(self, country_name: str, game_id: int) -> bool:
         """Select a country in the game."""
-        if self.game.is_country_selected():
+        if self.game_itf.is_country_selected():
             logger.info(f"Country already selected in game {game_id}")
             return True
 
-        playable_countries = self.game.get_playable_countries()
+        playable_countries = self.game_itf.get_playable_countries()
 
         # Find country by name
         selected_country = None
@@ -286,7 +286,7 @@ class Recorder:
             logger.error(f"Country '{country_name}' not available in game {game_id}")
             return False
 
-        self.game.select_country(country_id=selected_country.player_id)
+        self.game_itf.select_country(country_id=selected_country.player_id)
         logger.info(f"Selected country: {selected_country.nation_name} in game {game_id}")
 
         # Update to apply country selection
@@ -295,11 +295,11 @@ class Recorder:
 
     def _save_current_state(self):
         """Save the current game state with the last request and response."""
-        if self.game and self.storage and self._last_response:
+        if self.game_itf and self.storage and self._last_response:
             timestamp = time()
             request_data = self._last_request if self._last_request else {"note": "No request captured"}
             self.storage.save_update(
-                self.game.game_state,
+                self.game_itf.game_state,
                 request_data,
                 self._last_response,
                 timestamp
@@ -307,7 +307,7 @@ class Recorder:
     
     def _update_and_save(self):
         """Update game state and save it. This ensures state is always saved after update."""
-        self.game.update()
+        self.game_itf.update()
         self._save_current_state()
     
     def execute_action(self, action: dict) -> bool:
@@ -366,12 +366,12 @@ class Recorder:
         
         logger.info(f"Building {building_name} (tier {tier}) in {city_name}")
         
-        city = next(iter(self.game.get_my_provinces(name=city_name).values()), None)
+        city = next(iter(self.game_itf.get_my_provinces(name=city_name).values()), None)
         if not city:
             logger.error(f"City '{city_name}' not found")
             return False
         
-        upgrade_type = self.game.get_upgrade_type_by_name_and_tier(building_name, tier)
+        upgrade_type = self.game_itf.get_upgrade_type_by_name_and_tier(building_name, tier)
         if not upgrade_type:
             logger.error(f"Upgrade type '{building_name}' tier {tier} not found")
             return False
@@ -391,7 +391,7 @@ class Recorder:
         
         logger.info(f"Canceling construction in {city_name}")
         
-        city = next(iter(self.game.get_my_provinces(name=city_name).values()), None)
+        city = next(iter(self.game_itf.get_my_provinces(name=city_name).values()), None)
         if not city:
             logger.error(f"City '{city_name}' not found")
             return False
@@ -408,12 +408,12 @@ class Recorder:
         
         logger.info(f"Mobilizing {unit_name} (tier {tier}) in {city_name}")
         
-        city = next(iter(self.game.get_my_provinces(name=city_name).values()), None)
+        city = next(iter(self.game_itf.get_my_provinces(name=city_name).values()), None)
         if not city:
             logger.error(f"City '{city_name}' not found")
             return False
         
-        unit_type = self.game.get_unit_type_by_name_and_tier(unit_name, tier)
+        unit_type = self.game_itf.get_unit_type_by_name_and_tier(unit_name, tier)
         if not unit_type:
             logger.error(f"Unit type '{unit_name}' tier {tier} not found")
             return False
@@ -430,7 +430,7 @@ class Recorder:
         
         logger.info(f"Canceling mobilization in {city_name}")
         
-        city = next(iter(self.game.get_my_provinces(name=city_name).values()), None)
+        city = next(iter(self.game_itf.get_my_provinces(name=city_name).values()), None)
         if not city:
             logger.error(f"City '{city_name}' not found")
             return False
@@ -446,7 +446,7 @@ class Recorder:
         
         logger.info(f"Researching {research_name} (tier {tier})")
         
-        research_type = self.game.get_research_type_by_name_and_tier(research_name, tier)
+        research_type = self.game_itf.get_research_type_by_name_and_tier(research_name, tier)
         if not research_type:
             logger.error(f"Research type '{research_name}' tier {tier} not found")
             return False
@@ -462,9 +462,9 @@ class Recorder:
         logger.info(f"Canceling research {research_name} (tier {tier})")
         
         # Get current research state
-        if self.game.game_state and self.game.game_state.states.research_state:
-            research_state = self.game.game_state.states.research_state
-            research_id = self.game.get_research_type_by_name_and_tier(research_name, tier)
+        if self.game_itf.game_state and self.game_itf.game_state.states.research_state:
+            research_state = self.game_itf.game_state.states.research_state
+            research_id = self.game_itf.get_research_type_by_name_and_tier(research_name, tier)
             research_state.cancel_research(research_id)
             self._update_and_save()
             return True
@@ -506,9 +506,9 @@ class Recorder:
         army_number = action.get('army_number')
         
         if army_id:
-            return self.game.get_army(army_id)
+            return self.game_itf.get_army(army_id)
         elif army_number:
-            return self.game.get_my_army_by_number(army_number)
+            return self.game_itf.get_my_army_by_number(army_number)
         else:
             logger.error("Either army_id or army_number must be specified")
             return None
@@ -521,7 +521,7 @@ class Recorder:
         if not army:
             return False
         
-        province = self.game.get_provinces_by_name(province_name)
+        province = self.game_itf.get_provinces_by_name(province_name)
         if not province:
             logger.error(f"Province '{province_name}' not found")
             return False
@@ -541,7 +541,7 @@ class Recorder:
         if not army:
             return False
         
-        province = self.game.get_provinces_by_name(province_name)
+        province = self.game_itf.get_provinces_by_name(province_name)
         if not province:
             logger.error(f"Province '{province_name}' not found")
             return False
@@ -561,7 +561,7 @@ class Recorder:
         if not army:
             return False
         
-        province = self.game.get_provinces_by_name(province_name)
+        province = self.game_itf.get_provinces_by_name(province_name)
         if not province:
             logger.error(f"Province '{province_name}' not found")
             return False
@@ -603,7 +603,7 @@ class Recorder:
                     return False
             else:
                 # Get a main account from the pool for listing all games
-                self.interface = self.account_pool.next_free_account().get_interface()
+                self.hub_itf = self.account_pool.next_free_account().get_interface()
 
             # Find and join game
             if not self.find_and_join_game():

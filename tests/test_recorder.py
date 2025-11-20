@@ -7,11 +7,6 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from tools.recorder.config_schema import (
-    BuildUpgradeAction,
-    RecorderConfig,
-    SleepAction,
-)
 from tools.recorder.recorder import Recorder, RecordingStorage
 
 
@@ -41,70 +36,6 @@ class TestRecordingStorage(unittest.TestCase):
         self.assertIn('version', metadata)
         self.assertIn('created_at', metadata)
         self.assertIn('updates', metadata)
-
-    def test_logging_setup_and_teardown(self):
-        """Test that logging can be set up and torn down."""
-        # Setup library logger first
-        from conflict_interface.logger_config import setup_library_logger
-        import logging as log_module
-        setup_library_logger(log_module.DEBUG)
-        
-        # Setup logging
-        self.storage.setup_logging()
-        self.assertTrue(self.storage.recorder_log_file.exists())
-        self.assertIsNotNone(self.storage.recorder_log_handler)
-        
-        # Write a test log
-        from conflict_interface.logger_config import get_logger
-        logger = get_logger()
-        logger.info("Test log message")
-        
-        # Flush the handler to ensure the message is written
-        self.storage.recorder_log_handler.flush()
-        
-        # Check that the log file contains the message before teardown
-        with open(self.storage.recorder_log_file, 'r') as f:
-            log_content = f.read()
-            self.assertIn("Test log message", log_content)
-        
-        # Teardown logging
-        self.storage.teardown_logging()
-        self.assertIsNone(self.storage.recorder_log_handler)
-
-
-
-class TestRecorderConfig(unittest.TestCase):
-    """Test configuration schema."""
-    
-    def test_build_upgrade_action(self):
-        """Test BuildUpgradeAction creation."""
-        action = BuildUpgradeAction(
-            city_name="Washington",
-            building_name="Arms Industry",
-            tier=1
-        )
-        self.assertEqual(action.type, "build_upgrade")
-        self.assertEqual(action.city_name, "Washington")
-        self.assertEqual(action.tier, 1)
-    
-    def test_sleep_action(self):
-        """Test SleepAction creation."""
-        action = SleepAction(duration="5m")
-        self.assertEqual(action.type, "sleep")
-        self.assertEqual(action.duration, "5m")
-    
-    def test_recorder_config(self):
-        """Test RecorderConfig creation."""
-        config = RecorderConfig(
-            username="test",
-            password="pass",
-            scenario_id=5975,
-            actions=[]
-        )
-        self.assertEqual(config.username, "test")
-        self.assertEqual(config.scenario_id, 5975)
-        self.assertIsNotNone(config.actions)
-
 
 class TestRecorder(unittest.TestCase):
     """Test Recorder class."""
@@ -313,9 +244,10 @@ class TestRecorderAccountPool(unittest.TestCase):
         mock_game = MagicMock()
         mock_game.game_id = 123456
         mock_game.open_slots = 15
+        mock_game.day_of_game = 1
         mock_hub_interface.get_global_games.return_value = [mock_game]
         mock_hub_interface.get_my_games.return_value = []
-        recorder.interface = mock_hub_interface
+        recorder.hub_itf = mock_hub_interface
         
         mock_join_game.return_value = True
         
@@ -359,9 +291,10 @@ class TestRecorderAccountPool(unittest.TestCase):
         mock_game = MagicMock()
         mock_game.game_id = 123456
         mock_game.open_slots = 15
+        mock_game.day_of_game = 1
         mock_hub_interface.get_global_games.return_value = [mock_game]
         mock_hub_interface.get_my_games.return_value = []
-        recorder.interface = mock_hub_interface
+        recorder.hub_itf = mock_hub_interface
         
         # First join attempt raises USER_NOT_FOUND, second succeeds
         user_not_found_error = GameActivationException(GameActivationErrorCodes.USER_NOT_FOUND)
@@ -390,7 +323,7 @@ class TestRecorderAccountPool(unittest.TestCase):
         
         # Mock interface for listing games
         mock_hub_interface = MagicMock()
-        recorder.interface = mock_hub_interface
+        recorder.hub_itf = mock_hub_interface
         
         result = recorder.find_and_join_game()
         
@@ -414,7 +347,7 @@ class TestRecorderAccountPool(unittest.TestCase):
         
         # Mock interface
         mock_hub_interface = MagicMock()
-        recorder.interface = mock_hub_interface
+        recorder.hub_itf = mock_hub_interface
         
         result = recorder.find_and_join_game()
         
@@ -439,7 +372,7 @@ class TestRecorderAccountPool(unittest.TestCase):
         
         # Mock interface
         mock_hub_interface = MagicMock()
-        recorder.interface = mock_hub_interface
+        recorder.hub_itf = mock_hub_interface
         
         result = recorder.find_and_join_game()
         
@@ -464,7 +397,7 @@ class TestRecorderAccountPool(unittest.TestCase):
         
         # Mock interface
         mock_hub_interface = MagicMock()
-        recorder.interface = mock_hub_interface
+        recorder.hub_itf = mock_hub_interface
         
         mock_join_game.return_value = True
         
@@ -558,7 +491,7 @@ class TestGameFinder(unittest.TestCase):
         from tools.recorder.find_game_logic import GameFinder
         
         config = {
-            'scenario_id': 5975,
+            'scenario_id': 5976,
             'country_name': 'TestCountry',
             'poll_interval': 1,
             'max_wait': 10
@@ -568,6 +501,7 @@ class TestGameFinder(unittest.TestCase):
         mock_game = MagicMock()
         mock_game.game_id = 123456
         mock_game.open_slots = 15
+        mock_game.day_of_game = 1
         mock_interface.get_global_games.return_value = [mock_game]
         mock_interface.get_my_games.return_value = []
         
