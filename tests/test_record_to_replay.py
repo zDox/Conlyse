@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, patch
 
 import zstandard as zstd
 
-from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.replay.replay import Replay
 from tools.record_to_replay.converter import RecordToReplayConverter
 
