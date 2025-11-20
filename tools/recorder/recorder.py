@@ -185,8 +185,6 @@ class Recorder:
             bool: True if successful, False otherwise
         """
         # Override join_game to patch game_api before load_game() is called
-        original_join_game = self.interface.join_game
-        
         def patched_join_game(game_id: int, guest=False, replay_filename: str = None):
             """Patched join_game that sets up API monitoring before load_game()."""
             # Call the original join_game logic up to creating the OnlineInterface
