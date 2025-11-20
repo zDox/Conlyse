@@ -339,7 +339,7 @@ class Replay:
             IOError: If replay is not in write or append mode
             CorruptReplay: If game/player ID mismatch or timestamp out of order
         """
-        time_stamp_ms = Replay.datetime_to_ms(time_stamp)
+        time_stamp_ms = datetime_to_unix_ms(time_stamp)
         ReplayValidator.validate_write_mode(self.mode)
         ReplayValidator.validate_game_player_ids(self.get_metadata(), game_id, player_id)
         ReplayValidator.validate_timestamp_order(self.get_metadata(), time_stamp_ms)
@@ -369,7 +369,7 @@ class Replay:
             IOError: If replay is not in write or append mode
             CorruptReplay: If game/player ID mismatch or timestamp out of order
         """
-        time_stamp_ms = Replay.datetime_to_ms(time_stamp)
+        time_stamp_ms = datetime_to_unix_ms(time_stamp)
 
         ReplayValidator.validate_write_mode(self.mode)
         ReplayValidator.validate_game_player_ids(self.get_metadata(), game_id, player_id)
@@ -444,18 +444,4 @@ class Replay:
             current_ts = next_ts
 
         return error_detected
-
-    @staticmethod
-    def datetime_to_ms(dt: datetime) -> int:
-        """
-        Convert datetime to milliseconds timestamp.
-        
-        Args:
-            dt: Datetime to convert
-            
-        Returns:
-            Timestamp in milliseconds
-        """
-        return datetime_to_unix_ms(dt)
-
 
