@@ -303,6 +303,38 @@ recorder = Recorder(config)
 success = recorder.run()
 ```
 
+**Using AccountPool for multi-account support:**
+
+```python
+from tools.recorder import Recorder
+from tools.recorder.account_pool import AccountPool
+
+# Load account pool from configuration
+account_pool = AccountPool.from_json("path/to/accounts.json")
+
+config = {
+    "game_id": 12345678,
+    "country_name": "USA",
+    "actions": [
+        {
+            "type": "sleep",
+            "duration": "1m"
+        }
+    ]
+}
+
+# Pass account pool to recorder
+recorder = Recorder(config, account_pool=account_pool)
+success = recorder.run()
+```
+
+When using an AccountPool, the recorder will automatically:
+- Try to join the game with the next available account from the pool
+- If join fails with `USER_NOT_FOUND` error (too many recent joins), skip to the next account
+- Continue trying accounts until successful or all accounts are exhausted
+
+This is useful for automated game joining where accounts may hit rate limits.
+
 ## Example Configuration
 
 See `examples/recorder_config_sample.json` for a complete example configuration file.
