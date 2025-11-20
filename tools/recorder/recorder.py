@@ -602,8 +602,11 @@ class Recorder:
                     return False
             else:
                 # Get a main account from the pool for listing all games
-                self.hub_itf = self.account_pool.next_free_account().get_interface()
-
+                account = self.account_pool.next_free_account()
+                if not account:
+                    logger.error("No accounts available in pool")
+                    return False
+                self.hub_itf = account.get_interface()
             # Find and join game
             if not self.find_and_join_game():
                 return False
