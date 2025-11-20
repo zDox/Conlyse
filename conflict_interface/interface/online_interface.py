@@ -41,6 +41,7 @@ class OnlineInterface(GameInterface):
         self.game_event_handler: Callable = self.default_event_handler
         self.guest: bool = guest
         self.action_handler = ActionHandler(self)
+        self.static_map_data = None
 
         self.replay_filename = replay_filename
 
@@ -118,15 +119,15 @@ class OnlineInterface(GameInterface):
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
 
-                self.game_state = self.action_handler.create_game_state_action(use_queue=False)
+                self.game_state = self.action_handler.create_game_state_action(use_queue=False, send_state_ids=False)
 
         json_static_map_data = self.game_api.get_static_map_data()
-        static_map_data = parse_any(StaticMapData, json_static_map_data, self)
+        self.static_map_data = parse_any(StaticMapData, json_static_map_data, self)
 
         if self.replay_filename:
-            self._handle_replay_init(static_map_data)
+            self._handle_replay_init(self.static_map_data)
 
-        self.game_state.states.map_state.map.set_static_map_data(static_map_data)
+        self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,
                        random_country_team=False):
@@ -154,12 +155,10 @@ class OnlineInterface(GameInterface):
                                                            selected_player_id=country_id,
                                                            selected_team_id=team_id,
                                                            random_team_country_selection=random_country_team)
+        self.game_state = None
+        self.action_handler.game_state = None
         self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
-        """
-        After performing the default login action, we need to update the game as we then get
-        the player specific data, like ArmyState or Properties of Provinces
-        """
-        self.update()
+        self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
 
     def update(self):
         """

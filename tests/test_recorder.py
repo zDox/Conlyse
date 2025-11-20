@@ -122,8 +122,8 @@ class TestRecorder(unittest.TestCase):
     
     def test_init(self):
         """Test recorder initialization."""
-        self.assertIsNone(self.recorder.interface)
-        self.assertIsNone(self.recorder.game)
+        self.assertIsNone(self.recorder.hub_itf)
+        self.assertIsNone(self.recorder.game_itf)
         self.assertIsNone(self.recorder.storage)
         self.assertEqual(self.recorder.config, self.config)
     
@@ -162,7 +162,7 @@ class TestRecorder(unittest.TestCase):
     
     def test_execute_action_unknown_type(self):
         """Test execution of unknown action type."""
-        self.recorder.game = MagicMock()
+        self.recorder.game_itf = MagicMock()
         
         action = {'type': 'unknown_action'}
         result = self.recorder.execute_action(action)
@@ -180,7 +180,7 @@ class TestRecorder(unittest.TestCase):
     def test_execute_action_build_upgrade(self, mock_build):
         """Test execution of build_upgrade action."""
         mock_build.return_value = True
-        self.recorder.game = MagicMock()
+        self.recorder.game_itf = MagicMock()
         
         action = {'type': 'build_upgrade', 'city_name': 'Test'}
         result = self.recorder.execute_action(action)
@@ -204,7 +204,7 @@ class TestRecorder(unittest.TestCase):
         mock_game = MagicMock()
         mock_army = MagicMock()
         mock_game.get_army.return_value = mock_army
-        self.recorder.game = mock_game
+        self.recorder.game_itf = mock_game
         
         action = {'army_id': 123}
         army = self.recorder._get_army(action)
@@ -217,7 +217,7 @@ class TestRecorder(unittest.TestCase):
         mock_game = MagicMock()
         mock_army = MagicMock()
         mock_game.get_my_army_by_number.return_value = mock_army
-        self.recorder.game = mock_game
+        self.recorder.game_itf = mock_game
         
         action = {'army_number': 5}
         army = self.recorder._get_army(action)
@@ -227,7 +227,7 @@ class TestRecorder(unittest.TestCase):
     
     def test_get_army_no_identifier(self):
         """Test getting army without ID or number."""
-        self.recorder.game = MagicMock()
+        self.recorder.game_itf = MagicMock()
         
         action = {}
         army = self.recorder._get_army(action)
