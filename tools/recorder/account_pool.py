@@ -22,7 +22,7 @@ class AccountPoolStatus:
 class AccountPool:
     def __init__(self):
         self.accounts: list[Account] = []
-        self.proxies: dict[str, Proxy] = defaultdict()
+        self.proxies: dict[str, Proxy] = {}
         self.web_share_token = None
         self.json_pool_path = None
         self.free_account_pointer = 0
