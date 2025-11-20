@@ -206,6 +206,13 @@ class AccountPool:
 
         return self.accounts[self.free_account_pointer]
 
+    def skip_free_account(self) -> None:
+        """
+        Skips the current free account by incrementing the free account pointer.
+        This is useful when the current free account is not suitable for use.
+        """
+        self.free_account_pointer += 1
+
     def get_any_account(self) -> Account | None:
         if len(self.accounts) == 0:
             return None

@@ -208,6 +208,7 @@ class GameFinder:
                                 f"Account {account.username} got USER_NOT_FOUND error "
                                 f"(too many recent joins), skipping to next account"
                             )
+                            self.account_pool.skip_free_account()
                             break  # Break inner loop to get next account
                         else:
                             logger.error(f"Game activation failed with error {e.error_code}: {e}")
