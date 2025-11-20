@@ -16,8 +16,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Convert a recording to a replay file
+  # Convert a recording to a replay file (default: state-based mode)
   record-to-replay recordings/my_recording replay.db
+  
+  # Convert using JSON-based mode
+  record-to-replay recordings/my_recording replay.db --mode json
   
   # Convert with verbose output
   record-to-replay recordings/my_recording replay.db -v
@@ -27,7 +30,13 @@ Examples:
 
 The recording directory should contain:
   - game_states.bin: Binary file with compressed game states
+  - static_map_data.bin: (optional) Compressed static map data
+  - responses.jsonl.zst: (required for --mode json) Compressed JSON responses
   - metadata.json: (optional) Recording metadata
+
+Patch creation modes:
+  - state: Create patches from consecutive game states (default, faster)
+  - json: Create patches by parsing JSON responses and applying updates
         """
     )
     
@@ -39,6 +48,13 @@ The recording directory should contain:
     parser.add_argument(
         'output_file',
         help='Path to the output replay database file (.db)'
+    )
+    
+    parser.add_argument(
+        '--mode',
+        choices=['state', 'json'],
+        default='state',
+        help='Patch creation mode: "state" (default) or "json"'
     )
     
     parser.add_argument(
@@ -79,7 +95,7 @@ The recording directory should contain:
     
     # Create converter
     try:
-        converter = RecordToReplayConverter(args.recording_dir)
+        converter = RecordToReplayConverter(args.recording_dir, patch_mode=args.mode)
     except FileNotFoundError as e:
         print(f"Error: {e}")
         sys.exit(1)

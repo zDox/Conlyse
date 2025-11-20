@@ -187,6 +187,19 @@ class Recorder:
         # Patch the game API to capture responses
         self._monkey_patch_game_api()
         
+        # Save the initial game state after joining (this is the first game request)
+        if self.game and self.game.game_state and self.storage:
+            # Create a mock response for the initial state since we didn't capture it
+            # The actual response was used to create the game_state but we don't have access to it
+            initial_response = {"note": "Initial game state from join_game"}
+            timestamp = time()
+            self.storage.save_update(
+                self.game.game_state,
+                initial_response,
+                timestamp
+            )
+            logger.info("Saved initial game state from join_game")
+        
         # Save static map data after joining the game
         if self.game and self.game.game_state and self.game.game_state.states.map_state:
             static_map_data = self.game.game_state.states.map_state.map.static_map_data
