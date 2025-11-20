@@ -195,8 +195,6 @@ class GameFinder:
                     logger.info(f"Attempting to join game: {game_info.game_id}")
 
                     # If we have not tried to join that game
-                    if game_info.game_id in tried_games:
-                        continue
 
                     try:
                         # Join it
