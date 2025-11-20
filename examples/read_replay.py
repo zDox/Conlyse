@@ -1,10 +1,10 @@
 import logging
+from pprint import pprint
 from time import time
 
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
-from conflict_interface.utils.helper import datetime_to_unix_ms
 
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
@@ -12,17 +12,16 @@ if __name__ == "__main__":
 
     gitf = GameInterface()
     t1 = time()
-    ritf = ReplayInterface("benchmark_replay_206.db")
+    ritf = ReplayInterface("../tools/record_to_replay/test.db")
+    ritf.player_id = 32
 
     ritf.open()
     t2 = time()
     time_stamps = len(ritf.get_timestamps())
     amount_patches = len(ritf.get_timestamps())
     for timestamp in ritf.get_timestamps():
-        try:
-            ritf.jump_to(timestamp)
-        except Exception:
-            print(f"Failed to jump to {timestamp}/{datetime_to_unix_ms(ritf.current_time)}")
+        pprint(ritf.get_provinces_by_name("Bourem").properties)
+        ritf.jump_to(timestamp)
     t3 = time()
     print(f"Setting time took {t3 - t2} seconds for {amount_patches} patches. {(t3 - t2) / amount_patches} seconds per patch.")
     print(f"Loading took {t2 - t1} seconds.")

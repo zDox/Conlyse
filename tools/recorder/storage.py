@@ -18,8 +18,19 @@ logger = get_logger()
 
 
 class RecordingStorage:
-    """Handles storage of recorded game data."""
-    
+    """
+    Handles storage of recorded game data.
+
+    Files generated:
+    - game_states.bin: Compressed pickle dumps of GameState objects with timestamps
+    - requests.jsonl.zst: Compressed JSON lines of request parameters sent to server
+    - responses.jsonl.zst: Compressed JSON lines of responses from server
+    - static_map_data.bin: Compressed pickle dump of StaticMapData
+    - metadata.json: Recording metadata including timestamps
+    - recording.log: Recorder tool log
+    - library.log: ConflictInterface library log
+    """
+
     def __init__(self, output_path: str):
         """
         Initialize recording storage.
@@ -35,6 +46,7 @@ class RecordingStorage:
         
         # Storage for game states and responses
         self.game_states_file = self.output_path / "game_states.bin"
+        self.requests_file = self.output_path / "requests.jsonl.zst"
         self.responses_file = self.output_path / "responses.jsonl.zst"
         self.static_map_data_file = self.output_path / "static_map_data.bin"
         self.metadata_file = self.output_path / "metadata.json"
@@ -70,12 +82,13 @@ class RecordingStorage:
                 return json.load(f)
         return {"version": "1.0", "updates": []}
     
-    def save_update(self, game_state: GameState, response_json: dict, timestamp: float):
+    def save_update(self, game_state: GameState, request_json: dict, response_json: dict, timestamp: float):
         """
-        Save a game update with compressed game state and response.
-        
+        Save a game update with compressed game state, request, and response.
+
         Args:
             game_state: The game state object
+            request_json: The JSON request parameters sent to the server
             response_json: The JSON response from the server
             timestamp: Timestamp of the update
         """
@@ -95,6 +108,16 @@ class RecordingStorage:
             f.write(len(compressed_state).to_bytes(4, 'big'))
             f.write(compressed_state)
         
+        # Compress and save JSON request
+        request_str = json.dumps(request_json)
+        compressed_request = self._compressor.compress(request_str.encode('utf-8'))
+
+        with open(self.requests_file, 'ab') as f:
+            # Write timestamp and length, then compressed data
+            f.write(timestamp_ms.to_bytes(8, 'big'))
+            f.write(len(compressed_request).to_bytes(4, 'big'))
+            f.write(compressed_request)
+
         # Compress and save JSON response
         response_str = json.dumps(response_json)
         compressed_response = self._compressor.compress(response_str.encode('utf-8'))

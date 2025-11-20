@@ -224,8 +224,10 @@ recordings/
 └── recording_name/
     ├── game_states.bin      # Compressed game states
     ├── static_map_data.bin  # Compressed static map data
+    ├── requests.jsonl.zst   # Compressed JSON request parameters
     ├── responses.jsonl.zst  # Compressed JSON responses
     ├── recording.log        # Session logs
+    ├── library.log          # Library logs
     └── metadata.json        # Recording metadata
 ```
 
@@ -241,6 +243,17 @@ This data includes:
 - Province boundaries and locations
 - Connection graph between provinces
 - Static province information
+
+### Requests File (`requests.jsonl.zst`)
+Compressed JSON request parameters sent to the game server. Each entry has:
+- 8 bytes: timestamp (big-endian)
+- 4 bytes: compressed data length (big-endian)
+- N bytes: compressed JSON request (zstandard compressed)
+
+Request data includes the parameters sent to `make_game_server_request()`, such as:
+- `action`: The action being performed (e.g., "updateProvinceConstruction")
+- Action-specific parameters (e.g., `provinceID`, `upgradeID`)
+- Game context (e.g., `gameID`, `playerID`)
 
 ### Responses File (`responses.jsonl.zst`)
 Compressed JSON responses from the game server. Each entry has:
@@ -386,6 +399,46 @@ When `account_pool_path` is specified in config.json, the recorder CLI will auto
 ```
 
 See `examples/recorder_config_sample.json` for a complete example configuration file.
+
+## Converting Recordings
+
+### Dumping to Human-Readable JSON
+
+You can convert binary recordings to human-readable JSON files using the record-to-replay tool:
+
+```bash
+record-to-replay recordings/recording_20240120_143000 --dump-json
+```
+
+This creates a `json_dumps` directory with three subdirectories:
+- `game_states/` - Game state snapshots as JSON
+- `json_requests/` - Request parameters sent to the server
+- `json_responses/` - Server responses
+
+Each JSON file includes metadata:
+
+```json
+{
+  "timestamp_ms": 1705758000000,
+  "timestamp_iso": "2024-01-20T14:30:00",
+  "request_index": 0,
+  "request": {
+    "action": "updateProvinceConstruction",
+    "provinceID": 12345,
+    "upgradeID": 678
+  }
+}
+```
+
+### Converting to Replay Database
+
+To convert a recording to the standard replay format:
+
+```bash
+record-to-replay recordings/recording_20240120_143000 output.db
+```
+
+This creates a replay database that can be used with the replay system for time-travel debugging.
 
 ## Notes
 

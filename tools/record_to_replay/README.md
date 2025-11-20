@@ -35,8 +35,11 @@ record-to-replay <recording_dir> <output_file>
 
 ### Options
 
+- `--mode MODE`: Patch creation mode - `state` (default) or `json`
 - `--game-id ID`: Specify game ID explicitly (auto-detected if not provided)
 - `--player-id ID`: Specify player ID explicitly (auto-detected if not provided)
+- `--dump-json`: Dump game states and JSON responses to separate files instead of creating a replay
+- `--json-output-dir DIR`: Directory for JSON output (default: `recording_dir/json_dumps`)
 - `-v, --verbose`: Enable verbose logging (DEBUG level)
 - `-q, --quiet`: Quiet mode (only ERROR level)
 
@@ -55,6 +58,17 @@ record-to-replay recordings/my_recording replay.db -v
 Specify game and player IDs explicitly:
 ```bash
 record-to-replay recordings/my_recording replay.db --game-id 12345 --player-id 67890
+```
+
+Dump game states and JSON responses to separate files:
+```bash
+record-to-replay recordings/my_recording --dump-json
+```
+
+
+Dump with custom output directory:
+```bash
+record-to-replay recordings/my_recording --dump-json --json-output-dir my_json_output
 ```
 
 ## Input Format
@@ -154,6 +168,78 @@ If you encounter out-of-memory errors with very large recordings, try:
 - Breaking the recording into smaller segments
 - Reducing the number of state updates in the recording
 
+## Dumping Game States to JSON
+
+The converter can also dump game states and JSON responses directly to JSON files for inspection, analysis, or external processing.
+
+### Output Structure
+
+When using `--dump-json`, the following structure is created:
+
+```
+json_dumps/
+├── game_states/
+│   ├── game_state_0000_1699999999000.json
+│   ├── game_state_0001_1700000010000.json
+│   └── ...
+├── json_responses/
+│   ├── response_0000_1699999999000.json
+│   ├── response_0001_1700000010000.json
+│   └── ...
+└── static_map_data.json
+```
+
+Each game state file includes:
+- `timestamp_ms`: Unix timestamp in milliseconds
+- `timestamp_iso`: ISO 8601 formatted timestamp
+- `state_index`: Sequential index of the state
+- `game_state`: Full game state in JSON format
+
+Each JSON response file includes:
+- `timestamp_ms`: Unix timestamp in milliseconds
+- `timestamp_iso`: ISO 8601 formatted timestamp
+- `response_index`: Sequential index of the response
+- `response`: Full JSON response from the server
+
+### Using JSON Dumps
+
+**Debugging and inspection:**
+```bash
+# Dump to separate files
+record-to-replay recordings/my_recording --dump-json
+
+# View a specific state
+cat recordings/my_recording/json_dumps/game_states/game_state_0042_*.json | jq .
+
+# View a specific response
+cat recordings/my_recording/json_dumps/json_responses/response_0042_*.json | jq .
+```
+
+**Load into Python:**
+```python
+import json
+from pathlib import Path
+
+# Load a specific game state
+with open("json_dumps/game_states/game_state_0000_1699999999000.json") as f:
+    state_data = json.load(f)
+    game_state = state_data["game_state"]
+
+# Load a specific JSON response
+with open("json_dumps/json_responses/response_0000_1699999999000.json") as f:
+    response_data = json.load(f)
+    response = response_data["response"]
+
+# Process all states
+json_dumps_dir = Path("json_dumps/game_states")
+for state_file in sorted(json_dumps_dir.glob("game_state_*.json")):
+    with open(state_file) as f:
+        data = json.load(f)
+        print(f"State {data['state_index']} at {data['timestamp_iso']}")
+```
+
+For more details, see [DUMP_JSON.md](./DUMP_JSON.md).
+
 ## Using as a Library
 
 You can also use the converter programmatically:
@@ -173,10 +259,19 @@ success = converter.convert(
 
 if success:
     print("Conversion successful!")
+
+# Or dump to JSON
+success = converter.dump_to_json(
+    output_dir="my_json_output"  # optional
+)
+
+if success:
+    print("JSON dump successful!")
 ```
 
 ## See Also
 
+- [JSON Dump Documentation](./DUMP_JSON.md) - Detailed guide for dumping to JSON
 - [Recorder CLI Tool](../recorder/README.md) - For creating recordings
 - [Replay Debug CLI Tool](../replay_debug/README.md) - For inspecting replay files
 - [Replay System Documentation](../../docs/replay_system.md) - For replay format details

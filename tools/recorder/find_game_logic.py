@@ -4,6 +4,8 @@ This module handles finding and joining games based on different parameter combi
 """
 from time import sleep, time
 from typing import Optional, Set
+
+from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.utils.exceptions import GameActivationException, GameActivationErrorCodes
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from tools.recorder.account_pool import AccountPool
@@ -168,7 +170,7 @@ class GameFinder:
 
             # List all global games with scenario_id
             try:
-                games = self.interface.get_global_games(
+                games: list[HubGameProperties] = self.interface.get_global_games(
                     scenario_id=scenario_id,
                     state=HubGameState.READY_TO_JOIN
                 )
@@ -180,6 +182,7 @@ class GameFinder:
                     if not any(my_game.game_id == game.game_id for my_game in my_games)
                        and game.game_id not in tried_games
                        and game.open_slots >= 10
+                       and game.day_of_game <= 2
                 ]
 
                 if not available_games:

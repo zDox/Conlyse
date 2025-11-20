@@ -22,6 +22,9 @@ Examples:
   # Convert using JSON-based mode
   record-to-replay recordings/my_recording replay.db --mode json
   
+  # Dump game states and JSON requests/responses to separate files
+  record-to-replay recordings/my_recording --dump-json
+  
   # Convert with verbose output
   record-to-replay recordings/my_recording replay.db -v
   
@@ -31,7 +34,8 @@ Examples:
 The recording directory should contain:
   - game_states.bin: Binary file with compressed game states
   - static_map_data.bin: (optional) Compressed static map data
-  - responses.jsonl.zst: (required for --mode json) Compressed JSON responses
+  - requests.jsonl.zst: (optional) Compressed JSON request parameters
+  - responses.jsonl.zst: (optional) Compressed JSON responses
   - metadata.json: (optional) Recording metadata
 
 Patch creation modes:
@@ -47,7 +51,19 @@ Patch creation modes:
     
     parser.add_argument(
         'output_file',
-        help='Path to the output replay database file (.db)'
+        nargs='?',
+        help='Path to the output replay database file (.db) - not required with --dump-json'
+    )
+
+    parser.add_argument(
+        '--dump-json',
+        action='store_true',
+        help='Dump game states and JSON responses to separate files instead of creating a replay'
+    )
+
+    parser.add_argument(
+        '--json-output-dir',
+        help='Directory for JSON output (default: recording_dir/json_dumps)'
     )
     
     parser.add_argument(
@@ -83,6 +99,10 @@ Patch creation modes:
     
     args = parser.parse_args()
     
+    # Validate arguments
+    if not args.dump_json and not args.output_file:
+        parser.error("output_file is required unless --dump-json is specified")
+
     # Setup logging
     if args.quiet:
         log_level = logging.ERROR
@@ -100,7 +120,29 @@ Patch creation modes:
         print(f"Error: {e}")
         sys.exit(1)
     
-    # Convert
+    # Handle dump-json mode
+    if args.dump_json:
+        try:
+            success = converter.dump_to_json(
+                output_dir=args.json_output_dir
+            )
+
+            if success:
+                output_dir = args.json_output_dir or f"{args.recording_dir}/json_dumps"
+                print(f"Successfully dumped to JSON: {output_dir}")
+                sys.exit(0)
+            else:
+                print("JSON dump failed. Check logs for details.")
+                sys.exit(1)
+
+        except KeyboardInterrupt:
+            print("\nDump interrupted by user")
+            sys.exit(130)
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+
+    # Convert to replay
     try:
         success = converter.convert(
             output_file=args.output_file,

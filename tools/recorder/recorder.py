@@ -40,7 +40,8 @@ class Recorder:
         self.account_pool: Optional[AccountPool] = account_pool
         self.current_account: Optional[Account] = None
         
-        # Track the last server response for recording
+        # Track the last server request and response for recording
+        self._last_request: Optional[dict] = None
         self._last_response: Optional[dict] = None
     
     def _setup_storage(self):
@@ -61,18 +62,24 @@ class Recorder:
     
     def _monkey_patch_game_api(self):
         """
-        Monkey patch the game API to intercept server responses.
-        This allows us to capture the raw JSON without affecting replay functionality.
+        Monkey patch the game API to intercept server requests and responses.
+        This allows us to capture both the raw request and response JSON without affecting replay functionality.
         """
         original_request_method = self.game.game_api.make_game_server_request
         
         def patched_request(*args, **kwargs):
+            # Capture the request parameters
+            if args:
+                self._last_request = args[0]  # parameters is the first argument
+            else:
+                self._last_request = kwargs.get('parameters', {})
+
             response = original_request_method(*args, **kwargs)
             self._last_response = response
             return response
         
         self.game.game_api.make_game_server_request = patched_request
-        logger.debug("Game API patched to capture responses")
+        logger.debug("Game API patched to capture requests and responses")
 
     def login(self, account: Optional[Account] = None) -> bool:
         """
@@ -204,12 +211,20 @@ class Recorder:
             original_request_method = game_interface.game_api.make_game_server_request
 
             def patched_request(*args, **kwargs):
+                # Capture the request parameters
+                if args:
+                    self._last_request = args[0]  # parameters is the first argument
+                else:
+                    self._last_request = kwargs.get('parameters', {})
+                self._last_request["request_id"] = game_interface.game_api.request_id
+
                 response = original_request_method(*args, **kwargs)
                 self._last_response = response
+                self._last_response["request_id"] = game_interface.game_api.request_id
                 return response
 
             game_interface.game_api.make_game_server_request = patched_request
-            logger.debug("Game API patched to capture responses before load_game()")
+            logger.debug("Game API patched to capture requests and responses before load_game()")
 
             # Load the game
             game_interface.load_game()
@@ -226,21 +241,25 @@ class Recorder:
         # Save initial game state
         if self._last_response:
             timestamp = time()
+            request_data = self._last_request if self._last_request else {"note": "No request captured"}
             self.storage.save_update(
                 self.game.game_state,
+                request_data,
                 self._last_response,
                 timestamp
             )
-            logger.info("Saved initial game state from join_game with actual response")
+            logger.info("Saved initial game state from join_game with actual request and response")
         else:
+            initial_request = {"note": "Initial game state from join_game"}
             initial_response = {"note": "Initial game state from join_game"}
             timestamp = time()
             self.storage.save_update(
                 self.game.game_state,
+                initial_request,
                 initial_response,
                 timestamp
             )
-            logger.info("Saved initial game state from join_game with mock response")
+            logger.info("Saved initial game state from join_game with mock request and response")
 
         # Save static map data
         if self.game.game_state.states.map_state:
@@ -275,11 +294,13 @@ class Recorder:
         return True
 
     def _save_current_state(self):
-        """Save the current game state and last response."""
+        """Save the current game state with the last request and response."""
         if self.game and self.storage and self._last_response:
             timestamp = time()
+            request_data = self._last_request if self._last_request else {"note": "No request captured"}
             self.storage.save_update(
                 self.game.game_state,
+                request_data,
                 self._last_response,
                 timestamp
             )

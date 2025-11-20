@@ -3,13 +3,12 @@ Converter for transforming recorder data to replay format.
 """
 import json
 import pickle
-from datetime import datetime
 from pathlib import Path
 from typing import List, Literal, Optional, Tuple
 
 import zstandard as zstd
 
-from conflict_interface.data_types.game_object import parse_any
+from conflict_interface.data_types.game_object import parse_any, dump_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.logger_config import get_logger
@@ -44,6 +43,7 @@ class RecordToReplayConverter:
         """
         self.recording_dir = Path(recording_dir)
         self.game_states_file = self.recording_dir / "game_states.bin"
+        self.requests_file = self.recording_dir / "requests.jsonl.zst"
         self.responses_file = self.recording_dir / "responses.jsonl.zst"
         self.static_map_data_file = self.recording_dir / "static_map_data.bin"
         self.patch_mode = patch_mode
@@ -162,7 +162,47 @@ class RecordToReplayConverter:
         
         logger.info(f"Read {len(json_responses)} JSON responses from recording")
         return json_responses
-    
+    def _read_json_requests(self) -> List[Tuple[int, dict]]:
+        """
+        Read all JSON requests from the recording.
+
+        Returns:
+            List of (timestamp_ms, request_dict) tuples
+        """
+        json_requests = []
+
+        with open(self.requests_file, 'rb') as f:
+            while True:
+                # Read timestamp (8 bytes)
+                timestamp_bytes = f.read(8)
+                if not timestamp_bytes:
+                    break
+
+                timestamp_ms = int.from_bytes(timestamp_bytes, 'big')
+
+                # Read length (4 bytes)
+                length_bytes = f.read(4)
+                if not length_bytes:
+                    break
+
+                length = int.from_bytes(length_bytes, 'big')
+
+                # Read compressed data
+                compressed_data = f.read(length)
+                if len(compressed_data) != length:
+                    logger.warning(f"Incomplete JSON data at timestamp {timestamp_ms}")
+                    break
+
+                # Decompress and parse JSON
+                decompressed = self._decompressor.decompress(compressed_data)
+                json_request = json.loads(decompressed.decode('utf-8'))
+
+                json_requests.append((timestamp_ms, json_request))
+
+        logger.info(f"Read {len(json_requests)} JSON requests from recording")
+        return json_requests
+
+
     def convert(self, output_file: str, game_id: int = None, player_id: int = None) -> bool:
         """
         Convert the recording to a replay file.
@@ -397,7 +437,7 @@ class RecordToReplayConverter:
                     
                     # Call update with the bipatch to record differences
                     updated_state.update(new_state, path=[], rp=bipatch)
-                    
+
                     # Record the patch
                     replay.record_bipatch(
                         time_stamp=current_datetime,
@@ -416,3 +456,153 @@ class RecordToReplayConverter:
         
         logger.info(f"Successfully converted recording to replay: {output_file}")
         return True
+
+    def dump_to_json(self, output_dir: str = None) -> bool:
+        """
+        Dump game states, JSON requests, and JSON responses to separate JSON files.
+
+        Args:
+            output_dir: Directory to save JSON files (defaults to recording_dir/json_dumps)
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Set up output directory
+            if output_dir is None:
+                output_dir = self.recording_dir / "json_dumps"
+            else:
+                output_dir = Path(output_dir)
+
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create subdirectories
+            game_states_dir = output_dir / "game_states"
+            json_requests_dir = output_dir / "json_requests"
+            json_responses_dir = output_dir / "json_responses"
+            game_states_dir.mkdir(exist_ok=True)
+            json_requests_dir.mkdir(exist_ok=True)
+            json_responses_dir.mkdir(exist_ok=True)
+
+            logger.info(f"Output directory: {output_dir}")
+
+            # Dump game states
+            game_states = self._read_game_states()
+            if game_states:
+                logger.info(f"Dumping {len(game_states)} game states to JSON")
+
+                for i, (timestamp_ms, game_state) in enumerate(game_states):
+                    timestamp_dt = unix_ms_to_datetime(timestamp_ms)
+
+                    # Create filename with timestamp
+                    filename = f"game_state_{i:04d}_{timestamp_ms}.json"
+                    output_file = game_states_dir / filename
+
+                    logger.info(f"Dumping state {i+1}/{len(game_states)} to {filename}")
+
+                    # Dump game state to JSON using dump_any
+                    json_data = dump_any(game_state)
+
+                    # Add metadata
+                    output_data = {
+                        "timestamp_ms": timestamp_ms,
+                        "timestamp_iso": timestamp_dt.isoformat(),
+                        "state_index": i,
+                        "game_state": json_data
+                    }
+
+                    # Write to file
+                    with open(output_file, 'w', encoding='utf-8') as f:
+                        json.dump(output_data, f, indent=2, ensure_ascii=False)
+
+                logger.info(f"Successfully dumped {len(game_states)} game states to {game_states_dir}")
+            else:
+                logger.warning("No game states found in recording")
+
+            # Dump JSON requests if available
+            if self.requests_file.exists():
+                json_requests = self._read_json_requests()
+                if json_requests:
+                    logger.info(f"Dumping {len(json_requests)} JSON requests")
+
+                    for i, (timestamp_ms, json_request) in enumerate(json_requests):
+                        timestamp_dt = unix_ms_to_datetime(timestamp_ms)
+
+                        # Create filename with timestamp
+                        filename = f"request_{i:04d}_{timestamp_ms}.json"
+                        output_file = json_requests_dir / filename
+
+                        logger.info(f"Dumping request {i+1}/{len(json_requests)} to {filename}")
+
+                        # Add metadata
+                        output_data = {
+                            "timestamp_ms": timestamp_ms,
+                            "timestamp_iso": timestamp_dt.isoformat(),
+                            "request_index": i,
+                            "request": json_request
+                        }
+
+                        # Write to file
+                        with open(output_file, 'w', encoding='utf-8') as f:
+                            json.dump(output_data, f, indent=2, ensure_ascii=False)
+
+                    logger.info(f"Successfully dumped {len(json_requests)} JSON requests to {json_requests_dir}")
+                else:
+                    logger.warning("No JSON requests found in recording")
+            else:
+                logger.info("No JSON requests file found in recording")
+
+            # Dump JSON responses if available
+            if self.responses_file.exists():
+                json_responses = self._read_json_responses()
+                if json_responses:
+                    logger.info(f"Dumping {len(json_responses)} JSON responses")
+
+                    for i, (timestamp_ms, json_response) in enumerate(json_responses):
+                        timestamp_dt = unix_ms_to_datetime(timestamp_ms)
+
+                        # Create filename with timestamp
+                        filename = f"response_{i:04d}_{timestamp_ms}.json"
+                        output_file = json_responses_dir / filename
+
+                        logger.info(f"Dumping response {i+1}/{len(json_responses)} to {filename}")
+
+                        # Add metadata
+                        output_data = {
+                            "timestamp_ms": timestamp_ms,
+                            "timestamp_iso": timestamp_dt.isoformat(),
+                            "response_index": i,
+                            "response": json_response
+                        }
+
+                        # Write to file
+                        with open(output_file, 'w', encoding='utf-8') as f:
+                            json.dump(output_data, f, indent=2, ensure_ascii=False)
+
+                    logger.info(f"Successfully dumped {len(json_responses)} JSON responses to {json_responses_dir}")
+                else:
+                    logger.warning("No JSON responses found in recording")
+            else:
+                logger.info("No JSON responses file found in recording")
+
+            # Dump static map data if available
+            static_map_data = self._read_static_map_data()
+            if static_map_data:
+                static_map_file = output_dir / "static_map_data.json"
+                logger.info(f"Dumping static map data to {static_map_file.name}")
+
+                json_data = dump_any(static_map_data)
+                with open(static_map_file, 'w', encoding='utf-8') as f:
+                    json.dump(json_data, f, indent=2, ensure_ascii=False)
+
+                logger.info("Successfully dumped static map data")
+
+            if not game_states:
+                logger.error("No data found to dump")
+                return False
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error dumping to JSON: {e}", exc_info=True)
+            return False
