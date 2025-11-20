@@ -357,7 +357,7 @@ class Recorder:
                     return False
                 
                 self.game.select_country(country_id=selected_country.player_id)
-                logger.info(f"Selected country: {selected_country.name} in game {game_id}")
+                logger.info(f"Selected country: {selected_country.nation_name} in game {game_id}")
                 
                 # Update to apply country selection
                 self._update_and_save()
@@ -674,7 +674,10 @@ class Recorder:
             if not self.account_pool:
                 if not self.login():
                     return False
-            
+            else:
+                # Get a main account from the pool for listing all games
+                self.interface = self.account_pool.next_free_account().get_interface()
+
             # Find and join game
             if not self.find_and_join_game():
                 return False

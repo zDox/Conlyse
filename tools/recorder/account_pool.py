@@ -30,9 +30,9 @@ class AccountPool:
     def from_json(cls, path = None):
         if path is None:
             current_script_path = os.path.abspath(__file__)
-            path = os.path.join(os.path.dirname(current_script_path), "config", "accounts.json")
+            path = os.path.join(os.path.dirname(current_script_path), "accounts.json")
         current_script_path = os.path.abspath(__file__)
-        credentials_path = os.path.join(os.path.dirname(current_script_path), "config", "credentials.json")
+        credentials_path = os.path.join(os.path.dirname(current_script_path), "credentials.json")
         instance = cls()
         instance.json_pool_path = path
         instance.load_token(credentials_path)
@@ -98,9 +98,14 @@ class AccountPool:
                 unassigned_proxy_ids.remove(account.proxy_id)
 
         if len(accounts_missing_proxies) > len(unassigned_proxy_ids):
-            raise Exception("Not enough unassigned proxies to assign proxies to accounts")
+            logging.warning("Not enough unassigned proxies to assign proxies to accounts")
 
         for account in accounts_missing_proxies:
+            if len(unassigned_proxy_ids) == 0:
+                # Remove accounts that cannot be assigned a proxy
+                logging.warning(f"Removing account {account.username} due to lack of available proxies")
+                self.accounts.remove(account)
+                continue
             proxy_id = unassigned_proxy_ids.pop()
             proxy = self.proxies[proxy_id]
             account.set_proxy(proxy)

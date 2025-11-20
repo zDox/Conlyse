@@ -37,10 +37,11 @@ tests/full_test_data_5.json
 examples/
 examples/credentials.json
 main.js
-main.js
-main.js
 *.js
 /tests/full_test_data_6_v191.json
 tests/full_test_data_1_v206.json
 /tools/recorder/config.json
 /recordings/
+/tools/recorder/accounts.json
+/tools/recorder/recordings/
+/tools/recorder/credentials.json

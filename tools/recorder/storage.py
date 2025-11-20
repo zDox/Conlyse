@@ -137,7 +137,10 @@ class RecordingStorage:
             static_map_data: The static map data object
         """
         # Pickle and compress
+        ritf = static_map_data.game
+        static_map_data.set_game(None)
         static_map_data_bytes = pickle.dumps(static_map_data)
+        static_map_data.set_game(ritf)
         compressed_data = self._compressor.compress(static_map_data_bytes)
         
         # Write to file
