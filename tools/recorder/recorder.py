@@ -12,6 +12,7 @@ from tools.recorder.storage import RecordingStorage
 from tools.recorder.utils import parse_duration
 from tools.recorder.account_pool import AccountPool
 from tools.recorder.account import Account
+from tools.recorder.find_game_logic import GameFinder
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
@@ -126,150 +127,27 @@ class Recorder:
 
     def find_and_join_game(self) -> bool:
         """
-        Find a game with the specified scenario_id and join it, or join a specific game_id.
-        Tries multiple games until country selection succeeds.
-        If using account pool, retries with different accounts on USER_NOT_FOUND error.
+        Find a game and join it using the GameFinder logic.
 
         Returns:
             bool: True if successfully joined and selected country, False otherwise
         """
-        game_id = self.config.get('game_id')
-        scenario_id = self.config.get('scenario_id')
-        country_name = self.config.get('country_name')
-
-        # Join specific game if game_id is provided
-        if game_id:
-            return self._join_specific_game(game_id, country_name)
-
-        # Find and join new game if scenario_id is provided
-        if not scenario_id:
-            logger.error("Either game_id or scenario_id is required")
-            return False
-
-        return self._find_and_join_new_game(scenario_id, country_name)
-
-    def _join_specific_game(self, game_id: int, country_name: Optional[str]) -> bool:
-        """Join a specific game by ID."""
-        logger.info(f"Joining existing game: {game_id}")
-
-        if self.account_pool:
-            raise Exception("Joining specific game_id is not supported with account pool")
-
-        try:
-            return self._join_game(game_id, country_name)
-        except Exception as e:
-            logger.error(f"Failed to join game {game_id}: {e}")
-            return False
-
-    def _find_and_join_new_game(self, scenario_id: int, country_name: Optional[str]) -> bool:
-        """Find and join a new game with the specified scenario."""
-        try:
-            available_games = self._wait_for_available_games(scenario_id)
-            if not available_games:
-                return False
-
-            return self._try_available_games(available_games, country_name)
-        except Exception as e:
-            logger.error(f"Failed to find and join game: {e}")
-            return False
-
-    def _wait_for_available_games(self, scenario_id: int) -> list:
-        """Poll for available games until one is found or timeout occurs."""
-        poll_interval = self.config.get('poll_interval', 30)
-        max_wait = self.config.get('max_wait')
-        start_time = time()
-
-        while True:
-            games = self.interface.get_global_games(
-                scenario_id=scenario_id,
-                state=HubGameState.READY_TO_JOIN
-            )
-            my_games = self.interface.get_my_games()
-
-            # Filter games we haven't joined yet and have enough open slots
-            available_games = [
-                game for game in games
-                if not any(my_game.game_id == game.game_id for my_game in my_games)
-                   and game.open_slots >= 10
-            ]
-
-            if available_games:
-                return available_games
-
-            logger.info(f"No available games found for scenario {scenario_id}, waiting {poll_interval}s")
-
-            if max_wait is not None and (time() - start_time) >= max_wait:
-                logger.error(f"Timed out waiting for new game for scenario {scenario_id}")
-                return []
-
-            sleep(poll_interval)
-
-    def _try_available_games(self, available_games: list, country_name: Optional[str]) -> bool:
-        """Try to join each available game until successful."""
-        for game_info in available_games:
-            logger.info(f"Attempting to join game: {game_info.game_id}")
-
-            try:
-                if self.account_pool:
-                    if self._try_join_with_account_pool(game_info.game_id, country_name):
-                        return True
-                else:
-                    if self._join_game(game_info.game_id, country_name):
-                        return True
-            except Exception as e:
-                logger.warning(f"Failed to join/select country in game {game_info.game_id}: {e}, trying next game")
-                continue
-
-        logger.error(f"Could not find a suitable game with available country '{country_name}'")
-        return False
-
-    def _try_join_with_account_pool(self, game_id: int, country_name: Optional[str]) -> bool:
-        """
-        Try to join a game using accounts from the account pool.
-        If join fails with USER_NOT_FOUND error, try the next account.
-
-        Args:
-            game_id: The game ID to join
-            country_name: Optional country name to select
-
-        Returns:
-            bool: True if successfully joined with any account, False otherwise
-        """
-        if not self.account_pool:
-            logger.error("Account pool not configured")
-            return False
-
-        while True:
-            account = self.account_pool.next_free_account()
-            if not account:
-                logger.error("No more available accounts in pool")
-                return False
-
-            logger.info(f"Trying to join game {game_id} with account: {account.username}")
-
-            # Login with this account if not already using it
-            if self.current_account != account:
-                if not self.login(account):
-                    logger.warning(f"Failed to login with account {account.username}, trying next account")
-                    continue
-
-            try:
-                if self._join_game(game_id, country_name):
-                    logger.info(f"Successfully joined game {game_id} with account {account.username}")
-                    return True
-            except GameActivationException as e:
-                if e.error_code == GameActivationErrorCodes.USER_NOT_FOUND:
-                    logger.warning(
-                        f"Account {account.username} got USER_NOT_FOUND error (too many recent joins), "
-                        f"skipping to next account"
-                    )
-                    continue
-                else:
-                    logger.error(f"Game activation failed with error {e.error_code}: {e}")
-                    raise
-            except Exception as e:
-                logger.error(f"Failed to join game {game_id} with account {account.username}: {e}")
-                raise
+        game_finder = GameFinder(
+            config=self.config,
+            interface=self.interface,
+            account_pool=self.account_pool,
+            current_account=self.current_account,
+            join_game_callback=self._join_game,
+            login_callback=self.login
+        )
+        
+        result = game_finder.find_and_join_game()
+        
+        # Update current_account if it changed during the process
+        if game_finder.current_account:
+            self.current_account = game_finder.current_account
+            
+        return result
 
     def _join_game(self, game_id: int, country_name: Optional[str]) -> bool:
         """

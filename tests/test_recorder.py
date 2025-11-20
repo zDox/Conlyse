@@ -287,8 +287,8 @@ class TestRecorderAccountPool(unittest.TestCase):
         self.assertIsNone(recorder.current_account)
     
     @patch('tools.recorder.recorder.Recorder._join_game')
-    def test_try_join_with_account_pool_success(self, mock_join_game):
-        """Test successful join with account pool."""
+    def test_find_and_join_with_account_pool_success(self, mock_join_game):
+        """Test successful join with account pool using scenario_id."""
         # Setup mock account pool
         mock_account1 = MagicMock()
         mock_account1.username = 'account1'
@@ -298,16 +298,34 @@ class TestRecorderAccountPool(unittest.TestCase):
         mock_pool = MagicMock()
         mock_pool.next_free_account.return_value = mock_account1
         
-        recorder = Recorder(self.config, account_pool=mock_pool)
+        # Config with scenario_id (required for account pool)
+        config = {
+            'scenario_id': 5975,
+            'country_name': 'TestCountry',
+            'output_dir': '/tmp/test_recordings',
+            'actions': []
+        }
+        
+        recorder = Recorder(config, account_pool=mock_pool)
+        
+        # Mock interface for listing games
+        mock_hub_interface = MagicMock()
+        mock_game = MagicMock()
+        mock_game.game_id = 123456
+        mock_game.open_slots = 15
+        mock_hub_interface.get_global_games.return_value = [mock_game]
+        mock_hub_interface.get_my_games.return_value = []
+        recorder.interface = mock_hub_interface
+        
         mock_join_game.return_value = True
         
-        result = recorder._try_join_with_account_pool(123456, 'TestCountry')
+        result = recorder.find_and_join_game()
         
         self.assertTrue(result)
-        mock_join_game.assert_called_once_with(123456, 'TestCountry')
+        mock_join_game.assert_called()
     
     @patch('tools.recorder.recorder.Recorder._join_game')
-    def test_try_join_with_account_pool_user_not_found(self, mock_join_game):
+    def test_find_and_join_with_account_pool_user_not_found(self, mock_join_game):
         """Test account pool retry on USER_NOT_FOUND error."""
         from conflict_interface.utils.exceptions import GameActivationException, GameActivationErrorCodes
         
@@ -326,29 +344,255 @@ class TestRecorderAccountPool(unittest.TestCase):
         # First call returns account1, second call returns account2
         mock_pool.next_free_account.side_effect = [mock_account1, mock_account2]
         
-        recorder = Recorder(self.config, account_pool=mock_pool)
+        # Config with scenario_id (required for account pool)
+        config = {
+            'scenario_id': 5975,
+            'country_name': 'TestCountry',
+            'output_dir': '/tmp/test_recordings',
+            'actions': []
+        }
+        
+        recorder = Recorder(config, account_pool=mock_pool)
+        
+        # Mock interface for listing games
+        mock_hub_interface = MagicMock()
+        mock_game = MagicMock()
+        mock_game.game_id = 123456
+        mock_game.open_slots = 15
+        mock_hub_interface.get_global_games.return_value = [mock_game]
+        mock_hub_interface.get_my_games.return_value = []
+        recorder.interface = mock_hub_interface
         
         # First join attempt raises USER_NOT_FOUND, second succeeds
         user_not_found_error = GameActivationException(GameActivationErrorCodes.USER_NOT_FOUND)
         mock_join_game.side_effect = [user_not_found_error, True]
         
-        result = recorder._try_join_with_account_pool(123456, 'TestCountry')
+        result = recorder.find_and_join_game()
         
         self.assertTrue(result)
         self.assertEqual(mock_join_game.call_count, 2)
     
     @patch('tools.recorder.recorder.Recorder._join_game')
-    def test_try_join_with_account_pool_no_accounts(self, mock_join_game):
+    def test_find_and_join_with_account_pool_no_accounts(self, mock_join_game):
         """Test account pool when no accounts available."""
         mock_pool = MagicMock()
         mock_pool.next_free_account.return_value = None
         
-        recorder = Recorder(self.config, account_pool=mock_pool)
+        # Config with scenario_id (required for account pool)
+        config = {
+            'scenario_id': 5975,
+            'country_name': 'TestCountry',
+            'output_dir': '/tmp/test_recordings',
+            'actions': []
+        }
         
-        result = recorder._try_join_with_account_pool(123456, 'TestCountry')
+        recorder = Recorder(config, account_pool=mock_pool)
+        
+        # Mock interface for listing games
+        mock_hub_interface = MagicMock()
+        recorder.interface = mock_hub_interface
+        
+        result = recorder.find_and_join_game()
         
         self.assertFalse(result)
         mock_join_game.assert_not_called()
+    
+    @patch('tools.recorder.recorder.Recorder._join_game')
+    def test_game_id_with_account_pool_not_supported(self, mock_join_game):
+        """Test that game_id with account pool is not supported."""
+        mock_pool = MagicMock()
+        
+        # Config with game_id and account_pool - not supported
+        config = {
+            'game_id': 123456,
+            'country_name': 'TestCountry',
+            'output_dir': '/tmp/test_recordings',
+            'actions': []
+        }
+        
+        recorder = Recorder(config, account_pool=mock_pool)
+        
+        # Mock interface
+        mock_hub_interface = MagicMock()
+        recorder.interface = mock_hub_interface
+        
+        result = recorder.find_and_join_game()
+        
+        # Should return False (not supported)
+        self.assertFalse(result)
+        mock_join_game.assert_not_called()
+    
+    @patch('tools.recorder.recorder.Recorder._join_game')
+    def test_scenario_id_without_account_pool_not_supported(self, mock_join_game):
+        """Test that scenario_id without account pool is not supported."""
+        # Config with scenario_id but no account pool - not supported
+        config = {
+            'username': 'test_user',
+            'password': 'test_pass',
+            'scenario_id': 5975,
+            'country_name': 'TestCountry',
+            'output_dir': '/tmp/test_recordings',
+            'actions': []
+        }
+        
+        recorder = Recorder(config, account_pool=None)
+        
+        # Mock interface
+        mock_hub_interface = MagicMock()
+        recorder.interface = mock_hub_interface
+        
+        result = recorder.find_and_join_game()
+        
+        # Should return False (not supported)
+        self.assertFalse(result)
+        mock_join_game.assert_not_called()
+    
+    @patch('tools.recorder.recorder.Recorder._join_game')
+    def test_game_id_with_account_success(self, mock_join_game):
+        """Test that game_id with single account (no pool) works."""
+        # Config with game_id and no account pool - supported
+        config = {
+            'username': 'test_user',
+            'password': 'test_pass',
+            'game_id': 123456,
+            'country_name': 'TestCountry',
+            'output_dir': '/tmp/test_recordings',
+            'actions': []
+        }
+        
+        recorder = Recorder(config, account_pool=None)
+        
+        # Mock interface
+        mock_hub_interface = MagicMock()
+        recorder.interface = mock_hub_interface
+        
+        mock_join_game.return_value = True
+        
+        result = recorder.find_and_join_game()
+        
+        # Should succeed
+        self.assertTrue(result)
+        mock_join_game.assert_called_once_with(123456, 'TestCountry')
+
+
+class TestGameFinder(unittest.TestCase):
+    """Test GameFinder class."""
+    
+    def test_game_id_with_account(self):
+        """Test game_id with single account logic."""
+        from tools.recorder.find_game_logic import GameFinder
+        
+        config = {
+            'game_id': 123456,
+            'country_name': 'TestCountry'
+        }
+        
+        mock_interface = MagicMock()
+        mock_join_callback = MagicMock(return_value=True)
+        
+        game_finder = GameFinder(
+            config=config,
+            interface=mock_interface,
+            account_pool=None,
+            current_account=None,
+            join_game_callback=mock_join_callback,
+            login_callback=None
+        )
+        
+        result = game_finder.find_and_join_game()
+        
+        self.assertTrue(result)
+        mock_join_callback.assert_called_once_with(123456, 'TestCountry')
+    
+    def test_game_id_with_account_pool_not_supported(self):
+        """Test game_id with account pool is not supported."""
+        from tools.recorder.find_game_logic import GameFinder
+        
+        config = {
+            'game_id': 123456,
+            'country_name': 'TestCountry'
+        }
+        
+        mock_interface = MagicMock()
+        mock_pool = MagicMock()
+        
+        game_finder = GameFinder(
+            config=config,
+            interface=mock_interface,
+            account_pool=mock_pool,
+            current_account=None,
+            join_game_callback=None,
+            login_callback=None
+        )
+        
+        result = game_finder.find_and_join_game()
+        
+        self.assertFalse(result)
+    
+    def test_scenario_id_without_account_pool_not_supported(self):
+        """Test scenario_id without account pool is not supported."""
+        from tools.recorder.find_game_logic import GameFinder
+        
+        config = {
+            'scenario_id': 5975,
+            'country_name': 'TestCountry'
+        }
+        
+        mock_interface = MagicMock()
+        
+        game_finder = GameFinder(
+            config=config,
+            interface=mock_interface,
+            account_pool=None,
+            current_account=None,
+            join_game_callback=None,
+            login_callback=None
+        )
+        
+        result = game_finder.find_and_join_game()
+        
+        self.assertFalse(result)
+    
+    def test_scenario_id_with_account_pool_success(self):
+        """Test scenario_id with account pool logic."""
+        from tools.recorder.find_game_logic import GameFinder
+        
+        config = {
+            'scenario_id': 5975,
+            'country_name': 'TestCountry',
+            'poll_interval': 1,
+            'max_wait': 10
+        }
+        
+        mock_interface = MagicMock()
+        mock_game = MagicMock()
+        mock_game.game_id = 123456
+        mock_game.open_slots = 15
+        mock_interface.get_global_games.return_value = [mock_game]
+        mock_interface.get_my_games.return_value = []
+        
+        mock_account = MagicMock()
+        mock_account.username = 'test_account'
+        mock_pool = MagicMock()
+        mock_pool.next_free_account.return_value = mock_account
+        
+        mock_join_callback = MagicMock(return_value=True)
+        mock_login_callback = MagicMock(return_value=True)
+        
+        game_finder = GameFinder(
+            config=config,
+            interface=mock_interface,
+            account_pool=mock_pool,
+            current_account=None,
+            join_game_callback=mock_join_callback,
+            login_callback=mock_login_callback
+        )
+        
+        result = game_finder.find_and_join_game()
+        
+        self.assertTrue(result)
+        mock_join_callback.assert_called()
+        mock_login_callback.assert_called_with(mock_account)
 
 
 class TestRecorderCLI(unittest.TestCase):
