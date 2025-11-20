@@ -73,165 +73,187 @@ class Recorder:
         
         self.game.game_api.make_game_server_request = patched_request
         logger.debug("Game API patched to capture responses")
-    
+
     def login(self, account: Optional[Account] = None) -> bool:
         """
         Login to the game using credentials from config or account.
-        
+
         Args:
             account: Optional Account object to use for login (for account pool mode)
-        
+
         Returns:
             bool: True if login successful, False otherwise
         """
         if account:
-            # Using account pool mode
-            try:
-                self.interface = account.get_interface()
-                self.current_account = account
-                logger.info(f"Successfully logged in with account: {account.username}")
-                return True
-            except Exception as e:
-                logger.error(f"Login failed with account {account.username}: {e}")
-                return False
+            return self._login_with_account(account)
         else:
-            # Using config credentials (original behavior)
-            username = self.config.get('username')
-            password = self.config.get('password')
-            proxy_url = self.config.get('proxy_url')
-            
-            if not username or not password:
-                logger.error("Username and password are required")
-                return False
-            
-            try:
-                self.interface = HubInterface()
-                
-                # Set proxy if provided
-                if proxy_url:
-                    proxy = {'http': proxy_url, 'https': proxy_url}
-                    self.interface.set_proxy(proxy)
-                
-                self.interface.login(username, password)
-                logger.info(f"Successfully logged in as {username}")
-                return True
-            except Exception as e:
-                logger.error(f"Login failed: {e}")
-                return False
-    
+            return self._login_with_config()
+
+    def _login_with_account(self, account: Account) -> bool:
+        """Login using an Account object from the account pool."""
+        try:
+            self.interface = account.get_interface()
+            self.current_account = account
+            logger.info(f"Successfully logged in with account: {account.username}")
+            return True
+        except Exception as e:
+            logger.error(f"Login failed with account {account.username}: {e}")
+            return False
+
+    def _login_with_config(self) -> bool:
+        """Login using credentials from the configuration."""
+        username = self.config.get('username')
+        password = self.config.get('password')
+        proxy_url = self.config.get('proxy_url')
+
+        if not username or not password:
+            logger.error("Username and password are required")
+            return False
+
+        try:
+            self.interface = HubInterface()
+
+            if proxy_url:
+                proxy = {'http': proxy_url, 'https': proxy_url}
+                self.interface.set_proxy(proxy)
+
+            self.interface.login(username, password)
+            logger.info(f"Successfully logged in as {username}")
+            return True
+        except Exception as e:
+            logger.error(f"Login failed: {e}")
+            return False
+
     def find_and_join_game(self) -> bool:
         """
         Find a game with the specified scenario_id and join it, or join a specific game_id.
         Tries multiple games until country selection succeeds.
         If using account pool, retries with different accounts on USER_NOT_FOUND error.
-        
+
         Returns:
             bool: True if successfully joined and selected country, False otherwise
         """
         game_id = self.config.get('game_id')
         scenario_id = self.config.get('scenario_id')
         country_name = self.config.get('country_name')
-        
-        # If game_id is provided, join that specific game directly
-        if game_id:
-            logger.info(f"Joining existing game: {game_id}")
-            if self.account_pool:
-                return self._try_join_with_account_pool(game_id, country_name)
-            else:
-                try:
-                    return self._join_game(game_id, country_name)
-                except Exception as e:
-                    logger.error(f"Failed to join game {game_id}: {e}")
-                    return False
 
-        # Otherwise, find and join a new game
+        # Join specific game if game_id is provided
+        if game_id:
+            return self._join_specific_game(game_id, country_name)
+
+        # Find and join new game if scenario_id is provided
         if not scenario_id:
             logger.error("Either game_id or scenario_id is required")
             return False
 
+        return self._find_and_join_new_game(scenario_id, country_name)
+
+    def _join_specific_game(self, game_id: int, country_name: Optional[str]) -> bool:
+        """Join a specific game by ID."""
+        logger.info(f"Joining existing game: {game_id}")
+
+        if self.account_pool:
+            raise Exception("Joining specific game_id is not supported with account pool")
+
         try:
-            # Poll for games with the scenario until one becomes available
-            poll_interval = self.config.get('poll_interval', 30)  # seconds between polls
-            max_wait = self.config.get('max_wait')  # optional timeout in seconds
-            start_time = time()
-
-            while True:
-                games = self.interface.get_global_games(
-                    scenario_id=scenario_id,
-                    state=HubGameState.READY_TO_JOIN
-                )
-                my_games = self.interface.get_my_games()
-                # Filter games we haven't joined yet
-                available_games = [game for game in games
-                                   if not any(my_game.game_id == game_id for my_game in my_games) and
-                                   game.open_slots >= 10]
-
-                if available_games:
-                    break
-
-                logger.info(f"No available games found for scenario {scenario_id}, waiting {poll_interval}s")
-                if max_wait is not None and (time() - start_time) >= max_wait:
-                    logger.error(f"Timed out waiting for new game for scenario {scenario_id}")
-                    return False
-
-                sleep(poll_interval)
-
-            # Try each game until we successfully select the desired country
-            for game_info in available_games:
-                logger.info(f"Attempting to join game: {game_info.game_id}")
-
-                try:
-                    if self.account_pool:
-                        if self._try_join_with_account_pool(game_info.game_id, country_name):
-                            return True
-                    else:
-                        if self._join_game(game_info.game_id, country_name):
-                            return True
-                except Exception as e:
-                    logger.warning(f"Failed to join/select country in game {game_info.game_id}: {e}, trying next game")
-                    continue
-
-            # If we get here, we tried all games and none worked
-            logger.error(f"Could not find a suitable game with available country '{country_name}'")
+            return self._join_game(game_id, country_name)
+        except Exception as e:
+            logger.error(f"Failed to join game {game_id}: {e}")
             return False
 
+    def _find_and_join_new_game(self, scenario_id: int, country_name: Optional[str]) -> bool:
+        """Find and join a new game with the specified scenario."""
+        try:
+            available_games = self._wait_for_available_games(scenario_id)
+            if not available_games:
+                return False
+
+            return self._try_available_games(available_games, country_name)
         except Exception as e:
             logger.error(f"Failed to find and join game: {e}")
             return False
-    
+
+    def _wait_for_available_games(self, scenario_id: int) -> list:
+        """Poll for available games until one is found or timeout occurs."""
+        poll_interval = self.config.get('poll_interval', 30)
+        max_wait = self.config.get('max_wait')
+        start_time = time()
+
+        while True:
+            games = self.interface.get_global_games(
+                scenario_id=scenario_id,
+                state=HubGameState.READY_TO_JOIN
+            )
+            my_games = self.interface.get_my_games()
+
+            # Filter games we haven't joined yet and have enough open slots
+            available_games = [
+                game for game in games
+                if not any(my_game.game_id == game.game_id for my_game in my_games)
+                   and game.open_slots >= 10
+            ]
+
+            if available_games:
+                return available_games
+
+            logger.info(f"No available games found for scenario {scenario_id}, waiting {poll_interval}s")
+
+            if max_wait is not None and (time() - start_time) >= max_wait:
+                logger.error(f"Timed out waiting for new game for scenario {scenario_id}")
+                return []
+
+            sleep(poll_interval)
+
+    def _try_available_games(self, available_games: list, country_name: Optional[str]) -> bool:
+        """Try to join each available game until successful."""
+        for game_info in available_games:
+            logger.info(f"Attempting to join game: {game_info.game_id}")
+
+            try:
+                if self.account_pool:
+                    if self._try_join_with_account_pool(game_info.game_id, country_name):
+                        return True
+                else:
+                    if self._join_game(game_info.game_id, country_name):
+                        return True
+            except Exception as e:
+                logger.warning(f"Failed to join/select country in game {game_info.game_id}: {e}, trying next game")
+                continue
+
+        logger.error(f"Could not find a suitable game with available country '{country_name}'")
+        return False
+
     def _try_join_with_account_pool(self, game_id: int, country_name: Optional[str]) -> bool:
         """
         Try to join a game using accounts from the account pool.
         If join fails with USER_NOT_FOUND error, try the next account.
-        
+
         Args:
             game_id: The game ID to join
             country_name: Optional country name to select
-            
+
         Returns:
             bool: True if successfully joined with any account, False otherwise
         """
         if not self.account_pool:
             logger.error("Account pool not configured")
             return False
-        
-        # Try each available account until successful
+
         while True:
             account = self.account_pool.next_free_account()
             if not account:
                 logger.error("No more available accounts in pool")
                 return False
-            
+
             logger.info(f"Trying to join game {game_id} with account: {account.username}")
-            
+
             # Login with this account if not already using it
             if self.current_account != account:
                 if not self.login(account):
                     logger.warning(f"Failed to login with account {account.username}, trying next account")
                     continue
-            
+
             try:
-                # Attempt to join the game
                 if self._join_game(game_id, country_name):
                     logger.info(f"Successfully joined game {game_id} with account {account.username}")
                     return True
@@ -241,44 +263,56 @@ class Recorder:
                         f"Account {account.username} got USER_NOT_FOUND error (too many recent joins), "
                         f"skipping to next account"
                     )
-                    # Continue to try next account
                     continue
                 else:
-                    # Other activation errors should be raised
                     logger.error(f"Game activation failed with error {e.error_code}: {e}")
                     raise
             except Exception as e:
                 logger.error(f"Failed to join game {game_id} with account {account.username}: {e}")
                 raise
-    
+
     def _join_game(self, game_id: int, country_name: Optional[str]) -> bool:
         """
         Join a specific game and optionally select a country.
-        
-        This method overrides the join_game behavior to hook into game_api
-        before load_game() is called, allowing us to capture all requests.
-        
+
+        This method patches the game API to capture all server responses.
+
         Args:
             game_id: The game ID to join
             country_name: Optional country name to select
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
-        # Override join_game to patch game_api before load_game() is called
+        # Patch and join the game
+        self.interface.join_game = self._create_patched_join_game()
+        self.game = self.interface.join_game(game_id, replay_filename=None)
+
+        # Save initial game state and static map data
+        self._save_initial_game_data()
+
+        # Select country if specified
+        if country_name:
+            if not self._select_country(country_name, game_id):
+                return False
+
+        logger.info(f"Successfully joined game {game_id}")
+        return True
+
+    def _create_patched_join_game(self):
+        """Create a patched version of join_game that captures API responses."""
+
         def patched_join_game(game_id: int, guest=False, replay_filename: str = None):
-            """Patched join_game that sets up API monitoring before load_game()."""
-            # Call the original join_game logic up to creating the OnlineInterface
             from copy import deepcopy
             from conflict_interface.interface.online_interface import OnlineInterface
-            
-            # Check if user needs to join first
+
+            # Request first join if needed
             if not self.interface.is_in_game(game_id) and not guest:
                 logger.info(f"User is not in game {game_id}. Requesting first join...")
                 self.interface.api.request_first_join(game_id)
-            
+
             logger.info(f"Joining game {game_id} as guest={guest}...")
-            
+
             # Create the game interface
             game_interface = OnlineInterface(
                 game_id=game_id,
@@ -288,86 +322,81 @@ class Recorder:
                 guest=guest,
                 replay_filename=replay_filename
             )
-            
-            # IMPORTANT: Patch the game API BEFORE load_game() is called
+
+            # Patch the game API to capture responses
             original_request_method = game_interface.game_api.make_game_server_request
-            
+
             def patched_request(*args, **kwargs):
                 response = original_request_method(*args, **kwargs)
                 self._last_response = response
                 return response
-            
+
             game_interface.game_api.make_game_server_request = patched_request
             logger.debug("Game API patched to capture responses before load_game()")
-            
-            # Now call load_game() - all requests will be captured
+
+            # Load the game
             game_interface.load_game()
-            
+
             return game_interface
-        
-        # Replace the join_game method
-        self.interface.join_game = patched_join_game
-        
-        # Join the game (without replay functionality)
-        self.game = self.interface.join_game(game_id, replay_filename=None)
-        
-        # Save the initial game state after joining (this is the first game request)
-        # Now we should have captured the actual response in _last_response
-        if self.game and self.game.game_state and self.storage:
-            if self._last_response:
-                # We captured the actual response!
-                timestamp = time()
-                self.storage.save_update(
-                    self.game.game_state,
-                    self._last_response,
-                    timestamp
-                )
-                logger.info("Saved initial game state from join_game with actual response")
-            else:
-                # Fallback: create a mock response
-                initial_response = {"note": "Initial game state from join_game"}
-                timestamp = time()
-                self.storage.save_update(
-                    self.game.game_state,
-                    initial_response,
-                    timestamp
-                )
-                logger.info("Saved initial game state from join_game with mock response")
-        
-        # Save static map data after joining the game
-        if self.game and self.game.game_state and self.game.game_state.states.map_state:
+
+        return patched_join_game
+
+    def _save_initial_game_data(self):
+        """Save initial game state and static map data after joining."""
+        if not (self.game and self.game.game_state and self.storage):
+            return
+
+        # Save initial game state
+        if self._last_response:
+            timestamp = time()
+            self.storage.save_update(
+                self.game.game_state,
+                self._last_response,
+                timestamp
+            )
+            logger.info("Saved initial game state from join_game with actual response")
+        else:
+            initial_response = {"note": "Initial game state from join_game"}
+            timestamp = time()
+            self.storage.save_update(
+                self.game.game_state,
+                initial_response,
+                timestamp
+            )
+            logger.info("Saved initial game state from join_game with mock response")
+
+        # Save static map data
+        if self.game.game_state.states.map_state:
             static_map_data = self.game.game_state.states.map_state.map.static_map_data
-            if static_map_data and self.storage:
+            if static_map_data:
                 self.storage.save_static_map_data(static_map_data)
-        
-        # Try to select country if specified
-        if country_name:
-            if not self.game.is_country_selected():
-                playable_countries = self.game.get_playable_countries()
-                
-                # Find country by name
-                selected_country = None
-                for country_id, country in playable_countries.items():
-                    if country.nation_name.lower() == country_name.lower():
-                        selected_country = country
-                        break
-                
-                if not selected_country:
-                    logger.error(f"Country '{country_name}' not available in game {game_id}")
-                    return False
-                
-                self.game.select_country(country_id=selected_country.player_id)
-                logger.info(f"Selected country: {selected_country.nation_name} in game {game_id}")
-                
-                # Update to apply country selection
-                self._update_and_save()
-            else:
-                logger.info(f"Country already selected in game {game_id}")
-        
-        # Successfully joined
-        logger.info(f"Successfully joined game {game_id}")
+
+    def _select_country(self, country_name: str, game_id: int) -> bool:
+        """Select a country in the game."""
+        if self.game.is_country_selected():
+            logger.info(f"Country already selected in game {game_id}")
+            return True
+
+        playable_countries = self.game.get_playable_countries()
+
+        # Find country by name
+        selected_country = None
+        for country_id, country in playable_countries.items():
+            if country.nation_name.lower() == country_name.lower():
+                selected_country = country
+                break
+
+        if not selected_country:
+            logger.error(f"Country '{country_name}' not available in game {game_id}")
+            return False
+
+        self.game.select_country(country_id=selected_country.player_id)
+        logger.info(f"Selected country: {selected_country.nation_name} in game {game_id}")
+
+        # Update to apply country selection
+        self._update_and_save()
         return True
-    
+
     def _save_current_state(self):
         """Save the current game state and last response."""
         if self.game and self.storage and self._last_response:
