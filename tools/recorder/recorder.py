@@ -174,6 +174,9 @@ class Recorder:
         """
         Join a specific game and optionally select a country.
         
+        This method overrides the join_game behavior to hook into game_api
+        before load_game() is called, allowing us to capture all requests.
+        
         Args:
             game_id: The game ID to join
             country_name: Optional country name to select
@@ -181,24 +184,76 @@ class Recorder:
         Returns:
             bool: True if successful, False otherwise
         """
+        # Override join_game to patch game_api before load_game() is called
+        original_join_game = self.interface.join_game
+        
+        def patched_join_game(game_id: int, guest=False, replay_filename: str = None):
+            """Patched join_game that sets up API monitoring before load_game()."""
+            # Call the original join_game logic up to creating the OnlineInterface
+            from copy import deepcopy
+            from conflict_interface.interface.online_interface import OnlineInterface
+            
+            # Check if user needs to join first
+            if not self.interface.is_in_game(game_id) and not guest:
+                logger.info(f"User is not in game {game_id}. Requesting first join...")
+                self.interface.api.request_first_join(game_id)
+            
+            logger.info(f"Joining game {game_id} as guest={guest}...")
+            
+            # Create the game interface
+            game_interface = OnlineInterface(
+                game_id=game_id,
+                session=self.interface.api.session,
+                auth_details=deepcopy(self.interface.api.auth),
+                proxy=self.interface.api.proxy,
+                guest=guest,
+                replay_filename=replay_filename
+            )
+            
+            # IMPORTANT: Patch the game API BEFORE load_game() is called
+            original_request_method = game_interface.game_api.make_game_server_request
+            
+            def patched_request(*args, **kwargs):
+                response = original_request_method(*args, **kwargs)
+                self._last_response = response
+                return response
+            
+            game_interface.game_api.make_game_server_request = patched_request
+            logger.debug("Game API patched to capture responses before load_game()")
+            
+            # Now call load_game() - all requests will be captured
+            game_interface.load_game()
+            
+            return game_interface
+        
+        # Replace the join_game method
+        self.interface.join_game = patched_join_game
+        
         # Join the game (without replay functionality)
         self.game = self.interface.join_game(game_id, replay_filename=None)
         
-        # Patch the game API to capture responses
-        self._monkey_patch_game_api()
-        
         # Save the initial game state after joining (this is the first game request)
+        # Now we should have captured the actual response in _last_response
         if self.game and self.game.game_state and self.storage:
-            # Create a mock response for the initial state since we didn't capture it
-            # The actual response was used to create the game_state but we don't have access to it
-            initial_response = {"note": "Initial game state from join_game"}
-            timestamp = time()
-            self.storage.save_update(
-                self.game.game_state,
-                initial_response,
-                timestamp
-            )
-            logger.info("Saved initial game state from join_game")
+            if self._last_response:
+                # We captured the actual response!
+                timestamp = time()
+                self.storage.save_update(
+                    self.game.game_state,
+                    self._last_response,
+                    timestamp
+                )
+                logger.info("Saved initial game state from join_game with actual response")
+            else:
+                # Fallback: create a mock response
+                initial_response = {"note": "Initial game state from join_game"}
+                timestamp = time()
+                self.storage.save_update(
+                    self.game.game_state,
+                    initial_response,
+                    timestamp
+                )
+                logger.info("Saved initial game state from join_game with mock response")
         
         # Save static map data after joining the game
         if self.game and self.game.game_state and self.game.game_state.states.map_state:
