@@ -235,6 +235,122 @@ class TestRecorder(unittest.TestCase):
         self.assertIsNone(army)
 
 
+class TestRecorderAccountPool(unittest.TestCase):
+    """Test Recorder with AccountPool integration."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = {
+            'game_id': 123456,
+            'output_dir': '/tmp/test_recordings',
+            'actions': []
+        }
+    
+    @patch('tools.recorder.recorder.Account')
+    @patch('tools.recorder.recorder.AccountPool')
+    def test_init_with_account_pool(self, mock_pool_class, mock_account_class):
+        """Test recorder initialization with account pool."""
+        mock_pool = MagicMock()
+        mock_pool_class.return_value = mock_pool
+        
+        recorder = Recorder(self.config, account_pool=mock_pool)
+        
+        self.assertEqual(recorder.account_pool, mock_pool)
+        self.assertIsNone(recorder.current_account)
+    
+    @patch('tools.recorder.account.Account')
+    def test_login_with_account(self, mock_account_class):
+        """Test login with specific account."""
+        mock_account = MagicMock()
+        mock_interface = MagicMock()
+        mock_account.get_interface.return_value = mock_interface
+        mock_account.username = 'test_user'
+        
+        recorder = Recorder(self.config)
+        result = recorder.login(account=mock_account)
+        
+        self.assertTrue(result)
+        self.assertEqual(recorder.current_account, mock_account)
+        mock_account.get_interface.assert_called_once()
+    
+    @patch('tools.recorder.account.Account')
+    def test_login_with_account_failure(self, mock_account_class):
+        """Test login failure with account."""
+        mock_account = MagicMock()
+        mock_account.get_interface.side_effect = Exception("Login failed")
+        mock_account.username = 'test_user'
+        
+        recorder = Recorder(self.config)
+        result = recorder.login(account=mock_account)
+        
+        self.assertFalse(result)
+        self.assertIsNone(recorder.current_account)
+    
+    @patch('tools.recorder.recorder.Recorder._join_game')
+    def test_try_join_with_account_pool_success(self, mock_join_game):
+        """Test successful join with account pool."""
+        # Setup mock account pool
+        mock_account1 = MagicMock()
+        mock_account1.username = 'account1'
+        mock_interface1 = MagicMock()
+        mock_account1.get_interface.return_value = mock_interface1
+        
+        mock_pool = MagicMock()
+        mock_pool.next_free_account.return_value = mock_account1
+        
+        recorder = Recorder(self.config, account_pool=mock_pool)
+        mock_join_game.return_value = True
+        
+        result = recorder._try_join_with_account_pool(123456, 'TestCountry')
+        
+        self.assertTrue(result)
+        mock_join_game.assert_called_once_with(123456, 'TestCountry')
+    
+    @patch('tools.recorder.recorder.Recorder._join_game')
+    def test_try_join_with_account_pool_user_not_found(self, mock_join_game):
+        """Test account pool retry on USER_NOT_FOUND error."""
+        from conflict_interface.utils.exceptions import GameActivationException, GameActivationErrorCodes
+        
+        # Setup mock accounts
+        mock_account1 = MagicMock()
+        mock_account1.username = 'account1'
+        mock_interface1 = MagicMock()
+        mock_account1.get_interface.return_value = mock_interface1
+        
+        mock_account2 = MagicMock()
+        mock_account2.username = 'account2'
+        mock_interface2 = MagicMock()
+        mock_account2.get_interface.return_value = mock_interface2
+        
+        mock_pool = MagicMock()
+        # First call returns account1, second call returns account2
+        mock_pool.next_free_account.side_effect = [mock_account1, mock_account2]
+        
+        recorder = Recorder(self.config, account_pool=mock_pool)
+        
+        # First join attempt raises USER_NOT_FOUND, second succeeds
+        user_not_found_error = GameActivationException(GameActivationErrorCodes.USER_NOT_FOUND)
+        mock_join_game.side_effect = [user_not_found_error, True]
+        
+        result = recorder._try_join_with_account_pool(123456, 'TestCountry')
+        
+        self.assertTrue(result)
+        self.assertEqual(mock_join_game.call_count, 2)
+    
+    @patch('tools.recorder.recorder.Recorder._join_game')
+    def test_try_join_with_account_pool_no_accounts(self, mock_join_game):
+        """Test account pool when no accounts available."""
+        mock_pool = MagicMock()
+        mock_pool.next_free_account.return_value = None
+        
+        recorder = Recorder(self.config, account_pool=mock_pool)
+        
+        result = recorder._try_join_with_account_pool(123456, 'TestCountry')
+        
+        self.assertFalse(result)
+        mock_join_game.assert_not_called()
+
+
 class TestRecorderCLI(unittest.TestCase):
     """Test CLI entry point."""
     

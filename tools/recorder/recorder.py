@@ -7,8 +7,11 @@ from time import sleep, time
 from typing import Optional
 
 from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
+from conflict_interface.utils.exceptions import GameActivationException, GameActivationErrorCodes
 from tools.recorder.storage import RecordingStorage
 from tools.recorder.utils import parse_duration
+from tools.recorder.account_pool import AccountPool
+from tools.recorder.account import Account
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
@@ -22,17 +25,20 @@ class Recorder:
     Main recorder class that handles game recording independently of replay system.
     """
     
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None):
         """
         Initialize recorder with configuration.
         
         Args:
             config: Configuration dictionary
+            account_pool: Optional AccountPool for multi-account support
         """
         self.config = config
         self.interface: Optional[HubInterface] = None
         self.game: Optional[OnlineInterface] = None
         self.storage: Optional[RecordingStorage] = None
+        self.account_pool: Optional[AccountPool] = account_pool
+        self.current_account: Optional[Account] = None
         
         # Track the last server response for recording
         self._last_response: Optional[dict] = None
@@ -68,40 +74,56 @@ class Recorder:
         self.game.game_api.make_game_server_request = patched_request
         logger.debug("Game API patched to capture responses")
     
-    def login(self) -> bool:
+    def login(self, account: Optional[Account] = None) -> bool:
         """
-        Login to the game using credentials from config.
+        Login to the game using credentials from config or account.
+        
+        Args:
+            account: Optional Account object to use for login (for account pool mode)
         
         Returns:
             bool: True if login successful, False otherwise
         """
-        username = self.config.get('username')
-        password = self.config.get('password')
-        proxy_url = self.config.get('proxy_url')
-        
-        if not username or not password:
-            logger.error("Username and password are required")
-            return False
-        
-        try:
-            self.interface = HubInterface()
+        if account:
+            # Using account pool mode
+            try:
+                self.interface = account.get_interface()
+                self.current_account = account
+                logger.info(f"Successfully logged in with account: {account.username}")
+                return True
+            except Exception as e:
+                logger.error(f"Login failed with account {account.username}: {e}")
+                return False
+        else:
+            # Using config credentials (original behavior)
+            username = self.config.get('username')
+            password = self.config.get('password')
+            proxy_url = self.config.get('proxy_url')
             
-            # Set proxy if provided
-            if proxy_url:
-                proxy = {'http': proxy_url, 'https': proxy_url}
-                self.interface.set_proxy(proxy)
+            if not username or not password:
+                logger.error("Username and password are required")
+                return False
             
-            self.interface.login(username, password)
-            logger.info(f"Successfully logged in as {username}")
-            return True
-        except Exception as e:
-            logger.error(f"Login failed: {e}")
-            return False
+            try:
+                self.interface = HubInterface()
+                
+                # Set proxy if provided
+                if proxy_url:
+                    proxy = {'http': proxy_url, 'https': proxy_url}
+                    self.interface.set_proxy(proxy)
+                
+                self.interface.login(username, password)
+                logger.info(f"Successfully logged in as {username}")
+                return True
+            except Exception as e:
+                logger.error(f"Login failed: {e}")
+                return False
     
     def find_and_join_game(self) -> bool:
         """
         Find a game with the specified scenario_id and join it, or join a specific game_id.
         Tries multiple games until country selection succeeds.
+        If using account pool, retries with different accounts on USER_NOT_FOUND error.
         
         Returns:
             bool: True if successfully joined and selected country, False otherwise
@@ -113,11 +135,14 @@ class Recorder:
         # If game_id is provided, join that specific game directly
         if game_id:
             logger.info(f"Joining existing game: {game_id}")
-            try:
-                return self._join_game(game_id, country_name)
-            except Exception as e:
-                logger.error(f"Failed to join game {game_id}: {e}")
-                return False
+            if self.account_pool:
+                return self._try_join_with_account_pool(game_id, country_name)
+            else:
+                try:
+                    return self._join_game(game_id, country_name)
+                except Exception as e:
+                    logger.error(f"Failed to join game {game_id}: {e}")
+                    return False
 
         # Otherwise, find and join a new game
         if not scenario_id:
@@ -156,8 +181,12 @@ class Recorder:
                 logger.info(f"Attempting to join game: {game_info.game_id}")
 
                 try:
-                    if self._join_game(game_info.game_id, country_name):
-                        return True
+                    if self.account_pool:
+                        if self._try_join_with_account_pool(game_info.game_id, country_name):
+                            return True
+                    else:
+                        if self._join_game(game_info.game_id, country_name):
+                            return True
                 except Exception as e:
                     logger.warning(f"Failed to join/select country in game {game_info.game_id}: {e}, trying next game")
                     continue
@@ -169,6 +198,58 @@ class Recorder:
         except Exception as e:
             logger.error(f"Failed to find and join game: {e}")
             return False
+    
+    def _try_join_with_account_pool(self, game_id: int, country_name: Optional[str]) -> bool:
+        """
+        Try to join a game using accounts from the account pool.
+        If join fails with USER_NOT_FOUND error, try the next account.
+        
+        Args:
+            game_id: The game ID to join
+            country_name: Optional country name to select
+            
+        Returns:
+            bool: True if successfully joined with any account, False otherwise
+        """
+        if not self.account_pool:
+            logger.error("Account pool not configured")
+            return False
+        
+        # Try each available account until successful
+        while True:
+            account = self.account_pool.next_free_account()
+            if not account:
+                logger.error("No more available accounts in pool")
+                return False
+            
+            logger.info(f"Trying to join game {game_id} with account: {account.username}")
+            
+            # Login with this account if not already using it
+            if self.current_account != account:
+                if not self.login(account):
+                    logger.warning(f"Failed to login with account {account.username}, trying next account")
+                    continue
+            
+            try:
+                # Attempt to join the game
+                if self._join_game(game_id, country_name):
+                    logger.info(f"Successfully joined game {game_id} with account {account.username}")
+                    return True
+            except GameActivationException as e:
+                if e.error_code == GameActivationErrorCodes.USER_NOT_FOUND:
+                    logger.warning(
+                        f"Account {account.username} got USER_NOT_FOUND error (too many recent joins), "
+                        f"skipping to next account"
+                    )
+                    # Continue to try next account
+                    continue
+                else:
+                    # Other activation errors should be raised
+                    logger.error(f"Game activation failed with error {e.error_code}: {e}")
+                    raise
+            except Exception as e:
+                logger.error(f"Failed to join game {game_id} with account {account.username}: {e}")
+                raise
     
     def _join_game(self, game_id: int, country_name: Optional[str]) -> bool:
         """
@@ -588,9 +669,11 @@ class Recorder:
             # Setup storage
             self._setup_storage()
             
-            # Login
-            if not self.login():
-                return False
+            # Login (if not using account pool, login with config credentials)
+            # If using account pool, login happens during join attempt
+            if not self.account_pool:
+                if not self.login():
+                    return False
             
             # Find and join game
             if not self.find_and_join_game():
