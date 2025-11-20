@@ -213,14 +213,13 @@ class Recorder:
             def patched_request(*args, **kwargs):
                 # Capture the request parameters
                 if args:
-                    self._last_request = args[0]  # parameters is the first argument
+                    original_request = args[0]  # parameters is the first argument
                 else:
-                    self._last_request = kwargs.get('parameters', {})
-                self._last_request["request_id"] = game_interface.game_api.request_id
+                    original_request = kwargs.get('parameters', {})
+                self._last_request = {**original_request, "request_id": game_interface.game_api.request_id}
 
                 response = original_request_method(*args, **kwargs)
-                self._last_response = response
-                self._last_response["request_id"] = game_interface.game_api.request_id
+                self._last_response = {**response, "request_id": game_interface.game_api.request_id}
                 return response
 
             game_interface.game_api.make_game_server_request = patched_request
