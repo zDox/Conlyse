@@ -19,7 +19,7 @@ class Account:
     email: str
     proxy_id: str
     proxy_url: str
-    interface: HubInterface = None
+    hub_itf: HubInterface = None
     games: list[HubGameProperties] = None
 
     def __repr__(self):
@@ -50,27 +50,27 @@ class Account:
         self.email = email
         self.proxy_id = proxy_id
         self.proxy_url = proxy_url
-        self.interface = HubInterface({
+        self.hub_itf = HubInterface({
             "http": proxy_url,
             "https": proxy_url,
         })
 
     def get_interface(self) -> HubInterface:
         self.login()
-        return self.interface
+        return self.hub_itf
 
     def set_proxy(self, proxy: Proxy):
         self.proxy_id = proxy.id
         self.proxy_url = proxy.proxy_url
 
-        self.interface.set_proxy({
+        self.hub_itf.set_proxy({
             "http": self.proxy_url,
             "https": self.proxy_url,
         })
 
     def login(self) -> bool:
-        if not self.interface.auth:
-            return self.interface.login(self.username, self.password)
+        if not self.hub_itf.auth:
+            return self.hub_itf.login(self.username, self.password)
         else:
             return True
 
@@ -90,9 +90,9 @@ class Account:
 
     def get_my_games(self) -> list[HubGameProperties]:
         if self.games is None:
-            if not self.interface.auth:
+            if not self.hub_itf.auth:
                 self.login()
-            self.games = self.interface.get_my_games()
+            self.games = self.hub_itf.get_my_games()
         return self.games
 
     def has_game(self, game_id: int) -> bool:
@@ -101,6 +101,6 @@ class Account:
 
     @ensure_games_loaded
     def join_game(self, game_id: int, guest: bool = False, replay_filename: str = None) -> OnlineInterface:
-        game_itf = self.interface.join_game(game_id, guest, replay_filename)
-        self.games = self.interface.get_my_games()
+        game_itf = self.hub_itf.join_game(game_id, guest, replay_filename)
+        self.games = self.hub_itf.get_my_games()
         return game_itf
