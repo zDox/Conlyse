@@ -11,14 +11,26 @@ from typing import Optional
 import zstandard as zstd
 
 from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.logger_config import get_logger
+from conflict_interface.data_types.static_map_data import StaticMapData
+from tools.recorder.recorder_logger import get_logger
 
 logger = get_logger()
 
 
 class RecordingStorage:
-    """Handles storage of recorded game data."""
-    
+    """
+    Handles storage of recorded game data.
+
+    Files generated:
+    - game_states.bin: Compressed pickle dumps of GameState objects with timestamps
+    - requests.jsonl.zst: Compressed JSON lines of request parameters sent to server
+    - responses.jsonl.zst: Compressed JSON lines of responses from server
+    - static_map_data.bin: Compressed pickle dump of StaticMapData
+    - metadata.json: Recording metadata including timestamps
+    - recording.log: Recorder tool log
+    - library.log: ConflictInterface library log
+    """
+
     def __init__(self, output_path: str):
         """
         Initialize recording storage.
@@ -34,12 +46,16 @@ class RecordingStorage:
         
         # Storage for game states and responses
         self.game_states_file = self.output_path / "game_states.bin"
+        self.requests_file = self.output_path / "requests.jsonl.zst"
         self.responses_file = self.output_path / "responses.jsonl.zst"
+        self.static_map_data_file = self.output_path / "static_map_data.bin"
         self.metadata_file = self.output_path / "metadata.json"
-        self.log_file = self.output_path / "recording.log"
-        
-        # Log handler for capturing logs
-        self.log_handler: Optional[logging.FileHandler] = None
+
+        self.recorder_log_file = self.output_path / "recording.log"
+        self.library_log_file = self.output_path / "library.log"
+        self.recorder_log_file_handler = None
+        self.library_log_file_handler = None
+
         
         # Initialize files
         self._init_files()
@@ -66,12 +82,13 @@ class RecordingStorage:
                 return json.load(f)
         return {"version": "1.0", "updates": []}
     
-    def save_update(self, game_state: GameState, response_json: dict, timestamp: float):
+    def save_update(self, game_state: GameState, request_json: dict, response_json: dict, timestamp: float):
         """
-        Save a game update with compressed game state and response.
-        
+        Save a game update with compressed game state, request, and response.
+
         Args:
             game_state: The game state object
+            request_json: The JSON request parameters sent to the server
             response_json: The JSON response from the server
             timestamp: Timestamp of the update
         """
@@ -91,6 +108,16 @@ class RecordingStorage:
             f.write(len(compressed_state).to_bytes(4, 'big'))
             f.write(compressed_state)
         
+        # Compress and save JSON request
+        request_str = json.dumps(request_json)
+        compressed_request = self._compressor.compress(request_str.encode('utf-8'))
+
+        with open(self.requests_file, 'ab') as f:
+            # Write timestamp and length, then compressed data
+            f.write(timestamp_ms.to_bytes(8, 'big'))
+            f.write(len(compressed_request).to_bytes(4, 'big'))
+            f.write(compressed_request)
+
         # Compress and save JSON response
         response_str = json.dumps(response_json)
         compressed_response = self._compressor.compress(response_str.encode('utf-8'))
@@ -112,25 +139,55 @@ class RecordingStorage:
         logger.info(f"Saved update at timestamp {timestamp}")
     
     def setup_logging(self):
-        """Set up file logging for the recording session."""
-        # Create a file handler for the log file
-        self.log_handler = logging.FileHandler(self.log_file, mode='w', encoding='utf-8')
-        self.log_handler.setLevel(logging.DEBUG)
+        library_logger = logging.getLogger("con_itf")
+        recording_logger = logging.getLogger("rec")
+
+        def add_file_handler(logger, filename, level=logging.DEBUG, formatter=None):
+            file_handler = logging.FileHandler(filename)
+            file_handler.setLevel(level)
+            if formatter is None:
+                formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+            return file_handler
+
+        # Add file handlers when ready
+        self.library_log_file_handler = add_file_handler(library_logger, self.library_log_file)
+        self.recorder_log_file_handler = add_file_handler(recording_logger, self.recorder_log_file)
+
+        logger.info(f"Log recording started to: {self.recorder_log_file}")
+        library_logger.info(f"Library log recording started to: {self.library_log_file}")
+
+    def save_static_map_data(self, static_map_data: StaticMapData):
+        """
+        Save static map data to file.
         
-        # Use the same format as the console handler
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s.%(module)s - %(levelname)s - %(message)s"
-        )
-        self.log_handler.setFormatter(formatter)
+        Args:
+            static_map_data: The static map data object
+        """
+        # Pickle and compress
+        ritf = static_map_data.game
+        static_map_data.set_game(None)
+        static_map_data_bytes = pickle.dumps(static_map_data)
+        static_map_data.set_game(ritf)
+        compressed_data = self._compressor.compress(static_map_data_bytes)
         
-        # Add the handler to the logger
-        logger.addHandler(self.log_handler)
-        logger.info(f"Log recording started to: {self.log_file}")
+        # Write to file
+        with open(self.static_map_data_file, 'wb') as f:
+            f.write(compressed_data)
+        
+        logger.info("Saved static map data")
     
     def teardown_logging(self):
         """Remove the file logging handler."""
-        if self.log_handler:
+        if self.recorder_log_file_handler:
             logger.info("Log recording completed")
-            logger.removeHandler(self.log_handler)
-            self.log_handler.close()
-            self.log_handler = None
+            logger.removeHandler(self.recorder_log_file_handler)
+            self.recorder_log_file_handler.close()
+            self.recorder_log_file_handler = None
+        if self.library_log_file_handler:
+            library_logger = logging.getLogger("con_itf")
+            library_logger.info("Library log recording completed")
+            library_logger.removeHandler(self.library_log_file_handler)
+            self.library_log_file_handler.close()
+            self.library_log_file_handler = None

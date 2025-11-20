@@ -3,16 +3,19 @@ Main recorder class for game recording.
 """
 import os
 from datetime import datetime
-from time import sleep, time
+from time import sleep
+from time import time
 from typing import Optional
 
 from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
-from tools.recorder.storage import RecordingStorage
-from tools.recorder.utils import parse_duration
-from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
-from conflict_interface.logger_config import get_logger
+from tools.recorder.account import Account
+from tools.recorder.account_pool import AccountPool
+from tools.recorder.find_game_logic import GameFinder
+from tools.recorder.recorder_logger import get_logger
+from tools.recorder.storage import RecordingStorage
+from tools.recorder.utils import parse_duration
 
 logger = get_logger()
 
@@ -22,19 +25,23 @@ class Recorder:
     Main recorder class that handles game recording independently of replay system.
     """
     
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None):
         """
         Initialize recorder with configuration.
         
         Args:
             config: Configuration dictionary
+            account_pool: Optional AccountPool for multi-account support
         """
         self.config = config
         self.hub_itf: Optional[HubInterface] = None
         self.game_itf: Optional[OnlineInterface] = None
         self.storage: Optional[RecordingStorage] = None
+        self.account_pool: Optional[AccountPool] = account_pool
+        self.current_account: Optional[Account] = None
         
-        # Track the last server response for recording
+        # Track the last server request and response for recording
+        self._last_request: Optional[dict] = None
         self._last_response: Optional[dict] = None
     
     def _setup_storage(self):
@@ -55,172 +62,244 @@ class Recorder:
     
     def _monkey_patch_game_api(self):
         """
-        Monkey patch the game API to intercept server responses.
-        This allows us to capture the raw JSON without affecting replay functionality.
+        Monkey patch the game API to intercept server requests and responses.
+        This allows us to capture both the raw request and response JSON without affecting replay functionality.
         """
         original_request_method = self.game_itf.game_api.make_game_server_request
         
         def patched_request(*args, **kwargs):
+            # Capture the request parameters
+            if args:
+                self._last_request = args[0]  # parameters is the first argument
+            else:
+                self._last_request = kwargs.get('parameters', {})
+
             response = original_request_method(*args, **kwargs)
             self._last_response = response
             return response
         
         self.game_itf.game_api.make_game_server_request = patched_request
-        logger.debug("Game API patched to capture responses")
-    
-    def login(self) -> bool:
+        logger.debug("Game API patched to capture requests and responses")
+
+    def login(self, account: Optional[Account] = None) -> bool:
         """
-        Login to the game using credentials from config.
-        
+        Login to the game using credentials from config or account.
+
+        Args:
+            account: Optional Account object to use for login (for account pool mode)
+
         Returns:
             bool: True if login successful, False otherwise
         """
+        if account:
+            return self._login_with_account(account)
+        else:
+            return self._login_with_config()
+
+    def _login_with_account(self, account: Account) -> bool:
+        """Login using an Account object from the account pool."""
+        try:
+            self.hub_itf = account.get_interface()
+            self.current_account = account
+            logger.info(f"Successfully logged in with account: {account.username}")
+            return True
+        except Exception as e:
+            logger.error(f"Login failed with account {account.username}: {e}")
+            return False
+
+    def _login_with_config(self) -> bool:
+        """Login using credentials from the configuration."""
         username = self.config.get('username')
         password = self.config.get('password')
         proxy_url = self.config.get('proxy_url')
-        
+
         if not username or not password:
             logger.error("Username and password are required")
             return False
-        
+
         try:
             self.hub_itf = HubInterface()
-            
-            # Set proxy if provided
+
             if proxy_url:
                 proxy = {'http': proxy_url, 'https': proxy_url}
                 self.hub_itf.set_proxy(proxy)
-            
+
             self.hub_itf.login(username, password)
             logger.info(f"Successfully logged in as {username}")
             return True
         except Exception as e:
             logger.error(f"Login failed: {e}")
             return False
-    
+
     def find_and_join_game(self) -> bool:
         """
-        Find a game with the specified scenario_id and join it, or join a specific game_id.
-        Tries multiple games until country selection succeeds.
-        
+        Find a game and join it using the GameFinder logic.
+
         Returns:
             bool: True if successfully joined and selected country, False otherwise
         """
-        game_id = self.config.get('game_id')
-        scenario_id = self.config.get('scenario_id')
-        country_name = self.config.get('country_name')
+        game_finder = GameFinder(
+            config=self.config,
+            interface=self.hub_itf,
+            account_pool=self.account_pool,
+            current_account=self.current_account,
+            join_game_callback=self._join_game,
+            login_callback=self.login
+        )
         
-        # If game_id is provided, join that specific game directly
-        if game_id:
-            logger.info(f"Joining existing game: {game_id}")
-            try:
-                return self._join_game(game_id, country_name)
-            except Exception as e:
-                logger.error(f"Failed to join game {game_id}: {e}")
-                return False
+        result = game_finder.find_and_join_game()
+        
+        # Update current_account if it changed during the process
+        if game_finder.current_account:
+            self.current_account = game_finder.current_account
+            
+        return result
 
-        # Otherwise, find and join a new game
-        if not scenario_id:
-            logger.error("Either game_id or scenario_id is required")
-            return False
-
-        try:
-            # Poll for games with the scenario until one becomes available
-            poll_interval = self.config.get('poll_interval', 30)  # seconds between polls
-            max_wait = self.config.get('max_wait')  # optional timeout in seconds
-            start_time = time()
-
-            while True:
-                games = self.hub_itf.get_global_games(
-                    scenario_id=scenario_id,
-                    state=HubGameState.READY_TO_JOIN
-                )
-                my_games = self.hub_itf.get_my_games()
-                # Filter games we haven't joined yet
-                available_games = [game for game in games
-                                   if not any(my_game.game_id == game_id for my_game in my_games) and
-                                   game.open_slots >= 10]
-
-                if available_games:
-                    break
-
-                logger.info(f"No available games found for scenario {scenario_id}, waiting {poll_interval}s")
-                if max_wait is not None and (time() - start_time) >= max_wait:
-                    logger.error(f"Timed out waiting for new game for scenario {scenario_id}")
-                    return False
-
-                sleep(poll_interval)
-
-            # Try each game until we successfully select the desired country
-            for game_info in available_games:
-                logger.info(f"Attempting to join game: {game_info.game_id}")
-
-                try:
-                    if self._join_game(game_info.game_id, country_name):
-                        return True
-                except Exception as e:
-                    logger.warning(f"Failed to join/select country in game {game_info.game_id}: {e}, trying next game")
-                    continue
-
-            # If we get here, we tried all games and none worked
-            logger.error(f"Could not find a suitable game with available country '{country_name}'")
-            return False
-
-        except Exception as e:
-            logger.error(f"Failed to find and join game: {e}")
-            return False
-    
     def _join_game(self, game_id: int, country_name: Optional[str]) -> bool:
         """
         Join a specific game and optionally select a country.
-        
+
+        This method patches the game API to capture all server responses.
+
         Args:
             game_id: The game ID to join
             country_name: Optional country name to select
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
-        # Join the game (without replay functionality)
+        # Patch and join the game
+        self.hub_itf.join_game = self._create_patched_join_game()
         self.game_itf = self.hub_itf.join_game(game_id, replay_filename=None)
-        
-        # Patch the game API to capture responses
-        self._monkey_patch_game_api()
-        
-        # Try to select country if specified
+
+        # Save initial game state and static map data
+        self._save_initial_game_data()
+
+        # Select country if specified
         if country_name:
-            if not self.game_itf.is_country_selected():
-                playable_countries = self.game_itf.get_playable_countries()
-                
-                # Find country by name
-                selected_country = None
-                for country_id, country in playable_countries.items():
-                    if country.nation_name.lower() == country_name.lower():
-                        selected_country = country
-                        break
-                
-                if not selected_country:
-                    logger.error(f"Country '{country_name}' not available in game {game_id}")
-                    return False
-                
-                self.game_itf.select_country(country_id=selected_country.player_id)
-                logger.info(f"Selected country: {selected_country.name} in game {game_id}")
-                
-                # Update to apply country selection
-                self._update_and_save()
-            else:
-                logger.info(f"Country already selected in game {game_id}")
-        
-        # Successfully joined
+            if not self._select_country(country_name, game_id):
+                return False
+
         logger.info(f"Successfully joined game {game_id}")
         return True
-    
-    def _save_current_state(self):
-        """Save the current game state and last response."""
-        if self.game_itf and self.storage and self._last_response:
+
+    def _create_patched_join_game(self):
+        """Create a patched version of join_game that captures API responses."""
+
+        def patched_join_game(game_id: int, guest=False, replay_filename: str = None):
+            from copy import deepcopy
+            from conflict_interface.interface.online_interface import OnlineInterface
+
+            # Request first join if needed
+            if not self.hub_itf.is_in_game(game_id) and not guest:
+                logger.info(f"User is not in game {game_id}. Requesting first join...")
+                self.hub_itf.api.request_first_join(game_id)
+
+            logger.info(f"Joining game {game_id} as guest={guest}...")
+
+            # Create the game interface
+            game_interface = OnlineInterface(
+                game_id=game_id,
+                session=self.hub_itf.api.session,
+                auth_details=deepcopy(self.hub_itf.api.auth),
+                proxy=self.hub_itf.api.proxy,
+                guest=guest,
+                replay_filename=replay_filename
+            )
+
+            # Patch the game API to capture responses
+            original_request_method = game_interface.game_api.make_game_server_request
+
+            def patched_request(*args, **kwargs):
+                # Capture the request parameters
+                if args:
+                    original_request = args[0]  # parameters is the first argument
+                else:
+                    original_request = kwargs.get('parameters', {})
+                self._last_request = {**original_request, "request_id": game_interface.game_api.request_id}
+
+                response = original_request_method(*args, **kwargs)
+                self._last_response = {**response, "request_id": game_interface.game_api.request_id}
+                return response
+
+            game_interface.game_api.make_game_server_request = patched_request
+            logger.debug("Game API patched to capture requests and responses before load_game()")
+
+            # Load the game
+            game_interface.load_game()
+
+            return game_interface
+
+        return patched_join_game
+
+    def _save_initial_game_data(self):
+        """Save initial game state and static map data after joining."""
+        if not (self.game_itf and self.game_itf.game_state and self.storage):
+            return
+
+        # Save initial game state
+        if self._last_response:
+            timestamp = time()
+            request_data = self._last_request if self._last_request else {"note": "No request captured"}
+            self.storage.save_update(
+                self.game_itf.game_state,
+                request_data,
+                self._last_response,
+                timestamp
+            )
+            logger.info("Saved initial game state from join_game with actual request and response")
+        else:
+            initial_request = {"note": "Initial game state from join_game"}
+            initial_response = {"note": "Initial game state from join_game"}
             timestamp = time()
             self.storage.save_update(
                 self.game_itf.game_state,
+                initial_request,
+                initial_response,
+                timestamp
+            )
+            logger.info("Saved initial game state from join_game with mock request and response")
+
+        # Save static map data
+        if self.game_itf.game_state.states.map_state:
+            static_map_data = self.game_itf.game_state.states.map_state.map.static_map_data
+            if static_map_data:
+                self.storage.save_static_map_data(static_map_data)
+
+    def _select_country(self, country_name: str, game_id: int) -> bool:
+        """Select a country in the game."""
+        if self.game_itf.is_country_selected():
+            logger.info(f"Country already selected in game {game_id}")
+            return True
+
+        playable_countries = self.game_itf.get_playable_countries()
+
+        # Find country by name
+        selected_country = None
+        for country_id, country in playable_countries.items():
+            if country.nation_name.lower() == country_name.lower():
+                selected_country = country
+                break
+
+        if not selected_country:
+            logger.error(f"Country '{country_name}' not available in game {game_id}")
+            return False
+
+        self.game_itf.select_country(country_id=selected_country.player_id)
+        logger.info(f"Selected country: {selected_country.nation_name} in game {game_id}")
+
+        # Update to apply country selection
+        self._update_and_save()
+        return True
+
+    def _save_current_state(self):
+        """Save the current game state with the last request and response."""
+        if self.game_itf and self.storage and self._last_response:
+            timestamp = time()
+            request_data = self._last_request if self._last_request else {"note": "No request captured"}
+            self.storage.save_update(
+                self.game_itf.game_state,
+                request_data,
                 self._last_response,
                 timestamp
             )
@@ -516,10 +595,18 @@ class Recorder:
             # Setup storage
             self._setup_storage()
             
-            # Login
-            if not self.login():
-                return False
-            
+            # Login (if not using account pool, login with config credentials)
+            # If using account pool, login happens during join attempt
+            if not self.account_pool:
+                if not self.login():
+                    return False
+            else:
+                # Get a main account from the pool for listing all games
+                account = self.account_pool.next_free_account()
+                if not account:
+                    logger.error("No accounts available in pool")
+                    return False
+                self.hub_itf = account.get_interface()
             # Find and join game
             if not self.find_and_join_game():
                 return False
