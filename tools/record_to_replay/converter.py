@@ -1,6 +1,7 @@
 """
 Converter for transforming recorder data to replay format.
 """
+import copy
 import json
 import pickle
 from pathlib import Path
@@ -11,6 +12,7 @@ import zstandard as zstd
 from conflict_interface.data_types.game_object import parse_any, dump_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
@@ -251,20 +253,12 @@ class RecordToReplayConverter:
         first_timestamp_ms, first_state = game_states[0]
         
         if game_id is None:
-            if hasattr(first_state, 'game_id'):
-                game_id = first_state.game_id
-            else:
-                logger.error("Could not determine game_id from recording")
-                return False
+            logger.error("Could not determine game_id from recording")
+            return False
         
         if player_id is None:
-            if hasattr(first_state, 'player_id'):
-                player_id = first_state.player_id
-            elif hasattr(first_state.states, 'player_state') and hasattr(first_state.states.player_state, 'player_id'):
-                player_id = first_state.states.player_state.player_id
-            else:
-                logger.warning("Could not determine player_id from recording, using 0")
-                player_id = 0
+            logger.error("Could not determine player_id from recording")
+            return False
         
         logger.info(f"Converting recording to replay using state-based mode: game_id={game_id}, player_id={player_id}")
         logger.info(f"Total game states: {len(game_states)}")
@@ -283,20 +277,16 @@ class RecordToReplayConverter:
             
             # Record static map data if available
             static_map_data = self._read_static_map_data()
-            if static_map_data:
-                logger.info("Recording static map data")
-                replay.record_static_map_data(
-                    static_map_data=static_map_data,
-                    game_id=game_id,
-                    player_id=player_id
-                )
-            elif hasattr(first_state, 'static_map_data') and first_state.static_map_data:
-                logger.info("Recording static map data from first state")
-                replay.record_static_map_data(
-                    static_map_data=first_state.static_map_data,
-                    game_id=game_id,
-                    player_id=player_id
-                )
+            if not static_map_data:
+                logger.error("No static map data found in recording")
+                return False
+
+            logger.info("Recording static map data")
+            replay.record_static_map_data(
+                static_map_data=static_map_data,
+                game_id=game_id,
+                player_id=player_id
+            )
             
             # Create patches between consecutive states
             prev_state = first_state
@@ -353,26 +343,17 @@ class RecordToReplayConverter:
         
         # Extract game_id and player_id
         if game_id is None:
-            if hasattr(first_state, 'game_id'):
-                game_id = first_state.game_id
-            else:
-                logger.error("Could not determine game_id from recording")
-                return False
+            logger.error("Could not determine game_id from recording")
+            return False
         
         if player_id is None:
-            if hasattr(first_state, 'player_id'):
-                player_id = first_state.player_id
-            elif hasattr(first_state.states, 'player_state') and hasattr(first_state.states.player_state, 'player_id'):
-                player_id = first_state.states.player_state.player_id
-            else:
-                logger.warning("Could not determine player_id from recording, using 0")
-                player_id = 0
+            logger.error("Could not determine player_id from recording, using 0")
+            return False
         
         logger.info(f"Converting recording to replay using JSON-based mode: game_id={game_id}, player_id={player_id}")
         logger.info(f"Total JSON responses: {len(json_responses)}")
         
         # Create a mock game interface for parsing context
-        from conflict_interface.interface.game_interface import GameInterface
         mock_game = GameInterface()
         mock_game.game_state = first_state
         first_state.set_game(mock_game)
@@ -391,30 +372,21 @@ class RecordToReplayConverter:
             
             # Record static map data if available
             static_map_data = self._read_static_map_data()
-            if static_map_data:
-                logger.info("Recording static map data")
-                replay.record_static_map_data(
-                    static_map_data=static_map_data,
-                    game_id=game_id,
-                    player_id=player_id
-                )
-            elif hasattr(first_state, 'static_map_data') and first_state.static_map_data:
-                logger.info("Recording static map data from first state")
-                replay.record_static_map_data(
-                    static_map_data=first_state.static_map_data,
-                    game_id=game_id,
-                    player_id=player_id
-                )
+            if not static_map_data:
+                logger.error("No static map data found in recording")
+                return False
+            logger.info("Recording static map data")
+            replay.record_static_map_data(
+                static_map_data=static_map_data,
+                game_id=game_id,
+                player_id=player_id
+            )
             
             # Process JSON responses and create patches using update method
             current_state = first_state
             response_idx = 0
-            
-            # Skip the first response if it's a placeholder (contains "note" field)
-            if json_responses and "note" in json_responses[0][1]:
-                response_idx = 1
-                logger.info("Skipping placeholder response for initial state")
-            
+
+
             for i in range(response_idx, len(json_responses)):
                 timestamp_ms, json_response = json_responses[i]
                 current_datetime = unix_ms_to_datetime(timestamp_ms)
@@ -431,7 +403,6 @@ class RecordToReplayConverter:
                     
                     # Use the update method to record changes in the patch
                     # Make a deep copy of current state to apply update
-                    import copy
                     updated_state = copy.deepcopy(current_state)
                     updated_state.set_game(mock_game)
                     
@@ -448,7 +419,6 @@ class RecordToReplayConverter:
                     
                     current_state = updated_state
                     mock_game.game_state = updated_state
-                    
                 except Exception as e:
                     logger.error(f"Error processing JSON response at {current_datetime}: {e}")
                     # Continue with next response
