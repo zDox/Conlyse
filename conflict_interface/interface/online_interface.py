@@ -118,7 +118,7 @@ class OnlineInterface(GameInterface):
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
 
-                self.game_state = self.action_handler.create_game_state_action(use_queue=False)
+                self.game_state = self.action_handler.create_game_state_action(use_queue=False, send_state_ids=False)
 
         json_static_map_data = self.game_api.get_static_map_data()
         static_map_data = parse_any(StaticMapData, json_static_map_data, self)
@@ -154,6 +154,8 @@ class OnlineInterface(GameInterface):
                                                            selected_player_id=country_id,
                                                            selected_team_id=team_id,
                                                            random_team_country_selection=random_country_team)
+        self.game_state = None
+        self.action_handler.game_state = None
         self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
 
     def update(self):
