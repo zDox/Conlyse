@@ -44,8 +44,15 @@ recorder examples/recorder_config_sample.json -v
 The recorder uses a JSON configuration file with the following structure:
 
 ### Authentication
+
+**Option 1: Single Account (username/password)**
 - `username`: Your Conflict of Nations username
 - `password`: Your password
+
+**Option 2: Account Pool (multi-account support)**
+- `account_pool_path`: Path to accounts.json file containing multiple accounts and proxies
+
+**Note:** If `account_pool_path` is specified, the recorder will use accounts from the pool and `username`/`password` fields are not required. The account pool enables automatic retry with different accounts when rate limits are hit.
 
 ### Game Selection
 - `scenario_id`: The scenario ID to join (optional if `game_id` is provided)
@@ -59,7 +66,7 @@ The recorder uses a JSON configuration file with the following structure:
 - `recording_name`: (Optional) Name for this recording session
 
 ### Proxy Settings
-- `proxy_url`: (Optional) Proxy URL for connections
+- `proxy_url`: (Optional) Proxy URL for connections (not needed if using account pool with proxies)
 
 ### Actions
 
@@ -335,7 +342,48 @@ When using an AccountPool, the recorder will automatically:
 
 This is useful for automated game joining where accounts may hit rate limits.
 
+**Using account pool via config.json (recommended for CLI):**
+
+```json
+{
+  "account_pool_path": "path/to/accounts.json",
+  "game_id": 12345678,
+  "country_name": "USA",
+  "actions": [
+    {
+      "type": "sleep",
+      "duration": "1m"
+    }
+  ]
+}
+```
+
+When `account_pool_path` is specified in config.json, the recorder CLI will automatically load the account pool. This is the recommended approach for CLI usage.
+
 ## Example Configuration
+
+### Single Account Configuration
+```json
+{
+  "username": "your_username",
+  "password": "your_password",
+  "scenario_id": 5975,
+  "country_name": "USA",
+  "output_dir": "./recordings",
+  "actions": []
+}
+```
+
+### Multi-Account Configuration (Account Pool)
+```json
+{
+  "account_pool_path": "./config/accounts.json",
+  "game_id": 12345678,
+  "country_name": "USA",
+  "output_dir": "./recordings",
+  "actions": []
+}
+```
 
 See `examples/recorder_config_sample.json` for a complete example configuration file.
 

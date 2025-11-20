@@ -7,6 +7,7 @@ import logging
 import sys
 
 from tools.recorder.recorder import Recorder
+from tools.recorder.account_pool import AccountPool
 from conflict_interface.logger_config import setup_library_logger
 
 
@@ -60,6 +61,12 @@ Example configuration file:
   ]
 }
 
+To use account pool for multi-account support, add:
+{
+  "account_pool_path": "path/to/accounts.json",
+  ...
+}
+
 For a complete list of action types and their parameters, see the documentation.
         """
     )
@@ -96,8 +103,21 @@ For a complete list of action types and their parameters, see the documentation.
     # Load configuration
     config = load_config_file(args.config)
     
+    # Load account pool if specified in config
+    account_pool = None
+    account_pool_path = config.get('account_pool_path')
+    if account_pool_path:
+        try:
+            logger = logging.getLogger('con_itf')
+            logger.info(f"Loading account pool from: {account_pool_path}")
+            account_pool = AccountPool.from_json(account_pool_path)
+            logger.info(f"Account pool loaded with {len(account_pool.accounts)} accounts")
+        except Exception as e:
+            print(f"Error loading account pool from {account_pool_path}: {e}")
+            sys.exit(1)
+    
     # Create and run recorder
-    recorder = Recorder(config)
+    recorder = Recorder(config, account_pool=account_pool)
     
     try:
         success = recorder.run()

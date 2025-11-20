@@ -375,6 +375,28 @@ class TestRecorderCLI(unittest.TestCase):
             self.assertEqual(loaded_config['scenario_id'], 5975)
         finally:
             os.unlink(config_path)
+    
+    def test_config_with_account_pool_path(self):
+        """Test configuration with account_pool_path specified."""
+        from tools.recorder.__main__ import load_config_file
+        
+        # Create temporary config file with account_pool_path
+        config_data = {
+            'account_pool_path': '/path/to/accounts.json',
+            'game_id': 123456,
+            'actions': []
+        }
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(config_data, f)
+            config_path = f.name
+        
+        try:
+            loaded_config = load_config_file(config_path)
+            self.assertEqual(loaded_config['account_pool_path'], '/path/to/accounts.json')
+            self.assertEqual(loaded_config['game_id'], 123456)
+        finally:
+            os.unlink(config_path)
 
 
 if __name__ == '__main__':
