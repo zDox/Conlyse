@@ -23,9 +23,13 @@ This will create a `recording-converter` command-line tool.
 
 ### Basic Usage
 
-Convert to replay database:
+Convert to replay database using the make bireplay patch method (default):
 ```bash
 recording-converter --recording-dir <recording_dir> --output-replay <output_file>
+```
+Convert to replay database using JSON requests and update method:
+```bash
+recording-converter --recording-dir <recording_dir> --mode rur --output-replay <output_file>
 ```
 
 Dump to JSON files:
@@ -36,51 +40,20 @@ recording-converter --recording-dir <recording_dir> --mode rtj --output-dir <out
 ### Arguments
 
 - `--recording-dir`: Path to the recording directory containing recording files
-- `--output-replay`: Path to the output replay database file (typically with `.db` extension)
+- `--output-replay`: Path to the output replay database file
 - `--output-dir`: Path to the output directory for JSON files (used with `--mode rtj`)
 
 ### Options
 
 - `--mode MODE`: Operating mode - `gmr` (default), `rur`, or `rtj`
-  - `gmr`: from_game_state_using_make_bipatch_to_replay (faster, default)
+  - `gmr`: from_game_state_using_make_bipatch_to_replay (default)
   - `rur`: from_json_responses_using_update_to_replay
   - `rtj`: from_recording_to_json (dumps to JSON files)
-- `--game-id ID`: Specify game ID explicitly (auto-detected if not provided)
-- `--player-id ID`: Specify player ID explicitly (auto-detected if not provided)
+- `--game-id ID`: Specify game ID explicitly
+- `--player-id ID`: Specify player ID explicitly
 - `-v, --verbose`: Enable verbose logging (DEBUG level)
 - `-q, --quiet`: Quiet mode (only ERROR level)
 
-### Examples
-
-Convert a recording to a replay file (default mode):
-```bash
-recording-converter --recording-dir recordings/my_recording --output-replay replay.db
-```
-
-Convert using JSON-based replay mode:
-```bash
-recording-converter --recording-dir recordings/my_recording --output-replay replay.db --mode rur
-```
-
-Convert with verbose output:
-```bash
-recording-converter --recording-dir recordings/my_recording --output-replay replay.db -v
-```
-
-Specify game and player IDs explicitly:
-```bash
-recording-converter --recording-dir recordings/my_recording --output-replay replay.db --game-id 12345 --player-id 67890
-```
-
-Dump game states and JSON requests/responses to separate files:
-```bash
-recording-converter --recording-dir recordings/my_recording --mode rtj --output-dir json_output
-```
-
-Dump to default location (recording_dir/json_dumps):
-```bash
-recording-converter --recording-dir recordings/my_recording --mode rtj
-```
 
 ## Input Format
 
@@ -142,33 +115,6 @@ output_dir/
     ├── response_0001_<timestamp>.json
     └── ...
 ```
-
-## How It Works
-
-The converter supports three operating modes:
-
-### Mode gmr (from_game_state_using_make_bipatch_to_replay)
-**Default and fastest mode**
-1. **Read Game States**: Reads all compressed game states from the binary file
-2. **Extract Metadata**: Game ID and player ID are extracted from the first state
-3. **Create Initial State**: The first game state becomes the replay's initial snapshot
-4. **Generate Patches**: For each pair of consecutive states, a bidirectional patch is created using `make_bireplay_patch`
-5. **Write Replay**: All data is written to a SQLite database in the standard replay format
-
-### Mode rur (from_json_responses_using_update_to_replay)
-**JSON-based mode**
-1. **Read Initial State**: Reads the first game state as the initial snapshot
-2. **Process JSON Requests**: Parses JSON request parameters to reconstruct actions
-3. **Apply Updates**: Uses the game state `update()` function to apply each action
-4. **Generate Patches**: Creates bidirectional patches from the state transitions
-5. **Write Replay**: All data is written to a SQLite database
-
-### Mode rtj (from_recording_to_json)
-**JSON dump mode**
-1. **Read Recording Files**: Reads game states, requests, and responses from the recording
-2. **Convert to JSON**: Each item is converted to a JSON file with metadata
-3. **Write Files**: Separate JSON files are created for each state, request, and response
-
 ## Integration with Other Tools
 
 ### Recording Workflow
@@ -185,7 +131,6 @@ replay-debug replay.db
 
 ### Benefits of Conversion
 
-- **Time Travel**: Navigate forward and backward through the game history
 - **Efficient Storage**: Patches are more space-efficient than storing complete states
 - **Debug Tools**: Use all replay debug commands on converted recordings
 - **Analysis**: Easier to analyze specific game events and state changes
@@ -237,11 +182,6 @@ Error: Could not determine game_id from recording
 ```
 Use the `--game-id` option to specify the game ID explicitly.
 
-### Memory Issues
-If you encounter out-of-memory errors with very large recordings, try:
-- Converting on a machine with more RAM
-- Breaking the recording into smaller segments
-- Reducing the number of state updates in the recording
 
 ## Dumping Game States to JSON
 
@@ -285,52 +225,6 @@ Each JSON response file includes:
 - `response_index`: Sequential index of the response
 - `response`: Full JSON response from the server
 
-### Using JSON Dumps
-
-**Debugging and inspection:**
-```bash
-# Dump to separate files
-recording-converter --recording-dir recordings/my_recording --mode rtj --output-dir json_output
-
-# View a specific state
-cat json_output/game_states/game_state_0042_*.json | jq .
-
-# View a specific request
-cat json_output/json_requests/request_0042_*.json | jq .
-
-# View a specific response
-cat json_output/json_responses/response_0042_*.json | jq .
-```
-
-**Load into Python:**
-```python
-import json
-from pathlib import Path
-
-# Load a specific game state
-with open("json_output/game_states/game_state_0000_1699999999000.json") as f:
-    state_data = json.load(f)
-    game_state = state_data["game_state"]
-
-# Load a specific JSON request
-with open("json_output/json_requests/request_0000_1699999999000.json") as f:
-    request_data = json.load(f)
-    request = request_data["request"]
-
-# Load a specific JSON response
-with open("json_output/json_responses/response_0000_1699999999000.json") as f:
-    response_data = json.load(f)
-    response = response_data["response"]
-
-# Process all states
-json_output_dir = Path("json_output/game_states")
-for state_file in sorted(json_output_dir.glob("game_state_*.json")):
-    with open(state_file) as f:
-        data = json.load(f)
-        print(f"State {data['state_index']} at {data['timestamp_iso']}")
-```
-
-For more details on the JSON dump format and usage, consult the code in `from_recording_to_json.py`.
 
 ## Using as a Library
 
