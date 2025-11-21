@@ -57,7 +57,6 @@ class GameEventState(State):
         self.game_events = other.game_events
         self._new_game_events = new_game_events
 
-        self.game.game_event_handler(self.game)
 
     def get_new_game_events(self):
         return self._new_game_events

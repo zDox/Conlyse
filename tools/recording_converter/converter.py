@@ -76,6 +76,9 @@ class RecordingConverter:
             bool: True if successful, False otherwise
         """
         try:
+            if self.op_mode in (OperatingMode.gmr, OperatingMode.rur) and Path(output).exists():
+                logger.error(f"Output file already exists: {output}")
+                return False
             if self.op_mode == OperatingMode.gmr:
                 gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader)
                 return gmr.convert(output, game_id, player_id)
