@@ -6,10 +6,11 @@ This module provides functionality to:
 - Pretty print values at those paths
 - Display nested structures in a readable format
 """
-from typing import Any, Optional
+from typing import Any, Optional, get_args
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.apply_replay import recur_path
 from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.data_types.game_object import parse_any, get_inner_type
 
 
 class GameObjectViewer:
@@ -51,9 +52,13 @@ class GameObjectViewer:
                 self.ritf
             )
             
-            # Get the value
+            # Get the value - need to parse the key appropriately for dicts
             if isinstance(parent_obj, dict):
-                value = parent_obj.get(final_key)
+                # For dicts, parse the key to the correct type
+                inner_type = get_inner_type(value_type, parent_obj)
+                key_type = get_args(inner_type)[0]
+                parsed_key = parse_any(key_type, final_key, self.ritf)
+                value = parent_obj.get(parsed_key)
             elif isinstance(parent_obj, list):
                 value = parent_obj[int(final_key)]
             else:
