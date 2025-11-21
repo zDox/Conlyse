@@ -2,6 +2,7 @@
 Main recorder class for game recording.
 """
 import os
+from copy import deepcopy
 from datetime import datetime
 from time import sleep
 from time import time
@@ -25,7 +26,7 @@ class Recorder:
     Main recorder class that handles game recording independently of replay system.
     """
     
-    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None):
+    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None, save_game_states: bool = False):
         """
         Initialize recorder with configuration.
         
@@ -39,6 +40,7 @@ class Recorder:
         self.storage: Optional[RecordingStorage] = None
         self.account_pool: Optional[AccountPool] = account_pool
         self.current_account: Optional[Account] = None
+        self.save_game_states: bool = save_game_states
         
         # Track the last server request and response for recording
         self._last_request: Optional[dict] = None
@@ -53,7 +55,7 @@ class Recorder:
             recording_name = f"recording_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         output_path = os.path.join(output_dir, recording_name)
-        self.storage = RecordingStorage(output_path)
+        self.storage = RecordingStorage(output_path, self.save_game_states)
         
         # Set up log file recording
         self.storage.setup_logging()
@@ -187,9 +189,6 @@ class Recorder:
         """Create a patched version of join_game that captures API responses."""
 
         def patched_join_game(game_id: int, guest=False, replay_filename: str = None):
-            from copy import deepcopy
-            from conflict_interface.interface.online_interface import OnlineInterface
-
             # Request first join if needed
             if not self.hub_itf.is_in_game(game_id) and not guest:
                 logger.info(f"User is not in game {game_id}. Requesting first join...")
@@ -626,3 +625,4 @@ class Recorder:
             # Always teardown logging, even if there was an error
             if self.storage:
                 self.storage.teardown_logging()
+            return False

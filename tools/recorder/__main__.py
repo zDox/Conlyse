@@ -75,6 +75,12 @@ For a complete list of action types and their parameters, see the documentation.
         'config',
         help='Path to the configuration JSON file'
     )
+
+    parser.add_argument(
+        '--save-game-states',
+        action='store_true',
+        help='Enable saving of each game state during recording'
+    )
     
     args = parser.parse_args()
     
@@ -111,7 +117,7 @@ For a complete list of action types and their parameters, see the documentation.
             sys.exit(1)
     
     # Create and run recorder
-    recorder = Recorder(config, account_pool=account_pool)
+    recorder = Recorder(config, account_pool=account_pool, save_game_states=args.save_game_states)
     
     try:
         success = recorder.run()
