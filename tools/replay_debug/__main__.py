@@ -5,7 +5,9 @@ import argparse
 import sys
 
 from tools.replay_debug.cli import ReplayDebugCLI
+from tools.replay_debug.enhanced_cli import EnhancedReplayDebugCLI
 from tools.replay_debug.shell import run_interactive_shell
+from tools.replay_debug.enhanced_shell import run_enhanced_shell
 from tools.replay_debug.constants import DEFAULT_LIMIT, DEFAULT_DIRECTION
 
 
@@ -19,9 +21,13 @@ Interactive Mode:
   # Start interactive shell (recommended)
   %(prog)s replay.db
   
+  # Start enhanced mode with navigation and state viewing
+  %(prog)s replay.db --enhanced
+  
   # Then run commands without repeating the replay path:
   replay-debug> list-patches
   replay-debug> vop "states/map_state" --direction forward --full-width
+  replay-debug> jr 60  # Jump forward 60 seconds (enhanced mode)
   replay-debug> exit
 
 Single Command Mode:
@@ -35,6 +41,12 @@ Single Command Mode:
     parser.add_argument(
         "replay_file",
         help="Path to the replay database file (.db)"
+    )
+    
+    parser.add_argument(
+        "--enhanced",
+        action="store_true",
+        help="Use enhanced mode with ReplayInterface for live state inspection and navigation"
     )
     
     parser.add_argument(
@@ -59,8 +71,14 @@ Single Command Mode:
         print("\nError: replay_file is required")
         return 1
     
-    # Create CLI instance
-    cli = ReplayDebugCLI(args.replay_file)
+    # Determine which CLI mode to use
+    use_enhanced = args.enhanced
+    
+    # Create appropriate CLI instance
+    if use_enhanced:
+        cli = EnhancedReplayDebugCLI(args.replay_file)
+    else:
+        cli = ReplayDebugCLI(args.replay_file)
     
     # Open the replay
     if not cli.open_replay():
@@ -69,10 +87,19 @@ Single Command Mode:
     try:
         # If no command provided, start interactive shell
         if not args.command:
-            run_interactive_shell(cli)
+            if use_enhanced:
+                run_enhanced_shell(cli)
+            else:
+                run_interactive_shell(cli)
             return 0
         
         # Otherwise, execute the single command
+        # Single commands only work in original mode for now
+        if use_enhanced:
+            print("Error: Single command mode not supported in enhanced mode.")
+            print("Please use interactive mode (omit command) with --enhanced flag.")
+            return 1
+        
         command = args.command
         cmd_args = remaining
         
