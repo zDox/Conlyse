@@ -152,7 +152,7 @@ Patch creation modes:
                     sys.exit(1)
         
         if success:
-            print(f"Successfully converted recording to replay: {args.output_file}")
+            print(f"Successfully converted recording to replay: {args.output_replay}")
             sys.exit(0)
         else:
             print("Conversion failed. Check logs for details.")
