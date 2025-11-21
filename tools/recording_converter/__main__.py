@@ -5,8 +5,9 @@ import argparse
 import logging
 import sys
 
-from tools.record_to_replay.converter import RecordToReplayConverter
-from conflict_interface.logger_config import setup_library_logger
+from tools.recording_converter.converter import RecordingConverter
+from tools.recording_converter.enums import OperatingMode
+from tools.recording_converter.recorder_logger import setup_converter_logger
 
 
 def main():
@@ -45,44 +46,39 @@ Patch creation modes:
     )
     
     parser.add_argument(
-        'recording_dir',
+        '--recording-dir',
         help='Path to the recording directory'
     )
     
     parser.add_argument(
-        'output_file',
+        '--output-replay',
         nargs='?',
-        help='Path to the output replay database file (.db) - not required with --dump-json'
+        help='Path to the output replay database file - required unless in rtj mode'
     )
 
     parser.add_argument(
-        '--dump-json',
-        action='store_true',
-        help='Dump game states and JSON responses to separate files instead of creating a replay'
-    )
-
-    parser.add_argument(
-        '--json-output-dir',
-        help='Directory for JSON output (default: recording_dir/json_dumps)'
+        '--output-dir',
+        nargs='?',
+        help='Path to the output dir for JSON files - required in rtj mode'
     )
     
     parser.add_argument(
         '--mode',
-        choices=['state', 'json'],
-        default='state',
-        help='Patch creation mode: "state" (default) or "json"'
+        choices=['gmr', 'rur', 'rtj'],
+        default='gmr',
+        help='Operation Mode: gmr (from_game_state_using_make_bipatch_to_replay), rur (from_json_responses_using_update_to_replay), rtj (from_recording_to_json)'
     )
     
     parser.add_argument(
         '--game-id',
         type=int,
-        help='Game ID (auto-detected from recording if not provided)'
+        help='Game ID'
     )
     
     parser.add_argument(
         '--player-id',
         type=int,
-        help='Player ID (auto-detected from recording if not provided)'
+        help='Player ID'
     )
     
     parser.add_argument(
@@ -98,10 +94,7 @@ Patch creation modes:
     )
     
     args = parser.parse_args()
-    
-    # Validate arguments
-    if not args.dump_json and not args.output_file:
-        parser.error("output_file is required unless --dump-json is specified")
+
 
     # Setup logging
     if args.quiet:
@@ -111,44 +104,52 @@ Patch creation modes:
     else:
         log_level = logging.INFO
     
-    setup_library_logger(log_level)
+    setup_converter_logger(log_level)
     
     # Create converter
     try:
-        converter = RecordToReplayConverter(args.recording_dir, patch_mode=args.mode)
+        op_mode = OperatingMode.gmr
+        match args.mode:
+            case 'gmr' :
+                op_mode = OperatingMode.gmr
+            case 'rur' :
+                op_mode = OperatingMode.rur
+            case 'rtj' :
+                op_mode = OperatingMode.rtj
+
+        converter = RecordingConverter(args.recording_dir, op_mode)
     except FileNotFoundError as e:
         print(f"Error: {e}")
         sys.exit(1)
-    
-    # Handle dump-json mode
-    if args.dump_json:
-        try:
-            success = converter.dump_to_json(
-                output_dir=args.json_output_dir
-            )
 
-            if success:
-                output_dir = args.json_output_dir or f"{args.recording_dir}/json_dumps"
-                print(f"Successfully dumped to JSON: {output_dir}")
-                sys.exit(0)
-            else:
-                print("JSON dump failed. Check logs for details.")
-                sys.exit(1)
-
-        except KeyboardInterrupt:
-            print("\nDump interrupted by user")
-            sys.exit(130)
-        except Exception as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-
-    # Convert to replay
+    # Convert
     try:
-        success = converter.convert(
-            output_file=args.output_file,
-            game_id=args.game_id,
-            player_id=args.player_id
-        )
+        success = False
+        match op_mode:
+            case OperatingMode.rtj:
+                if not args.output_dir:
+                    print("Error: Output directory is required in rtj mode")
+                    sys.exit(1)
+                success = converter.convert(
+                    output=args.output_dir
+                )
+
+                if success:
+                    print(f"Successfully converted recording to JSON files in: {args.output_dir}")
+                    sys.exit(0)
+                else:
+                    print("Convertion failed. Check logs for details.")
+                    sys.exit(1)
+            case OperatingMode.gmr | OperatingMode.rur:
+                success = converter.convert(
+                    output=args.output_replay,
+                    game_id=args.game_id,
+                    player_id=args.player_id
+                )
+            case _:
+                if not args.output_replay:
+                    print("Error: Output replay file is required in gmr and rur modes")
+                    sys.exit(1)
         
         if success:
             print(f"Successfully converted recording to replay: {args.output_file}")
