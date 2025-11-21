@@ -7,6 +7,7 @@ from typing import Union
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import RemoveOperation
@@ -138,34 +139,50 @@ class Replay:
 
         self.storage.metadata.info['last_time'] = int(time_stamp.timestamp())
 
-    def apply_patch(self, patch: PatchGraphNode, game_state: GameState):
-        non_ref_op_types = []
-        non_ref_paths = []
-        non_ref_values = []
+    def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: GameInterface):
+        idx_to_node = self.storage.path_tree.idx_to_node
 
-        for i, path_idx in enumerate(patch.paths):
-            path_tree_node = self.storage.path_tree.idx_to_node[path_idx]
-            if not path_tree_node.reference:
-                non_ref_op_types.append(patch.op_types[i])
-                non_ref_paths.append(path_idx)
-                non_ref_values.append(patch.values[i])
-                continue
+        def prepare_value(value):
+            if isinstance(value, GameObject):
+                value.set_game(game_interface)
+            return value
 
-            # Apply Operation directly
-            target = path_tree_node.reference
-            pos = path_tree_node.path_element
+        def apply_op(op_type, value, target, pos, node=None):
+            # TODO include hook systems here
+            apply_operation(op_type, value, target, pos)
+            if node and op_type == REMOVE_OPERATION:
+                node.reference = None
 
-            apply_operation(
-                patch.op_types[i],
-                patch.values[i],
-                target,
-                pos
-            )
-            if patch.op_types[i] == REMOVE_OPERATION:
-                # Remove reference since the target is removed
-                path_tree_node.reference = None
+        # Separate known and unknown reference operations
+        known_ops, unknown_ops = [], []
+        for op_type, path_idx, value in zip(patch.op_types, patch.paths, patch.values):
+            node = idx_to_node[path_idx]
+            value = prepare_value(value)
+            if node.reference:
+                apply_op(op_type, value, node.reference, node.path_element, node)
+            else:
+                unknown_ops.append((op_type, path_idx, value))
+
+        if not unknown_ops:
+            return
+
+        # Resolve unknown references using Steiner tree + BFS
 
 
+
+        steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_ops)
+        bfs_set_references(
+            steiner_tree_adj,
+            idx_to_node,
+            unknown_ops,
+            game_state,
+            game_interface
+        )
+
+        # Apply resolved operations
+        for op_type, path_idx, value in unknown_ops:
+            node = idx_to_node[path_idx]
+            apply_op(op_type, value, node.reference, node.path_element, node)
 
     def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]]) -> dict[str, list]:
         op_types = []

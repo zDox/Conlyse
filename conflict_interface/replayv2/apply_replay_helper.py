@@ -65,3 +65,5 @@ def apply_operation(op_type: int, value: Any, reference: GameObject | list | dic
             setattr(reference, pos, None)
         else:
             reference.pop(pos)
+
+def bfs_set_references
