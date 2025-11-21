@@ -18,7 +18,7 @@ class PatchGraph:
         if patch_node.to_timestamp not in self.time_stamps_cache:
             bisect.insort(self.time_stamps_cache, patch_node.to_timestamp)
 
-    def cache_time_stamps(self):
+    def validate_cached_time_stamps(self):
         for patch in self.patches.keys():
             from_time, to_time = patch
             if from_time not in self.time_stamps_cache:

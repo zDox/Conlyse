@@ -38,14 +38,16 @@ class Replay:
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
 
             self.storage.load_full_from_disk(self.file_path)
-            self.storage.patch_graph.cache_time_stamps()
+            self.storage.patch_graph.validate_cached_time_stamps()
+            self.storage.path_tree.precompute()
 
         elif self.mode == 'a':
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
 
             self.storage.load_full_from_disk(self.file_path)
-            self.storage.patch_graph.cache_time_stamps()
+            self.storage.patch_graph.validate_cached_time_stamps()
+            self.storage.path_tree.precompute()
 
         elif self.mode == 'w':
             if self.game_id is None or self.player_id is None:
@@ -131,11 +133,6 @@ class Replay:
 
         self.storage.metadata.info['last_time'] = int(time_stamp.timestamp())
 
-    def get_patch(self):
-        pass # TODO
-
-
-
     def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]]) -> dict[str, list]:
         op_types = []
         paths = []
@@ -162,8 +159,6 @@ class Replay:
             'paths': paths,
             'values': values
         }
-
-
 
     def validate_game(self, game_id: int, player_id: int):
         if self.game_id != game_id or self.player_id != player_id:
