@@ -244,7 +244,7 @@ class Replay:
             while current > target:
                 next_patch = None
                 # Search for a backward patch that starts at current and ends at or after target
-                for (from_ts, to_ts), patch in self._patch_timestamps:
+                for from_ts, to_ts in self._patch_timestamps:
                     if from_ts == current and from_ts > to_ts >= target:
                         next_patch = (to_ts, self.get_patch(from_ts, to_ts))
                         break

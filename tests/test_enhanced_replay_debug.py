@@ -5,7 +5,7 @@ import io
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta, UTC
 
-from tools.replay_debug import ReplayDebugCLI, ReplayNavigator, StateViewer
+from tools.replay_debug import ReplayDebugCLI, ReplayNavigator, GameObjectViewer
 
 
 class TestReplayNavigator(unittest.TestCase):
@@ -149,15 +149,15 @@ class TestReplayNavigator(unittest.TestCase):
         self.assertEqual(end, datetime(2023, 1, 1, 23, 59, 59, tzinfo=UTC))
 
 
-class TestStateViewer(unittest.TestCase):
-    """Test cases for the StateViewer class."""
+class TestGameObjectViewer(unittest.TestCase):
+    """Test cases for the GameObjectViewer class."""
     
     def setUp(self):
         """Set up test fixtures."""
         self.mock_ritf = MagicMock()
         # Create a simple game state structure
         self.mock_ritf.game_state = MagicMock()
-        self.state_viewer = StateViewer(self.mock_ritf)
+        self.game_object_viewer = GameObjectViewer(self.mock_ritf)
     
     def test_list_available_states_no_game_state(self):
         """Test listing states when game state is not loaded."""
@@ -167,7 +167,7 @@ class TestStateViewer(unittest.TestCase):
         captured_output = io.StringIO()
         sys.stdout = captured_output
         
-        self.state_viewer.list_available_states()
+        self.game_object_viewer.list_available_states()
         
         sys.stdout = sys.__stdout__
         
@@ -180,10 +180,10 @@ class TestStateViewer(unittest.TestCase):
         captured_output = io.StringIO()
         sys.stdout = captured_output
         
-        self.state_viewer._pretty_print_value(42)
-        self.state_viewer._pretty_print_value("test string")
-        self.state_viewer._pretty_print_value(True)
-        self.state_viewer._pretty_print_value(None)
+        self.game_object_viewer._pretty_print_value(42)
+        self.game_object_viewer._pretty_print_value("test string")
+        self.game_object_viewer._pretty_print_value(True)
+        self.game_object_viewer._pretty_print_value(None)
         
         sys.stdout = sys.__stdout__
         
@@ -199,7 +199,7 @@ class TestStateViewer(unittest.TestCase):
         captured_output = io.StringIO()
         sys.stdout = captured_output
         
-        self.state_viewer._pretty_print_value([1, 2, 3])
+        self.game_object_viewer._pretty_print_value([1, 2, 3])
         
         sys.stdout = sys.__stdout__
         
@@ -215,7 +215,7 @@ class TestStateViewer(unittest.TestCase):
         captured_output = io.StringIO()
         sys.stdout = captured_output
         
-        self.state_viewer._pretty_print_value({"key1": "value1", "key2": 42})
+        self.game_object_viewer._pretty_print_value({"key1": "value1", "key2": 42})
         
         sys.stdout = sys.__stdout__
         
@@ -234,7 +234,7 @@ class TestStateViewer(unittest.TestCase):
         captured_output = io.StringIO()
         sys.stdout = captured_output
         
-        self.state_viewer._pretty_print_value(nested, max_depth=3)
+        self.game_object_viewer._pretty_print_value(nested, max_depth=3)
         
         sys.stdout = sys.__stdout__
         
@@ -254,7 +254,7 @@ class TestReplayDebugCLI(unittest.TestCase):
         self.assertEqual(self.cli.filename, "test_replay.db")
         self.assertIsNone(self.cli.ritf)
         self.assertIsNone(self.cli.navigator)
-        self.assertIsNone(self.cli.state_viewer)
+        self.assertIsNone(self.cli.game_object_viewer)
     
     @patch('tools.replay_debug.cli.ReplayInterface')
     def test_open_replay_success(self, mock_ritf_class):
@@ -269,7 +269,7 @@ class TestReplayDebugCLI(unittest.TestCase):
         mock_ritf.open.assert_called_once()
         self.assertIsNotNone(self.cli.ritf)
         self.assertIsNotNone(self.cli.navigator)
-        self.assertIsNotNone(self.cli.state_viewer)
+        self.assertIsNotNone(self.cli.game_object_viewer)
     
     @patch('tools.replay_debug.cli.ReplayInterface')
     def test_open_replay_file_not_found(self, mock_ritf_class):

@@ -9,7 +9,7 @@ from dateutil import parser as dateparser
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.replay_patch import ReplayPatch
 from .navigation import ReplayNavigator
-from .state_viewer import StateViewer
+from .game_object_viewer import GameObjectViewer
 from .formatters import *
 from .constants import DEFAULT_LIMIT, DEFAULT_DIRECTION
 
@@ -26,7 +26,7 @@ class ReplayDebugCLI:
         self.filename = filename
         self.ritf: Optional[ReplayInterface] = None
         self.navigator: Optional[ReplayNavigator] = None
-        self.state_viewer: Optional[StateViewer] = None
+        self.game_object_viewer: Optional[GameObjectViewer] = None
         self.all_patches: List[Tuple[int, int, ReplayPatch]] = []
         # For backward compatibility with methods that use self.replay
         self.replay = None
@@ -41,7 +41,7 @@ class ReplayDebugCLI:
             self.ritf = ReplayInterface(self.filename)
             self.ritf.open()
             self.navigator = ReplayNavigator(self.ritf)
-            self.state_viewer = StateViewer(self.ritf)
+            self.game_object_viewer = GameObjectViewer(self.ritf)
             # Set replay reference for patch analysis methods
             self.replay = self.ritf.replay
             # Load all patches into memory for patch analysis
@@ -654,27 +654,27 @@ class ReplayDebugCLI:
     # State viewing methods
     def view_state_path(self, path: str, max_depth: int = 5):
         """View value at a path in the game state."""
-        if not self.state_viewer:
+        if not self.game_object_viewer:
             print("Error: Replay not opened.")
             return
         
-        self.state_viewer.view_path(path, max_depth)
+        self.game_object_viewer.view_path(path, max_depth)
     
     def list_states(self):
         """List available state categories."""
-        if not self.state_viewer:
+        if not self.game_object_viewer:
             print("Error: Replay not opened.")
             return
         
-        self.state_viewer.list_available_states()
+        self.game_object_viewer.list_available_states()
     
     def search_paths(self, search_term: str):
         """Search for paths containing a term."""
-        if not self.state_viewer:
+        if not self.game_object_viewer:
             print("Error: Replay not opened.")
             return
         
-        self.state_viewer.search_path(search_term)
+        self.game_object_viewer.search_path(search_term)
     
     # Direct access to RITF
     def get_ritf(self) -> Optional[ReplayInterface]:

@@ -1,5 +1,5 @@
 """
-Game state viewer for inspecting replay state at any point in time.
+Game object viewer for inspecting replay state at any point in time.
 
 This module provides functionality to:
 - Navigate to specific paths in the game state
@@ -12,11 +12,11 @@ from conflict_interface.replay.apply_replay import recur_path
 from conflict_interface.data_types.game_state.game_state import GameState
 
 
-class StateViewer:
-    """Views and inspects game state at current replay position."""
+class GameObjectViewer:
+    """Views and inspects game objects at current replay position."""
     
     def __init__(self, replay_interface: ReplayInterface):
-        """Initialize the state viewer with a replay interface.
+        """Initialize the game object viewer with a replay interface.
         
         Args:
             replay_interface: The ReplayInterface instance to inspect
