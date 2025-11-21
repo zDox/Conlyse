@@ -5,7 +5,7 @@ import io
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta, UTC
 
-from tools.replay_debug import EnhancedReplayDebugCLI, ReplayNavigator, StateViewer
+from tools.replay_debug import ReplayDebugCLI, ReplayNavigator, StateViewer
 
 
 class TestReplayNavigator(unittest.TestCase):
@@ -242,12 +242,12 @@ class TestStateViewer(unittest.TestCase):
         self.assertIn("max depth reached", output)
 
 
-class TestEnhancedReplayDebugCLI(unittest.TestCase):
-    """Test cases for the EnhancedReplayDebugCLI class."""
+class TestReplayDebugCLI(unittest.TestCase):
+    """Test cases for the ReplayDebugCLI class."""
     
     def setUp(self):
         """Set up test fixtures."""
-        self.cli = EnhancedReplayDebugCLI("test_replay.db")
+        self.cli = ReplayDebugCLI("test_replay.db")
     
     def test_init(self):
         """Test CLI initialization."""
@@ -256,7 +256,7 @@ class TestEnhancedReplayDebugCLI(unittest.TestCase):
         self.assertIsNone(self.cli.navigator)
         self.assertIsNone(self.cli.state_viewer)
     
-    @patch('tools.replay_debug.enhanced_cli.ReplayInterface')
+    @patch('tools.replay_debug.cli.ReplayInterface')
     def test_open_replay_success(self, mock_ritf_class):
         """Test successfully opening a replay."""
         mock_ritf = Mock()
@@ -271,7 +271,7 @@ class TestEnhancedReplayDebugCLI(unittest.TestCase):
         self.assertIsNotNone(self.cli.navigator)
         self.assertIsNotNone(self.cli.state_viewer)
     
-    @patch('tools.replay_debug.enhanced_cli.ReplayInterface')
+    @patch('tools.replay_debug.cli.ReplayInterface')
     def test_open_replay_file_not_found(self, mock_ritf_class):
         """Test opening a non-existent replay file."""
         mock_ritf_class.side_effect = FileNotFoundError()
@@ -297,7 +297,7 @@ class TestEnhancedReplayDebugCLI(unittest.TestCase):
         
         self.assertEqual(self.cli.get_ritf(), mock_ritf)
     
-    @patch('tools.replay_debug.enhanced_cli.ReplayInterface')
+    @patch('tools.replay_debug.cli.ReplayInterface')
     def test_display_info(self, mock_ritf_class):
         """Test displaying replay info."""
         # Setup mock

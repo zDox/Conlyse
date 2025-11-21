@@ -1,21 +1,24 @@
 """
-Enhanced CLI class with ReplayInterface integration.
+CLI class for the Replay Debug Tool.
 
-This module provides an enhanced version of the CLI that integrates
-with ReplayInterface for live game state inspection and navigation.
+This module provides a unified CLI that combines patch analysis with
+live game state inspection and navigation via ReplayInterface.
 """
-from typing import Optional
+from typing import Optional, Tuple, List
 from dateutil import parser as dateparser
 from conflict_interface.interface.replay_interface import ReplayInterface
+from conflict_interface.replay.replay_patch import ReplayPatch
 from .navigation import ReplayNavigator
 from .state_viewer import StateViewer
+from .formatters import *
+from .constants import DEFAULT_LIMIT, DEFAULT_DIRECTION
 
 
-class EnhancedReplayDebugCLI:
-    """Enhanced CLI with ReplayInterface integration for live state inspection."""
+class ReplayDebugCLI:
+    """Unified CLI for debugging replay files with navigation and patch analysis."""
     
     def __init__(self, filename: str):
-        """Initialize the enhanced CLI with a replay file.
+        """Initialize the CLI with a replay file.
         
         Args:
             filename: Path to the replay database file
@@ -24,6 +27,7 @@ class EnhancedReplayDebugCLI:
         self.ritf: Optional[ReplayInterface] = None
         self.navigator: Optional[ReplayNavigator] = None
         self.state_viewer: Optional[StateViewer] = None
+        self.all_patches: List[Tuple[int, int, ReplayPatch]] = []
     
     def open_replay(self) -> bool:
         """Open the replay file with ReplayInterface.
@@ -36,6 +40,8 @@ class EnhancedReplayDebugCLI:
             self.ritf.open()
             self.navigator = ReplayNavigator(self.ritf)
             self.state_viewer = StateViewer(self.ritf)
+            # Load all patches into memory for patch analysis
+            self._load_all_patches()
             return True
         except FileNotFoundError:
             print(f"Error: Replay file '{self.filename}' not found.")
@@ -45,6 +51,15 @@ class EnhancedReplayDebugCLI:
             import traceback
             traceback.print_exc()
             return False
+    
+    def _load_all_patches(self):
+        """Load all patches from the database into memory."""
+        # Read all patches directly from database
+        patches_dict = self.ritf.replay.db.read_patches()
+        for (from_ts, to_ts), patch in patches_dict.items():
+            self.all_patches.append((from_ts, to_ts, patch))
+        # Sort by from_timestamp, then to_timestamp
+        self.all_patches.sort(key=lambda x: (x[0], x[1]))
     
     def close_replay(self):
         """Close the replay file."""

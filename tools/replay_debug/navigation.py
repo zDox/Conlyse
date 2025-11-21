@@ -120,24 +120,51 @@ class ReplayNavigator:
             print(f"Error jumping to index: {e}")
             return False
     
-    def list_timestamps(self, limit: int = 50) -> None:
+    def list_timestamps(self, limit: int = 50, relative: bool = False) -> None:
         """List all timestamps with their indices.
         
         Args:
             limit: Maximum number of timestamps to display
+            relative: If True, show times relative to current position
         """
         timestamps = self.ritf.get_timestamps()
         current_idx = self.ritf.current_timestamp_index
+        current_time = self.ritf.current_time
         
         print(f"\nTotal timestamps: {len(timestamps)}")
         print(f"Current index: {current_idx}")
+        print(f"Current time: {current_time.isoformat()}")
         print(f"Showing {'all' if len(timestamps) <= limit else f'first {limit}'} timestamps:\n")
-        print(f"{'Index':<8} {'Timestamp':<30} {'Current':<8}")
-        print("-" * 50)
         
-        for i, ts in enumerate(timestamps[:limit]):
-            is_current = ">>>" if i == current_idx else ""
-            print(f"{i:<8} {ts.isoformat():<30} {is_current:<8}")
+        if relative:
+            print(f"{'Index':<8} {'Timestamp':<30} {'Relative':<20} {'Current':<8}")
+            print("-" * 70)
+            
+            for i, ts in enumerate(timestamps[:limit]):
+                is_current = ">>>" if i == current_idx else ""
+                delta = ts - current_time
+                delta_seconds = delta.total_seconds()
+                
+                # Format relative time
+                if delta_seconds == 0:
+                    relative_str = "now"
+                elif abs(delta_seconds) < 60:
+                    relative_str = f"{delta_seconds:+.0f}s"
+                elif abs(delta_seconds) < 3600:
+                    relative_str = f"{delta_seconds/60:+.1f}m"
+                elif abs(delta_seconds) < 86400:
+                    relative_str = f"{delta_seconds/3600:+.1f}h"
+                else:
+                    relative_str = f"{delta_seconds/86400:+.1f}d"
+                
+                print(f"{i:<8} {ts.isoformat():<30} {relative_str:<20} {is_current:<8}")
+        else:
+            print(f"{'Index':<8} {'Timestamp':<30} {'Current':<8}")
+            print("-" * 50)
+            
+            for i, ts in enumerate(timestamps[:limit]):
+                is_current = ">>>" if i == current_idx else ""
+                print(f"{i:<8} {ts.isoformat():<30} {is_current:<8}")
         
         if len(timestamps) > limit:
             print(f"\n... and {len(timestamps) - limit} more timestamps")
