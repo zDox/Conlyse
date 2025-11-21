@@ -5,17 +5,17 @@ import struct
 import lz4.frame
 
 from conflict_interface.replayv2.metadata import Metadata
-from conflict_interface.replayv2.patch_graph_node import PatchGraphNode
+from conflict_interface.replayv2.patch_graph import PatchGraph
 from conflict_interface.replayv2.path_tree import PathTree
 
 
-class ReplayData:
+class ReplayStorage:
     def __init__(self):
         self.metadata: Metadata | None = None
         self.initial_game_state: bytes | None = None
         self.static_map_data: bytes | None = None
         self.path_tree: PathTree | None = None
-        self.patches: list[PatchGraphNode] = []
+        self.patch_graph: PatchGraph | None = None
 
         self.compressor = lz4.frame.compress
         self.decompressor = lz4.frame.decompress
@@ -25,7 +25,7 @@ class ReplayData:
         self.initial_game_state = data[1]
         self.static_map_data = data[2]
         self.path_tree = pickle.loads(data[3])
-        self.patches = pickle.loads(data[4])
+        self.patch_graph = pickle.loads(data[4])
 
     def load_full_from_disk(self, file_path: str):
         data = []
@@ -49,7 +49,7 @@ class ReplayData:
                 pickle.dumps(self.initial_game_state),
                 pickle.dumps(self.static_map_data),
                 pickle.dumps(self.path_tree),
-                pickle.dumps(self.patches)
+                pickle.dumps(self.patch_graph)
             ]
 
         self.write_to_file(data_chunks, file_path)
