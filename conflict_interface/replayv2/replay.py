@@ -4,12 +4,17 @@ from datetime import datetime
 from typing import Literal
 from typing import Union
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
+from conflict_interface.replayv2.apply_replay_helper import apply_operation
+from conflict_interface.replayv2.constants import ADD_OPERATION
+from conflict_interface.replayv2.constants import REMOVE_OPERATION
+from conflict_interface.replayv2.constants import REPLACE_OPERATION
 from conflict_interface.replayv2.metadata import Metadata
 from conflict_interface.replayv2.patch_graph_node import PatchGraphNode
 from conflict_interface.replayv2.replay_file import ReplayStorage
@@ -133,6 +138,35 @@ class Replay:
 
         self.storage.metadata.info['last_time'] = int(time_stamp.timestamp())
 
+    def apply_patch(self, patch: PatchGraphNode, game_state: GameState):
+        non_ref_op_types = []
+        non_ref_paths = []
+        non_ref_values = []
+
+        for i, path_idx in enumerate(patch.paths):
+            path_tree_node = self.storage.path_tree.idx_to_node[path_idx]
+            if not path_tree_node.reference:
+                non_ref_op_types.append(patch.op_types[i])
+                non_ref_paths.append(path_idx)
+                non_ref_values.append(patch.values[i])
+                continue
+
+            # Apply Operation directly
+            target = path_tree_node.reference
+            pos = path_tree_node.path_element
+
+            apply_operation(
+                patch.op_types[i],
+                patch.values[i],
+                target,
+                pos
+            )
+            if patch.op_types[i] == REMOVE_OPERATION:
+                # Remove reference since the target is removed
+                path_tree_node.reference = None
+
+
+
     def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]]) -> dict[str, list]:
         op_types = []
         paths = []
@@ -143,13 +177,13 @@ class Replay:
             paths.append(self.storage.path_tree.get_or_add_path_node(op.path))
 
             if op.Key == 'a':
-                op_types.append(1)
+                op_types.append(ADD_OPERATION)
                 values.append(op.new_value)
             elif op.Key == 'p':
-                op_types.append(2)
+                op_types.append(REPLACE_OPERATION)
                 values.append(op.new_value)
             elif op.Key == 'r':
-                op_types.append(3)
+                op_types.append(REMOVE_OPERATION)
                 values.append(None)
             else:
                 raise ValueError(f"Unknown operation type: {type(op)}")

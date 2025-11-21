@@ -10,7 +10,7 @@ from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.apply_replay import apply_patch_any
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replayv2.replay import Replay
 import bisect
 
 logger = get_logger()
