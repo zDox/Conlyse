@@ -10,7 +10,6 @@ from typing import Any, Optional
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.apply_replay import recur_path
 from conflict_interface.data_types.game_state.game_state import GameState
-import pprint
 
 
 class StateViewer:

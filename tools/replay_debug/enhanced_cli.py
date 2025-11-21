@@ -5,6 +5,7 @@ This module provides an enhanced version of the CLI that integrates
 with ReplayInterface for live game state inspection and navigation.
 """
 from typing import Optional
+from dateutil import parser as dateparser
 from conflict_interface.interface.replay_interface import ReplayInterface
 from .navigation import ReplayNavigator
 from .state_viewer import StateViewer
@@ -93,9 +94,12 @@ class EnhancedReplayDebugCLI:
             print("Error: Replay not opened.")
             return
         
+        if not timestamp_str or not timestamp_str.strip():
+            print("Error: Timestamp string cannot be empty.")
+            return
+        
         try:
-            from dateutil import parser
-            timestamp = parser.parse(timestamp_str)
+            timestamp = dateparser.parse(timestamp_str)
             if self.navigator.jump_to_absolute_time(timestamp):
                 print(f"Jumped to: {self.ritf.current_time.isoformat()}")
             else:

@@ -227,15 +227,18 @@ def run_enhanced_shell(cli: Union[ReplayDebugCLI, EnhancedReplayDebugCLI]):
                     if ritf:
                         print("\nReplayInterface object is available as 'ritf'")
                         print(f"Type: {type(ritf)}")
-                        print(f"Current time: {ritf.current_time}")
-                        print(f"Game ID: {ritf.game_id}")
-                        print(f"Player ID: {ritf.player_id}")
-                        print("\nYou can access:")
-                        print("  ritf.game_state - Current game state")
-                        print("  ritf.jump_to(datetime) - Jump to timestamp")
-                        print("  ritf.jump_to_next_patch() - Jump forward")
-                        print("  ritf.jump_to_previous_patch() - Jump backward")
-                        print("  ritf.get_timestamps() - Get all timestamps")
+                        try:
+                            print(f"Current time: {ritf.current_time}")
+                            print(f"Game ID: {ritf.game_id}")
+                            print(f"Player ID: {ritf.player_id}")
+                            print("\nYou can access:")
+                            print("  ritf.game_state - Current game state")
+                            print("  ritf.jump_to(datetime) - Jump to timestamp")
+                            print("  ritf.jump_to_next_patch() - Jump forward")
+                            print("  ritf.jump_to_previous_patch() - Jump backward")
+                            print("  ritf.get_timestamps() - Get all timestamps")
+                        except AttributeError as e:
+                            print(f"\nWarning: Some attributes not available: {e}")
                     else:
                         print("Error: ritf not available")
                     continue
