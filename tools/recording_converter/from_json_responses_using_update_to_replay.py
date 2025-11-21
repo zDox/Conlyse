@@ -76,8 +76,11 @@ class FromJsonResponsesUsingUpdateToReplay:
                     f"Converting json response {i - response_idx + 1}/{len(json_responses) - response_idx} at {current_datetime}")
 
                 try:
-                    # Parse JSON response into new state
+                    if json_response.get("action") == "UltActivateGameAction":
+                        logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
+                        continue
                     new_state = parse_any(GameState, json_response["result"], mock_game)
+                    # Parse JSON response into new state
                     if json_response["result"]["@c"] == "ultshared.UltGameState" and not initial_game_state_written:
                         # Record initial game state
                         logger.info(f"Recording initial state at {current_datetime}")
