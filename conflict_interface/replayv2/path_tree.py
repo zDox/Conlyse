@@ -1,4 +1,5 @@
 from array import array
+from collections import defaultdict
 
 from conflict_interface.replayv2.path_tree_node import PathNode
 
@@ -93,6 +94,46 @@ class PathTree:
         a = self.st[k][left]
         b = self.st[k][right - (1 << k) + 1]
         return self.euler[a] if self.depth[self.euler[a]] < self.depth[self.euler[b]] else self.euler[b]
+
+    def build_steiner_tree(self, operations):
+        node_indices = [path_idx for _, path_idx, _ in operations]
+
+        # IMPORTANT TIME WISE K LOG K
+        node_indices_sorted = sorted(node_indices, key=lambda x: self.tin[x])
+        # ----------------------------
+
+        stack = []
+        vt_edges = defaultdict(list)
+        all_nodes = set(node_indices)
+        for u in node_indices_sorted:
+            if not stack:
+                stack.append(u)
+                continue
+
+            lca = self.lca(u, stack[-1])
+            all_nodes.add(lca)
+
+            while len(stack) >= 2 and self.tin[stack[-2]] <= self.tin[lca] <= self.tout[stack[-2]]:
+                top = stack.pop()
+                vt_edges[top].append(stack[-1])
+                vt_edges[stack[-1]].append(top)
+
+            if stack[-1] != lca:
+                top = stack.pop()
+                vt_edges[top].append(lca)
+                vt_edges[lca].append(top)
+                stack.append(lca)
+
+            stack.append(u)
+
+        while len(stack) >= 2:
+            top = stack.pop()
+            vt_edges[top].append(stack[-1])
+            vt_edges[stack[-1]].append(top)
+
+        return vt_edges
+
+
 
     def validate_idx_to_node_mapping(self):
         for idx, node in self.idx_to_node.items():
