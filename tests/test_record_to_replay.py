@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import zstandard as zstd
 
 from conflict_interface.replay.replay import Replay
-from tools.record_to_replay.converter import RecordToReplayConverter
+from tools.recording_converter.converter import RecordToReplayConverter
 
 
 # Simple picklable state classes for testing
@@ -106,7 +106,7 @@ class TestRecordToReplayConverter(unittest.TestCase):
     def test_read_game_states(self):
         """Test reading game states from file."""
         converter = RecordToReplayConverter(str(self.recording_dir))
-        game_states = converter._read_game_states()
+        game_states = converter.read_game_state()
         
         # Should read 3 states
         self.assertEqual(len(game_states), 3)
@@ -116,7 +116,7 @@ class TestRecordToReplayConverter(unittest.TestCase):
         self.assertEqual(len(timestamps), 3)
         self.assertTrue(all(timestamps[i] < timestamps[i+1] for i in range(len(timestamps)-1)))
     
-    @patch('tools.record_to_replay.converter.make_bireplay_patch')
+    @patch('tools.recording_converter.converter.make_bireplay_patch')
     def test_convert_success(self, mock_make_patch):
         """Test successful conversion."""
         # Mock the make_bireplay_patch function with proper patch objects
@@ -149,7 +149,7 @@ class TestRecordToReplayConverter(unittest.TestCase):
         converter = RecordToReplayConverter(str(self.recording_dir))
         output_file = os.path.join(self.temp_dir, "test_replay2.db")
         
-        with patch('tools.record_to_replay.converter.make_bireplay_patch') as mock_make_patch:
+        with patch('tools.recording_converter.converter.make_bireplay_patch') as mock_make_patch:
             # Mock with proper patch objects
             mock_forward_patch = MagicMock()
             mock_forward_patch.to_bytes.return_value = b'forward_patch_bytes'
@@ -162,7 +162,7 @@ class TestRecordToReplayConverter(unittest.TestCase):
             mock_make_patch.return_value = mock_bipatch
             
             success = converter.convert(
-                output_file=output_file,
+                output=output_file,
                 game_id=99999,
                 player_id=88888
             )
@@ -199,7 +199,7 @@ class TestRecordToReplayIntegration(unittest.TestCase):
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    @patch('tools.record_to_replay.converter.make_bireplay_patch')
+    @patch('tools.recording_converter.converter.make_bireplay_patch')
     def test_converted_replay_can_be_opened(self, mock_make_patch):
         """Test that converted replay can be opened and read."""
         # Mock with proper patch objects
