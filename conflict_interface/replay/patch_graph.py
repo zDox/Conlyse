@@ -1,4 +1,5 @@
 import bisect
+import heapq
 from datetime import datetime
 
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
@@ -9,14 +10,22 @@ class PatchGraph:
         self.nodes = {}
         self.time_stamps_cache: list[int] = []  # Sorted list of time stamps
         self.patches: dict[tuple[int, int], PatchGraphNode] = {}
+        self.adjacency_list: dict[int, list[int]] = {}
 
     def add_patch_node(self, patch_node: PatchGraphNode):
         key = (patch_node.from_timestamp, patch_node.to_timestamp)
         self.patches[key] = patch_node
+
         if patch_node.from_timestamp not in self.time_stamps_cache:
             bisect.insort(self.time_stamps_cache, patch_node.from_timestamp)
+            self.adjacency_list[patch_node.from_timestamp] = []
+
         if patch_node.to_timestamp not in self.time_stamps_cache:
             bisect.insort(self.time_stamps_cache, patch_node.to_timestamp)
+            self.adjacency_list[patch_node.to_timestamp] = []
+
+        self.adjacency_list[patch_node.from_timestamp].append(patch_node.to_timestamp)
+        self.adjacency_list[patch_node.to_timestamp].append(patch_node.from_timestamp)
 
     def validate_cached_time_stamps(self):
         for patch in self.patches.keys():
@@ -41,4 +50,27 @@ class PatchGraph:
         raise ValueError("No exact patch timestamps found for the given time range.")
 
     def _find_patch_path_exact(self, from_time: int, to_time: int) -> list[PatchGraphNode]:
-        pass  # TODO Dijkstra or A* search to find the optimal path
+        heap = [(0, from_time, [])]  # (cost, current_time, path)
+        visited = set()
+
+        while heap:
+            current_cost, current_time, path = heapq.heappop(heap)
+
+            if current_time == to_time:
+                return path
+
+            if current_time in visited:
+                continue
+
+            visited.add(current_time)
+
+            for neighbor in self.adjacency_list.get(current_time, []):
+                if neighbor not in visited:
+                    patch_node = self.patches.get((current_time, neighbor))
+                    if not patch_node:
+                        raise ValueError(f"No patch found between {current_time} and {neighbor}")
+                    edge_cost = patch_node.cost
+                    new_path_edges = path + [patch_node]
+                    heapq.heappush(heap, (current_cost + edge_cost, neighbor, new_path_edges))
+
+        raise ValueError(f"No path found from {from_time} to {to_time}")
