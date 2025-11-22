@@ -12,7 +12,7 @@ from dateutil import parser as dateparser
 
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.replay_patch import ReplayPatch
-from tools.replay_debug.formatters import *
+from tools.replay_debug.formatters import print_separator, SEPARATOR_WIDTH_COMPACT, print_patch_list_header, print_patch_list_row
 from tools.replay_debug.game_object_viewer import GameObjectViewer
 from tools.replay_debug.navigation import ReplayNavigator
 
