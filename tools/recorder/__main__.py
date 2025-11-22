@@ -63,7 +63,7 @@ Example configuration file:
 
 To use account pool for multi-account support, add:
 {
-  "account_pool_path": "path/to/accounts.json",
+  "account_pool_path": "path/to/account_pool.json",
   ...
 }
 
@@ -111,7 +111,7 @@ For a complete list of action types and their parameters, see the documentation.
     account_pool_path = config.get('account_pool_path')
     if account_pool_path:
         try:
-            account_pool = AccountPool.from_json(account_pool_path)
+            account_pool = AccountPool(account_pool_path)
         except Exception as e:
             print(f"Error loading account pool from {account_pool_path}: {e}")
             sys.exit(1)
