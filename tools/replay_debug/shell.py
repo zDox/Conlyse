@@ -6,7 +6,6 @@ navigation, state viewing, and patch analysis.
 """
 import os
 import atexit
-from typing import Union
 
 from .constants import *
 from .cli import ReplayDebugCLI
