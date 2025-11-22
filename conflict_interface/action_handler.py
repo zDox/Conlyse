@@ -124,7 +124,7 @@ class ActionHandler:
         json_action = dump_any(action)
         return self.game_api.make_game_server_request(json_action)
 
-    def create_game_state_action(self, use_queue: bool=True, custom_actions: list[tuple[int, Action]]=None) -> GameState:
+    def create_game_state_action(self, use_queue: bool=True, custom_actions: list[tuple[int, Action]]=None, send_state_ids=True) -> GameState:
         """
         Create a game state action and execute it
         This is used to send multiple minor actions in one request
@@ -137,6 +137,7 @@ class ActionHandler:
 
         :param use_queue: If true the actions from the que are used, if false custom_actions must be provided
         :param custom_actions: A linked list of custom actions to be used if use_queue is false
+        :param send_state_ids: If true the state ids and time stamps are sent with the action
 
         :return: The response game state object
         """
@@ -161,7 +162,7 @@ class ActionHandler:
             self.action_request_id_to_action_uid[action.action_request_id] =  action_uid
             self.action_request_id += 1
 
-        if self.game_state is not None:
+        if self.game_state is not None and send_state_ids:
             state_ids, time_stamps = self.game_state.get_state_ids_and_time_stamps()
         else:
             state_ids, time_stamps = None, None
@@ -169,7 +170,7 @@ class ActionHandler:
         game_state_action = GameStateAction(
             state_type=0,
             state_id="0",
-            add_state_ids_on_sent=True,  # Only add state ids if we have a game state
+            add_state_ids_on_sent=send_state_ids,
             option=None,
             state_ids=state_ids,
             time_stamps=time_stamps,

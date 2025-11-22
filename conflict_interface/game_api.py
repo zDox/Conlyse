@@ -200,6 +200,7 @@ class GameApi:
             "userAuth": self.auth.auth,
             "lastCallDuration": 0,
         }
+        logger.debug(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
         self.request_id += 1
         response = self.session.post(self.game_server_address,
                                      headers=headers,

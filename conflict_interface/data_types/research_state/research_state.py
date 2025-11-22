@@ -136,6 +136,17 @@ class ResearchState(State):
             return self.game.online.do_action(ResearchAction(research_id, cancel=True)), ResearchActionResult.Ok
         else:
             return None, ResearchActionResult.NotAvailable
+    def has_unlocked_item(self, item_id: int) -> bool:
+        """
+        Checks if a specific item has been unlocked through research.
+
+        Args:
+            item_id (int): The unique identifier of the item to check.
+        Returns:
+            bool: True if the item has been unlocked, False otherwise.
+        """
+        return item_id in self.unlocked_items
+
 
     def update(self, other: "ResearchState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         if not isinstance(other, self.__class__):
