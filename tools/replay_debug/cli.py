@@ -15,6 +15,9 @@ from conflict_interface.replay.replay_patch import ReplayPatch
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import ReplaceOperation
 from conflict_interface.replay.replay_patch import RemoveOperation
+from conflict_interface.replay.constants import ADD_OPERATION
+from conflict_interface.replay.constants import REPLACE_OPERATION
+from conflict_interface.replay.constants import REMOVE_OPERATION
 from tools.replay_debug.constants import COLUMN_WIDTH_PATCH
 from tools.replay_debug.constants import COLUMN_WIDTH_PATCH_FULL
 from tools.replay_debug.constants import COLUMN_WIDTH_PATH_COMPACT
@@ -101,8 +104,6 @@ class ReplayDebugCLI:
         Returns:
             ReplayPatch object with operations
         """
-        from conflict_interface.replay.constants import ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION
-        
         replay_patch = ReplayPatch()
         idx_to_node = path_tree.idx_to_node
         
@@ -138,10 +139,24 @@ class ReplayDebugCLI:
         node = idx_to_node[path_idx]
         
         # Walk up the tree to the root, collecting path elements
+        # Add safety check to prevent infinite loops
+        visited = set()
         while node.index != 0:  # 0 is the root
+            if node.index in visited:
+                raise ValueError(f"Cycle detected in path tree at node {node.index}")
+            visited.add(node.index)
+            
             path.append(node.path_element)
-            # Get parent node
-            parent_idx = self.replay.storage.path_tree.parent[node.index]
+            
+            # Get parent node with bounds checking
+            parent_array = self.replay.storage.path_tree.parent
+            if node.index >= len(parent_array):
+                raise ValueError(f"Node index {node.index} exceeds parent array bounds")
+            
+            parent_idx = parent_array[node.index]
+            if parent_idx < 0 or parent_idx not in idx_to_node:
+                raise ValueError(f"Invalid parent index {parent_idx} for node {node.index}")
+            
             node = idx_to_node[parent_idx]
         
         # Reverse to get the path from root to target
