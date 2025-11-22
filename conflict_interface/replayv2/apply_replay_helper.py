@@ -1,11 +1,7 @@
 from typing import Any
-from typing import get_args
 
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object import get_inner_type
-from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.apply_replay import get_list_element_type
 from conflict_interface.replayv2.constants import ADD_OPERATION
 from conflict_interface.replayv2.constants import REMOVE_OPERATION
 from conflict_interface.replayv2.constants import REPLACE_OPERATION
@@ -50,7 +46,7 @@ def apply_operation(op_type: int, value: Any, reference: GameObject | list | dic
             reference.append(value)
         elif isinstance(reference, dict):
             # Add key-value pair to dict
-            reference.update(value)
+            reference[pos] = value
         else:
             raise ValueError(f"Can only add to List or Dict not {type(reference)}")
 
@@ -66,4 +62,31 @@ def apply_operation(op_type: int, value: Any, reference: GameObject | list | dic
         else:
             reference.pop(pos)
 
-def bfs_set_references
+def get_child_reference(parent: GameObject | list | dict, path_element: str | int) -> GameObject | list | dict | None:
+    """
+    Get the child reference from a parent object based on the path element.
+
+    Args:
+        parent: The parent object (GameObject, list, or dict)
+        path_element: The key/index to access the child
+    Returns:
+        The child reference or None if not found
+    """
+    if isinstance(parent, GameObject):
+        if hasattr(parent, path_element):
+            return getattr(parent, path_element)
+        else:
+            raise ValueError(f"Parent object of type {type(parent)} has no attribute '{path_element}'")
+    elif isinstance(parent, list):
+        if not isinstance(path_element, int) or path_element < 0 or path_element >= len(parent):
+            raise IndexError(f"List index out of range: {path_element} for list of length {len(parent)}, parent is {parent}")
+        return parent[path_element]
+    elif isinstance(parent, dict):
+        if not isinstance(path_element, str):
+            raise KeyError(f"Dict key must be a string but got {type(path_element)}")
+        if path_element not in parent:
+            raise KeyError(f"Dict has no key '{path_element}' Parent is {parent}")
+
+        return parent[path_element]
+    else:
+        return None

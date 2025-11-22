@@ -18,7 +18,7 @@ from conflict_interface.replayv2.constants import REMOVE_OPERATION
 from conflict_interface.replayv2.constants import REPLACE_OPERATION
 from conflict_interface.replayv2.metadata import Metadata
 from conflict_interface.replayv2.patch_graph_node import PatchGraphNode
-from conflict_interface.replayv2.replay_file import ReplayStorage
+from conflict_interface.replayv2.replay_storage import ReplayStorage
 
 
 class Replay:
@@ -154,7 +154,7 @@ class Replay:
                 node.reference = None
 
         # Separate known and unknown reference operations
-        known_ops, unknown_ops = [], []
+        known_ops, unknown_ops, unknown_paths = [], [], []
         for op_type, path_idx, value in zip(patch.op_types, patch.paths, patch.values):
             node = idx_to_node[path_idx]
             value = prepare_value(value)
@@ -162,21 +162,16 @@ class Replay:
                 apply_op(op_type, value, node.reference, node.path_element, node)
             else:
                 unknown_ops.append((op_type, path_idx, value))
+                unknown_paths.append(path_idx)
 
         if not unknown_ops:
             return
 
         # Resolve unknown references using Steiner tree + BFS
-
-
-
-        steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_ops)
-        bfs_set_references(
+        steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_paths)
+        self.storage.path_tree.bfs_set_references(
             steiner_tree_adj,
-            idx_to_node,
-            unknown_ops,
-            game_state,
-            game_interface
+            game_state
         )
 
         # Apply resolved operations

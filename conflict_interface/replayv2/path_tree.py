@@ -1,6 +1,9 @@
 from array import array
 from collections import defaultdict
+from collections import deque
 
+from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.replayv2.apply_replay_helper import get_child_reference
 from conflict_interface.replayv2.path_tree_node import PathNode
 
 
@@ -17,14 +20,14 @@ class PathTree:
         self.st = None # Sparse Table for RMQ
         self.log = None
 
-    def add_node(self, parent: PathNode, path_element: str) -> PathNode:
+    def add_node(self, parent: PathNode, path_element: str | int ) -> PathNode:
         new_node = PathNode(path_element=path_element, index=self.idx_counter)
         parent.add_child(new_node)
         self.idx_to_node[self.idx_counter] = new_node
         self.idx_counter += 1
         return new_node
 
-    def get_or_add_path_node(self, path: list[str]) -> int:
+    def get_or_add_path_node(self, path: list[str | int]) -> int:
         current_node = self.root
         for path_element in path:
             if current_node.has_child(path_element):
@@ -95,8 +98,9 @@ class PathTree:
         b = self.st[k][right - (1 << k) + 1]
         return self.euler[a] if self.depth[self.euler[a]] < self.depth[self.euler[b]] else self.euler[b]
 
-    def build_steiner_tree(self, operations):
-        node_indices = [path_idx for _, path_idx, _ in operations]
+    def build_steiner_tree(self, unknown_paths: list[int]) -> dict[int, list[int]]:
+        node_indices = unknown_paths
+        node_indices.append(self.root.index)  # Ensure root is included for BFS order
 
         # IMPORTANT TIME WISE K LOG K
         node_indices_sorted = sorted(node_indices, key=lambda x: self.tin[x])
@@ -133,6 +137,25 @@ class PathTree:
 
         return vt_edges
 
+    def bfs_set_references(self, sub_tree: dict[int, list[int]], game_state: GameState):
+        start = self.root.index
+        visited: set[int] = {start}
+        q = deque([(start, game_state)])
+
+        pop = q.popleft
+        add = q.append
+        visited_add = visited.add
+
+        while q:
+            u, ref = pop()
+            for v in sub_tree.get(u, []):
+                if v not in visited:
+                    visited_add(v)
+
+                    node = self.idx_to_node[v]
+                    node.set_reference(ref)
+                    child_ref = get_child_reference(ref, node.path_element)
+                    add((v, child_ref))
 
 
     def validate_idx_to_node_mapping(self):
