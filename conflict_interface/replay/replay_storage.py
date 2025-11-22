@@ -20,6 +20,12 @@ class ReplayStorage:
         self.compressor = lz4.frame.compress
         self.decompressor = lz4.frame.decompress
 
+    def initialize_empty(self):
+        self.initial_game_state = None
+        self.static_map_data = None
+        self.path_tree = PathTree()
+        self.patch_graph = PatchGraph()
+
     def parse_data(self, data):
         self.metadata = pickle.loads(data[0])
         self.initial_game_state = data[1]

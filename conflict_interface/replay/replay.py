@@ -60,6 +60,7 @@ class Replay:
                 raise ValueError("Game ID and Player ID must be provided in write mode")
 
             self.storage.create_new_file(self.file_path)
+            self.storage.initialize_empty()
             self.create_metadata()
 
         self._is_open = True
