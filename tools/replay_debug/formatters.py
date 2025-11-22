@@ -2,8 +2,6 @@
 Formatting utilities for the Replay Debug CLI Tool.
 """
 from datetime import datetime, UTC
-from typing import List, Dict, Any
-from conflict_interface.replay.replay_patch import ReplayPatch
 from .constants import *
 
 

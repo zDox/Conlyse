@@ -1,16 +1,12 @@
-from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from time import time
 from typing import override
 
-from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.apply_replay import apply_patch_any
-from conflict_interface.replayv2.replay import Replay
+from conflict_interface.replay.replay import Replay
 import bisect
 
 logger = get_logger()
@@ -43,12 +39,8 @@ class ReplayInterface(GameInterface):
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
         self._update_player_id()
         self.game_id = self.replay.game_id
-        self.current_time = self.replay.start_time
-        self.last_patch_time = self.replay.start_time
-
-        # Store reference to replay's timestamps and convert once
-        self._raw_timestamps_ref = self.replay.get_timestamps()
-        self._time_stamps_cache = [datetime.fromtimestamp(ts / 1000, tz=UTC) for ts in self._raw_timestamps_ref]
+        self.current_time = self.replay.get_start_time()
+        self.last_patch_time = self.replay.get_start_time()
 
         logger.debug(f"Loading and setting static map data took {time() - t3} seconds")
 
@@ -76,11 +68,11 @@ class ReplayInterface(GameInterface):
 
     @property
     def start_time(self) -> datetime:
-        return self.replay.start_time
+        return self.replay.get_start_time()
 
     @property
     def end_time(self) -> datetime:
-        return self.replay.last_time
+        return self.replay.get_last_time()
 
     def jump_to(self, time_stamp: datetime) -> None:
         """
@@ -88,15 +80,15 @@ class ReplayInterface(GameInterface):
         """
         if self.current_time == time_stamp:
             return
-        if time_stamp < self.replay.start_time == self.current_time:
+        if time_stamp < self.replay.get_start_time() == self.current_time:
             return
 
-        if time_stamp < self.replay.start_time:
+        if time_stamp < self.replay.get_start_time():
             self.game_state = self.replay.load_initial_game_state()
             self.game_state.set_game(self)
             return
 
-        patches, _ = self.replay.find_patch_path(self.last_patch_time, time_stamp)
+        patches, _ = self.replay.storage.patch_graph.find_patch_path(self.last_patch_time, time_stamp)
         self._apply_patches_and_update_state(patches, time_stamp)
 
         # Update the current timestamp index for O(1) next/previous operations
@@ -108,7 +100,7 @@ class ReplayInterface(GameInterface):
         Reduces code duplication across jump methods.
         """
         for patch in patches:
-            apply_patch_any(patch, self.game_state, self)
+            self.replay.apply_patch(patch, self.game_state, self)
 
         self.current_time = target_time
         self.last_patch_time = target_time
@@ -131,7 +123,7 @@ class ReplayInterface(GameInterface):
         if next_timestamp is None:
             return False
 
-        patches, _ = self.replay.find_patch_path(self.current_time, next_timestamp)
+        patches, _ = self.replay.storage.patch_graph.find_patch_path(self.current_time, next_timestamp)
 
         if patches:
             self._apply_patches_and_update_state(patches, next_timestamp)
@@ -149,14 +141,14 @@ class ReplayInterface(GameInterface):
         """
         previous_timestamp = self.get_previous_timestamp()
 
-        if previous_timestamp is None or previous_timestamp < self.replay.start_time:
+        if previous_timestamp is None or previous_timestamp < self.replay.get_start_time():
             return False
 
         # Need to reload and replay from start since patches can't be unapplied
         self.game_state = self.replay.load_initial_game_state()
         self.game_state.set_game(self)
 
-        patches, _ = self.replay.find_patch_path(self.replay.start_time, previous_timestamp)
+        patches, _ = self.replay.storage.patch_graph.find_patch_path(self.replay.get_start_time(), previous_timestamp)
         self._apply_patches_and_update_state(patches, previous_timestamp)
         self.current_timestamp_index -= 1
 

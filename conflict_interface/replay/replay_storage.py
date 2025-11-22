@@ -4,9 +4,9 @@ import struct
 
 import lz4.frame
 
-from conflict_interface.replayv2.metadata import Metadata
-from conflict_interface.replayv2.patch_graph import PatchGraph
-from conflict_interface.replayv2.path_tree import PathTree
+from conflict_interface.replay.metadata import Metadata
+from conflict_interface.replay.patch_graph import PatchGraph
+from conflict_interface.replay.path_tree import PathTree
 
 
 class ReplayStorage:

@@ -1,3 +1,7 @@
+ADD_OPERATION = 1
+REPLACE_OPERATION = 2
+REMOVE_OPERATION = 3
+
 REPLAY_VERSION = 206
 class CorruptReplay(Exception):
     """Raised when a replay file is corrupted or has an invalid format."""

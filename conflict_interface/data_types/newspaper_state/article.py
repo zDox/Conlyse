@@ -1,13 +1,10 @@
+from dataclasses import dataclass
 from typing import Optional
-from typing import Union
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import SqlDate
 from conflict_interface.data_types.custom_types import Vector
 from conflict_interface.data_types.game_object import GameObject
-from dataclasses import dataclass
-
-from conflict_interface.data_types.newspaper_state.report_article import ReportArticle
 
 
 @dataclass

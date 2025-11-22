@@ -1,8 +1,8 @@
 import inspect
-from datetime import datetime, timedelta, UTC
+from datetime import UTC
+from datetime import datetime
 from typing import Optional
-from typing import get_args
-from typing import get_origin
+
 MS_PER_SECOND = 1000
 
 # Helper functions for parsing a mapped value

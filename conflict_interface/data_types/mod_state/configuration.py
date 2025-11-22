@@ -1,20 +1,21 @@
 from dataclasses import dataclass
-from typing import Any
 from typing import Optional
 from typing import Union
 
+from conflict_interface.data_types.constant_segment_function import ConstantSegmentFunction
 from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import EmptyList
 from conflict_interface.data_types.custom_types import EmptyMap
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.custom_types import HashSet
+from conflict_interface.data_types.custom_types import LinkedHashMap
 from conflict_interface.data_types.custom_types import RegularImmutableMap
-from conflict_interface.data_types.constant_segment_function import ConstantSegmentFunction
 from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
-from conflict_interface.data_types.custom_types import UnmodifiableCollection, HashMap, HashSet, LinkedHashMap
+from conflict_interface.data_types.custom_types import UnmodifiableCollection
 from conflict_interface.data_types.custom_types import UnmodifiableMap
 from conflict_interface.data_types.custom_types import UnmodifiableSet
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.mod_state.boost import Boost
 from conflict_interface.data_types.player_state.faction import Faction
 

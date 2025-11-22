@@ -17,7 +17,6 @@ from conflict_interface.data_types.state import state_update
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
-from conflict_interface.replay.replay_patch import ReplayPatch
 
 logger = get_logger()
 

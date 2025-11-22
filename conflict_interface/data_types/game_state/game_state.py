@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import Optional
-from typing import override
 
 from conflict_interface.data_types.admin_state.admin_state import AdminState
 from conflict_interface.data_types.ai_state.ai_state import AIState
@@ -14,7 +13,6 @@ from conflict_interface.data_types.in_game_alliance_state.in_game_alliance_state
 from conflict_interface.data_types.location_state.location_state import LocationState
 from conflict_interface.data_types.map_info_state.map_info_state import MapInfoState
 from conflict_interface.data_types.mission_state.mission_state import MissionState
-from conflict_interface.data_types.mod_state.mod_state_enums import ModGameFeatures
 from conflict_interface.data_types.player_state.player_state import PlayerState
 from conflict_interface.data_types.newspaper_state.newspaper_state import NewspaperState
 from conflict_interface.data_types.map_state.map_state import MapState
@@ -38,7 +36,6 @@ from conflict_interface.data_types.user_sms_state.user_sms_state import UserSMSS
 from conflict_interface.data_types.wheel_of_fortune_state.wheel_of_fortune_state import WheelOfFortuneState
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
-from conflict_interface.replay.replay_patch import ReplayPatch
 
 """
 The following are all states but not every state

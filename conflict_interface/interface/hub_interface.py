@@ -167,7 +167,7 @@ class HubInterface:
                                          auth_details = deepcopy(self.api.auth),
                                          proxy = self.api.proxy,
                                          guest = guest,
-                                         replay_filename = replay_filename)
+                                         replay_filepath= replay_filename)
         game_interface.load_game()
         return game_interface
 

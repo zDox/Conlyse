@@ -3,8 +3,8 @@ from collections import defaultdict
 from collections import deque
 
 from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.replayv2.apply_replay_helper import get_child_reference
-from conflict_interface.replayv2.path_tree_node import PathNode
+from conflict_interface.replay.apply_replay_helper import get_child_reference
+from conflict_interface.replay.path_tree_node import PathNode
 
 
 class PathTree:

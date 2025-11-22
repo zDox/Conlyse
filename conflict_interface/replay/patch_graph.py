@@ -1,7 +1,7 @@
 import bisect
 from datetime import datetime
 
-from conflict_interface.replayv2.patch_graph_node import PatchGraphNode
+from conflict_interface.replay.patch_graph_node import PatchGraphNode
 
 
 class PatchGraph:

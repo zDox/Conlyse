@@ -12,14 +12,12 @@ from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from conflict_interface.data_types.game_api_types.login_action import LoginAction
 from conflict_interface.data_types.game_object import parse_any
-from conflict_interface.data_types.game_object import parse_game_object
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.game_api import GameApi
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.apply_replay import apply_patch_any
-from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
+from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
@@ -33,7 +31,7 @@ class OnlineInterface(GameInterface):
                  auth_details: AuthDetails,
                  guest: bool = False,
                  proxy: dict = None,
-                 replay_filename: str = None):
+                 replay_filepath: str = None):
         super().__init__()
         self.replay: Replay | None = None
         self.game_id = game_id
@@ -42,11 +40,11 @@ class OnlineInterface(GameInterface):
         self.guest: bool = guest
         self.action_handler = ActionHandler(self)
 
-        self.replay_filename = replay_filename
+        self.replay_filepath = replay_filepath
 
     def _handle_replay_init(self, static_map_data: StaticMapData):
-        if not os.path.exists(self.replay_filename):
-            with Replay(filename=self.replay_filename, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
+        if not os.path.exists(self.replay_filepath):
+            with Replay(file_path=self.replay_filepath, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
                 r.record_initial_game_state(
                                     time_stamp = self.client_time(),
                                     game_id = self.game_id,
@@ -57,17 +55,17 @@ class OnlineInterface(GameInterface):
                                     player_id = self.player_id,
                                     static_map_data = static_map_data)
         else:
-            with Replay(filename=self.replay_filename, mode="a", game_id=self.game_id, player_id=self.player_id) as r:
+            with Replay(file_path=self.replay_filepath, mode="a", game_id=self.game_id, player_id=self.player_id) as r:
                 old_game_state = r.load_initial_game_state()
                 old_game_state.set_game(self)
                 uptodate_patches, last_patch_time = r.find_patch_path(r.start_time, self.client_time())
                 for uptodate_patch in uptodate_patches:
-                    apply_patch_any(uptodate_patch, old_game_state, self)
+                    r.apply_patch(uptodate_patch, old_game_state, self)
 
                 rp = make_bireplay_patch(old_game_state, self.game_state)
                 r.record_bipatch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp)
 
-        self.replay = Replay(self.replay_filename, mode="a")
+        self.replay = Replay(self.replay_filepath, mode="a")
         self.replay.open()
         self.replay.close()
 
@@ -123,7 +121,7 @@ class OnlineInterface(GameInterface):
         json_static_map_data = self.game_api.get_static_map_data()
         static_map_data = parse_any(StaticMapData, json_static_map_data, self)
 
-        if self.replay_filename:
+        if self.replay_filepath:
             self._handle_replay_init(static_map_data)
 
         self.game_state.states.map_state.map.set_static_map_data(static_map_data)
