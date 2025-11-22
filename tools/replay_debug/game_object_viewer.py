@@ -232,6 +232,7 @@ class GameObjectViewer:
                         if hasattr(attr_value, '__dict__'):
                             search_recursive(attr_value, f"{path}/{attr_name}", depth + 1)
                     except Exception:
+                        # Ignore exceptions when accessing attributes; some may not be accessible or may raise errors.
                         pass
         
         search_recursive(self.ritf.game_state, "", 0)
