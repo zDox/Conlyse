@@ -4,25 +4,26 @@ A command-line tool for debugging and inspecting Conflict Interface replay files
 
 ## Overview
 
-The Replay Debug CLI Tool provides two modes of operation:
+The Replay Debug CLI Tool provides the following features:
 
-### Original Mode (Patch Analysis)
-- Listing all patches (forward and backward)
+### Patch Analysis
+- Listing all patches
+- Viewing a specific patch's operations
 - Viewing all operations in a specific patch
 - Viewing all operations that start with a specific path
 - Operations overview showing statistics grouped by state
 - Counting operations across all patches
 - Counting operations by path prefix
 
-### Enhanced Mode (Live State Inspection)
+### Live State Inspection
 - Jump navigation through replay timeline:
   - Jump by relative time (e.g., +60 seconds, -5 minutes)
   - Jump by absolute time (specific timestamp)
   - Jump by number of patches (e.g., +5 patches forward, -3 patches backward)
   - Jump by timestamp index
-- View game state at any point:
+- View any game object at any point:
   - Navigate to specific paths in the game state
-  - Pretty print values using recur_path
+  - Pretty print values
   - Search for attributes
   - List available state categories
 - Direct access to ReplayInterface (ritf) object for advanced usage
@@ -33,27 +34,23 @@ The Replay Debug CLI Tool provides two modes of operation:
 The CLI tool is installed as part of the conflict-interface package. After installation, you can run it using:
 
 ```bash
-replay-debug <replay_file> [--enhanced] [command] [options]
+replay-debug <replay_file> [command] [options]
 ```
 
 Or directly via Python module:
 
 ```bash
-python -m tools.replay_debug <replay_file> [--enhanced] [command] [options]
+python -m tools.replay_debug <replay_file> [command] [options]
 ```
 
 ## Usage
 
-### Interactive Mode (Recommended)
+### Interactive Mode
 
 Start the interactive shell to explore a replay file:
 
 ```bash
-# Original mode (patch analysis)
 replay-debug replay.db
-
-# Enhanced mode (with navigation and state inspection)
-replay-debug replay.db --enhanced
 ```
 
 ### Single Command Mode
@@ -67,7 +64,7 @@ replay-debug replay.db view-operations-by-path "states/map_state"
 
 ## Commands
 
-### Original Mode Commands (Patch Analysis)
+### Patch Analysis Commands
 
 ### 1. list-patches
 
@@ -124,7 +121,7 @@ Operations by type:
 First 20 operations:
 --------------------------------------------------------------------------------
    1. a       states/map_state/province/0              -> province_data_0
-   2. p       states/player_state/gold                 -> 0
+   2. p       states/player_state/players/0/name       -> Guest
 ...
 ```
 
@@ -213,10 +210,7 @@ Matching operations: 18
 Percentage: 37.50%
 ```
 
-### Enhanced Mode Commands (Navigation & State Inspection)
-
-#### Navigation Commands
-
+### Navigation Commands
 ##### info
 Display current replay position and metadata.
 
@@ -336,31 +330,31 @@ Index    Timestamp                      Current
 ...
 ```
 
-#### State Viewing Commands
+### Game Object Inspection Commands
 
-##### view-state (vs)
-View the game state value at a specific path.
+##### view-game-object (vg)
+View the game object value at a specific path.
 
 **Usage:**
 ```bash
-replay-debug> view-state <path> [--depth N]
+replay-debug> view-game-object <path> [--depth N]
 replay-debug> vs <path> [--depth N]
 ```
 
 **Examples:**
 ```bash
-replay-debug> vs states/map_state
-replay-debug> vs states/player_state/gold
-replay-debug> vs states/map_state/provinces/0 --depth 3
+replay-debug> vg states/map_state
+replay-debug> vg states/player_state/players/1
+replay-debug> vg states/map_state/provinces/0 --depth 3
 ```
 
 **Output:**
 ```
-Path: states/player_state/gold
+Path: states/player_state/players/1/team_id
 Type: int
 Value Type Hint: <class 'int'>
 --------------------------------------------------------------------------------
-1500
+3
 ```
 
 ##### list-states (ls)
@@ -398,7 +392,7 @@ replay-debug> sp <term>
 **Examples:**
 ```bash
 replay-debug> sp "player"    # Search for paths with "player"
-replay-debug> sp "gold"      # Search for paths with "gold"
+replay-debug> sp "owner_id"  # Search for paths with "owner_id"
 ```
 
 **Output:**
@@ -406,10 +400,9 @@ replay-debug> sp "gold"      # Search for paths with "gold"
 Found 5 paths containing 'player':
 --------------------------------------------------------------------------------
   states/player_state
-  states/player_state/player_id
-  states/player_state/gold
-  states/player_state/resources
-  states/players/0/player_id
+  states/player_state/players/0/name
+  states/player_state/players/1/name
+  states/player_state/players/1/team_id
 ```
 
 #### Advanced Commands
@@ -451,8 +444,8 @@ replay-debug> python
 >>> ritf.current_time
 datetime.datetime(2023, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
 
->>> ritf.game_state.states.player_state.gold
-1500
+>>> ritf.game_state.states.player_state.players[0].name
+"Guest"
 
 >>> ritf.jump_to_next_patch()
 True
@@ -534,13 +527,13 @@ replay-debug> info
 replay-debug> jr 300           # Jump forward 5 minutes
 
 # View game state
-replay-debug> vs states/player_state/gold
+replay-debug> vg states/player_state/players
 
 # List available states
 replay-debug> ls
 
 # Search for specific paths
-replay-debug> sp "gold"
+replay-debug> sp "owner_id"
 
 # Jump through timestamps
 replay-debug> lt --limit 20    # List timestamps
@@ -556,13 +549,13 @@ replay-debug replay.db --enhanced
 replay-debug> python
 
 # In Python REPL:
->>> # Get all player IDs
->>> players = ritf.game_state.states.player_state
->>> print(f"Gold: {players.gold}")
+>>> # Get all resource production of Berlin
+>>> berlin = ritf.get_province_by_name("Berlin")
+>>> print(f"Berlin Resource Production: {berlin.resource_production}")
 
 >>> # Jump forward and compare
 >>> ritf.jump_to_next_patch()
->>> print(f"Gold after patch: {players.gold}")
+>>> print(f"Berlin Resource Production after jump: {berlin.resource_production}")
 
 >>> # Access the navigator directly
 >>> from tools.replay_debug import ReplayNavigator
@@ -576,12 +569,11 @@ replay-debug> python
 
 The replay debug tool is now organized into multiple modules for better maintainability:
 
-- `cli.py` - Original CLI for patch analysis
-- `enhanced_cli.py` - Enhanced CLI with ReplayInterface integration
+- `cli.py` - Command-line interface
+- `args_parser.py` - Argument parsing
 - `navigation.py` - Navigation utilities for time travel
-- `state_viewer.py` - Game state inspection and pretty printing
-- `shell.py` - Original interactive shell
-- `enhanced_shell.py` - Enhanced interactive shell with both modes
+- `game_object_viewer.py` - Game Object inspection and pretty printing
+- `shell.py` - Interactive shell
 - `formatters.py` - Output formatting utilities
 - `constants.py` - Constants and configuration
 
@@ -610,8 +602,7 @@ Each patch contains three types of operations:
 
 Operations use a path-based system to identify locations in the game state:
 - `states/map_state/map/locations/1` - A province in the map state
-- `states/player_state/gold` - Player's gold amount
-- `states/admin_state/game_id` - Game ID
+- `states/player_state/players/2/name` - Player's name
 
 ## Troubleshooting
 
@@ -629,14 +620,3 @@ The replay file may be corrupted or empty. Try with a different replay file.
 
 ### Database Error
 If you encounter database errors, the replay file may be from a different version or corrupted.
-
-### Enhanced Mode Requirements
-Enhanced mode requires a valid replay file with game state data. If the replay file only contains patches without initial state, enhanced mode may not work properly.
-
-## Performance Notes
-
-- Original mode loads all patches into memory for quick access
-- Enhanced mode uses ReplayInterface for live state inspection
-- For very large replays, listing all timestamps may take a moment
-- Jumping backward requires reloading from initial state and is slower than jumping forward
-- Use `--limit` parameters to control output size for large datasets

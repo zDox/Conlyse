@@ -6,11 +6,14 @@ This module provides functionality to:
 - Pretty print values at those paths
 - Display nested structures in a readable format
 """
-from typing import Any, Optional, get_args
+from typing import Any
+from typing import get_args
+
+from conflict_interface.data_types.game_object import get_inner_type
+from conflict_interface.data_types.game_object import parse_any
+from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.apply_replay import recur_path
-from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.data_types.game_object import parse_any, get_inner_type
 
 
 class GameObjectViewer:

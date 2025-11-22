@@ -7,8 +7,10 @@ This module provides functionality for jumping to different points in the replay
 - Jump by number of patches (e.g., +5 patches forward, -3 patches backward)
 - Jump by timestamp index
 """
-from datetime import datetime, timedelta, UTC
-from typing import Optional, Tuple
+from datetime import datetime
+from datetime import timedelta
+from typing import Tuple
+
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 
@@ -35,18 +37,7 @@ class ReplayNavigator:
         current_time = self.ritf.current_time
         target_time = current_time + timedelta(seconds=seconds)
         
-        # Clamp to valid range
-        if target_time < self.ritf.start_time:
-            target_time = self.ritf.start_time
-        elif target_time > self.ritf.end_time:
-            target_time = self.ritf.end_time
-        
-        try:
-            self.ritf.jump_to(target_time)
-            return True
-        except Exception as e:
-            print(f"Error jumping to time: {e}")
-            return False
+        self.jump_to_absolute_time(target_time)
     
     def jump_to_absolute_time(self, timestamp: datetime) -> bool:
         """Jump to an absolute timestamp.

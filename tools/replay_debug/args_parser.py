@@ -169,8 +169,8 @@ COMMAND_ALIASES = {
     'ji': 'jump-index',
     'lt': 'list-timestamps',
     
-    # State viewing
-    'vs': 'view-state',
+    # Game Object viewing
+    'vg': 'view-game-object',
     'ls': 'list-states',
     'sp': 'search-paths',
     

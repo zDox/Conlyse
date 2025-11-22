@@ -1,21 +1,24 @@
 """
 CLI class for the Replay Debug Tool.
 
-This module provides a unified CLI that combines patch analysis with
+This module provides a CLI that combines patch analysis with
 live game state inspection and navigation via ReplayInterface.
 """
-from typing import Optional, Tuple, List
+from typing import List
+from typing import Optional
+from typing import Tuple
+
 from dateutil import parser as dateparser
+
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.replay_patch import ReplayPatch
-from .navigation import ReplayNavigator
-from .game_object_viewer import GameObjectViewer
-from .formatters import *
-from .constants import DEFAULT_LIMIT, DEFAULT_DIRECTION
+from tools.replay_debug.formatters import *
+from tools.replay_debug.game_object_viewer import GameObjectViewer
+from tools.replay_debug.navigation import ReplayNavigator
 
 
 class ReplayDebugCLI:
-    """Unified CLI for debugging replay files with navigation and patch analysis."""
+    """CLI for debugging replay files with navigation and patch analysis."""
     
     def __init__(self, filename: str):
         """Initialize the CLI with a replay file.
@@ -28,7 +31,6 @@ class ReplayDebugCLI:
         self.navigator: Optional[ReplayNavigator] = None
         self.game_object_viewer: Optional[GameObjectViewer] = None
         self.all_patches: List[Tuple[int, int, ReplayPatch]] = []
-        # For backward compatibility with methods that use self.replay
         self.replay = None
     
     def open_replay(self) -> bool:
@@ -559,7 +561,7 @@ class ReplayDebugCLI:
                 return False
         return True
     
-    # ===== NAVIGATION AND STATE VIEWING METHODS =====
+    # ===== NAVIGATION AND GAME OBJECT VIEWING METHODS =====
     def display_info(self):
         """Display current replay position and metadata."""
         if not self.ritf:
@@ -651,8 +653,8 @@ class ReplayDebugCLI:
         
         self.navigator.list_timestamps(limit, relative)
     
-    # State viewing methods
-    def view_state_path(self, path: str, max_depth: int = 5):
+    # Game Object viewing methods
+    def view_game_object_path(self, path: str, max_depth: int = 5):
         """View value at a path in the game state."""
         if not self.game_object_viewer:
             print("Error: Replay not opened.")

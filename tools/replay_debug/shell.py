@@ -176,7 +176,7 @@ def run_interactive_shell(cli: ReplayDebugCLI):
                         continue
                     path = positional[0]
                     max_depth = parser.get_int_option(options, 'depth', 5)
-                    cli.view_state_path(path, max_depth)
+                    cli.view_game_object_path(path, max_depth)
                 
                 elif command == "list-states":
                     cli.list_states()
