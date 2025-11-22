@@ -17,14 +17,18 @@ class FromRecordingToJson:
         self.json_requests_dir = None
         self.json_responses_dir = None
 
-    def setup_output_dir(self, output_dir):
+    def setup_output_dir(self, output_dir, overwrite: bool):
         # Set up output directory
         if output_dir is None:
             output_dir = self.reader.recording_dir / "json_dumps"
         else:
             output_dir = Path(output_dir)
+        if output_dir.exists() and overwrite:
+            output_dir.rmdir()
+        elif output_dir.exists() and not overwrite:
+            raise FileExistsError(f"Output directory already exists: {output_dir}")
 
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True)
 
         # Create subdirectories
         self.game_states_dir = output_dir / "game_states"
@@ -110,18 +114,19 @@ class FromRecordingToJson:
 
         logger.info(f"Successfully dumped {len(json_responses)} JSON responses to {self.json_responses_dir}")
 
-    def convert(self, output_dir: str = None) -> bool:
+    def convert(self, output_dir: str = None, overwrite: bool = False) -> bool:
         """
         Dump game states, JSON requests, and JSON responses to separate JSON files.
 
         Args:
             output_dir: Directory to save JSON files (defaults to recording_dir/json_dumps)
+            overwrite: Whether to overwrite existing files
 
         Returns:
             bool: True if successful, False otherwise
         """
         try:
-            self.setup_output_dir(output_dir)
+            self.setup_output_dir(output_dir, overwrite)
 
             # Dump game states
             len_game_states = self.reader.len_game_states()
