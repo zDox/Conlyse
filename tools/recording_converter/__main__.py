@@ -68,6 +68,13 @@ Patch creation modes:
         default='gmr',
         help='Operation Mode: gmr (from_game_state_using_make_bipatch_to_replay), rur (from_json_responses_using_update_to_replay), rtj (from_recording_to_json)'
     )
+
+    # If overwrite is not specified, default to False, otherwise true
+    parser.add_argument(
+        '--overwrite',
+        action='store_true',
+        help='Overwrite existing output files'
+    )
     
     parser.add_argument(
         '--game-id',
@@ -105,7 +112,7 @@ Patch creation modes:
         log_level = logging.INFO
     
     setup_converter_logger(log_level)
-    
+
     # Create converter
     try:
         op_mode = OperatingMode.gmr
@@ -131,7 +138,8 @@ Patch creation modes:
                     print("Error: Output directory is required in rtj mode")
                     sys.exit(1)
                 success = converter.convert(
-                    output=args.output_dir
+                    output=args.output_dir,
+                    overwrite=args.overwrite
                 )
 
                 if success:
@@ -143,6 +151,7 @@ Patch creation modes:
             case OperatingMode.gmr | OperatingMode.rur:
                 success = converter.convert(
                     output=args.output_replay,
+                    overwrite=args.overwrite,
                     game_id=args.game_id,
                     player_id=args.player_id
                 )

@@ -61,12 +61,13 @@ class RecordingConverter:
                 raise FileNotFoundError(f"Requests file not found: {self.reader.requests_file}, necessary in op mode rur")
         # Op Mode rtj has no requirements as it simply tries to convert as much as it can
 
-    def convert(self, output: str, game_id: int = None, player_id: int = None) -> bool:
+    def convert(self, output: str, overwrite: False, game_id: int = None, player_id: int = None) -> bool:
         """
         Convert the recording to a replay file.
         
         Args:
             output: Path to the output replay database file or folder to dump the json to
+            overwrite: Whether to overwrite existing output files
             game_id: Game ID
             player_id: Player ID
             
@@ -74,18 +75,18 @@ class RecordingConverter:
             bool: True if successful, False otherwise
         """
         try:
-            if self.op_mode in (OperatingMode.gmr, OperatingMode.rur) and Path(output).exists():
+            if self.op_mode in (OperatingMode.gmr, OperatingMode.rur) and Path(output).exists() and not overwrite:
                 logger.error(f"Output file already exists: {output}")
                 return False
             if self.op_mode == OperatingMode.gmr:
                 gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader)
-                return gmr.convert(output, game_id, player_id)
+                return gmr.convert(output, overwrite, game_id, player_id)
             elif self.op_mode == OperatingMode.rur:
                 rur = FromJsonResponsesUsingUpdateToReplay(self.reader)
-                return rur.convert(output, game_id, player_id)
+                return rur.convert(output, overwrite, game_id, player_id)
             elif self.op_mode == OperatingMode.rtj:
                 rtj = FromRecordingToJson(self.reader)
-                return rtj.convert(output)
+                return rtj.convert(output, overwrite)
             else:
                 logger.error(f"Invalid patch mode: {self.op_mode}")
                 return False

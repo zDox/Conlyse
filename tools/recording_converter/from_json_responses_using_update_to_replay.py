@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
@@ -14,7 +16,7 @@ class FromJsonResponsesUsingUpdateToReplay:
     def __init__(self, recoding_reader: RecordingReader):
         self.reader = recoding_reader
 
-    def convert(self, output_file: str, game_id: int = None, player_id: int = None) -> bool:
+    def convert(self, output_file: str, overwrite: bool = False, game_id: int = None, player_id: int = None) -> bool:
         """
         Convert using JSON-based approach (parse JSON responses and apply updates).
 
@@ -23,6 +25,7 @@ class FromJsonResponsesUsingUpdateToReplay:
 
         Args:
             output_file: Path to the output replay database file
+            overwrite: Whether to overwrite existing output file
             game_id: Game ID (extracted from first state if not provided)
             player_id: Player ID (extracted from first state if not provided)
 
@@ -50,6 +53,15 @@ class FromJsonResponsesUsingUpdateToReplay:
         # Create a mock game interface for parsing context
         mock_game = GameInterface()
         initial_game_state_written = False
+
+        output_path = Path(output_file)
+        if output_path.exists() and overwrite:
+            # delete existing file
+            logger.info(f"Overwriting existing output file: {output_file}")
+            output_path.unlink()
+        elif output_path.exists() and not overwrite:
+            logger.error(f"Output file already exists: {output_file}")
+            return False
 
         # Create replay in write mode
         with Replay(filename=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
