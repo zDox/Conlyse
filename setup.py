@@ -11,6 +11,38 @@ HERE = path.abspath(path.dirname(__file__))
 with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+# Define base extras first
+extras_require = {
+    "docs": [
+        "sphinx",
+        "setuptools",
+        "recommonmark",
+        "sphinx_rtd_theme",
+    ],
+    "dev": [
+        "setuptools",
+    ],
+    "tools-replay-debug": [
+        "python-dateutil",
+    ],
+    "tools-recording-converter": [
+        # Add dependencies for recording-converter tool here
+    ],
+    "tools-recorder": [
+        # Add dependencies for recorder tool here
+    ],
+}
+
+# Create a meta-extra that installs all tools dynamically
+tools_extras = [
+    dep
+    for key, deps in extras_require.items()
+    if key.startswith("tools-")
+    for dep in deps
+]
+
+extras_require["test"] = tools_extras
+
 # This call to setup() does all the work
 # noinspection PyPackageRequirements
 setup(
@@ -43,21 +75,7 @@ setup(
         "msgpack",
         "zstandard"
     ],
-    extras_require =
-    {
-        "docs": [
-            "sphinx",
-            "setuptools",
-            "recommonmark",
-            "sphinx_rtd_theme",
-        ],
-        "dev": [
-            "setuptools",
-        ],
-        "tools-replay-debug": [
-            "python-dateutil",
-        ]
-    },
+    extras_require=extras_require,
     entry_points={
         "console_scripts": [
             "recorder=tools.recorder.__main__:main",
