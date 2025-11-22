@@ -29,11 +29,6 @@ class FromJsonResponsesUsingUpdateToReplay:
         Returns:
             bool: True if successful, False otherwise
         """
-        len_game_states = self.reader.len_game_states()
-        if len_game_states == 0:
-            logger.error("No game states found in recording")
-            return False
-
         # Read JSON responses
         json_responses = self.reader.read_json_responses()
         if not json_responses:
@@ -78,11 +73,14 @@ class FromJsonResponsesUsingUpdateToReplay:
                 current_datetime = unix_ms_to_datetime(timestamp_ms)
 
                 logger.info(
-                    f"Creating patch from JSON {i - response_idx + 1}/{len(json_responses) - response_idx} at {current_datetime}")
+                    f"Converting json response {i - response_idx + 1}/{len(json_responses) - response_idx} at {current_datetime}")
 
                 try:
-                    # Parse JSON response into new state
+                    if json_response.get("action") == "UltActivateGameAction":
+                        logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
+                        continue
                     new_state = parse_any(GameState, json_response["result"], mock_game)
+                    # Parse JSON response into new state
                     if json_response["result"]["@c"] == "ultshared.UltGameState" and not initial_game_state_written:
                         # Record initial game state
                         logger.info(f"Recording initial state at {current_datetime}")
@@ -97,6 +95,7 @@ class FromJsonResponsesUsingUpdateToReplay:
                         continue
                     elif json_response["result"]["@c"] == "ultshared.UltGameState" and initial_game_state_written:
                         # Entire new game state -> replace current state -> make_bireplay_patch
+                        logger.info(f"Creating bireplay patch using make_bireplay_patch for response {i} at {current_datetime}")
                         bipatch = make_bireplay_patch(current_state, new_state)
                         current_state = new_state
                     elif initial_game_state_written:

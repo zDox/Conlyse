@@ -50,6 +50,8 @@ class RecordingReader:
 
     def len_game_states(self) -> int:
         counter = 0
+        if not self.game_states_file.exists():
+            return 0
         with open(self.game_states_file, 'rb') as f:
             while True:
                 # Read timestamp (8 bytes)
