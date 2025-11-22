@@ -19,6 +19,7 @@ class PathTree:
         self.depth = None
         self.st = None # Sparse Table for RMQ
         self.log = None
+        self.parent = None
 
     def add_node(self, parent: PathNode, path_element: str | int ) -> PathNode:
         new_node = PathNode(path_element=path_element, index=self.idx_counter)
@@ -41,30 +42,32 @@ class PathTree:
         self.precompute_rmq()
 
     def precompute_euler_tour(self):
-        N = self.idx_counter  # Total number of nodes
-        # Preallocate arrays
-        self.euler = array('I')  # Euler tour
-        self.tin = array('I', [0] * N)  # entry times
-        self.tout = array('I', [0] * N)  # exit times
-        self.depth = array('I', [0] * N)  # depth of each node
+        N = self.idx_counter  # total number of nodes (indices 0..N-1)
+        self.euler = array('I')
+        self.tin = array('I', [0] * N)
+        self.tout = array('I', [0] * N)
+        self.depth = array('I', [0] * N)
+        self.parent = array('i', [-1] * N)  # parent[i] = parent index, -1 for root
 
         time = 0
-        stack = [(self.root, 0,0)]
+        stack = [(self.root, 0, 0)]  # node_obj, depth, state
         while stack:
-            node,d,state = stack.pop()
+            node, d, state = stack.pop()
+            idx = node.index
             if state == 0:
-                # Enter Node
-                self.tin[node.index] = time
-                self.depth[node.index] = d
-                self.euler.append(node.index)
+                self.tin[idx] = time
+                self.depth[idx] = d
+                self.euler.append(idx)
                 time += 1
-                stack.append((node,d,1))  # Add exit state
+                stack.append((node, d, 1))
+                # push children; set parent for each child
+                # reversed to preserve original order
                 for child in reversed(node.children.values()):
-                    stack.append((child,d+1,0))  # Add enter state
+                    self.parent[child.index] = idx
+                    stack.append((child, d + 1, 0))
             else:
-                # Exit Node
-                self.tout[node.index] = time
-                self.euler.append(node.index)
+                self.tout[idx] = time
+                self.euler.append(idx)
                 time += 1
 
     def precompute_rmq(self):
@@ -98,44 +101,72 @@ class PathTree:
         b = self.st[k][right - (1 << k) + 1]
         return self.euler[a] if self.depth[self.euler[a]] < self.depth[self.euler[b]] else self.euler[b]
 
-    def build_steiner_tree(self, unknown_paths: list[int]) -> dict[int, list[int]]:
-        node_indices = unknown_paths
-        node_indices.append(self.root.index)  # Ensure root is included for BFS order
+    def build_steiner_tree(self, nodes: list[int]) -> dict[int, list[int]]:
+        """
+        Build a virtual/Steiner tree *expanded* so every edge is an actual original tree edge.
+        Returns adjacency list mapping node_idx -> list[node_idx] (real edges only).
+        """
+        # ensure root included
+        if self.root.index not in nodes:
+            nodes = nodes + [self.root.index]
 
-        # IMPORTANT TIME WISE K LOG K
-        node_indices_sorted = sorted(node_indices, key=lambda x: self.tin[x])
-        # ----------------------------
+        # sort input nodes by tin
+        nodes_sorted = sorted(set(nodes), key=lambda x: self.tin[x])
 
-        stack = []
-        vt_edges = defaultdict(list)
-        all_nodes = set(node_indices)
-        for u in node_indices_sorted:
-            if not stack:
-                stack.append(u)
+        # insert LCAs between consecutive nodes
+        full = nodes_sorted[:]
+        for i in range(len(nodes_sorted) - 1):
+            full.append(self.lca(nodes_sorted[i], nodes_sorted[i + 1]))
+
+        # deduplicate and sort by tin again
+        full = sorted(set(full), key=lambda x: self.tin[x])
+
+        # Build compressed virtual tree using stack (parent-child in 'full')
+        st = []
+        compressed_parent = {}  # child -> parent (in 'full' set)
+        for v in full:
+            if not st:
+                st.append(v)
                 continue
+            # pop until stack top is ancestor of v
+            while not (self.tin[st[-1]] <= self.tin[v] <= self.tout[st[-1]]):
+                st.pop()
+            parent = st[-1]
+            compressed_parent[v] = parent
+            st.append(v)
 
-            lca = self.lca(u, stack[-1])
-            all_nodes.add(lca)
+        # Now expand each compressed edge parent <- child into real edges along child -> ... -> parent
+        adj = defaultdict(list)
+        added = set()  # set[(min,max)] to avoid duplicate inserts
 
-            while len(stack) >= 2 and self.tin[stack[-2]] <= self.tin[lca] <= self.tout[stack[-2]]:
-                top = stack.pop()
-                vt_edges[top].append(stack[-1])
-                vt_edges[stack[-1]].append(top)
+        def add_edge(u, v):
+            a, b = (u, v) if u <= v else (v, u)
+            if (a, b) in added:
+                return
+            added.add((a, b))
+            adj[u].append(v)
+            adj[v].append(u)
 
-            if stack[-1] != lca:
-                top = stack.pop()
-                vt_edges[top].append(lca)
-                vt_edges[lca].append(top)
-                stack.append(lca)
+        for child, parent in compressed_parent.items():
+            # walk from child up to parent using self.parent[] and add real edges
+            cur = child
+            while cur != parent:
+                p = self.parent[cur]
+                if p == -1:
+                    # should not happen if parent is ancestor
+                    raise RuntimeError(f"Parent pointer missing when expanding {child} -> {parent}")
+                add_edge(cur, p)
+                cur = p
 
-            stack.append(u)
+        # Optionally ensure all nodes from the original 'nodes' set are keys in adj (even if isolated)
+        for v in full:
+            adj.setdefault(v, [])
 
-        while len(stack) >= 2:
-            top = stack.pop()
-            vt_edges[top].append(stack[-1])
-            vt_edges[stack[-1]].append(top)
+        # Convert to lists (already lists) and optionally sort neighbors by tin for deterministic/DFS-like order
+        for v in adj:
+            adj[v].sort(key=lambda x: self.tin[x])
 
-        return vt_edges
+        return dict(adj)
 
     def bfs_set_references(self, sub_tree: dict[int, list[int]], game_state: GameState):
         start = self.root.index
@@ -156,7 +187,6 @@ class PathTree:
                     node.set_reference(ref)
                     child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
                     add((v, child_ref))
-
 
     def validate_idx_to_node_mapping(self):
         for idx, node in self.idx_to_node.items():
