@@ -41,7 +41,7 @@ tools_extras = [
     for dep in deps
 ]
 
-extras_require["test"] = tools_extras
+extras_require["tests"] = tools_extras
 
 # This call to setup() does all the work
 # noinspection PyPackageRequirements
