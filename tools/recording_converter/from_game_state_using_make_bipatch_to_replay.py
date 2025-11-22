@@ -46,7 +46,7 @@ class FromGameStateUsingMakeBiPatchToReplay:
         logger.info(f"Total game states: {len_game_states}")
 
         # Create replay in write mode
-        with Replay(filename=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
+        with Replay(file_path=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
             # Record initial game state
             first_datetime = unix_ms_to_datetime(first_timestamp_ms)
             logger.info(f"Recording initial state at {first_datetime}")

@@ -52,7 +52,7 @@ class FromJsonResponsesUsingUpdateToReplay:
         initial_game_state_written = False
 
         # Create replay in write mode
-        with Replay(filename=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
+        with Replay(file_path=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
             # Record static map data if available
             static_map_data = self.reader.read_static_map_data()
             if not static_map_data:
