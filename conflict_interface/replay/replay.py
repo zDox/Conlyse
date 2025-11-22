@@ -92,22 +92,22 @@ class Replay:
         self.storage.metadata.info['last_time'] = int(time_stamp.timestamp())
 
         # copy the game state to avoid mutations
-        self.storage.initial_game_state = pickle.dumps(game_state)
+        self.storage.initial_game_state_b = pickle.dumps(game_state)
 
     def record_static_map_data(self, static_map_data: StaticMapData,game_id: int, player_id: int):
         self.validate_game(game_id, player_id)
 
-        self.storage.static_map_data = pickle.dumps(static_map_data)
+        self.storage.static_map_data_b = pickle.dumps(static_map_data)
 
     def load_initial_game_state(self) -> GameState:
-        if self.storage.initial_game_state is None:
+        if self.storage.initial_game_state_b is None:
             raise ValueError("Initial game state is not recorded in the replay.")
-        return pickle.loads(self.storage.initial_game_state)
+        return pickle.loads(self.storage.initial_game_state_b)
 
     def load_static_map_data(self) -> StaticMapData:
-        if self.storage.static_map_data is None:
+        if self.storage.static_map_data_b is None:
             raise ValueError("Static map data is not recorded in the replay.")
-        return pickle.loads(self.storage.static_map_data)
+        return pickle.loads(self.storage.static_map_data_b)
 
     def record_bipatch(
             self,
@@ -154,7 +154,7 @@ class Replay:
             if _node and _op_type == REMOVE_OPERATION:
                 _node.reference = None
 
-        # Separate known and unknown reference operations
+        # Separate operations that have known and unknown reference for the path
         known_ops, unknown_ops, unknown_paths = [], [], []
         for op_type, path_idx, value in zip(patch.op_types, patch.paths, patch.values):
             node = idx_to_node[path_idx]

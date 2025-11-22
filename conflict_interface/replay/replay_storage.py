@@ -12,8 +12,8 @@ from conflict_interface.replay.path_tree import PathTree
 class ReplayStorage:
     def __init__(self):
         self.metadata: Metadata | None = None
-        self.initial_game_state: bytes | None = None
-        self.static_map_data: bytes | None = None
+        self.initial_game_state_b: bytes | None = None
+        self.static_map_data_b: bytes | None = None
         self.path_tree: PathTree | None = None
         self.patch_graph: PatchGraph | None = None
 
@@ -21,15 +21,15 @@ class ReplayStorage:
         self.decompressor = lz4.frame.decompress
 
     def initialize_empty(self):
-        self.initial_game_state = None
-        self.static_map_data = None
+        self.initial_game_state_b = None
+        self.static_map_data_b = None
         self.path_tree = PathTree()
         self.patch_graph = PatchGraph()
 
     def parse_data(self, data):
         self.metadata = pickle.loads(data[0])
-        self.initial_game_state = data[1]
-        self.static_map_data = data[2]
+        self.initial_game_state_b = data[1]
+        self.static_map_data_b = data[2]
         self.path_tree = pickle.loads(data[3])
         self.patch_graph = pickle.loads(data[4])
 
@@ -52,8 +52,8 @@ class ReplayStorage:
         data_chunks = \
             [
                 pickle.dumps(self.metadata),
-                pickle.dumps(self.initial_game_state),
-                pickle.dumps(self.static_map_data),
+                self.initial_game_state_b,
+                self.static_map_data_b,
                 pickle.dumps(self.path_tree),
                 pickle.dumps(self.patch_graph)
             ]

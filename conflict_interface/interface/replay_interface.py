@@ -21,8 +21,7 @@ class ReplayInterface(GameInterface):
         self.current_time: datetime | None = None
         self.game_id: int | None = None
         self.last_patch_time = None
-        self._time_stamps_cache = None  # Cache for converted datetime timestamps
-        self._raw_timestamps_ref = None  # Reference to replay's timestamp list
+        self._time_stamps_cache = None
         self.current_timestamp_index: int = 0
 
     def open(self):
@@ -32,6 +31,8 @@ class ReplayInterface(GameInterface):
         t2 = time()
         self.game_state = self.replay.load_initial_game_state()
         self.game_state.set_game(self)
+        _time_stamps_cache_raw = self.replay.storage.patch_graph.time_stamps_cache
+        self._time_stamps_cache = [datetime.fromtimestamp(ts) for ts in _time_stamps_cache_raw]
         logger.debug(f"GameState parse took {time() - t2} seconds")
         t3 = time()
         self.static_map_data = self.replay.load_static_map_data()

@@ -12,17 +12,16 @@ if __name__ == "__main__":
 
     gitf = GameInterface()
     t1 = time()
-    ritf = ReplayInterface("benchmark_replay_206.db")
+    ritf = ReplayInterface("../tools/recording_converter/rp01.db")
 
     ritf.open()
     t2 = time()
     time_stamps = len(ritf.get_timestamps())
     amount_patches = len(ritf.get_timestamps())
     for timestamp in ritf.get_timestamps():
-        try:
-            ritf.jump_to(timestamp)
-        except Exception:
-            print(f"Failed to jump to {timestamp}/{datetime_to_unix_ms(ritf.current_time)}")
+
+        ritf.jump_to(timestamp)
+
     t3 = time()
     print(f"Setting time took {t3 - t2} seconds for {amount_patches} patches. {(t3 - t2) / amount_patches} seconds per patch.")
     print(f"Loading took {t2 - t1} seconds.")

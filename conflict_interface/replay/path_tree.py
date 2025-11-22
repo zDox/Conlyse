@@ -154,7 +154,7 @@ class PathTree:
 
                     node = self.idx_to_node[v]
                     node.set_reference(ref)
-                    child_ref = get_child_reference(ref, node.path_element)
+                    child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
                     add((v, child_ref))
 
 

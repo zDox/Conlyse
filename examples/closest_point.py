@@ -19,4 +19,4 @@ if __name__ == "__main__":
     game = interface.join_game(game_id)
 
 
-    print(game.game_state.states.map_state.map.get_closest_point_on_nearest_connection(game.game_state.states.map_state.map.static_map_data.get_points(1228)[0]))
+    print(game.game_state.states.map_state.map.get_closest_point_on_nearest_connection(game.game_state.states.map_state.map.static_map_data_b.get_points(1228)[0]))
