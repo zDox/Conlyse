@@ -82,11 +82,12 @@ def get_child_reference(parent: GameObject | list | dict, path_element: str | in
             raise IndexError(f"List index out of range: {path_element} for list of length {len(parent)}, parent is {parent}")
         return parent[path_element]
     elif isinstance(parent, dict):
-        if not isinstance(path_element, str):
-            raise KeyError(f"Dict key must be a string but got {type(path_element)}")
+        if not isinstance(path_element, (str, int)):
+            raise KeyError(f"Dict key must be a string or int but got {type(path_element)}")
         if path_element not in parent:
             raise KeyError(f"Dict has no key '{path_element}' Parent is {parent}")
 
         return parent[path_element]
     else:
         return None
+

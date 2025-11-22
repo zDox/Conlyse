@@ -23,6 +23,8 @@ class PathTree:
 
     def add_node(self, parent: PathNode, path_element: str | int ) -> PathNode:
         new_node = PathNode(path_element=path_element, index=self.idx_counter)
+        if path_element == 'action_results':
+            pass
         parent.add_child(new_node)
         self.idx_to_node[self.idx_counter] = new_node
         self.idx_counter += 1
@@ -104,7 +106,7 @@ class PathTree:
     def build_steiner_tree(self, nodes: list[int]) -> dict[int, list[int]]:
         """
         Build a virtual/Steiner tree *expanded* so every edge is an actual original tree edge.
-        Returns adjacency list mapping node_idx -> list[node_idx] (real edges only).
+        Returns adjacency list mapping node_idx -> list[node_idx] (directed edges, parent -> child).
         """
         # ensure root included
         if self.root.index not in nodes:
@@ -137,32 +139,29 @@ class PathTree:
 
         # Now expand each compressed edge parent <- child into real edges along child -> ... -> parent
         adj = defaultdict(list)
-        added = set()  # set[(min,max)] to avoid duplicate inserts
+        added = set()  # set[(parent, child)] to avoid duplicate directed edges
 
-        def add_edge(u, v):
-            a, b = (u, v) if u <= v else (v, u)
-            if (a, b) in added:
+        def add_directed_edge(parent, child):
+            if (parent, child) in added:
                 return
-            added.add((a, b))
-            adj[u].append(v)
-            adj[v].append(u)
+            added.add((parent, child))
+            adj[parent].append(child)
 
         for child, parent in compressed_parent.items():
-            # walk from child up to parent using self.parent[] and add real edges
+            # walk from child up to parent using self.parent[] and add directed edges (parent -> child direction)
             cur = child
             while cur != parent:
                 p = self.parent[cur]
                 if p == -1:
-                    # should not happen if parent is ancestor
                     raise RuntimeError(f"Parent pointer missing when expanding {child} -> {parent}")
-                add_edge(cur, p)
+                add_directed_edge(p, cur)  # parent -> child direction
                 cur = p
 
-        # Optionally ensure all nodes from the original 'nodes' set are keys in adj (even if isolated)
+        # Ensure all nodes from the full set are keys in adj (even if they have no children)
         for v in full:
             adj.setdefault(v, [])
 
-        # Convert to lists (already lists) and optionally sort neighbors by tin for deterministic/DFS-like order
+        # Sort children by tin for deterministic order
         for v in adj:
             adj[v].sort(key=lambda x: self.tin[x])
 
@@ -185,8 +184,9 @@ class PathTree:
 
                     node = self.idx_to_node[v]
                     node.set_reference(ref)
-                    child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
-                    add((v, child_ref))
+                    if len(sub_tree.get(v, [])) > 0:
+                        child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
+                        add((v, child_ref))
 
     def validate_idx_to_node_mapping(self):
         for idx, node in self.idx_to_node.items():
