@@ -12,6 +12,9 @@ from dateutil import parser as dateparser
 
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.replay_patch import ReplayPatch
+from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import ReplaceOperation
+from conflict_interface.replay.replay_patch import RemoveOperation
 from tools.replay_debug.constants import COLUMN_WIDTH_PATCH
 from tools.replay_debug.constants import COLUMN_WIDTH_PATCH_FULL
 from tools.replay_debug.constants import COLUMN_WIDTH_PATH_COMPACT
@@ -75,13 +78,75 @@ class ReplayDebugCLI:
             return False
     
     def _load_all_patches(self):
-        """Load all patches from the database into memory."""
-        # Read all patches directly from database
-        patches_dict = self.replay.db.read_patches()
-        for (from_ts, to_ts), patch in patches_dict.items():
-            self.all_patches.append((from_ts, to_ts, patch))
+        """Load all patches from the storage into memory."""
+        # Read all patches from the patch graph storage
+        patches_dict = self.replay.storage.patch_graph.patches
+        path_tree = self.replay.storage.path_tree
+        
+        for (from_ts, to_ts), patch_node in patches_dict.items():
+            # Convert PatchGraphNode to ReplayPatch
+            replay_patch = self._convert_patch_node_to_replay_patch(patch_node, path_tree)
+            self.all_patches.append((from_ts, to_ts, replay_patch))
+        
         # Sort by from_timestamp, then to_timestamp
         self.all_patches.sort(key=lambda x: (x[0], x[1]))
+    
+    def _convert_patch_node_to_replay_patch(self, patch_node, path_tree):
+        """Convert a PatchGraphNode to a ReplayPatch object.
+        
+        Args:
+            patch_node: PatchGraphNode containing compressed patch data
+            path_tree: PathTree for resolving path indices to actual paths
+            
+        Returns:
+            ReplayPatch object with operations
+        """
+        from conflict_interface.replay.constants import ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION
+        
+        replay_patch = ReplayPatch()
+        idx_to_node = path_tree.idx_to_node
+        
+        for op_type, path_idx, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
+            # Reconstruct the path from the path tree
+            path = self._get_path_from_index(path_idx, idx_to_node)
+            
+            # Create the appropriate operation
+            if op_type == ADD_OPERATION:
+                op = AddOperation(path=path, new_value=value)
+            elif op_type == REPLACE_OPERATION:
+                op = ReplaceOperation(path=path, new_value=value)
+            elif op_type == REMOVE_OPERATION:
+                op = RemoveOperation(path=path)
+            else:
+                raise ValueError(f"Unknown operation type: {op_type}")
+            
+            replay_patch.operations.append(op)
+        
+        return replay_patch
+    
+    def _get_path_from_index(self, path_idx, idx_to_node):
+        """Reconstruct the full path from a path index.
+        
+        Args:
+            path_idx: Index of the path node in the path tree
+            idx_to_node: Dictionary mapping indices to PathNode objects
+            
+        Returns:
+            List representing the path
+        """
+        path = []
+        node = idx_to_node[path_idx]
+        
+        # Walk up the tree to the root, collecting path elements
+        while node.index != 0:  # 0 is the root
+            path.append(node.path_element)
+            # Get parent node
+            parent_idx = self.replay.storage.path_tree.parent[node.index]
+            node = idx_to_node[parent_idx]
+        
+        # Reverse to get the path from root to target
+        path.reverse()
+        return path
     
     def close_replay(self):
         """Close the replay file."""
@@ -100,8 +165,8 @@ class ReplayDebugCLI:
         
         print(f"\nReplay file: {self.filename}")
         print(f"Total patches: {len(self.all_patches)}")
-        print(f"Start time: {self.replay.start_time}")
-        print(f"End time: {self.replay.last_time}")
+        print(f"Start time: {self.replay.get_start_time()}")
+        print(f"End time: {self.replay.get_last_time()}")
         print("\nAll patches (including forward and backward):")
         print("Note: Use 'vp <index>' to view a patch by its index number")
         print_separator(SEPARATOR_WIDTH_COMPACT)
