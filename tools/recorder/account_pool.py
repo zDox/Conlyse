@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import reduce
 from collections import defaultdict
+from pathlib import Path
 
 from tools.recorder.account import Account
 from tools.recorder.proxy import Proxy
@@ -20,41 +21,34 @@ class AccountPoolStatus:
     open_game_slots: int
 
 class AccountPool:
-    def __init__(self):
+    def __init__(self, path: str):
         self.accounts: list[Account] = []
         self.proxies: dict[str, Proxy] = {}
         self.web_share_token = None
-        self.json_pool_path = None
+        self.pool_path: Path = Path(path)
         self.free_account_pointer = 0
 
-    @classmethod
-    def from_json(cls, path = None):
-        if path is None:
-            current_script_path = os.path.abspath(__file__)
-            path = os.path.join(os.path.dirname(current_script_path), "accounts.json")
-        current_script_path = os.path.abspath(__file__)
-        credentials_path = os.path.join(os.path.dirname(current_script_path), "credentials.json")
-        instance = cls()
-        instance.json_pool_path = path
-        instance.load_token(credentials_path)
-        instance.load_proxies()
-        instance.load_accounts()
-        return instance
+        self.load_token()
+        self.load_proxies()
+        self.load_accounts()
 
     def save_to_json(self, path: str = None) -> None:
         if path is None:
-            path = self.json_pool_path
+            path = self.pool_path
         try:
             with open(path, 'w') as f:
-                json.dump({"accounts": [account.to_dict() for account in self.accounts]}, f, indent=4)
+                json.dump({
+                    "WEBSHARE_API_TOKEN": self.web_share_token,
+                    "accounts": [account.to_dict() for account in self.accounts]
+                }, f, indent=4)
         except IOError as e:
-            logger.error(f"Error writing to accounts.json: {e}")
+            logger.error(f"Error writing to account_pool.json: {e}")
 
-    def load_token(self, file: str) -> None:
-        if not os.path.exists(file):
-            raise Exception(f"File {file} does not exist")
+    def load_token(self) -> None:
+        if not self.pool_path.exists():
+            raise Exception(f"File {self.pool_path} does not exist")
 
-        with open(file, 'r') as f:
+        with open(self.pool_path, 'r') as f:
             credentials = json.load(f)
         self.web_share_token = credentials['WEBSHARE_API_TOKEN']
 
@@ -67,7 +61,7 @@ class AccountPool:
 
     def load_accounts(self, path = None) -> None:
         if path is None:
-            path = self.json_pool_path
+            path = self.pool_path
         if os.path.exists(path):
             try:
                 with open(path, 'r') as f:
@@ -76,7 +70,7 @@ class AccountPool:
                     for json_account in json_accounts:
                         self.accounts.append(Account.from_dict(json_account))
             except (json.JSONDecodeError, IOError) as e:
-                logger.error(f"Warning: Error reading accounts.json: {e}. Starting fresh.")
+                logger.error(f"Warning: Error reading account_pool.json: {e}. Starting fresh.")
 
         """
         After loading the accounts from file we need to check if all proxies are still valid.
