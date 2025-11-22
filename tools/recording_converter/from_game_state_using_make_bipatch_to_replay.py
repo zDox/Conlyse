@@ -1,4 +1,4 @@
-from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
+from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from tools.recording_converter.recorder_logger import get_logger
