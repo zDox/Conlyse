@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.utils.helper import unix_ms_to_datetime
@@ -12,6 +14,7 @@ class FromGameStateUsingMakeBiPatchToReplay:
 
     def convert(self,
                 output_file: str,
+                overwrite: bool = False,
                 game_id: int = None,
                 player_id: int = None) -> bool:
         """
@@ -19,6 +22,7 @@ class FromGameStateUsingMakeBiPatchToReplay:
 
         Args:
             output_file: Path to the output replay database file
+            overwrite: Whether to overwrite existing output file
             game_id: Game ID (extracted from first state if not provided)
             player_id: Player ID (extracted from first state if not provided)
 
@@ -44,6 +48,11 @@ class FromGameStateUsingMakeBiPatchToReplay:
 
         logger.info(f"Converting recording to replay using state-based mode: game_id={game_id}, player_id={player_id}")
         logger.info(f"Total game states: {len_game_states}")
+        output_path = Path(output_file)
+        if output_path.exists() and overwrite:
+            # delete existing file
+            logger.info(f"Overwriting existing output file: {output_file}")
+            output_path.unlink()
 
         # Create replay in write mode
         with Replay(filename=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
