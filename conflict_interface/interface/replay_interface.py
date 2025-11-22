@@ -89,7 +89,7 @@ class ReplayInterface(GameInterface):
             self.game_state.set_game(self)
             return
 
-        patches, _ = self.replay.storage.patch_graph.find_patch_path(self.last_patch_time, time_stamp)
+        patches = self.replay.storage.patch_graph.find_patch_path(self.last_patch_time, time_stamp)
         self._apply_patches_and_update_state(patches, time_stamp)
 
         # Update the current timestamp index for O(1) next/previous operations

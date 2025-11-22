@@ -10,7 +10,7 @@ class PatchGraph:
         self.nodes = {}
         self.time_stamps_cache: list[int] = []  # Sorted list of time stamps
         self.patches: dict[tuple[int, int], PatchGraphNode] = {}
-        self.adjacency_list: dict[int, list[int]] = {}
+        self.adj: dict[int, list[int]] = {}
 
     def add_patch_node(self, patch_node: PatchGraphNode):
         key = (patch_node.from_timestamp, patch_node.to_timestamp)
@@ -18,14 +18,14 @@ class PatchGraph:
 
         if patch_node.from_timestamp not in self.time_stamps_cache:
             bisect.insort(self.time_stamps_cache, patch_node.from_timestamp)
-            self.adjacency_list[patch_node.from_timestamp] = []
+            self.adj[patch_node.from_timestamp] = []
 
         if patch_node.to_timestamp not in self.time_stamps_cache:
             bisect.insort(self.time_stamps_cache, patch_node.to_timestamp)
-            self.adjacency_list[patch_node.to_timestamp] = []
+            self.adj[patch_node.to_timestamp] = []
 
-        self.adjacency_list[patch_node.from_timestamp].append(patch_node.to_timestamp)
-        self.adjacency_list[patch_node.to_timestamp].append(patch_node.from_timestamp)
+        self.adj[patch_node.from_timestamp].append(patch_node.to_timestamp)
+        self.adj[patch_node.to_timestamp].append(patch_node.from_timestamp)
 
     def validate_cached_time_stamps(self):
         for patch in self.patches.keys():
@@ -64,7 +64,7 @@ class PatchGraph:
 
             visited.add(current_time)
 
-            for neighbor in self.adjacency_list.get(current_time, []):
+            for neighbor in self.adj.get(current_time, []):
                 if neighbor not in visited:
                     patch_node = self.patches.get((current_time, neighbor))
                     if not patch_node:
