@@ -37,7 +37,7 @@ class ReplayNavigator:
         current_time = self.ritf.current_time
         target_time = current_time + timedelta(seconds=seconds)
         
-        self.jump_to_absolute_time(target_time)
+        return self.jump_to_absolute_time(target_time)
     
     def jump_to_absolute_time(self, timestamp: datetime) -> bool:
         """Jump to an absolute timestamp.
