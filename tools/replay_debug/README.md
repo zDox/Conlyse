@@ -15,12 +15,13 @@ The Replay Debug CLI Tool provides the following features:
 - Counting operations across all patches
 - Counting operations by path prefix
 
-### Live State Inspection
+### Navigation
 - Jump navigation through replay timeline:
   - Jump by relative time (e.g., +60 seconds, -5 minutes)
   - Jump by absolute time (specific timestamp)
   - Jump by number of patches (e.g., +5 patches forward, -3 patches backward)
   - Jump by timestamp index
+### Game Object Inspection
 - View any game object at any point:
   - Navigate to specific paths in the game state
   - Pretty print values
@@ -517,8 +518,7 @@ replay-debug> vop "states/map_state" --limit 20 --direction forward
 
 ### Workflow 2: Time Travel and State Inspection
 ```bash
-# Start in enhanced mode
-replay-debug replay.db --enhanced
+replay-debug replay.db
 
 # Check current position
 replay-debug> info
@@ -542,8 +542,7 @@ replay-debug> ji 10            # Jump to timestamp 10
 
 ### Workflow 3: Advanced Analysis with Python REPL
 ```bash
-# Start in enhanced mode
-replay-debug replay.db --enhanced
+replay-debug replay.db
 
 # Enter Python REPL
 replay-debug> python
