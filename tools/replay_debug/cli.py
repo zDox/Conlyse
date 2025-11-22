@@ -82,20 +82,21 @@ class ReplayDebugCLI:
     
     def _load_all_patches(self):
         """Load all patches from the storage into memory."""
-        # Read all patches from the patch graph storage
+        # Read all patches directly from the patch graph storage (as PatchGraphNode objects)
         patches_dict = self.replay.storage.patch_graph.patches
-        path_tree = self.replay.storage.path_tree
         
         for (from_ts, to_ts), patch_node in patches_dict.items():
-            # Convert PatchGraphNode to ReplayPatch
-            replay_patch = self._convert_patch_node_to_replay_patch(patch_node, path_tree)
-            self.all_patches.append((from_ts, to_ts, replay_patch))
+            # Store the native PatchGraphNode directly (no conversion needed)
+            self.all_patches.append((from_ts, to_ts, patch_node))
         
         # Sort by from_timestamp, then to_timestamp
         self.all_patches.sort(key=lambda x: (x[0], x[1]))
     
     def _convert_patch_node_to_replay_patch(self, patch_node, path_tree):
         """Convert a PatchGraphNode to a ReplayPatch object.
+        
+        This is kept for compatibility but is now only used when converting
+        is explicitly needed (e.g., for detailed inspection).
         
         Args:
             patch_node: PatchGraphNode containing compressed patch data
@@ -124,6 +125,35 @@ class ReplayDebugCLI:
             replay_patch.operations.append(op)
         
         return replay_patch
+    
+    def _get_patch_operation_count(self, patch_node):
+        """Get the number of operations in a PatchGraphNode.
+        
+        Args:
+            patch_node: PatchGraphNode object
+            
+        Returns:
+            Number of operations in the patch
+        """
+        return len(patch_node.op_types)
+    
+    def _get_operation_type_string(self, op_type):
+        """Convert operation type constant to string.
+        
+        Args:
+            op_type: Operation type constant (ADD_OPERATION, etc.)
+            
+        Returns:
+            String representation ('a', 'p', or 'r')
+        """
+        if op_type == ADD_OPERATION:
+            return 'a'
+        elif op_type == REPLACE_OPERATION:
+            return 'p'
+        elif op_type == REMOVE_OPERATION:
+            return 'r'
+        else:
+            return '?'
     
     def _get_path_from_index(self, path_idx, idx_to_node):
         """Reconstruct the full path from a path index.
@@ -187,9 +217,9 @@ class ReplayDebugCLI:
         print_separator(SEPARATOR_WIDTH_COMPACT)
         print_patch_list_header()
         
-        for i, (from_ts, to_ts, patch) in enumerate(self.all_patches):
+        for i, (from_ts, to_ts, patch_node) in enumerate(self.all_patches):
             direction = "Forward" if to_ts > from_ts else "Backward"
-            print_patch_list_row(i + 1, from_ts, to_ts, direction, len(patch.operations))
+            print_patch_list_row(i + 1, from_ts, to_ts, direction, self._get_patch_operation_count(patch_node))
     
     def view_patch(self, from_timestamp: int, to_timestamp: int, limit: int = None):
         """View operations in a specific patch.
@@ -238,13 +268,13 @@ class ReplayDebugCLI:
         from_ts, to_ts, patch = self.all_patches[index - 1]
         self._display_patch_details(from_ts, to_ts, patch, limit)
     
-    def _display_patch_details(self, from_timestamp: int, to_timestamp: int, patch: ReplayPatch, limit: int = None):
-        """Display details of a specific patch.
+    def _display_patch_details(self, from_timestamp: int, to_timestamp: int, patch_node, limit: int = None):
+        """Display details of a PatchGraphNode interactively.
         
         Args:
             from_timestamp: Starting timestamp
             to_timestamp: Ending timestamp
-            patch: The ReplayPatch object to display
+            patch_node: The PatchGraphNode object to display
             limit: Maximum number of operations to display (default: 20)
         """
         if limit is None:
@@ -253,82 +283,101 @@ class ReplayDebugCLI:
         direction = "Forward" if to_timestamp > from_timestamp else "Backward"
         
         # Find the corresponding opposite direction patch for getting old values
-        opposite_patch = None
+        opposite_patch_node = None
         for from_ts, to_ts, p in self.all_patches:
             # Find the patch going the opposite direction between same timestamps
             if from_ts == to_timestamp and to_ts == from_timestamp:
-                opposite_patch = p
+                opposite_patch_node = p
                 break
         
-        print(f"\nPatch: {from_timestamp} -> {to_timestamp} ({direction})")
+        # Get path tree and idx_to_node for path resolution
+        path_tree = self.replay.storage.path_tree
+        idx_to_node = path_tree.idx_to_node
+        
+        print(f"\n{'='*120}")
+        print(f"Patch Node: {from_timestamp} -> {to_timestamp} ({direction})")
+        print(f"{'='*120}")
         print(f"From: {format_timestamp(from_timestamp)}")
         print(f"To:   {format_timestamp(to_timestamp)}")
-        print(f"Total operations: {len(patch.operations)}")
+        print(f"Total operations: {len(patch_node.op_types)}")
+        print(f"Cost: {patch_node.cost}")
         print("\nOperations by type:")
         print("-" * 80)
         
         # Count by type
-        type_counts = {'a': 0, 'p': 0, 'r': 0}
-        for op in patch.operations:
-            type_counts[op.Key] += 1
+        type_counts = {ADD_OPERATION: 0, REPLACE_OPERATION: 0, REMOVE_OPERATION: 0}
+        for op_type in patch_node.op_types:
+            type_counts[op_type] += 1
         
-        print(f"  Add:     {type_counts['a']}")
-        print(f"  Replace: {type_counts['p']}")
-        print(f"  Remove:  {type_counts['r']}")
+        print(f"  Add (a):     {type_counts[ADD_OPERATION]}")
+        print(f"  Replace (p): {type_counts[REPLACE_OPERATION]}")
+        print(f"  Remove (r):  {type_counts[REMOVE_OPERATION]}")
         
-        # Build a map of opposite patch operations by path for quick lookup
+        # Build a map of opposite patch operations by path index for quick lookup
         opposite_ops = {}
-        if opposite_patch:
-            for op in opposite_patch.operations:
-                path_key = tuple(op.path)
-                opposite_ops[path_key] = op
+        if opposite_patch_node:
+            for op_type, path_idx, value in zip(opposite_patch_node.op_types, 
+                                                  opposite_patch_node.paths, 
+                                                  opposite_patch_node.values):
+                opposite_ops[path_idx] = (op_type, value)
         
-        print(f"\nShowing first {min(limit, len(patch.operations))} operations:")
-        print("-" * 120)
-        print(f"{'#':>4}  {'Type':<7}  {'Path':<40}  {'Before':<25}  {'After':<25}")
-        print("-" * 120)
+        print(f"\n{'-'*120}")
+        print(f"Showing first {min(limit, len(patch_node.op_types))} operations:")
+        print(f"{'-'*120}")
+        print(f"{'#':>4}  {'Type':<7}  {'Path Idx':<9}  {'Path':<35}  {'Before':<22}  {'After':<22}")
+        print(f"{'-'*120}")
         
-        for i, op in enumerate(patch.operations[:limit]):
-            path_str = format_operation_path(op.path)
-            if len(path_str) > 40:
-                path_str = path_str[:37] + "..."
+        # Display operations with interactive path resolution
+        for i, (op_type, path_idx, value) in enumerate(zip(patch_node.op_types, 
+                                                             patch_node.paths, 
+                                                             patch_node.values)[:limit]):
+            # Resolve the path
+            path = self._get_path_from_index(path_idx, idx_to_node)
+            path_str = format_operation_path(path)
+            if len(path_str) > 35:
+                path_str = path_str[:32] + "..."
             
-            # Determine before and after values based on operation type
+            # Get operation type string
+            op_type_str = self._get_operation_type_string(op_type)
+            
+            # Determine before and after values
             before_str = ""
             after_str = ""
-            path_key = tuple(op.path)
             
-            if op.Key == 'a':  # Add operation
+            if op_type == ADD_OPERATION:
                 before_str = "<not set>"
-                after_str = str(op.new_value)
-                # Check opposite for old value (should be a remove operation)
-                if path_key in opposite_ops and opposite_ops[path_key].Key == 'r':
-                    # Remove operations don't have a value, so we keep "<not set>"
-                    pass
-            elif op.Key == 'p':  # Replace operation
-                after_str = str(op.new_value)
+                after_str = str(value)
+                # Check opposite for old value
+                if path_idx in opposite_ops and opposite_ops[path_idx][0] == REMOVE_OPERATION:
+                    pass  # Remove operations don't have values
+            elif op_type == REPLACE_OPERATION:
+                after_str = str(value)
                 # Look for the opposite replace to get the old value
-                if path_key in opposite_ops and opposite_ops[path_key].Key == 'p':
-                    before_str = str(opposite_ops[path_key].new_value)
+                if path_idx in opposite_ops and opposite_ops[path_idx][0] == REPLACE_OPERATION:
+                    before_str = str(opposite_ops[path_idx][1])
                 else:
                     before_str = "<unknown>"
-            elif op.Key == 'r':  # Remove operation
+            elif op_type == REMOVE_OPERATION:
                 before_str = "<unknown>"
                 after_str = "<removed>"
-                # Check opposite for old value (should be an add operation)
-                if path_key in opposite_ops and opposite_ops[path_key].Key == 'a':
-                    before_str = str(opposite_ops[path_key].new_value)
+                # Check opposite for old value
+                if path_idx in opposite_ops and opposite_ops[path_idx][0] == ADD_OPERATION:
+                    before_str = str(opposite_ops[path_idx][1])
             
             # Truncate values for display
-            if len(before_str) > 25:
-                before_str = before_str[:22] + "..."
-            if len(after_str) > 25:
-                after_str = after_str[:22] + "..."
+            if len(before_str) > 22:
+                before_str = before_str[:19] + "..."
+            if len(after_str) > 22:
+                after_str = after_str[:19] + "..."
                 
-            print(f"{i+1:4d}. {op.Key:<7}  {path_str:<40}  {before_str:<25}  {after_str:<25}")
+            print(f"{i+1:4d}. {op_type_str:<7}  {path_idx:<9}  {path_str:<35}  {before_str:<22}  {after_str:<22}")
         
-        if len(patch.operations) > limit:
-            print(f"\n... and {len(patch.operations) - limit} more operations (use --limit to see more)")
+        if len(patch_node.op_types) > limit:
+            print(f"{'-'*120}")
+            print(f"... and {len(patch_node.op_types) - limit} more operations (use --limit to see more)")
+        
+        print(f"{'='*120}\n")
+    
     
     def _get_patch_index(self, from_ts: int, to_ts: int) -> int:
         """Get the 1-based index of a patch.
@@ -368,7 +417,9 @@ class ReplayDebugCLI:
         matching_operations = []
         
         # Collect all matching operations from all patches
-        for i, (from_ts, to_ts, patch) in enumerate(self.all_patches):
+        idx_to_node = self.replay.storage.path_tree.idx_to_node
+        
+        for i, (from_ts, to_ts, patch_node) in enumerate(self.all_patches):
             is_forward = to_ts > from_ts
             
             # Apply direction filter
@@ -380,14 +431,21 @@ class ReplayDebugCLI:
             direction_label = "Forward" if is_forward else "Backward"
             patch_index = i + 1  # 1-based index
             
-            for op in patch.operations:
-                if self._path_starts_with(op.path, path_parts):
+            # Iterate through operations in the patch node
+            for op_type, path_idx, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
+                # Resolve the path
+                path = self._get_path_from_index(path_idx, idx_to_node)
+                
+                if self._path_starts_with(path, path_parts):
                     matching_operations.append({
                         'from_ts': from_ts,
                         'to_ts': to_ts,
                         'patch_index': patch_index,
                         'direction': direction_label,
-                        'operation': op
+                        'op_type': op_type,
+                        'path': path,
+                        'path_idx': path_idx,
+                        'value': value
                     })
         
         if not matching_operations:
@@ -409,9 +467,9 @@ class ReplayDebugCLI:
         print_operations_header(full_width)
         
         for i, match in enumerate(matching_operations[:limit]):
-            op = match['operation']
-            path_str = format_operation_path(op.path)
-            value_str = str(op.new_value)
+            path_str = format_operation_path(match['path'])
+            value_str = str(match['value'])
+            op_type_str = self._get_operation_type_string(match['op_type'])
             
             patch_label = format_patch_label(match['from_ts'], match['to_ts'], 
                                             COLUMN_WIDTH_PATCH_FULL if full_width else COLUMN_WIDTH_PATCH)
@@ -425,7 +483,7 @@ class ReplayDebugCLI:
                 value_str = truncate_string(value_str, COLUMN_WIDTH_VALUE_COMPACT)
             
             print_operation_row(i + 1, patch_label, match['patch_index'], match['direction'], 
-                              op.Key, path_str, value_str, full_width)
+                              op_type_str, path_str, value_str, full_width)
         
         if len(matching_operations) > limit:
             print(f"\n... and {len(matching_operations) - limit} more operations")
@@ -446,8 +504,8 @@ class ReplayDebugCLI:
         forward_ops = 0
         backward_ops = 0
         
-        for from_ts, to_ts, patch in self.all_patches:
-            ops_count = len(patch.operations)
+        for from_ts, to_ts, patch_node in self.all_patches:
+            ops_count = self._get_patch_operation_count(patch_node)
             total_operations += ops_count
             
             if to_ts > from_ts:
@@ -490,7 +548,9 @@ class ReplayDebugCLI:
         matching_forward = 0
         matching_backward = 0
         
-        for from_ts, to_ts, patch in self.all_patches:
+        idx_to_node = self.replay.storage.path_tree.idx_to_node
+        
+        for from_ts, to_ts, patch_node in self.all_patches:
             is_forward = to_ts > from_ts
             
             # Apply direction filter
@@ -499,10 +559,11 @@ class ReplayDebugCLI:
             elif direction == 'backward' and is_forward:
                 continue
                 
-            for op in patch.operations:
+            for op_type, path_idx, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
                 total_operations += 1
-                # Check if operation path starts with the given prefix
-                if self._path_starts_with(op.path, path_parts):
+                # Resolve path and check if it starts with the given prefix
+                path = self._get_path_from_index(path_idx, idx_to_node)
+                if self._path_starts_with(path, path_parts):
                     matching_operations += 1
                     if is_forward:
                         matching_forward += 1
@@ -559,7 +620,9 @@ class ReplayDebugCLI:
         total_ops = 0
         
         # Collect statistics
-        for from_ts, to_ts, patch in self.all_patches:
+        idx_to_node = self.replay.storage.path_tree.idx_to_node
+        
+        for from_ts, to_ts, patch_node in self.all_patches:
             is_forward = to_ts > from_ts
             
             # Apply direction filter
@@ -568,24 +631,28 @@ class ReplayDebugCLI:
             elif direction == 'backward' and is_forward:
                 continue
             
-            for op in patch.operations:
+            for op_type, path_idx, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
                 total_ops += 1
                 
+                # Resolve path
+                path = self._get_path_from_index(path_idx, idx_to_node)
+                
                 # Extract the state path (first level after 'states' or root if not under 'states')
-                if len(op.path) > 0:
-                    if op.path[0] == "states" and len(op.path) > 1:
-                        state_name = f"states/{op.path[1]}"
+                if len(path) > 0:
+                    if path[0] == "states" and len(path) > 1:
+                        state_name = f"states/{path[1]}"
                     else:
-                        state_name = op.path[0]
+                        state_name = path[0]
                 else:
                     state_name = "<root>"
                 
                 # Initialize state if not seen before
+                op_type_str = self._get_operation_type_string(op_type)
                 if state_name not in state_stats:
                     state_stats[state_name] = {'a': 0, 'p': 0, 'r': 0}
                 
                 # Count operation by type
-                state_stats[state_name][op.Key] += 1
+                state_stats[state_name][op_type_str] += 1
         
         # Display results
         if direction == 'forward':
