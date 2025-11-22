@@ -1,6 +1,7 @@
 from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
+from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.helper import unix_ms_to_datetime
@@ -28,14 +29,6 @@ class FromJsonResponsesUsingUpdateToReplay:
         Returns:
             bool: True if successful, False otherwise
         """
-        len_game_states = self.reader.len_game_states()
-        if len_game_states == 0:
-            logger.error("No game states found in recording")
-            return False
-
-        # Read initial game state (first one)
-        first_timestamp_ms, first_state = self.reader.read_game_state(0)
-
         # Read JSON responses
         json_responses = self.reader.read_json_responses()
         if not json_responses:
@@ -56,20 +49,10 @@ class FromJsonResponsesUsingUpdateToReplay:
 
         # Create a mock game interface for parsing context
         mock_game = GameInterface()
-        mock_game.game_state = first_state
+        initial_game_state_written = False
 
         # Create replay in write mode
         with Replay(filename=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
-            # Record initial game state
-            first_datetime = unix_ms_to_datetime(first_timestamp_ms)
-            logger.info(f"Recording initial state at {first_datetime}")
-            replay.record_initial_game_state(
-                time_stamp=first_datetime,
-                game_id=game_id,
-                player_id=player_id,
-                game_state=first_state
-            )
-
             # Record static map data if available
             static_map_data = self.reader.read_static_map_data()
             if not static_map_data:
@@ -83,7 +66,6 @@ class FromJsonResponsesUsingUpdateToReplay:
             )
 
             # Process JSON responses and create patches using update method
-            current_state = first_state
             response_idx = 0
 
             for i in range(response_idx, len(json_responses)):
@@ -91,17 +73,40 @@ class FromJsonResponsesUsingUpdateToReplay:
                 current_datetime = unix_ms_to_datetime(timestamp_ms)
 
                 logger.info(
-                    f"Creating patch from JSON {i - response_idx + 1}/{len(json_responses) - response_idx} at {current_datetime}")
+                    f"Converting json response {i - response_idx + 1}/{len(json_responses) - response_idx} at {current_datetime}")
 
                 try:
+                    if json_response.get("action") == "UltActivateGameAction":
+                        logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
+                        continue
+                    new_state = parse_any(GameState, json_response["result"], mock_game)
                     # Parse JSON response into new state
-                    new_state = parse_any(GameState, json_response, mock_game)
+                    if json_response["result"]["@c"] == "ultshared.UltGameState" and not initial_game_state_written:
+                        # Record initial game state
+                        logger.info(f"Recording initial state at {current_datetime}")
+                        replay.record_initial_game_state(
+                            time_stamp=current_datetime,
+                            game_id=game_id,
+                            player_id=player_id,
+                            game_state=new_state
+                        )
+                        current_state = new_state
+                        initial_game_state_written = True
+                        continue
+                    elif json_response["result"]["@c"] == "ultshared.UltGameState" and initial_game_state_written:
+                        # Entire new game state -> replace current state -> make_bireplay_patch
+                        logger.info(f"Creating bireplay patch using make_bireplay_patch for response {i} at {current_datetime}")
+                        bipatch = make_bireplay_patch(current_state, new_state)
+                        current_state = new_state
+                    elif initial_game_state_written:
+                        # Create a bidirectional replay patch object
+                        bipatch = BidirectionalReplayPatch()
 
-                    # Create a bidirectional replay patch object
-                    bipatch = BidirectionalReplayPatch()
-
-                    # Call update with the bipatch to record differences
-                    current_state.update(new_state, path=[], rp=bipatch)
+                        # Call update with the bipatch to record differences
+                        current_state.update(new_state, path=[], rp=bipatch)
+                    else:
+                        logger.error("First JSON response is not a full game state")
+                        return False
 
                     # Record the patch
                     replay.record_bipatch(

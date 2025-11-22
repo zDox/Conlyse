@@ -6,7 +6,6 @@ import logging
 import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import zstandard as zstd
 
@@ -31,7 +30,7 @@ class RecordingStorage:
     - library.log: ConflictInterface library log
     """
 
-    def __init__(self, output_path: str):
+    def __init__(self, output_path: str, save_game_states: bool = False):
         """
         Initialize recording storage.
         
@@ -55,6 +54,8 @@ class RecordingStorage:
         self.library_log_file = self.output_path / "library.log"
         self.recorder_log_file_handler = None
         self.library_log_file_handler = None
+
+        self.save_game_states = save_game_states
 
         
         # Initialize files
@@ -81,53 +82,44 @@ class RecordingStorage:
             with open(self.metadata_file, 'r') as f:
                 return json.load(f)
         return {"version": "1.0", "updates": []}
-    
-    def save_update(self, game_state: GameState, request_json: dict, response_json: dict, timestamp: float):
-        """
-        Save a game update with compressed game state, request, and response.
 
-        Args:
-            game_state: The game state object
-            request_json: The JSON request parameters sent to the server
-            response_json: The JSON response from the server
-            timestamp: Timestamp of the update
-        """
-        # Compress and save game state
+    @staticmethod
+    def append_bytes_to_file(file_path: Path, timestamp_ms: int, data: bytes):
+        with open(file_path, 'ab') as f:
+            # Write timestamp and length, then compressed data
+            f.write(timestamp_ms.to_bytes(8, 'big'))
+            f.write(len(data).to_bytes(4, 'big'))
+            f.write(data)
+
+    def save_game_state(self, timestamp: float, game_state: GameState):
+        if not self.save_game_states:
+            return
         ritf = game_state.game
         game_state.set_game(None)
         game_state_bytes = pickle.dumps(game_state)
         game_state.set_game(ritf)
         compressed_state = self._compressor.compress(game_state_bytes)
-        
+
         # Convert timestamp to integer milliseconds
         timestamp_ms = int(timestamp * 1000)
-        
-        with open(self.game_states_file, 'ab') as f:
-            # Write timestamp and length, then compressed data
-            f.write(timestamp_ms.to_bytes(8, 'big'))
-            f.write(len(compressed_state).to_bytes(4, 'big'))
-            f.write(compressed_state)
-        
+
+        self.append_bytes_to_file(self.game_states_file, timestamp_ms, compressed_state)
+        logger.info(f"Saved game state at timestamp {timestamp}")
+
+
+    def save_request_response(self, timestamp: float, request_json: dict, response_json: dict):
         # Compress and save JSON request
         request_str = json.dumps(request_json)
         compressed_request = self._compressor.compress(request_str.encode('utf-8'))
 
-        with open(self.requests_file, 'ab') as f:
-            # Write timestamp and length, then compressed data
-            f.write(timestamp_ms.to_bytes(8, 'big'))
-            f.write(len(compressed_request).to_bytes(4, 'big'))
-            f.write(compressed_request)
+        self.append_bytes_to_file(self.requests_file, int(timestamp * 1000), compressed_request)
 
         # Compress and save JSON response
         response_str = json.dumps(response_json)
         compressed_response = self._compressor.compress(response_str.encode('utf-8'))
-        
-        with open(self.responses_file, 'ab') as f:
-            # Write timestamp and length, then compressed data
-            f.write(timestamp_ms.to_bytes(8, 'big'))
-            f.write(len(compressed_response).to_bytes(4, 'big'))
-            f.write(compressed_response)
-        
+
+        self.append_bytes_to_file(self.responses_file, int(timestamp * 1000), compressed_response)
+
         # Update metadata
         metadata = self._load_metadata()
         metadata["updates"].append({
@@ -135,8 +127,8 @@ class RecordingStorage:
             "datetime": datetime.fromtimestamp(timestamp).isoformat()
         })
         self._save_metadata(metadata)
-        
-        logger.info(f"Saved update at timestamp {timestamp}")
+
+        logger.info(f"Saved request and response at timestamp {timestamp}")
     
     def setup_logging(self):
         library_logger = logging.getLogger("con_itf")

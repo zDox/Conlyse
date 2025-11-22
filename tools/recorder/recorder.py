@@ -2,14 +2,16 @@
 Main recorder class for game recording.
 """
 import os
+from copy import deepcopy
 from datetime import datetime
-from time import sleep
 from time import time
+from time import sleep
 from typing import Optional
 
 from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
+from conflict_interface.utils.helper import datetime_to_unix_ms
 from tools.recorder.account import Account
 from tools.recorder.account_pool import AccountPool
 from tools.recorder.find_game_logic import GameFinder
@@ -25,7 +27,7 @@ class Recorder:
     Main recorder class that handles game recording independently of replay system.
     """
     
-    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None):
+    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None, save_game_states: bool = False):
         """
         Initialize recorder with configuration.
         
@@ -39,6 +41,7 @@ class Recorder:
         self.storage: Optional[RecordingStorage] = None
         self.account_pool: Optional[AccountPool] = account_pool
         self.current_account: Optional[Account] = None
+        self.save_game_states: bool = save_game_states
         
         # Track the last server request and response for recording
         self._last_request: Optional[dict] = None
@@ -53,33 +56,12 @@ class Recorder:
             recording_name = f"recording_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         output_path = os.path.join(output_dir, recording_name)
-        self.storage = RecordingStorage(output_path)
+        self.storage = RecordingStorage(output_path, self.save_game_states)
         
         # Set up log file recording
         self.storage.setup_logging()
         
         logger.info(f"Recording storage initialized at: {output_path}")
-    
-    def _monkey_patch_game_api(self):
-        """
-        Monkey patch the game API to intercept server requests and responses.
-        This allows us to capture both the raw request and response JSON without affecting replay functionality.
-        """
-        original_request_method = self.game_itf.game_api.make_game_server_request
-        
-        def patched_request(*args, **kwargs):
-            # Capture the request parameters
-            if args:
-                self._last_request = args[0]  # parameters is the first argument
-            else:
-                self._last_request = kwargs.get('parameters', {})
-
-            response = original_request_method(*args, **kwargs)
-            self._last_response = response
-            return response
-        
-        self.game_itf.game_api.make_game_server_request = patched_request
-        logger.debug("Game API patched to capture requests and responses")
 
     def login(self, account: Optional[Account] = None) -> bool:
         """
@@ -173,7 +155,7 @@ class Recorder:
         self.game_itf = self.hub_itf.join_game(game_id, replay_filename=None)
 
         # Save initial game state and static map data
-        self._save_initial_game_data()
+        self._save_static_map_data(self.game_itf.static_map_data)
 
         # Select country if specified
         if country_name:
@@ -187,9 +169,6 @@ class Recorder:
         """Create a patched version of join_game that captures API responses."""
 
         def patched_join_game(game_id: int, guest=False, replay_filename: str = None):
-            from copy import deepcopy
-            from conflict_interface.interface.online_interface import OnlineInterface
-
             # Request first join if needed
             if not self.hub_itf.is_in_game(game_id) and not guest:
                 logger.info(f"User is not in game {game_id}. Requesting first join...")
@@ -211,60 +190,37 @@ class Recorder:
             original_request_method = game_interface.game_api.make_game_server_request
 
             def patched_request(*args, **kwargs):
+
+                self.storage.save_game_state(time(),
+                                             game_interface.game_state)
                 # Capture the request parameters
                 if args:
                     original_request = args[0]  # parameters is the first argument
                 else:
                     original_request = kwargs.get('parameters', {})
-                self._last_request = {**original_request, "request_id": game_interface.game_api.request_id}
+                self._last_request = {**original_request, "game_api_request_id": game_interface.game_api.request_id}
 
                 response = original_request_method(*args, **kwargs)
-                self._last_response = {**response, "request_id": game_interface.game_api.request_id}
+                self._last_response = {**response, "game_api_request_id": game_interface.game_api.request_id}
+                self.storage.save_request_response(time(), self._last_request, self._last_response)
                 return response
 
             game_interface.game_api.make_game_server_request = patched_request
-            logger.debug("Game API patched to capture requests and responses before load_game()")
+            logger.debug("Game API patched to capture requests and responses")
 
             # Load the game
             game_interface.load_game()
-
+            print(game_interface.game_api)
+            print(game_interface.game_state)
             return game_interface
 
         return patched_join_game
 
-    def _save_initial_game_data(self):
-        """Save initial game state and static map data after joining."""
-        if not (self.game_itf and self.game_itf.game_state and self.storage):
+    def _save_static_map_data(self, static_map_data):
+        """Save static map data after joining."""
+        if not static_map_data:
             return
-
-        # Save initial game state
-        if self._last_response:
-            timestamp = time()
-            request_data = self._last_request if self._last_request else {"note": "No request captured"}
-            self.storage.save_update(
-                self.game_itf.game_state,
-                request_data,
-                self._last_response,
-                timestamp
-            )
-            logger.info("Saved initial game state from join_game with actual request and response")
-        else:
-            initial_request = {"note": "Initial game state from join_game"}
-            initial_response = {"note": "Initial game state from join_game"}
-            timestamp = time()
-            self.storage.save_update(
-                self.game_itf.game_state,
-                initial_request,
-                initial_response,
-                timestamp
-            )
-            logger.info("Saved initial game state from join_game with mock request and response")
-
-        # Save static map data
-        if self.game_itf.game_state.states.map_state:
-            static_map_data = self.game_itf.game_state.states.map_state.map.static_map_data
-            if static_map_data:
-                self.storage.save_static_map_data(static_map_data)
+        self.storage.save_static_map_data(static_map_data)
 
     def _select_country(self, country_name: str, game_id: int) -> bool:
         """Select a country in the game."""
@@ -287,27 +243,9 @@ class Recorder:
 
         self.game_itf.select_country(country_id=selected_country.player_id)
         logger.info(f"Selected country: {selected_country.nation_name} in game {game_id}")
+        print(self.game_itf.game_state)
 
-        # Update to apply country selection
-        self._update_and_save()
         return True
-
-    def _save_current_state(self):
-        """Save the current game state with the last request and response."""
-        if self.game_itf and self.storage and self._last_response:
-            timestamp = time()
-            request_data = self._last_request if self._last_request else {"note": "No request captured"}
-            self.storage.save_update(
-                self.game_itf.game_state,
-                request_data,
-                self._last_response,
-                timestamp
-            )
-    
-    def _update_and_save(self):
-        """Update game state and save it. This ensures state is always saved after update."""
-        self.game_itf.update()
-        self._save_current_state()
     
     def execute_action(self, action: dict) -> bool:
         """
@@ -378,7 +316,7 @@ class Recorder:
         possible_upgrade = city.get_possible_upgrade(id=upgrade_type.id)
         if city.is_upgrade_buildable(possible_upgrade):
             city.build_upgrade(possible_upgrade)
-            self._update_and_save()
+            self.game_itf.update()
             return True
         else:
             logger.error(f"Cannot build {building_name} in {city_name}")
@@ -396,7 +334,7 @@ class Recorder:
             return False
         
         city.cancel_construction()
-        self._update_and_save()
+        self.game_itf.update()
         return True
     
     def _mobilize_unit(self, action: dict) -> bool:
@@ -420,7 +358,7 @@ class Recorder:
         _, action_result = city.mobilize_unit_by_id(unit_type.id)
         if action_result != UpdateProvinceActionResult.Ok:
             logger.error(f"Could not mobilize unit {unit_name} (tier {tier}) in {city_name} reason: {action_result}")
-        self._update_and_save()
+        self.game_itf.update()
         return True
     
     def _cancel_mobilization(self, action: dict) -> bool:
@@ -435,7 +373,7 @@ class Recorder:
             return False
         
         city.cancel_mobilization()
-        self._update_and_save()
+        self.game_itf.update()
         return True
     
     def _research(self, action: dict) -> bool:
@@ -451,7 +389,7 @@ class Recorder:
             return False
         
         research_type.research()
-        self._update_and_save()
+        self.game_itf.update()
         return True
     
     def _cancel_research(self, action: dict) -> bool:
@@ -465,7 +403,7 @@ class Recorder:
             research_state = self.game_itf.game_state.states.research_state
             research_id = self.game_itf.get_research_type_by_name_and_tier(research_name, tier)
             research_state.cancel_research(research_id)
-            self._update_and_save()
+            self.game_itf.update()
             return True
         
         logger.warning("No active research to cancel")
@@ -495,7 +433,7 @@ class Recorder:
             elapsed += wait_time
             
             if elapsed < duration_seconds:
-                self._update_and_save()
+                self.game_itf.update()
         
         return True
     
@@ -529,7 +467,7 @@ class Recorder:
         logger.info(f"Army {army.army_number} patrolling to {province_name}")
         
         army.patrol(target)
-        self._update_and_save()
+        self.game_itf.update()
         return True
     
     def _army_move(self, action: dict) -> bool:
@@ -549,7 +487,7 @@ class Recorder:
         logger.info(f"Army {army.army_number} moving to {province_name}")
         
         army.set_waypoint(target)
-        self._update_and_save()
+        self.game_itf.update()
         return True
     
     def _army_attack(self, action: dict) -> bool:
@@ -569,7 +507,7 @@ class Recorder:
         logger.info(f"Army {army.army_number} attacking {province_name}")
         
         army.attack_point(target)
-        self._update_and_save()
+        self.game_itf.update()
         return True
     
     def _army_cancel_commands(self, action: dict) -> bool:
@@ -581,7 +519,7 @@ class Recorder:
         logger.info(f"Canceling commands for army {army.army_number}")
         
         army.cancel_commands()
-        self._update_and_save()
+        self.game_itf.update()
         return True
     
     def run(self) -> bool:
@@ -626,3 +564,4 @@ class Recorder:
             # Always teardown logging, even if there was an error
             if self.storage:
                 self.storage.teardown_logging()
+            return False
