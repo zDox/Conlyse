@@ -328,9 +328,8 @@ class ReplayDebugCLI:
         print(f"{'-'*120}")
         
         # Display operations with interactive path resolution
-        for i, (op_type, path_idx, value) in enumerate(zip(patch_node.op_types, 
-                                                             patch_node.paths, 
-                                                             patch_node.values)[:limit]):
+        operations = list(zip(patch_node.op_types, patch_node.paths, patch_node.values))
+        for i, (op_type, path_idx, value) in enumerate(operations[:limit]):
             # Resolve the path
             path = self._get_path_from_index(path_idx, idx_to_node)
             path_str = format_operation_path(path)
