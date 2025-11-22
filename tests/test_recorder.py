@@ -560,7 +560,7 @@ class TestRecorderCLI(unittest.TestCase):
         
         # Create temporary config file with account_pool_path
         config_data = {
-            'account_pool_path': '/path/to/accounts.json',
+            'account_pool_path': '/path/to/account_pool.json',
             'game_id': 123456,
             'actions': []
         }
@@ -571,7 +571,7 @@ class TestRecorderCLI(unittest.TestCase):
         
         try:
             loaded_config = load_config_file(config_path)
-            self.assertEqual(loaded_config['account_pool_path'], '/path/to/accounts.json')
+            self.assertEqual(loaded_config['account_pool_path'], '/path/to/account_pool.json')
             self.assertEqual(loaded_config['game_id'], 123456)
         finally:
             os.unlink(config_path)

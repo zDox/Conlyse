@@ -210,8 +210,6 @@ class Recorder:
 
             # Load the game
             game_interface.load_game()
-            print(game_interface.game_api)
-            print(game_interface.game_state)
             return game_interface
 
         return patched_join_game
@@ -243,7 +241,6 @@ class Recorder:
 
         self.game_itf.select_country(country_id=selected_country.player_id)
         logger.info(f"Selected country: {selected_country.nation_name} in game {game_id}")
-        print(self.game_itf.game_state)
 
         return True
     

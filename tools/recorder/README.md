@@ -330,7 +330,7 @@ from tools.recorder import Recorder
 from tools.recorder.account_pool import AccountPool
 
 # Load account pool from configuration
-account_pool = AccountPool.from_json("path/to/accounts.json")
+account_pool = AccountPool("path/to/account_pool.json")
 
 config = {
     "game_id": 12345678,
@@ -359,7 +359,7 @@ This is useful for automated game joining where accounts may hit rate limits.
 
 ```json
 {
-  "account_pool_path": "path/to/accounts.json",
+  "account_pool_path": "path/to/account_pool.json",
   "game_id": 12345678,
   "country_name": "USA",
   "actions": [
@@ -390,7 +390,7 @@ When `account_pool_path` is specified in config.json, the recorder CLI will auto
 ### Multi-Account Configuration (Account Pool)
 ```json
 {
-  "account_pool_path": "./config/accounts.json",
+  "account_pool_path": "./config/account_pool.json",
   "game_id": 12345678,
   "country_name": "USA",
   "output_dir": "./recordings",
