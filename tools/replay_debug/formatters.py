@@ -1,10 +1,10 @@
 """
 Formatting utilities for the Replay Debug CLI Tool.
 """
-from datetime import datetime, UTC
-from typing import List, Dict, Any
-from conflict_interface.replay.replay_patch import ReplayPatch
-from .constants import *
+from datetime import UTC
+from datetime import datetime
+
+from tools.replay_debug.constants import *
 
 
 def format_timestamp(ts_ms: int) -> str:
