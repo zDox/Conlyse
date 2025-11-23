@@ -20,6 +20,7 @@ class PathTree:
         self.st = None # Sparse Table for RMQ
         self.log = None
         self.parent = None
+        self.first = None
 
     def add_node(self, parent: PathNode, path_element: str | int ) -> PathNode:
         new_node = PathNode(path_element=path_element, index=self.idx_counter)
@@ -44,15 +45,16 @@ class PathTree:
         self.precompute_rmq()
 
     def precompute_euler_tour(self):
-        N = self.idx_counter  # total number of nodes (indices 0..N-1)
+        N = self.idx_counter
         self.euler = array('I')
         self.tin = array('I', [0] * N)
         self.tout = array('I', [0] * N)
         self.depth = array('I', [0] * N)
-        self.parent = array('i', [-1] * N)  # parent[i] = parent index, -1 for root
+        self.parent = array('i', [-1] * N)
+        self.first = array('i', [-1] * N)
 
         time = 0
-        stack = [(self.root, 0, 0)]  # node_obj, depth, state
+        stack = [(self.root, 0, 0)]
         while stack:
             node, d, state = stack.pop()
             idx = node.index
@@ -60,15 +62,21 @@ class PathTree:
                 self.tin[idx] = time
                 self.depth[idx] = d
                 self.euler.append(idx)
+                if self.first[idx] == -1:
+                    self.first[idx] = len(self.euler) - 1
                 time += 1
                 stack.append((node, d, 1))
-                # push children; set parent for each child
-                # reversed to preserve original order
-                for child in reversed(node.children.values()):
+                children_list = list(node.children.values())
+                for i, child in enumerate(reversed(children_list)):
                     self.parent[child.index] = idx
                     stack.append((child, d + 1, 0))
-            else:
+                    # Add parent node after each child except the last
+                    if i < len(children_list) - 1:
+                        stack.append((node, d, 2))
+            elif state == 1:
                 self.tout[idx] = time
+                time += 1
+            else:  # state == 2: revisit parent between children
                 self.euler.append(idx)
                 time += 1
 
@@ -90,11 +98,11 @@ class PathTree:
             for i in range(euler_len - (1 << k) + 1):
                 a = self.st[k - 1][i]
                 b = self.st[k - 1][i + span]
-                self.st[k][i] = a if self.depth[self.euler[a]] < self.depth[self.euler[b]] else b
+                self.st[k][i] = a if self.depth[self.euler[a]] <= self.depth[self.euler[b]] else b
 
     def lca(self, u_idx: int, v_idx: int) -> int:
-        left = self.tin[u_idx]
-        right = self.tin[v_idx]
+        left = self.first[u_idx]
+        right = self.first[v_idx]
         if left > right:
             left, right = right, left
         length = right - left + 1
@@ -204,6 +212,26 @@ class PathTree:
 
     def validate_tree_structure(self):
         pass # TODO Implement tree structure validation logic
+
+    def print_tree(self):
+        def _print_node(node: PathNode, depth: int):
+            print("  " * depth + f"- {node.path_element} (idx: {node.index}, is_leaf: {node.is_leaf})")
+            for child in node.children.values():
+                _print_node(child, depth + 1)
+
+        _print_node(self.root, 0)
+
+        # print the values of the precomputed arrays
+        print("\nPrecomputed Euler Tour:", list(self.euler))
+        print("Precomputed tin:", list(self.tin))
+        print("Precomputed tout:", list(self.tout))
+        print("Precomputed depth:", list(self.depth))
+        print("Precomputed parent:", list(self.parent))
+        print("Precomputed first occurrence:", list(self.first))
+        print("Precomputed Sparse Table:")
+        for k, row in enumerate(self.st):
+            print(f"  k={k}: {list(row)}")
+
 
 
 
