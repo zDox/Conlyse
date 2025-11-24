@@ -1,6 +1,7 @@
 import os
 import pickle
 from datetime import datetime
+from time import perf_counter
 from typing import Literal
 from typing import Union
 
