@@ -35,7 +35,7 @@ def parse_duration(duration: Union[str, int, float]) -> float:
         return float(duration)
     
     if isinstance(duration, str):
-        # Try to match pattern: number followed by optional suffix (s or m)
+        # Try to match pattern: number followed by optional suffix (s, m, h, or d)
         match = re.match(r'^(\d+\.?\d*)\s*([smhd]?)$', duration.strip(), re.IGNORECASE)
         if match:
             value = float(match.group(1))
