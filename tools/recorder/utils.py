@@ -70,15 +70,15 @@ def format_duration(duration: float) -> str:
 
     Examples:
         >>> format_duration(300)   # 5 minutes
-        '5m'
+        '5m 0s'
         >>> format_duration(30)    # 30 seconds
         '30s'
         >>> format_duration(90)    # 1.5 minutes
-        '1m30s'
+        '1m 30s'
         >>> format_duration(3600)  # 1 hour
-        '1h'
+        '1h 0m'
         >>> format_duration(86400) # 1 day
-        '1d'
+        '1d 0h'
     """
     # Break down duration into days, hours, minutes, seconds
     days = int(duration // 86400)
