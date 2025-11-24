@@ -80,17 +80,24 @@ def format_duration(duration: float) -> str:
         >>> format_duration(86400) # 1 day
         '1d'
     """
-    if duration < 60:
-        return f"{duration:.1f}s"
-    elif duration < 3600:
-        minutes = int(duration // 60)
-        sec = duration % 60
-        return f"{minutes}m {sec:.0f}s"
-    elif duration < 86400:
-        hours = int(duration // 3600)
-        minutes = int((duration % 3600) // 60)
-        return f"{hours}h {minutes}m"
-    else:
-        days = int(duration // 86400)
-        hours = int((duration % 86400) // 3600)
-        return f"{days}d {hours}h"
+    # Break down duration into days, hours, minutes, seconds
+    days = int(duration // 86400)
+    hours = int((duration % 86400) // 3600)
+    minutes = int((duration % 3600) // 60)
+    seconds = duration % 60
+
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes:
+        parts.append(f"{minutes}m")
+    # Only show seconds if there is a fractional part or if all other components are zero
+    if seconds or not parts:
+        # Show as integer if no fractional part, else show up to 1 decimal
+        if seconds == int(seconds):
+            parts.append(f"{int(seconds)}s")
+        else:
+            parts.append(f"{seconds:.1f}s")
+    return "".join(parts)
