@@ -4,6 +4,7 @@ from time import time
 from typing import override
 
 from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.hook_system.replay_hook_system import ReplayHookSystem
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay import Replay
@@ -15,6 +16,7 @@ class ReplayInterface(GameInterface):
     def __init__(self, filename: str):
         super().__init__()
         self.replay = Replay(filename, 'r')
+        self._hook_system = ReplayHookSystem()
         self.game_state: GameState | None = None
         self.static_map_data = None
         self.player_id: int | None = None
@@ -50,12 +52,22 @@ class ReplayInterface(GameInterface):
 
     def _find_current_player_id(self) -> int | None:
         for player in self.get_players().values():
-            if player.activity_state == "ACTIVE" or player.activity_state == "UNKNOWN":
+            if (
+                    player.activity_state == "ACTIVE" or
+                    player.activity_state == "UNKNOWN" or
+                    player.activity_state == "INACTIVE"or
+                    player.activity_state == "ABANDONED"
+            ):
+
                 return player.player_id
 
     def _update_player_id(self):
-        if self.player_id is not None and (self.get_player(self.player_id).activity_state == "ACTIVE"
-            or self.get_player(self.player_id).activity_state == "UNKNOWN"):
+        if self.player_id is not None and (
+                self.get_player(self.player_id).activity_state == "ACTIVE" or
+                self.get_player(self.player_id).activity_state == "UNKNOWN" or
+                self.get_player(self.player_id).activity_state == "INACTIVE" or
+                self.get_player(self.player_id).activity_state == "ABANDONED"
+        ):
             return
 
         self.player_id = self._find_current_player_id()
@@ -105,11 +117,11 @@ class ReplayInterface(GameInterface):
 
         self.current_time = target_time
         self.last_patch_time = target_time
-        self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
+        #self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
         self._update_player_id()
 
         if hasattr(self, '_hook_system'):
-            self._hook_system.execute_queued_hooks()
+            self._hook_system.execute_que()
 
     def jump_to_next_patch(self) -> bool:
         """
@@ -124,7 +136,7 @@ class ReplayInterface(GameInterface):
         if next_timestamp is None:
             return False
 
-        patches, _ = self.replay.storage.patch_graph.find_patch_path(self.current_time, next_timestamp)
+        patches = self.replay.storage.patch_graph.find_patch_path(self.current_time, next_timestamp)
 
         if patches:
             self._apply_patches_and_update_state(patches, next_timestamp)

@@ -25,12 +25,13 @@ from conflict_interface.data_types.research_state.reserach import Research
 from conflict_interface.data_types.resource_state.resource_entry import ResourceEntry
 from conflict_interface.data_types.resource_state.resource_profile import ResourceProfile
 from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
+from conflict_interface.hook_system.replay_hook_system import ReplayHookSystem
+
 if TYPE_CHECKING:
     from conflict_interface.interface.online_interface import OnlineInterface
 
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException
-from conflict_interface.hook_system import HookSystem, ChangeType
 
 logger = get_logger()
 
@@ -38,7 +39,7 @@ class GameInterface:
     def __init__(self):
         self.player_id = 0
         self.game_state: GameState | None = None
-        self._hook_system = HookSystem()
+        self._hook_system: ReplayHookSystem | None = None
 
     @property
     def online(self) -> OnlineInterface:
@@ -545,6 +546,11 @@ class GameInterface:
     def get_resource_entry(self, resource_id: ResourceType) -> ResourceEntry | None:
         return self.get_my_resource_profile().get_resource_entry(resource_id)
 
+    """
+    Hook System
+    """
+    def get_hook_system(self) -> ReplayHookSystem:
+        return self._hook_system
     """
     Hook System Events
     """

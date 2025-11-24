@@ -1,6 +1,7 @@
 import os
 import pickle
 from datetime import datetime
+
 from typing import Literal
 from typing import Union
 
@@ -31,6 +32,8 @@ class Replay:
         self._is_open = False
 
         self.storage = ReplayStorage()
+
+        self._op_counter = 0
 
     def __enter__(self):
         return self.open()
@@ -143,30 +146,26 @@ class Replay:
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: GameInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
 
+
         def prepare_value(_value):
             if isinstance(_value, GameObject):
                 _value.set_game(game_interface)
             return _value
 
         def apply_op(_op_type, _value, _target, _pos, _node=None):
-            # TODO include hook systems here
             apply_operation(_op_type, _value, _target, _pos)
+            self._op_counter += 1
             if _node and _op_type == REMOVE_OPERATION:
                 _node.reference = None
 
-        # Separate operations that have known and unknown reference for the path
-        known_ops, unknown_ops, unknown_paths = [], [], []
-        for op_type, path_idx, value in zip(patch.op_types, patch.paths, patch.values):
+        # Find operations that have unknown references
+        unknown_ops, unknown_paths = [], []
+        it = zip(patch.op_types, patch.paths, patch.values)
+        for op_type, path_idx, value in it:
             node = idx_to_node[path_idx]
-            value = prepare_value(value)
-            if node.reference:
-                apply_op(op_type, value, node.reference, node.path_element, node)
-            else:
+            if not node.reference:
                 unknown_ops.append((op_type, path_idx, value))
                 unknown_paths.append(path_idx)
-
-        if not unknown_ops:
-            return
 
         # Resolve unknown references using Steiner tree + BFS
         steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_paths)
@@ -175,10 +174,22 @@ class Replay:
             game_state
         )
 
+        # Initialize hook system and safe old values
+        hook_system = game_interface.get_hook_system()
+        assert hook_system
+        data_with_old = hook_system.get_old_values(patch.paths, self.storage.path_tree)
+
         # Apply resolved operations
-        for op_type, path_idx, value in unknown_ops:
+        it = zip(patch.op_types, patch.paths, patch.values)
+        for op_type, path_idx, value in it:
+            value = prepare_value(value)
             node = idx_to_node[path_idx]
             apply_op(op_type, value, node.reference, node.path_element, node)
+
+        # Get new values and que the hooks
+        data_with_new = hook_system.set_new_values(data_with_old, self.storage.path_tree)
+        for hook_path, child_idx, data in data_with_new:
+            hook_system.que(hook_path, idx_to_node[child_idx], data)
 
     def get_start_time(self) -> datetime:
         start_timestamp = self.storage.metadata.info['start_time']
@@ -219,6 +230,9 @@ class Replay:
             raise ValueError("Game ID or Player ID does not match the initialized values.")
         if not self._is_open:
             raise ValueError("Replay file is not open.")
+
+    def debug_print(self):
+        print(f"Applied operations: {self._op_counter}")
 
 
 
