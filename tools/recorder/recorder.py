@@ -412,7 +412,7 @@ class Recorder:
         duration_input = action.get('duration', 0)
         duration_seconds = parse_duration(duration_input)
         
-        logger.info(f"Sleeping for {format_duration(duration_seconds)} seconds without updates")
+        logger.info(f"Sleeping for {format_duration(duration_seconds)} without updates")
         sleep(duration_seconds)
         return True
     
