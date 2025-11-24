@@ -26,24 +26,78 @@ def parse_duration(duration: Union[str, int, float]) -> float:
         30.0
         >>> parse_duration("1.5m")  # 1.5 minutes = 90 seconds
         90.0
+        >>> parse_duration("1h")    # 1 hour
+        3600.0
+        >>> parse_duration("1d")    # 1 day
+        86400.0
     """
     if isinstance(duration, (int, float)):
         return float(duration)
     
     if isinstance(duration, str):
-        # Try to match pattern: number followed by optional suffix (s or m)
-        match = re.match(r'^(\d+\.?\d*)\s*([sm]?)$', duration.strip(), re.IGNORECASE)
+        # Try to match pattern: number followed by optional suffix (s, m, h, or d)
+        match = re.match(r'^(\d+\.?\d*)\s*([smhd]?)$', duration.strip(), re.IGNORECASE)
         if match:
             value = float(match.group(1))
             suffix = match.group(2).lower()
             
-            if suffix == 'm':
-                return value * 60
-            else:  # 's' or no suffix defaults to seconds
+            if suffix == 's':
                 return value
+            elif suffix == 'm':
+                return value * 60
+            elif suffix == 'h':
+                return value * 3600
+            elif suffix == 'd':
+                return value * 86400
+            else:
+                return value  # Default to seconds if no suffix
     
     # If parsing fails, try to convert directly to float (fallback)
     try:
         return float(duration)
     except (ValueError, TypeError):
-        raise ValueError(f"Invalid duration format: {duration}. Use a number (seconds) or string with suffix (e.g., '5m', '30s')")
+        raise ValueError(f"Invalid duration format: {duration}. Use a number (seconds) or string with suffix (e.g., '5m', '30s', '2h', '1d')")
+
+def format_duration(duration: float) -> str:
+    """
+    Format a duration in seconds to a human-readable string.
+
+    Args:
+        duration: Duration in seconds
+
+    Returns:
+        str: Formatted duration string (e.g., "5m", "30s")
+
+    Examples:
+        >>> format_duration(300)   # 5 minutes
+        '5m 0s'
+        >>> format_duration(30)    # 30 seconds
+        '30s'
+        >>> format_duration(90)    # 1.5 minutes
+        '1m 30s'
+        >>> format_duration(3600)  # 1 hour
+        '1h 0m'
+        >>> format_duration(86400) # 1 day
+        '1d 0h'
+    """
+    # Break down duration into days, hours, minutes, seconds
+    days = int(duration // 86400)
+    hours = int((duration % 86400) // 3600)
+    minutes = int((duration % 3600) // 60)
+    seconds = duration % 60
+
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes:
+        parts.append(f"{minutes}m")
+    # Only show seconds if there is a fractional part or if all other components are zero
+    if seconds or not parts:
+        # Show as integer if no fractional part, else show up to 1 decimal
+        if seconds == int(seconds):
+            parts.append(f"{int(seconds)}s")
+        else:
+            parts.append(f"{seconds:.1f}s")
+    return "".join(parts)
