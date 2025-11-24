@@ -439,7 +439,7 @@ class Recorder:
 
             # Print progress
             progress = min(100.0, 100.0 * elapsed / duration_seconds)
-            print(f"Sleeping with updates: {progress:.1f}% ({format_duration(elapsed)} / {format_duration(elapsed)}")
+            print(f"Sleeping with updates: {progress:.1f}% ({format_duration(elapsed)} / {format_duration(duration_seconds)})")
         
         return True
     
