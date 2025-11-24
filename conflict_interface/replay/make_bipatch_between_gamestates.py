@@ -6,7 +6,6 @@ from typing import Any
 from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object import SIMPLE_PARSE_MAPPING
-from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import ReplayPatch
 
@@ -67,7 +66,7 @@ def make_replay_patch_any(rp: ReplayPatch, path: list[str], self: Any, other: An
         Exception: If an unsupported type is encountered
     """
     if type(self) != type(other):
-        rp.replace_op(path, dump_any(other))
+        rp.replace_op(path, other)
     elif isinstance(other, GameObject):
         make_replay_patch_gameobject(rp, path, self, other)
     elif isinstance(other, list):
@@ -122,11 +121,11 @@ def make_replay_patch_list(rp: ReplayPatch, path: list[str], self: list[Any], ot
     if len(other) != 0:
         if isinstance(other[0], GameObject) and not hasattr(other[0], "id"):
             if self != other:
-                rp.replace_op(path, dump_any(other))
+                rp.replace_op(path, other)
                 return
         elif isinstance(other, ProductionList):
             if self != other:
-                rp.replace_op(path, dump_any(other))
+                rp.replace_op(path, other)
                 return
 
     # Compare element-by-element
@@ -141,7 +140,7 @@ def make_replay_patch_list(rp: ReplayPatch, path: list[str], self: list[Any], ot
             if self[index] != other[index]:
                 make_replay_patch_any(rp, path + [index], self[index], other[index])
         for index in range(len(self), len(other)):
-            rp.add_op(path + [index], dump_any(other[index]))
+            rp.add_op(path + [index], other[index])
 
 
 def make_replay_patch_dict(rp: ReplayPatch, path: list[str], self: dict[Any, Any], other: dict[Any, Any]):
@@ -163,9 +162,9 @@ def make_replay_patch_dict(rp: ReplayPatch, path: list[str], self: dict[Any, Any
             removed_keys.remove(item_key)
 
         if item_key not in self:
-            rp.add_op(path + [dump_any(item_key)], dump_any(item_value))
+            rp.add_op(path + [item_key], item_value)
         elif self.get(item_key) != item_value:
-            make_replay_patch_any(rp, path + [dump_any(item_key)], self[item_key], item_value)
+            make_replay_patch_any(rp, path + [item_key], self[item_key], item_value)
 
     for removed_key in removed_keys:
         rp.remove_op(path + [removed_key])
@@ -184,4 +183,4 @@ def make_replay_patch_simple(rp: ReplayPatch, path: list[str], self: Any, other:
         other: Target value
     """
     if self != other:
-        rp.replace_op(path, dump_any(other))
+        rp.replace_op(path, other)

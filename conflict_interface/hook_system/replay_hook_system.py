@@ -1,0 +1,91 @@
+from copy import deepcopy
+from logging import getLogger
+from typing import Any
+
+from conflict_interface.hook_system.replay_hook import ReplayHook
+from conflict_interface.hook_system.replay_hook_queue_element import ReplayHookQueueElement
+from conflict_interface.replay.path_tree import PathTree
+
+logger = getLogger()
+
+class ReplayHookSystem:
+    def __init__(self):
+        self.hooks: dict[int, ReplayHook] = {} # Listening to Path -> Hook
+        self.queued: dict[int, ReplayHookQueueElement] = {}
+
+    def register(self, replay_hook: ReplayHook):
+        self.hooks[replay_hook.path] = replay_hook
+
+    def que(self, hook_path: int, child_ref: Any, data: dict):
+        assert hook_path in self.hooks
+        hook = self.hooks[hook_path]
+        found = False
+        for attribute, value in data.items():
+            op_type = 2
+            if value[0] is None and value[1] is not None:
+                op_type = 1
+            if value[0] is not None and value[1] is None:
+                op_type = 3
+            if op_type in hook.change_types:
+                found = True
+
+        if not found: return
+
+        new_queue_element = ReplayHookQueueElement(
+            path= hook_path,
+            reference = child_ref,
+            changed_data = data
+        )
+        self.queued[hook_path] = new_queue_element
+
+
+    def get_old_values(self, changed_paths: list[int], tree: PathTree):
+        # Here we use a trick.
+        # By creating the smallest subtree that contains all paths from the root to each of the changed paths we get a list of nodes
+        # that lie before / are parents to changed nodes. now if a hook points to any of these parents one of his children has been updated
+        # therefore the hook needs to be queued given that the operation type fits
+        steiner_tree = tree.build_steiner_tree(changed_paths)
+        relevant_nodes = set(steiner_tree.keys())
+
+        # intersect hook_paths and relevant_nodes to get the hooks to keep
+        out = []
+        for hook_path, hook in self.hooks.items():
+            if hook_path not in relevant_nodes: continue
+
+            for child in steiner_tree[hook_path]:
+                changed_attributes = {}
+                child_ref = tree.idx_to_node[child].reference
+                if not child_ref: continue
+
+                for attribute in hook.attributes:
+                    changed_ref = getattr(child_ref, attribute, None)
+                    changed_value = deepcopy(changed_ref)
+                    changed_attributes[attribute] = [changed_value,None]
+                out.append((hook_path, child, changed_attributes))
+
+        return out
+
+    def set_new_values(self, data, tree: PathTree):
+        for hook_path, child, changed_attributes in data:
+            child_ref = tree.idx_to_node[child].reference
+            if not child_ref: continue
+
+            for attribute, value in changed_attributes.items():
+                value[1] = getattr(child_ref, attribute, None)
+
+        return data
+
+    def execute_que(self):
+        for path, ele in self.queued.items():
+            hook = self.hooks[path]
+            try:
+                hook.callback(
+                    ele.path,
+                    ele.reference,
+                    ele.changed_data
+                )
+            except Exception as e:
+                logger.error(f"Error executing hook: {e}", exc_info=True)
+
+
+

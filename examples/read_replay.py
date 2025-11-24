@@ -18,11 +18,12 @@ if __name__ == "__main__":
     time_stamps = len(time_stamps_)
     amount_patches = len(time_stamps_)
     for timestamp in ritf.get_timestamps():
-        ritf.jump_to(timestamp)
+        ritf.jump_to_next_patch()
 
     t3 = perf_counter()
     print(len(ritf.get_armies()))
     print(ritf.replay.storage.path_tree.get_old_path_for_debug(230))
     print(f"Setting time took {t3 - t2} seconds for {amount_patches} patches. {(t3 - t2) / amount_patches * 1e6} microseconds per patch.")
     print(f"Loading took {t2 - t1} seconds.")
+    ritf.replay.debug_print()
     ritf.close()
