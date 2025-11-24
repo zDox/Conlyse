@@ -35,6 +35,7 @@ class FromJsonResponsesUsingUpdateToReplay:
             bool: True if successful, False otherwise
         """
         # Read JSON responses
+        logger.info("Reading JSON responses from recording")
         json_responses = self.reader.read_json_responses()
         if not json_responses:
             logger.error("No JSON responses found in recording")
