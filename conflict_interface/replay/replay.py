@@ -176,8 +176,9 @@ class Replay:
 
         # Initialize hook system and safe old values
         hook_system = game_interface.get_hook_system()
-        assert hook_system
-        data_with_old = hook_system.get_old_values(patch.paths, self.storage.path_tree)
+        data_with_old = {}
+        if hook_system:
+            data_with_old = hook_system.get_old_values(patch.paths, self.storage.path_tree)
 
         # Apply resolved operations
         it = zip(patch.op_types, patch.paths, patch.values)
@@ -187,9 +188,10 @@ class Replay:
             apply_op(op_type, value, node.reference, node.path_element, node)
 
         # Get new values and que the hooks
-        data_with_new = hook_system.set_new_values(data_with_old, self.storage.path_tree)
-        for hook_path, child_idx, data in data_with_new:
-            hook_system.que(hook_path, idx_to_node[child_idx], data)
+        if hook_system:
+            data_with_new = hook_system.set_new_values(data_with_old, self.storage.path_tree)
+            for hook_path, child_idx, data in data_with_new:
+                hook_system.que(hook_path, idx_to_node[child_idx], data)
 
     def get_start_time(self) -> datetime:
         start_timestamp = self.storage.metadata.info['start_time']
