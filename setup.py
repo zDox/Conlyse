@@ -73,7 +73,8 @@ setup(
         "jsonpatch",
         "cloudscraper25",
         "msgpack",
-        "zstandard"
+        "zstandard",
+        "lz4"
     ],
     extras_require=extras_require,
     entry_points={
