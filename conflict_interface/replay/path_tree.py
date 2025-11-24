@@ -233,5 +233,15 @@ class PathTree:
             print(f"  k={k}: {list(row)}")
 
 
+    def get_old_path_for_debug(self, node_idx):
+        path_sub_tree = self.build_steiner_tree([node_idx])
+        current = self.root.index
+        old_path = []
+        for i in range(len(path_sub_tree) -1):
+            current = path_sub_tree[current][0]
+            old_path.append(self.idx_to_node[current].path_element)
+        return old_path
+
+
 
 

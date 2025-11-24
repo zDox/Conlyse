@@ -38,7 +38,7 @@ class GameInterface:
     def __init__(self):
         self.player_id = 0
         self.game_state: GameState | None = None
-        self._hook_system = HookSystem()
+        self._hook_system = HookSystem(None)
 
     @property
     def online(self) -> OnlineInterface:

@@ -1,7 +1,7 @@
 import os
 import pickle
 from datetime import datetime
-from time import perf_counter
+
 from typing import Literal
 from typing import Union
 
@@ -150,7 +150,7 @@ class Replay:
             return _value
 
         def apply_op(_op_type, _value, _target, _pos, _node=None):
-            # TODO include hook systems here
+            #game_interface._hook_system.queue_hook_from_operation(_op_type, _target, _value, )
             apply_operation(_op_type, _value, _target, _pos)
             if _node and _op_type == REMOVE_OPERATION:
                 _node.reference = None

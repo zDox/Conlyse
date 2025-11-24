@@ -5,18 +5,18 @@ This module provides a fast and efficient system for registering callbacks
 that are triggered when GameObjects are changed, added, or removed.
 """
 from __future__ import annotations
-from typing import Callable, Any, TYPE_CHECKING
+
+from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
-
-from conflict_interface.replay.replay_patch import AddOperation
-from conflict_interface.replay.replay_patch import RemoveOperation
-from conflict_interface.replay.replay_patch import ReplaceOperation
-
-if TYPE_CHECKING:
-    from conflict_interface.replay.replay_patch import Operation
+from typing import Any
+from typing import Callable
+from typing import TYPE_CHECKING
 
 from conflict_interface.logger_config import get_logger
+
+if TYPE_CHECKING:
+    from conflict_interface.replay.replay import Replay
 
 logger = get_logger()
 
@@ -35,7 +35,7 @@ class Hook:
     callback: Callable
     change_types: set[ChangeType]  # Which change types trigger this hook
 
-    def matches(self, path: list[str], change_type: ChangeType) -> bool:
+    def matches(self, path: int, change_type: ChangeType) -> bool:
         """
         Check if this hook matches a given path and change type.
 
@@ -53,20 +53,20 @@ class Hook:
         if change_type not in self.change_types:
             return False
 
-        return self._match_pattern(self.pattern, path)
+        return self._match_pattern(path)
 
-    def _match_pattern(self, pattern: list[str], path: list[str]) -> bool:
+    def _match_pattern(self, path: int) -> bool:
         """
         Recursively match pattern against path.
 
         Args:
-            pattern: Pattern elements to match
             path: Path elements to match against
 
         Returns:
             True if pattern matches path
         """
         # Base case: both empty means match
+        pattern = self.pattern
         if not pattern and not path:
             return True
 
@@ -100,14 +100,19 @@ class Hook:
             return False
 
 
+
+
 @dataclass
 class QueuedHook:
     """Represents a hook that has been queued for execution."""
     callback: Callable
     change_type: ChangeType
-    path: list[str]
+    path: int
     old_value: Any
     new_value: Any
+
+
+
 
 
 class HookSystem:
@@ -119,10 +124,13 @@ class HookSystem:
     for flexible matching.
     """
     
-    def __init__(self):
+    def __init__(self, replay: Replay | None):
         """Initialize the hook system."""
         self.hooks: list[Hook] = []
         self.queued_hooks: list[QueuedHook] = []
+        self.replay = replay
+
+        self._old_value_cache = None
         
     def register_hook(
         self, 
@@ -141,42 +149,48 @@ class HookSystem:
         if change_types is None:
             change_types = {ChangeType.ADD, ChangeType.REMOVE, ChangeType.REPLACE}
             
-        pattern = path_pattern.split(".")
+        pattern = path_pattern.split(".") # TODO
         hook = Hook(pattern, callback, change_types)
         self.hooks.append(hook)
         logger.debug(f"Registered hook for pattern: {path_pattern}")
         
     def queue_hook_from_operation(
         self, 
-        operation: Operation,
-        old_value: Any = None
+        op_type: int,
+        path: int,
+        new_value: Any,
+        old_value: Any | None = None
     ) -> None:
         """
         Queue hooks based on a replay operation.
         
         Args:
-            operation: The replay operation that occurred
+            path:
+            new_value:
+            op_type:
             old_value: The old value before the operation (for replace operations)
         """
 
         # Determine change type
-        if isinstance(operation, AddOperation):
+        if op_type == 1:
             change_type = ChangeType.ADD
-            new_value = operation.new_value
-        elif isinstance(operation, RemoveOperation):
+            new_value = new_value
+        elif op_type == 2:
             change_type = ChangeType.REMOVE
             new_value = None
-        elif isinstance(operation, ReplaceOperation):
+        elif op_type == 3:
             change_type = ChangeType.REPLACE
-            new_value = operation.new_value
+            new_value = new_value
         else:
-            logger.error(f"Unknown operation type: {type(operation)}")
+            logger.error(f"Unknown operation type: {op_type}")
             return
-            
-        path = operation.path
+
         # Find matching hooks
         for hook in self.hooks:
             if hook.matches(path, change_type):
+                if op_type != 1 and self.replay:
+                    old_value = self._get_old_value(path)
+
                 queued = QueuedHook(
                     callback=hook.callback,
                     change_type=change_type,
@@ -185,6 +199,16 @@ class HookSystem:
                     new_value=new_value
                 )
                 self.queued_hooks.append(queued)
+
+        self._old_value_cache = None # Get ready for next object
+
+    def _get_old_value(self, path: int):
+        assert(self.replay)
+        if self._old_value_cache is None:
+            old = self.replay.storage.path_tree.idx_to_node[path].reference
+            self._old_value_cache = deepcopy(old)
+
+        return self._old_value_cache
 
     def execute_queued_hooks(self) -> None:
         """

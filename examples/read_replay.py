@@ -10,7 +10,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     gitf = GameInterface()
     t1 = perf_counter()
-    ritf = ReplayInterface("../tools/recording_converter/rp01.db")
+    ritf = ReplayInterface("../tools/recording_converter/rec01.db")
 
     ritf.open()
     t2 = perf_counter()
@@ -21,6 +21,8 @@ if __name__ == "__main__":
         ritf.jump_to(timestamp)
 
     t3 = perf_counter()
-    print(f"Setting time took {t3 - t2} seconds for {amount_patches} patches. {(t3 - t2) / amount_patches} seconds per patch.")
+    print(len(ritf.get_armies()))
+    print(ritf.replay.storage.path_tree.get_old_path_for_debug(230))
+    print(f"Setting time took {t3 - t2} seconds for {amount_patches} patches. {(t3 - t2) / amount_patches * 1e6} microseconds per patch.")
     print(f"Loading took {t2 - t1} seconds.")
     ritf.close()
