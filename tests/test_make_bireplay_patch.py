@@ -130,14 +130,14 @@ class TestMakeBireplayPatch(unittest.TestCase):
         self.assertEqual(len(forward_ops), 1)
         self.assertEqual(forward_ops[0].Key, "a")  # Add operation
         self.assertEqual(forward_ops[0].path, ['units', 0])
-        self.assertEqual(forward_ops[0].new_value, dump_any(MockUnit(id=1)))
+        self.assertEqual(dump_any(forward_ops[0].new_value), dump_any(MockUnit(id=1)))
 
         # Verify backward patch has remove operation
         backward_ops = bi_patch.backward_patch.operations
         self.assertEqual(len(backward_ops), 1)
         self.assertEqual(backward_ops[0].Key, "r")  # Remove operation
         self.assertEqual(backward_ops[0].path, ['units', 0])
-        self.assertEqual(backward_ops[0].new_value, None)
+        self.assertEqual(dump_any(backward_ops[0].new_value), None)
 
     def test_list_remove_operation(self):
         """Test bidirectional patch for list removal."""
@@ -162,7 +162,7 @@ class TestMakeBireplayPatch(unittest.TestCase):
         self.assertEqual(len(backward_ops), 1)
         self.assertEqual(backward_ops[0].Key, "a")  # Add operation
         self.assertEqual(backward_ops[0].path, ['units', 1])
-        self.assertEqual(backward_ops[0].new_value, dump_any(MockUnit(id=2)))
+        self.assertEqual(dump_any(backward_ops[0].new_value), dump_any(MockUnit(id=2)))
 
     def test_list_element_modification(self):
         """Test bidirectional patch for modifying list elements."""
@@ -329,20 +329,20 @@ class TestMakeBireplayPatch(unittest.TestCase):
         # Verify forward adds
         self.assertEqual(forward_ops[0].Key, "a")
         self.assertEqual(forward_ops[0].path, ['units', 0])
-        self.assertEqual(forward_ops[0].new_value, dump_any(MockUnit(id=1, health=100)))
+        self.assertEqual(dump_any(forward_ops[0].new_value), dump_any(MockUnit(id=1, health=100)))
 
         self.assertEqual(forward_ops[1].Key, "a")
         self.assertEqual(forward_ops[1].path, ['units', 1])
-        self.assertEqual(forward_ops[1].new_value, dump_any(MockUnit(id=2, health=90)))
+        self.assertEqual(dump_any(forward_ops[1].new_value), dump_any(MockUnit(id=2, health=90)))
 
         # Verify backward removes (in reverse order)
         self.assertEqual(backward_ops[0].Key, "r")
         self.assertEqual(backward_ops[0].path, ['units', 1])
-        self.assertEqual(backward_ops[0].new_value, None)
+        self.assertEqual(dump_any(backward_ops[0].new_value), None)
 
         self.assertEqual(backward_ops[1].Key, "r")
         self.assertEqual(backward_ops[1].path, ['units', 0])
-        self.assertEqual(backward_ops[1].new_value, None)
+        self.assertEqual(dump_any(backward_ops[1].new_value), None)
 
     def test_type_changes(self):
         """Test bidirectional patch when value types change."""
@@ -479,7 +479,7 @@ class TestMakeBireplayPatch(unittest.TestCase):
 
         # Verify unit 3 addition/removal
         self.assertEqual(forward_op_map[('units', 2)].Key, "a")
-        self.assertEqual(forward_op_map[('units', 2)].new_value,
+        self.assertEqual(dump_any(forward_op_map[('units', 2)].new_value),
                         dump_any(MockUnit(id=3, health=100, position_x=20, position_y=20)))
         self.assertEqual(backward_op_map[('units', 2)].Key, "r")
         self.assertEqual(backward_op_map[('units', 2)].new_value, None)
