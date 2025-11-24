@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from tqdm import tqdm
+
 from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
@@ -80,12 +82,9 @@ class FromJsonResponsesUsingUpdateToReplay:
             # Process JSON responses and create patches using update method
             response_idx = 0
 
-            for i in range(response_idx, len(json_responses)):
+            for i in tqdm(range(response_idx, len(json_responses)), desc="Processing: ", unit="Patch", unit_scale=True):
                 timestamp_ms, json_response = json_responses[i]
                 current_datetime = unix_ms_to_datetime(timestamp_ms)
-
-                logger.info(
-                    f"Converting json response {i - response_idx + 1}/{len(json_responses) - response_idx} at {current_datetime}")
 
                 try:
                     if json_response.get("action") == "UltActivateGameAction":

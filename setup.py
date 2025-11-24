@@ -26,7 +26,7 @@ extras_require = {
         "python-dateutil",
     ],
     "tools-recording-converter": [
-        # Add dependencies for recording-converter tool here
+        "tqdm"
     ],
     "tools-recorder": [
         # Add dependencies for recorder tool here
