@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from datetime import timedelta
 from functools import wraps
 from typing import Callable, Optional
 from typing import TYPE_CHECKING
@@ -43,9 +44,6 @@ class GameInterface:
     @property
     def online(self) -> OnlineInterface:
         raise TypeError("This is not an online interface")
-
-    def client_time(self) -> datetime:
-        pass
 
     @staticmethod
     def country_selected(func):
@@ -544,6 +542,52 @@ class GameInterface:
     @country_selected
     def get_resource_entry(self, resource_id: ResourceType) -> ResourceEntry | None:
         return self.get_my_resource_profile().get_resource_entry(resource_id)
+
+    """
+    Time utilities
+    """
+    @property
+    def start_of_game(self) -> datetime:
+        return self.game_state.states.game_info_state.start_of_game
+
+    @property
+    def time_scale(self) -> float:
+        """
+        time_scale = 1 / speed_multiplier
+        (e.g., time_scale 0.25 means 4x speed, so ingame time passes twice as fast as real time)
+        """
+        return self.game_state.states.game_info_state.time_scale
+
+    def client_time(self) -> datetime:
+        pass
+
+    def game_day(self, timestamp: datetime | None):
+        # Returns the current in-game day based on the provided ingame timestamp.
+        if timestamp is None:
+            timestamp = self.game_state.states.game_info_state.day_of_game
+        seconds_per_day = 86400
+        ingame_duration = timestamp - self.start_of_game
+        return int(ingame_duration.total_seconds() // seconds_per_day) + 1
+
+    def ingame_time_to_real(self, ingame_timestamp: datetime) -> datetime:
+        # Converts an in-game timestamp to real-world time based on the game's time scale.
+        ingame_duration = ingame_timestamp - self.start_of_game
+        real_duration_seconds = ingame_duration.total_seconds() * self.time_scale
+        real_time = self.start_of_game + timedelta(seconds=real_duration_seconds)
+        return real_time
+
+    def real_time_to_ingame(self, real_timestamp: datetime) -> datetime:
+        # Converts a real-world timestamp to in-game time based on the game's time scale.
+        real_duration = real_timestamp - self.start_of_game
+        ingame_duration_seconds = real_duration.total_seconds() / self.time_scale
+        ingame_time = self.start_of_game + timedelta(seconds=ingame_duration_seconds)
+        return ingame_time
+
+    def ingame_duration_to_real(self, ingame_delta: timedelta) -> timedelta:
+        return timedelta(seconds=ingame_delta.total_seconds() * self.time_scale)
+
+    def real_duration_to_ingame(self, real_delta: timedelta) -> timedelta:
+        return timedelta(seconds=real_delta.total_seconds() / self.time_scale)
 
     """
     Hook System Events
