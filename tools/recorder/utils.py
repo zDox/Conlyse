@@ -56,7 +56,7 @@ def parse_duration(duration: Union[str, int, float]) -> float:
     try:
         return float(duration)
     except (ValueError, TypeError):
-        raise ValueError(f"Invalid duration format: {duration}. Use a number (seconds) or string with suffix (e.g., '5m', '30s')")
+        raise ValueError(f"Invalid duration format: {duration}. Use a number (seconds) or string with suffix (e.g., '5m', '30s', '2h', '1d')")
 
 def format_duration(duration: float) -> str:
     """
