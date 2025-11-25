@@ -18,7 +18,7 @@ class FromJsonResponsesUsingUpdateToReplay:
     def __init__(self, recoding_reader: RecordingReader):
         self.reader = recoding_reader
 
-    def convert(self, output_file: Path, overwrite: bool = False, game_id: int = None, player_id: int = None) -> bool:
+    def convert(self, output_file: Path, overwrite: bool = False, limit: int = None, game_id: int = None, player_id: int = None) -> bool:
         """
         Convert using JSON-based approach (parse JSON responses and apply updates).
 
@@ -28,6 +28,7 @@ class FromJsonResponsesUsingUpdateToReplay:
         Args:
             output_file: Path to the output replay database file
             overwrite: Whether to overwrite existing output file
+            limit: Maximum number of JSON responses to process
             game_id: Game ID (extracted from first state if not provided)
             player_id: Player ID (extracted from first state if not provided)
 
@@ -36,7 +37,7 @@ class FromJsonResponsesUsingUpdateToReplay:
         """
         # Read JSON responses
         logger.info("Reading JSON responses from recording")
-        json_responses = self.reader.read_json_responses()
+        json_responses = self.reader.read_json_responses(limit)
         if not json_responses:
             logger.error("No JSON responses found in recording")
             return False
@@ -51,7 +52,7 @@ class FromJsonResponsesUsingUpdateToReplay:
             return False
 
         logger.info(f"Converting recording to replay using JSON-based mode: game_id={game_id}, player_id={player_id}")
-        logger.info(f"Total JSON responses: {len(json_responses)}")
+        logger.info(f"Processing {len(json_responses)} JSON responses")
 
         # Create a mock game interface for parsing context
         mock_game = GameInterface()
@@ -81,9 +82,7 @@ class FromJsonResponsesUsingUpdateToReplay:
             )
 
             # Process JSON responses and create patches using update method
-            response_idx = 0
-
-            for i in tqdm(range(response_idx, len(json_responses)), desc="Processing: ", unit="Patch", unit_scale=True):
+            for i in tqdm(range(len(json_responses)), desc="Writing Replay: ", unit="Patch", unit_scale=True):
                 timestamp_ms, json_response = json_responses[i]
                 current_datetime = unix_ms_to_datetime(timestamp_ms)
 
@@ -131,6 +130,4 @@ class FromJsonResponsesUsingUpdateToReplay:
                     logger.error(f"Error processing JSON response at {current_datetime}: {e}")
                     # Continue with next response
                     continue
-
-        logger.info(f"Successfully converted recording to replay: {output_file}")
         return True

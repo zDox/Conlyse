@@ -1,5 +1,8 @@
 import json
 from pathlib import Path
+import shutil
+
+from tqdm import tqdm
 
 from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.utils.helper import unix_ms_to_datetime
@@ -24,7 +27,7 @@ class FromRecordingToJson:
         else:
             output_dir = Path(output_dir)
         if output_dir.exists() and overwrite:
-            output_dir.rmdir()
+            shutil.rmtree(output_dir)
         elif output_dir.exists() and not overwrite:
             raise FileExistsError(f"Output directory already exists: {output_dir}")
 
@@ -48,8 +51,6 @@ class FromRecordingToJson:
         filename = f"game_state_{index:04d}_{timestamp_ms}.json"
         output_file = self.game_states_dir / filename
 
-        logger.info(f"Converting state {index + 1}/{len_game_states} to {filename}")
-
         # Dump game state to JSON using dump_any
         json_data = dump_any(game_state)
 
@@ -66,15 +67,13 @@ class FromRecordingToJson:
             json.dump(output_data, f, indent=2, ensure_ascii=False)
 
     def dump_requests_to_json(self, json_requests):
-        len_json_requests = len(json_requests)
-        for i, (timestamp_ms, json_request) in enumerate(json_requests):
+        for i in tqdm(range(len(json_requests)), desc="Dumping JSON requests: ", unit="Request", unit_scale=True):
+            timestamp_ms, json_request = json_requests[i]
             timestamp_dt = unix_ms_to_datetime(timestamp_ms)
 
             # Create filename with timestamp
             filename = f"request_{i:04d}_{timestamp_ms}.json"
             output_file = self.json_requests_dir / filename
-
-            logger.info(f"Dumping request {i + 1}/{len_json_requests} to {filename}")
 
             # Add metadata
             output_data = {
@@ -89,16 +88,13 @@ class FromRecordingToJson:
                 json.dump(output_data, f, indent=2, ensure_ascii=False)
 
     def dump_responses_to_json(self, json_responses):
-        logger.info(f"Converting {len(json_responses)} JSON responses")
-
-        for i, (timestamp_ms, json_response) in enumerate(json_responses):
+        for i in tqdm(range(len(json_responses)), desc="Dumping JSON responses: ", unit="Response", unit_scale=True):
+            timestamp_ms, json_response = json_responses[i]
             timestamp_dt = unix_ms_to_datetime(timestamp_ms)
 
             # Create filename with timestamp
             filename = f"response_{i:04d}_{timestamp_ms}.json"
             output_file = self.json_responses_dir / filename
-
-            logger.info(f"Dumping response {i + 1}/{len(json_responses)} to {filename}")
 
             # Add metadata
             output_data = {
@@ -114,14 +110,15 @@ class FromRecordingToJson:
 
         logger.info(f"Successfully dumped {len(json_responses)} JSON responses to {self.json_responses_dir}")
 
-    def convert(self, output_dir: Path = None, overwrite: bool = False) -> bool:
+    def convert(self, output_dir: Path = None, overwrite: bool = False, limit: int = None) -> bool:
         """
-        Dump game states, JSON requests, and JSON responses to separate JSON files.
+        Dump game states, JSON requests and JSON responses to separate JSON files.
 
         Args:
             output_dir: Directory to save JSON files (defaults to recording_dir/json_dumps)
             overwrite: Whether to overwrite existing files
-
+            limit: Limit number of game states, JSON responses and JSON requests to process (defaults to all)
+game
         Returns:
             bool: True if successful, False otherwise
         """
@@ -130,22 +127,18 @@ class FromRecordingToJson:
 
             # Dump game states
             len_game_states = self.reader.len_game_states()
+            game_states_to_process = len_game_states if limit is None else min(limit, len_game_states)
             if len_game_states != 0:
-                for i in range(len_game_states):
-                    self.dump_game_state_to_json(i, len_game_states)
-                logger.info(f"Successfully dumped {len_game_states} game states to {self.game_states_dir}")
+                for i in tqdm(range(game_states_to_process), desc="Dumping Game States: ", unit="State", unit_scale=True):
+                    self.dump_game_state_to_json(i, game_states_to_process)
             else:
                 logger.info(f"No Game states found in recording")
 
             # Dump JSON requests if available
             if self.reader.requests_file.exists():
-                json_requests = self.reader.read_json_requests()
+                json_requests = self.reader.read_json_requests(limit)
                 if json_requests:
-                    logger.info(f"Dumping {len(json_requests)} JSON requests")
-
                     self.dump_requests_to_json(json_requests)
-
-                    logger.info(f"Successfully dumped {len(json_requests)} JSON requests to {self.json_requests_dir}")
                 else:
                     logger.warning("No JSON requests found in recording")
             else:
@@ -153,7 +146,7 @@ class FromRecordingToJson:
 
             # Dump JSON responses if available
             if self.reader.responses_file.exists():
-                json_responses = self.reader.read_json_responses()
+                json_responses = self.reader.read_json_responses(limit)
                 if json_responses:
                     self.dump_responses_to_json(json_responses)
                 else:

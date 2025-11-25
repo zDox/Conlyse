@@ -57,13 +57,14 @@ class RecordingConverter:
                 raise FileNotFoundError(f"Requests file not found: {self.reader.requests_file}, necessary in op mode rur")
         # Op Mode rtj has no requirements as it simply tries to convert as much as it can
 
-    def convert(self, output: Path, overwrite: bool, game_id: int = None, player_id: int = None) -> bool:
+    def convert(self, output: Path, overwrite: bool, limit: int = None, game_id: int = None, player_id: int = None) -> bool:
         """
         Convert the recording to a replay file.
         
         Args:
             output: Path to the output replay database file or folder to dump the json to
             overwrite: Whether to overwrite existing output files
+            limit: Maximum number of entries to process
             game_id: Game ID
             player_id: Player ID
             
@@ -76,13 +77,23 @@ class RecordingConverter:
                 return False
             if self.op_mode == OperatingMode.gmr:
                 gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader)
-                return gmr.convert(output, overwrite, game_id, player_id)
+                return gmr.convert(output_file=output,
+                                   overwrite=overwrite,
+                                   limit=limit,
+                                   game_id=game_id,
+                                   player_id=player_id)
             elif self.op_mode == OperatingMode.rur:
                 rur = FromJsonResponsesUsingUpdateToReplay(self.reader)
-                return rur.convert(output, overwrite, game_id, player_id)
+                return rur.convert(output_file=output,
+                                   overwrite=overwrite,
+                                   limit=limit,
+                                   game_id=game_id,
+                                   player_id=player_id)
             elif self.op_mode == OperatingMode.rtj:
                 rtj = FromRecordingToJson(self.reader)
-                return rtj.convert(output, overwrite)
+                return rtj.convert(output_dir=output,
+                                   overwrite=overwrite,
+                                   limit=limit)
             else:
                 logger.error(f"Invalid patch mode: {self.op_mode}")
                 return False
