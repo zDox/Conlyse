@@ -61,8 +61,8 @@ class FromGameStateUsingMakeBiPatchToReplay:
         # Create replay in write mode
         with Replay(file_path=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
             # Record initial game state
-            first_datetime = unix_ms_to_datetime(first_timestamp_ms)
-            logger.info(f"Recording initial state at {first_datetime}")
+            first_datetime = unix_ms_to_datetime(int(first_state.time_stamp))
+            logger.info(f"Recording initial state at {first_datetime} game time")
             replay.record_initial_game_state(
                 time_stamp=first_datetime,
                 game_id=game_id,
@@ -89,8 +89,8 @@ class FromGameStateUsingMakeBiPatchToReplay:
             number_of_states_to_process = len_game_states if limit is None else min(limit, len_game_states)
 
             for i in tqdm(range(1, number_of_states_to_process), desc="Processing: ", unit="States", unit_scale=True):
-                timestamp_ms, current_state = self.reader.read_game_state(i)
-                current_datetime = unix_ms_to_datetime(timestamp_ms)
+                _, current_state = self.reader.read_game_state(i)
+                current_datetime = unix_ms_to_datetime(int(current_state.time_stamp))
 
                 # Create bidirectional patch
                 bipatch = make_bireplay_patch(prev_state, current_state)

@@ -33,6 +33,7 @@ recording-converter --recording-dir <recording_dir> --mode rur --output-replay <
 ```
 
 Dump to JSON files:
+**Important Note**: The timestamps in the output filenames are in real time and not in game time.
 ```bash
 recording-converter --recording-dir <recording_dir> --mode rtj --output-dir <output_dir>
 ```

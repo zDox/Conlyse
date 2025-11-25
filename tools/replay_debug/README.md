@@ -30,6 +30,9 @@ The Replay Debug CLI Tool provides the following features:
 - Direct access to ReplayInterface (ritf) object for advanced usage
 - Python REPL with ritf available for interactive scripting
 
+### Health Checks
+- Verify the integrity of the timestamp patches 
+
 ## Installation
 
 The CLI tool is installed as part of the conflict-interface package. After installation, you can run it using:
@@ -456,6 +459,42 @@ datetime.datetime(2023, 1, 1, 12, 10, 0, tzinfo=datetime.timezone.utc)
 
 >>> # Exit with Ctrl-D (Unix) or Ctrl-Z (Windows)
 ```
+
+### Health Check Commands
+
+##### check-timestamps
+Verify the integrity of timestamp patches by checking for discrepancies between patch timestamps and game state timestamps.
+
+**Usage:**
+```bash
+replay-debug> check-timestamps
+```
+
+**Output:**
+```
+Checking timestamps in replay...
+Largest start/end gap discrepancy found:
+  Patch from 1764105536 to 1764105579 (delta: 0:00:43)
+  Game states from 2025-11-25 21:18:56.996000+00:00 to 2025-11-25 21:19:39.988000+00:00 (delta: 0:00:42.992000)
+  Start gap (prev state -> patch.from): -1 day, 23:59:59.004000
+  End gap (patch.to -> next state): 0:00:00.988000
+  Difference in seconds: 1.984
+```
+
+**What it checks:**
+- Compares patch timestamps with actual game state timestamps
+- Identifies timing mismatches between the from patch timestamp and the previous game state timestamp
+- Identifies timing mismatches between the to patch timestamp and the next game state timestamp
+- Reports the largest discrepancy found
+
+**Understanding the output:**
+- **Patch from/to**: The timestamp range defined in the patch
+- **Game states from/to**: The actual timestamp range in the game state objects
+- **Start gap**: Time difference between the previous game state and the patch start time
+- **End gap**: Time difference between the patch end time and the next game state
+- **Difference in seconds**: The total timing discrepancy found
+
+This is useful for detecting corrupted or incorrectly generated replay files.
 
 ## Understanding Replay Patches
 

@@ -37,6 +37,7 @@ from tools.replay_debug.formatters import print_separator, SEPARATOR_WIDTH_COMPA
 from tools.replay_debug.formatters import truncate_string
 from tools.replay_debug.game_object_viewer import GameObjectViewer
 from tools.replay_debug.navigation import ReplayNavigator
+from tools.replay_debug.check_timestamps import check_timestamps
 
 
 class ReplayDebugCLI:
@@ -736,6 +737,7 @@ class ReplayDebugCLI:
         print("=" * 80)
         print(f"File:        {self.filename}")
         print(f"Game ID:     {self.ritf.game_id}")
+        print(f"Game Speed: {self.ritf.speed_modifier}")
         print(f"Player ID:   {self.ritf.player_id}")
         print(f"\nStart Time:  {start.isoformat()}")
         print(f"End Time:    {end.isoformat()}")
@@ -839,6 +841,13 @@ class ReplayDebugCLI:
             return
         
         self.game_object_viewer.search_path(search_term)
+
+    def check_timestamps(self):
+        """Check timestamps in the replay."""
+        if not self.ritf:
+            print("Error: Replay not opened.")
+            return
+        check_timestamps(self.ritf)
     
     # Direct access to RITF
     def get_ritf(self) -> Optional[ReplayInterface]:
