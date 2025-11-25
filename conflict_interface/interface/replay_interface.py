@@ -1,12 +1,17 @@
 from datetime import datetime
 from datetime import timedelta
 from time import time
+from typing import Callable
 from typing import override
 
 from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.hook_system.replay_hook_system import ReplayHookSystem
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.constants import ADD_OPERATION
+from conflict_interface.replay.constants import REMOVE_OPERATION
+from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.replay import Replay
 import bisect
 
@@ -220,3 +225,45 @@ class ReplayInterface(GameInterface):
         num_intervals = len(timestamps) - 1
 
         return timedelta(seconds=num_intervals / total_time if total_time > 0 else 0.0)
+
+
+    """
+    Hook System
+    """
+
+
+    def get_hook_system(self) -> ReplayHookSystem:
+        return self._hook_system
+
+
+    """
+    Hook System Events
+    """
+
+
+    def on_province_attribute_change(self, callback: Callable, attributes: list[str]) -> None:
+        """
+        Register a callback for when an attribute of a province changes.
+
+        The callback will be called with the province object:
+        callback(province, old_value, new_value)
+        where province is the Province object whose attribute changed,
+        old_value is the previous attribute value, and
+        where new_value is the new attribute value.
+
+        Args:
+            callback: Function to call when the province attribute changes
+            attributes: The name of the attributes to watch (e.g., "owner_id")
+        """
+        path = ["states", "map_state","map","locations"]
+        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+
+        def wrapper(path, reference, changed_data):
+            callback(reference, changed_data)
+
+        hook = ReplayHook( callback = wrapper,
+                           change_types = [ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
+                           attributes = attributes,
+                           path = path_idx
+                           )
+        self._hook_system.register(hook)

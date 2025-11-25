@@ -4,14 +4,14 @@ from collections import deque
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.replay.apply_replay_helper import get_child_reference
-from conflict_interface.replay.path_tree_node import PathNode
+from conflict_interface.replay.path_tree_node import PathTreeNode
 
 
 class PathTree:
     def __init__(self):
-        self.root: PathNode = PathNode(path_element="root", index=0)
+        self.root: PathTreeNode = PathTreeNode(path_element="root", index=0)
         self.idx_counter: int = 1  # Start from 1 since root is 0
-        self.idx_to_node: dict[int, PathNode] = {0: self.root}
+        self.idx_to_node: dict[int, PathTreeNode] = {0: self.root}
 
         self.euler = None
         self.tin = None
@@ -22,8 +22,8 @@ class PathTree:
         self.parent = None
         self.first = None
 
-    def add_node(self, parent: PathNode, path_element: str | int ) -> PathNode:
-        new_node = PathNode(path_element=path_element, index=self.idx_counter)
+    def add_node(self, parent: PathTreeNode, path_element: str | int) -> PathTreeNode:
+        new_node = PathTreeNode(path_element=path_element, index=self.idx_counter)
         if path_element == 'action_results':
             pass
         parent.add_child(new_node)
@@ -202,7 +202,7 @@ class PathTree:
                 raise ValueError(f"Index mismatch: {idx} != {node.index}, path element: {node.path_element}")
 
         # iterate through tree and ensure all nodes are in idx_to_node
-        def _validate_node(_node: PathNode):
+        def _validate_node(_node: PathTreeNode):
             if _node.index not in self.idx_to_node:
                 raise ValueError(f"Node with index {_node.index} not in idx_to_node mapping.")
             for child in _node.children.values():
@@ -214,7 +214,7 @@ class PathTree:
         pass # TODO Implement tree structure validation logic
 
     def print_tree(self):
-        def _print_node(node: PathNode, depth: int):
+        def _print_node(node: PathTreeNode, depth: int):
             print("  " * depth + f"- {node.path_element} (idx: {node.index}, is_leaf: {node.is_leaf})")
             for child in node.children.values():
                 _print_node(child, depth + 1)
@@ -241,6 +241,12 @@ class PathTree:
             current = path_sub_tree[current][0]
             old_path.append(self.idx_to_node[current].path_element)
         return old_path
+
+    def old_path_to_idx(self, path: list[str]) -> int:
+        current = self.root
+        for path_element in path:
+            current = current.children[path_element]
+        return current.index
 
 
 

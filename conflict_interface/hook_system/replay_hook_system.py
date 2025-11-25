@@ -53,25 +53,42 @@ class ReplayHookSystem:
             if hook_path not in relevant_nodes: continue
 
             for child in steiner_tree[hook_path]:
-                changed_attributes = {}
-                child_ref = tree.idx_to_node[child].reference
-                if not child_ref: continue
+                relevant_attribute_changed = False
+                attribute_paths = steiner_tree.get(child)
+                if not attribute_paths:
+                    logger.warning(f"Skipping hook {hook_path} as no attributes were found (Maby full province changed)")
+                    continue
 
-                for attribute in hook.attributes:
-                    changed_ref = getattr(child_ref, attribute, None)
-                    changed_value = deepcopy(changed_ref)
-                    changed_attributes[attribute] = [changed_value,None]
-                out.append((hook_path, child, changed_attributes))
+                changed_attributes = {}
+                reference_to_child = None
+                for attribute in attribute_paths:
+                    attribute_node = tree.idx_to_node[attribute]
+                    reference_to_child = attribute_node.reference
+                    if not reference_to_child:
+                        logger.warning(f"Skipping Attribute {attribute_node.path_element} because the reference was not set")
+                        continue
+
+                    if attribute_node.path_element in hook.attributes:
+                        old_ref = getattr(reference_to_child, attribute_node.path_element, None)
+                        old_value = deepcopy(old_ref)
+                        changed_attributes[attribute_node.path_element] = [old_value, None]
+                        relevant_attribute_changed = True
+
+                if not relevant_attribute_changed:
+                    continue
+
+                assert reference_to_child
+                assert len(changed_attributes) > 0
+                assert hook_path
+
+                out.append((hook_path, reference_to_child, changed_attributes))
 
         return out
 
     def set_new_values(self, data, tree: PathTree):
-        for hook_path, child, changed_attributes in data:
-            child_ref = tree.idx_to_node[child].reference
-            if not child_ref: continue
-
+        for hook_path, reference_to_child, changed_attributes in data:
             for attribute, value in changed_attributes.items():
-                value[1] = getattr(child_ref, attribute, None)
+                value[1] = getattr(reference_to_child, attribute, None)
 
         return data
 
@@ -86,6 +103,11 @@ class ReplayHookSystem:
                 )
             except Exception as e:
                 logger.error(f"Error executing hook: {e}", exc_info=True)
+
+        self.clear_que()
+
+    def clear_que(self):
+        self.queued = {}
 
 
 

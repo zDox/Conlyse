@@ -1,14 +1,17 @@
+from __future__ import annotations
+
 import os
 import pickle
 from datetime import datetime
 
 from typing import Literal
+from typing import TYPE_CHECKING
 from typing import Union
 
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
-from conflict_interface.interface.game_interface import GameInterface
+
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import RemoveOperation
@@ -20,6 +23,9 @@ from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.metadata import Metadata
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay_storage import ReplayStorage
+
+if TYPE_CHECKING:
+    from conflict_interface.interface.replay_interface import ReplayInterface
 
 
 class Replay:
@@ -143,9 +149,8 @@ class Replay:
 
         self.storage.metadata.info['last_time'] = int(time_stamp.timestamp())
 
-    def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: GameInterface):
+    def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
-
 
         def prepare_value(_value):
             if isinstance(_value, GameObject):
@@ -190,8 +195,8 @@ class Replay:
         # Get new values and que the hooks
         if hook_system:
             data_with_new = hook_system.set_new_values(data_with_old, self.storage.path_tree)
-            for hook_path, child_idx, data in data_with_new:
-                hook_system.que(hook_path, idx_to_node[child_idx], data)
+            for hook_path, reference_to_child, data in data_with_new:
+                hook_system.que(hook_path, reference_to_child, data)
 
     def get_start_time(self) -> datetime:
         start_timestamp = self.storage.metadata.info['start_time']
