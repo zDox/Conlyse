@@ -17,6 +17,7 @@ from tools.recorder.account_pool import AccountPool
 from tools.recorder.find_game_logic import GameFinder
 from tools.recorder.recorder_logger import get_logger
 from tools.recorder.storage import RecordingStorage
+from tools.recorder.utils import format_duration
 from tools.recorder.utils import parse_duration
 
 logger = get_logger()
@@ -411,7 +412,7 @@ class Recorder:
         duration_input = action.get('duration', 0)
         duration_seconds = parse_duration(duration_input)
         
-        logger.info(f"Sleeping for {duration_seconds} seconds without updates")
+        logger.info(f"Sleeping for {format_duration(duration_seconds)} without updates")
         sleep(duration_seconds)
         return True
     
@@ -419,18 +420,26 @@ class Recorder:
         """Sleep with periodic updates."""
         duration_input = action.get('duration', 0)
         duration_seconds = parse_duration(duration_input)
-        update_interval = action.get('update_interval', 10)
+        update_interval = action.get('update_interval', 10.0)
         
-        logger.info(f"Sleeping for {duration_seconds} seconds with updates every {update_interval} seconds")
-        
-        elapsed = 0
+        logger.info(f"Sleeping for {format_duration(duration_seconds)} with updates every {format_duration(update_interval)}")
+
+        start_time = time()
+        elapsed = 0.0
+
         while elapsed < duration_seconds:
+            # Determine next sleep chunk
             wait_time = min(update_interval, duration_seconds - elapsed)
             sleep(wait_time)
-            elapsed += wait_time
-            
+            elapsed = time() - start_time
+
+            # Only update if we're not done
             if elapsed < duration_seconds:
                 self.game_itf.update()
+
+            # Print progress
+            progress = min(100.0, 100.0 * elapsed / duration_seconds)
+            print(f"Sleeping with updates: {progress:.1f}% ({format_duration(elapsed)} / {format_duration(duration_seconds)})")
         
         return True
     

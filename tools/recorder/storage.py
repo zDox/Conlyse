@@ -129,8 +129,6 @@ class RecordingStorage:
         })
         self._save_metadata(metadata)
 
-        logger.info(f"Saved request and response at timestamp {timestamp}")
-    
     def setup_logging(self):
         library_logger = logging.getLogger("con_itf")
         recording_logger = logging.getLogger("rec")
