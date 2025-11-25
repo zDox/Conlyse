@@ -223,7 +223,6 @@ class RecordingReader:
 
                 json_responses.append((timestamp_ms, json_response))
 
-        logger.info(f"Read {len(json_responses)} JSON responses from recording")
         return json_responses
 
     def read_json_requests(self, limit: int = None) -> List[Tuple[int, dict]]:

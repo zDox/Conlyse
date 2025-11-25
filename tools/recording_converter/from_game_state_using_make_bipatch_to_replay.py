@@ -105,5 +105,4 @@ class FromGameStateUsingMakeBiPatchToReplay:
 
                 prev_state = current_state
 
-        logger.info(f"Successfully converted recording to replay: {output_file}")
         return True

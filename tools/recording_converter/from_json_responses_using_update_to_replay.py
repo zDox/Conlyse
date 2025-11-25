@@ -52,7 +52,7 @@ class FromJsonResponsesUsingUpdateToReplay:
             return False
 
         logger.info(f"Converting recording to replay using JSON-based mode: game_id={game_id}, player_id={player_id}")
-        logger.info(f"Total JSON responses: {len(json_responses)}")
+        logger.info(f"Processing {len(json_responses)} JSON responses")
 
         # Create a mock game interface for parsing context
         mock_game = GameInterface()
@@ -82,7 +82,7 @@ class FromJsonResponsesUsingUpdateToReplay:
             )
 
             # Process JSON responses and create patches using update method
-            for i in tqdm(range(len(json_responses)), desc="Processing: ", unit="Patch", unit_scale=True):
+            for i in tqdm(range(len(json_responses)), desc="Writing Replay: ", unit="Patch", unit_scale=True):
                 timestamp_ms, json_response = json_responses[i]
                 current_datetime = unix_ms_to_datetime(timestamp_ms)
 
@@ -130,6 +130,4 @@ class FromJsonResponsesUsingUpdateToReplay:
                     logger.error(f"Error processing JSON response at {current_datetime}: {e}")
                     # Continue with next response
                     continue
-
-        logger.info(f"Successfully converted recording to replay: {output_file}")
         return True
