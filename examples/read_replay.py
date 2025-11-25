@@ -1,19 +1,20 @@
 import logging
 from time import perf_counter
 
-from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
+from paths import TEST_DATA
 
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
-    gitf = GameInterface()
     t1 = perf_counter()
-    ritf = ReplayInterface("../tools/recording_converter/rec01.db")
+    ritf = ReplayInterface(TEST_DATA / "test_replay.bin")
 
     ritf.open()
+    ritf.replay.load_initial_game_state()
+    print(len(ritf.get_armies()))
     t2 = perf_counter()
     time_stamps_ = ritf.get_timestamps()
     time_stamps = len(time_stamps_)
