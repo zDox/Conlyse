@@ -10,7 +10,6 @@ import atexit
 from .constants import *
 from .cli import ReplayDebugCLI
 from .args_parser import CommandParser, resolve_alias
-from .check_timestamps import check_timestamps
 
 
 def setup_readline():
