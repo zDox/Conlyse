@@ -21,6 +21,7 @@ class TestCompareUpdateToApplyPatch(unittest.TestCase):
         self.recording_file_path: Path = TEST_DATA / "test_recording"
         self.replay_file_path: Path = TEST_DATA / "test_replay.bin"
         self.player_id = 85
+        self.current_time = None
 
     def start_converter(self):
         # Create converter for replay conversion (gmr mode)
@@ -63,6 +64,7 @@ class TestCompareUpdateToApplyPatch(unittest.TestCase):
         for i in range(len(json_responses)):
             timestamp_ms, json_response = json_responses[i]
             current_time = unix_ms_to_datetime(timestamp_ms)
+            self.current_time = current_time
 
             if json_response.get("action") == "UltActivateGameAction":
                 logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
@@ -90,12 +92,11 @@ class TestCompareUpdateToApplyPatch(unittest.TestCase):
             self.compare_game_states(replay_state, current_state)
 
     def compare_game_states(self, game_is, game_should):
-        logger.debug("Comparing game states")
         # Debug: Working stats:
-        json_is = dump_any(game_is.states.player_state)
-        json_should = dump_any(game_should.states.player_state)
+        json_is = dump_any(game_is.states.ai_state)
+        json_should = dump_any(game_should.states.ai_state)
         success = compare_dicts(json_should, json_is)
-        self.assertTrue(success)
+        self.assertTrue(success, f"Comparing game states, current_time: {self.current_time}")
 
 
 
