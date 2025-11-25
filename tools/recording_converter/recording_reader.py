@@ -6,6 +6,7 @@ from typing import Optional
 from typing import Tuple
 
 import zstandard as zstd
+from tqdm import tqdm
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
@@ -20,8 +21,43 @@ class RecordingReader:
         self.requests_file = self.recording_dir / "requests.jsonl.zst"
         self.responses_file = self.recording_dir / "responses.jsonl.zst"
         self.static_map_data_file = self.recording_dir / "static_map_data.bin"
+        self.metadata_file = self.recording_dir / "metadata.json"
 
+        self.metadata = None
         self._decompressor = zstd.ZstdDecompressor()
+
+    def read_metadata(self) -> Optional[dict]:
+        """
+        Read metadata from the recording.
+
+        Returns:
+            Metadata dictionary or None if not found
+        """
+        if not self.metadata_file.exists():
+            logger.warning(f"Metadata file not found: {self.metadata_file}")
+            return None
+
+        try:
+            with open(self.metadata_file, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            logger.info("Read metadata from recording")
+            return metadata
+        except Exception as e:
+            logger.error(f"Error reading metadata: {e}")
+            return None
+
+    def get_metadata(self) -> dict:
+        """
+        Get metadata, reading from file if not already loaded.
+
+        Returns:
+            Metadata dictionary
+        """
+        if self.metadata is None:
+            self.metadata = self.read_metadata()
+            if self.metadata is None:
+                self.metadata = {}
+        return self.metadata
 
     def read_static_map_data(self) -> Optional[StaticMapData]:
         """
@@ -141,7 +177,15 @@ class RecordingReader:
 
         logger.error(f"Game state at index {current_idx} not found")
 
-    def read_json_responses(self) -> List[Tuple[int, dict]]:
+
+    def len_updates(self) -> int:
+        metadata = self.get_metadata()
+        updates = metadata.get('updates', None)
+        if updates is None:
+            return 0
+        return len(updates)
+
+    def read_json_responses(self, limit: int = None) -> List[Tuple[int, dict]]:
         """
         Read all JSON responses from the recording.
 
@@ -149,9 +193,10 @@ class RecordingReader:
             List of (timestamp_ms, json_response) tuples
         """
         json_responses = []
-
+        len_updates = self.len_updates()
+        number_of_responses_to_process = len_updates if limit is None else min(limit, len_updates)
         with open(self.responses_file, 'rb') as f:
-            while True:
+            for _ in tqdm(range(number_of_responses_to_process), desc="Reading JSON responses: ", unit="Response", unit_scale=True):
                 # Read timestamp (8 bytes)
                 timestamp_bytes = f.read(8)
                 if not timestamp_bytes:
@@ -181,7 +226,7 @@ class RecordingReader:
         logger.info(f"Read {len(json_responses)} JSON responses from recording")
         return json_responses
 
-    def read_json_requests(self) -> List[Tuple[int, dict]]:
+    def read_json_requests(self, limit: int = None) -> List[Tuple[int, dict]]:
         """
         Read all JSON requests from the recording.
 
@@ -190,8 +235,10 @@ class RecordingReader:
         """
         json_requests = []
 
+        len_updates =  self.len_updates()
+        number_of_requests_to_process = len_updates if limit is None else min(limit, len_updates)
         with open(self.requests_file, 'rb') as f:
-            while True:
+            for _ in tqdm(range(number_of_requests_to_process), desc="Reading JSON requests: ", unit="Request", unit_scale=True):
                 # Read timestamp (8 bytes)
                 timestamp_bytes = f.read(8)
                 if not timestamp_bytes:

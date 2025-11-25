@@ -57,7 +57,7 @@ class RecordingConverter:
                 raise FileNotFoundError(f"Requests file not found: {self.reader.requests_file}, necessary in op mode rur")
         # Op Mode rtj has no requirements as it simply tries to convert as much as it can
 
-    def convert(self, output: Path, overwrite: bool, game_id: int = None, player_id: int = None) -> bool:
+    def convert(self, output: Path, overwrite: bool, limit: int = None, game_id: int = None, player_id: int = None) -> bool:
         """
         Convert the recording to a replay file.
         
@@ -76,13 +76,13 @@ class RecordingConverter:
                 return False
             if self.op_mode == OperatingMode.gmr:
                 gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader)
-                return gmr.convert(output, overwrite, game_id, player_id)
+                return gmr.convert(output, overwrite, limit, game_id, player_id)
             elif self.op_mode == OperatingMode.rur:
                 rur = FromJsonResponsesUsingUpdateToReplay(self.reader)
-                return rur.convert(output, overwrite, game_id, player_id)
+                return rur.convert(output, overwrite, limit, game_id, player_id)
             elif self.op_mode == OperatingMode.rtj:
                 rtj = FromRecordingToJson(self.reader)
-                return rtj.convert(output, overwrite)
+                return rtj.convert(output, limit, overwrite)
             else:
                 logger.error(f"Invalid patch mode: {self.op_mode}")
                 return False

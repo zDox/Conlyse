@@ -1,6 +1,8 @@
 
 from pathlib import Path
 
+from tqdm import tqdm
+
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.utils.helper import unix_ms_to_datetime
@@ -16,6 +18,7 @@ class FromGameStateUsingMakeBiPatchToReplay:
     def convert(self,
                 output_file: Path,
                 overwrite: bool = False,
+                limit: int = None,
                 game_id: int = None,
                 player_id: int = None) -> bool:
         """
@@ -83,9 +86,9 @@ class FromGameStateUsingMakeBiPatchToReplay:
             # Create patches between consecutive states
             prev_state = first_state
 
-            for i in range(1, len_game_states):
-                logger.info(f"Creating patch {i}/{len_game_states - 1} at {current_datetime}")
+            number_of_states_to_process = len_game_states if limit is None else min(limit, len_game_states)
 
+            for i in tqdm(range(1, number_of_states_to_process), desc="Processing: ", unit="States", unit_scale=True):
                 timestamp_ms, current_state = self.reader.read_game_state(i)
                 current_datetime = unix_ms_to_datetime(timestamp_ms)
 
