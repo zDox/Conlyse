@@ -2,6 +2,8 @@
 
 The Recorder CLI tool allows you to script and record game sessions in Conflict of Nations. It operates independently of the replay system and captures both compressed game states and server responses.
 
+**Important Note**: The timestamps are real time timestamps representing when the data was recorded, not the game timestamps,
+which might be totally different as they are dependent on the game mode accelerated.
 ## Features
 
 - **Independent Recording**: Does not use the record_replay function

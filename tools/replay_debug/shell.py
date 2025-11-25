@@ -10,6 +10,7 @@ import atexit
 from .constants import *
 from .cli import ReplayDebugCLI
 from .args_parser import CommandParser, resolve_alias
+from .check_timestamps import check_timestamps
 
 
 def setup_readline():
@@ -273,6 +274,12 @@ def run_interactive_shell(cli: ReplayDebugCLI):
                         code.interact(local={'ritf': ritf, 'cli': cli})
                     except Exception as e:
                         print(f"Error: {e}")
+
+                elif command == "check-timestamps":
+                    try:
+                        cli.check_timestamps()
+                    except Exception as e:
+                        print(f"Error during timestamp validation: {e}")
                 
                 else:
                     print(f"Unknown command: {command}")

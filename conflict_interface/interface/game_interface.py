@@ -558,6 +558,11 @@ class GameInterface:
         """
         return self.game_state.states.game_info_state.time_scale
 
+    @property
+    def speed_modifier(self) -> float:
+        # Returns the speed multiplier based on the game's time scale. 4 speed means a 4x game speed.
+        return 1 / self.time_scale
+
     def client_time(self) -> datetime:
         pass
 

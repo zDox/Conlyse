@@ -184,14 +184,13 @@ class Recorder:
                 auth_details=deepcopy(self.hub_itf.api.auth),
                 proxy=self.hub_itf.api.proxy,
                 guest=guest,
-                replay_filename=replay_filename
+                replay_filepath=replay_filename
             )
 
             # Patch the game API to capture responses
             original_request_method = game_interface.game_api.make_game_server_request
 
             def patched_request(*args, **kwargs):
-
                 self.storage.save_game_state(time(),
                                              game_interface.game_state)
                 # Capture the request parameters

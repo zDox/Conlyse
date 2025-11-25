@@ -83,20 +83,20 @@ class FromJsonResponsesUsingUpdateToReplay:
 
             # Process JSON responses and create patches using update method
             for i in tqdm(range(len(json_responses)), desc="Writing Replay: ", unit="Patch", unit_scale=True):
-                timestamp_ms, json_response = json_responses[i]
-                current_datetime = unix_ms_to_datetime(timestamp_ms)
+                _, json_response = json_responses[i] # timestamp_ms is the real timestamp of the response
 
                 try:
                     if json_response.get("action") == "UltActivateGameAction":
                         logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
                         continue
-                    new_state = parse_any(GameState, json_response["result"], mock_game)
+                    new_state: GameState = parse_any(GameState, json_response["result"], mock_game)
+                    current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
                     # Parse JSON response into new state
                     if json_response["result"]["@c"] == "ultshared.UltGameState" and not initial_game_state_written:
                         # Record initial game state
-                        logger.info(f"Recording initial state at {current_datetime}")
+                        logger.info(f"Recording initial state at {current_timestamp} game time")
                         replay.record_initial_game_state(
-                            time_stamp=current_datetime,
+                            time_stamp=current_timestamp,
                             game_id=game_id,
                             player_id=player_id,
                             game_state=new_state
@@ -106,7 +106,7 @@ class FromJsonResponsesUsingUpdateToReplay:
                         continue
                     elif json_response["result"]["@c"] == "ultshared.UltGameState" and initial_game_state_written:
                         # Entire new game state -> replace current state -> make_bireplay_patch
-                        logger.info(f"Creating bireplay patch using make_bireplay_patch for response {i} at {current_datetime}")
+                        logger.info(f"Creating bireplay patch using make_bireplay_patch for response {i} at {current_timestamp} game time")
                         bipatch = make_bireplay_patch(current_state, new_state)
                         current_state = new_state
                     elif initial_game_state_written:
@@ -121,13 +121,13 @@ class FromJsonResponsesUsingUpdateToReplay:
 
                     # Record the patch
                     replay.record_bipatch(
-                        time_stamp=current_datetime,
+                        time_stamp=current_timestamp,
                         game_id=game_id,
                         player_id=player_id,
                         replay_patch=bipatch
                     )
                 except Exception as e:
-                    logger.error(f"Error processing JSON response at {current_datetime}: {e}")
+                    logger.error(f"Error processing JSON response at {current_timestamp} game time: {e}")
                     # Continue with next response
                     continue
         return True
