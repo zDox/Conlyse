@@ -4,6 +4,9 @@ from typing import Any
 
 from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.hook_system.replay_hook_queue_element import ReplayHookQueueElement
+from conflict_interface.replay.constants import ADD_OPERATION
+from conflict_interface.replay.constants import REMOVE_OPERATION
+from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.path_tree import PathTree
 
 logger = getLogger()
@@ -21,11 +24,11 @@ class ReplayHookSystem:
         hook = self.hooks[hook_path]
         found = False
         for attribute, value in data.items():
-            op_type = 2
+            op_type = REPLACE_OPERATION
             if value[0] is None and value[1] is not None:
-                op_type = 1
+                op_type = ADD_OPERATION
             if value[0] is not None and value[1] is None:
-                op_type = 3
+                op_type = REMOVE_OPERATION
             if op_type in hook.change_types:
                 found = True
 

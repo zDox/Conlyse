@@ -18,7 +18,7 @@ class FromJsonResponsesUsingUpdateToReplay:
     def __init__(self, recoding_reader: RecordingReader):
         self.reader = recoding_reader
 
-    def convert(self, output_file: str, overwrite: bool = False, game_id: int = None, player_id: int = None) -> bool:
+    def convert(self, output_file: Path, overwrite: bool = False, game_id: int = None, player_id: int = None) -> bool:
         """
         Convert using JSON-based approach (parse JSON responses and apply updates).
 

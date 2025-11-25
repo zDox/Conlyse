@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import pickle
+from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 
 from typing import Literal
 from typing import TYPE_CHECKING
@@ -29,8 +31,8 @@ if TYPE_CHECKING:
 
 
 class Replay:
-    def __init__(self, file_path: str, mode: Literal['r', 'w', 'a'] = 'r', game_id: int = None, player_id: int = None):
-        self.file_path = file_path
+    def __init__(self, file_path: Path, mode: Literal['r', 'w', 'a'] = 'r', game_id: int = None, player_id: int = None):
+        self.file_path: Path = file_path
         self.mode = mode
         self.game_id = game_id
         self.player_id = player_id
@@ -200,11 +202,11 @@ class Replay:
 
     def get_start_time(self) -> datetime:
         start_timestamp = self.storage.metadata.info['start_time']
-        return datetime.fromtimestamp(start_timestamp)
+        return datetime.fromtimestamp(start_timestamp, tz=UTC)
 
     def get_last_time(self) -> datetime:
         last_timestamp = self.storage.metadata.info['last_time']
-        return datetime.fromtimestamp(last_timestamp)
+        return datetime.fromtimestamp(last_timestamp, tz=UTC)
 
     def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]]) -> dict[str, list]:
         op_types = []

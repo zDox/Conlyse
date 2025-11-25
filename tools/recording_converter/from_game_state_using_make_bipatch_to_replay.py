@@ -14,7 +14,7 @@ class FromGameStateUsingMakeBiPatchToReplay:
         self.game_states_file = self.reader.game_states_file
 
     def convert(self,
-                output_file: str,
+                output_file: Path,
                 overwrite: bool = False,
                 game_id: int = None,
                 player_id: int = None) -> bool:

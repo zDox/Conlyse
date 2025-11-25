@@ -114,7 +114,7 @@ class FromRecordingToJson:
 
         logger.info(f"Successfully dumped {len(json_responses)} JSON responses to {self.json_responses_dir}")
 
-    def convert(self, output_dir: str = None, overwrite: bool = False) -> bool:
+    def convert(self, output_dir: Path = None, overwrite: bool = False) -> bool:
         """
         Dump game states, JSON requests, and JSON responses to separate JSON files.
 

@@ -1,6 +1,7 @@
 import logging
 from time import perf_counter
 
+from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger

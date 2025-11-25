@@ -16,7 +16,7 @@ from conflict_interface.data_types.player_state.player_state import PlayerState
 from conflict_interface.data_types.research_state.research_state import ResearchState
 from conflict_interface.data_types.resource_state.resource_state import ResourceState
 from conflict_interface.interface.game_interface import GameInterface
-from tests.compare_dicts import compare_dicts
+from tests.helper_functions import compare_dicts
 
 
 class ParseDumpTests(unittest.TestCase):

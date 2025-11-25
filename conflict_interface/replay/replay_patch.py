@@ -9,27 +9,21 @@ from dataclasses import dataclass
 from typing import Any
 from typing import Union
 
+import lz4.frame
+
 from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.logger_config import get_logger
 import msgpack
-import zstandard as zstd
 from array import array
+
+from conflict_interface.replay.constants import ADD_OPERATION
+from conflict_interface.replay.constants import INT_TO_OP
+from conflict_interface.replay.constants import OP_TO_INT
 
 logger = get_logger()
 
 PathNode = Union[str, int]
 
-# Operation type mapping (more compact than strings)
-OP_ADD = 0
-OP_REPLACE = 1
-OP_REMOVE = 2
-
-OP_TO_INT = {"a": OP_ADD, "p": OP_REPLACE, "r": OP_REMOVE}
-INT_TO_OP = {OP_ADD: "a", OP_REPLACE: "p", OP_REMOVE: "r"}
-
-# Zstandard compressor (reusable for better performance)
-_compressor = zstd.ZstdCompressor(level=3)  # Level 3 is good balance
-_decompressor = zstd.ZstdDecompressor()
 
 @dataclass
 class AddOperation:
@@ -264,7 +258,7 @@ class ReplayPatch:
                 continue
 
             # Store operation type as integer
-            ops_col[i] = OP_TO_INT.get(op.Key, OP_ADD)
+            ops_col[i] = OP_TO_INT.get(op.Key, ADD_OPERATION)
 
             # Store path reference as index
             path_indices_col[i] = path_dict[path_key]
@@ -286,7 +280,7 @@ class ReplayPatch:
         binary = msgpack.packb(data, use_bin_type=True)
 
         # Step 6: Compress with zstd (faster than lzma, similar compression ratio)
-        compressed_data = _compressor.compress(binary)
+        compressed_data = lz4.frame.compress(binary)
 
         return compressed_data
 
@@ -308,7 +302,7 @@ class ReplayPatch:
             ReplayPatch: Reconstructed patch object
         """
         # Step 1: Decompress the data
-        decompressed_data = _decompressor.decompress(b)
+        decompressed_data = lz4.frame.decompress(b)
 
         # Step 2: Unpack msgpack binary format
         data = msgpack.unpackb(decompressed_data, raw=False)

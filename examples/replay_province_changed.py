@@ -20,7 +20,7 @@ if __name__ == "__main__":
             print(f"{key}: {value}")
 
 
-    ritf.on_province_attribute_change(province_owner_changed, ["owner_id"])
+    ritf.on_province_attribute_change(province_owner_changed, ["owner_id", "resource_production"])
 
     # Start timing
     start_time = time.time()

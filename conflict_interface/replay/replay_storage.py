@@ -1,6 +1,7 @@
 import os
 import pickle
 import struct
+from pathlib import Path
 
 import lz4.frame
 
@@ -33,7 +34,7 @@ class ReplayStorage:
         self.path_tree = pickle.loads(data[3])
         self.patch_graph = pickle.loads(data[4])
 
-    def load_full_from_disk(self, file_path: str):
+    def load_full_from_disk(self, file_path: Path):
         data = []
         with open(file_path, 'rb') as f:
             while True:
@@ -48,7 +49,7 @@ class ReplayStorage:
 
         self.parse_data(data)
 
-    def safe_to_disk(self, file_path: str):
+    def safe_to_disk(self, file_path: Path):
         data_chunks = \
             [
                 pickle.dumps(self.metadata),
@@ -60,7 +61,7 @@ class ReplayStorage:
 
         self.write_to_file(data_chunks, file_path)
 
-    def write_to_file(self, data_chunks, file_path: str):
+    def write_to_file(self, data_chunks, file_path: Path):
         # Partial compression for partial (metadata) reads.
         with open(file_path, 'wb') as f:
             for chunk in data_chunks:
@@ -69,7 +70,7 @@ class ReplayStorage:
                 f.write(struct.pack('>I', length))
                 f.write(compressed)
 
-    def create_new_file(self, file_path: str):
+    def create_new_file(self, file_path: Path):
         parent = os.path.dirname(file_path)
         if parent:
             os.makedirs(parent, exist_ok=True)

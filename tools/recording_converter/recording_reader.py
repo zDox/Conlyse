@@ -14,7 +14,7 @@ from tools.recording_converter.recorder_logger import get_logger
 logger = get_logger()
 
 class RecordingReader:
-    def __init__(self, recording_dir):
+    def __init__(self, recording_dir: Path):
         self.recording_dir = Path(recording_dir)
         self.game_states_file = self.recording_dir / "game_states.bin"
         self.requests_file = self.recording_dir / "requests.jsonl.zst"

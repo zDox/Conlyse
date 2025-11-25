@@ -1,14 +1,9 @@
 """
 Converter for transforming recorder data to replay format.
 """
-import json
 from pathlib import Path
 
-import zstandard as zstd
-
-from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.logger_config import get_logger
-from conflict_interface.utils.helper import unix_ms_to_datetime
 from tools.recording_converter.enums import OperatingMode
 from tools.recording_converter.from_game_state_using_make_bipatch_to_replay import FromGameStateUsingMakeBiPatchToReplay
 from tools.recording_converter.from_json_responses_using_update_to_replay import FromJsonResponsesUsingUpdateToReplay
@@ -35,7 +30,7 @@ class RecordingConverter:
         Converts the recording to multiple json files
     """
     
-    def __init__(self, recording_dir: str, operating_mode: OperatingMode):
+    def __init__(self, recording_dir: str | Path, operating_mode: OperatingMode):
         """
         Initialize converter with recording directory.
         
@@ -43,7 +38,8 @@ class RecordingConverter:
             recording_dir: Path to the recording directory
             operating_mode: One of the three operating modes
         """
-        self.reader = RecordingReader(recording_dir)
+        self.path = Path(recording_dir)
+        self.reader = RecordingReader(self.path)
         self.op_mode = operating_mode
 
         self.check_op_mode_requirements()
@@ -61,7 +57,7 @@ class RecordingConverter:
                 raise FileNotFoundError(f"Requests file not found: {self.reader.requests_file}, necessary in op mode rur")
         # Op Mode rtj has no requirements as it simply tries to convert as much as it can
 
-    def convert(self, output: str, overwrite: False, game_id: int = None, player_id: int = None) -> bool:
+    def convert(self, output: Path, overwrite: bool, game_id: int = None, player_id: int = None) -> bool:
         """
         Convert the recording to a replay file.
         

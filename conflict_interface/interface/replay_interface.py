@@ -1,5 +1,7 @@
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from pathlib import Path
 from time import time
 from typing import Callable
 from typing import override
@@ -18,9 +20,10 @@ import bisect
 logger = get_logger()
 
 class ReplayInterface(GameInterface):
-    def __init__(self, filename: str):
+    def __init__(self, file_path: Path | str):
         super().__init__()
-        self.replay = Replay(filename, 'r')
+        self.file_path = Path(file_path)
+        self.replay = Replay(self.file_path, 'r')
         self._hook_system = ReplayHookSystem()
         self.game_state: GameState | None = None
         self.static_map_data = None
@@ -39,7 +42,7 @@ class ReplayInterface(GameInterface):
         self.game_state = self.replay.load_initial_game_state()
         self.game_state.set_game(self)
         _time_stamps_cache_raw = self.replay.storage.patch_graph.time_stamps_cache
-        self._time_stamps_cache = [datetime.fromtimestamp(ts) for ts in _time_stamps_cache_raw]
+        self._time_stamps_cache = [datetime.fromtimestamp(ts, tz = UTC) for ts in _time_stamps_cache_raw]
         logger.debug(f"GameState parse took {time() - t2} seconds")
         t3 = time()
         self.static_map_data = self.replay.load_static_map_data()
