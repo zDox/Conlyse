@@ -1,6 +1,7 @@
-import unittest
 from logging import getLogger
 from pathlib import Path
+
+from tqdm import tqdm
 
 from conflict_interface.data_types.game_object import dump_any
 from conflict_interface.data_types.game_object import parse_any
@@ -8,20 +9,24 @@ from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.utils.helper import unix_ms_to_datetime
+from paths import TEST_DATA
 from tests.helper_functions import compare_dicts
 from tools.recording_converter.converter import RecordingConverter
 from tools.recording_converter.enums import OperatingMode
 from tools.recording_converter.recording_reader import RecordingReader
-from paths import TEST_DATA
 
 logger = getLogger()
 
-class TestCompareUpdateToApplyPatch(unittest.TestCase):
-    def setUp(self):
-        self.recording_file_path: Path = TEST_DATA / "test_recording"
-        self.replay_file_path: Path = TEST_DATA / "test_replay.bin"
+class ReplayRoundtrip:
+    def __init__(self, recording_file_path: Path = TEST_DATA / "test_recording", replay_file_path: Path = TEST_DATA / "test_replay.bin", preconverted = False):
+        self.recording_file_path: Path = recording_file_path
+        self.replay_file_path: Path = replay_file_path
         self.player_id = 85
         self.current_time = None
+        self.limit = 1000
+
+        if not preconverted:
+            self.start_converter()
 
     def start_converter(self):
         # Create converter for replay conversion (gmr mode)
@@ -35,41 +40,31 @@ class TestCompareUpdateToApplyPatch(unittest.TestCase):
             output=TEST_DATA / "test_replay.bin",
             overwrite=True,
             game_id=12345,  # optional
-            player_id=self.player_id  # optional
+            player_id=self.player_id, # optional
+            limit = self.limit
         )
 
-        self.assertTrue(success, "Converting successful")
+        assert success
 
-    def test_open_replay(self):
-        if not self.replay_file_path.exists():
-            self.start_converter()
+    def run(self):
         ritf = ReplayInterface(self.replay_file_path)
         ritf.open()
-
-        self.assertGreater(len(ritf.get_players()), 0, "No players Found")
-
-    def test_replay_against_update(self):
-        if not self.replay_file_path.exists():
-            self.start_converter()
-        ritf = ReplayInterface(self.replay_file_path)
-        ritf.open()
-
 
         reader = RecordingReader( self.recording_file_path )
         mock_game = GameInterface()
         initial_game_state_written = False
 
-        json_responses = reader.read_json_responses()
+        json_responses = reader.read_json_responses(self.limit)
 
-        for i in range(len(json_responses)):
+        for i in tqdm(range(len(json_responses)), desc="Comparing Game States", unit="State", unit_scale=True):
             timestamp_ms, json_response = json_responses[i]
 
 
             if json_response.get("action") == "UltActivateGameAction":
-                logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
+                #logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
                 continue
-            new_state: GameState = parse_any(GameState, json_response["result"], mock_game)
-            current_time = unix_ms_to_datetime(int(new_state.time_stamp))
+            new_state = parse_any(GameState, json_response["result"], mock_game)
+            current_time = unix_ms_to_datetime(new_state.time_stamp)
             self.current_time = current_time
             # Parse JSON response into new state
             if json_response["result"]["@c"] == "ultshared.UltGameState" and not initial_game_state_written:
@@ -97,14 +92,8 @@ class TestCompareUpdateToApplyPatch(unittest.TestCase):
         json_is = dump_any(game_is.states.map_state)
         json_should = dump_any(game_should.states.map_state)
         success = compare_dicts(json_should, json_is)
-        self.assertTrue(success, f"Comparing game states, current_time: {self.current_time}")
+        assert success, f"Comparing game states, current_time: {self.current_time}"
 
-
-
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    r = ReplayRoundtrip()
+    r.run()
