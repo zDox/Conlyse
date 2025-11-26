@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pprint import pprint
 from typing import Optional
 
 from conflict_interface.data_types.map_state.map import Map
@@ -52,10 +53,10 @@ class MapState(State):
             self.map.clear_cache()
 
         if other.properties is not None:
-            if any(province_id not in self.properties for province_id  in other.properties.keys()):
+            if self.properties is None:
+                self.properties = other.properties
                 if rp:
                     rp.replace(path + ["properties"], self.properties, other.properties)
-                self.properties = other.properties
                 return
             for province_id, prop in other.properties.items():
                 if rp:
