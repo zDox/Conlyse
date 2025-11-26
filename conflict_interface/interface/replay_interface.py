@@ -124,29 +124,27 @@ class ReplayInterface(GameInterface):
     def end_time(self) -> datetime:
         return self.replay.get_last_time()
 
-    def jump_to(self, time_stamp: datetime) -> list[PatchGraphNode]:
+    def jump_to(self, time_stamp: datetime) -> None:
         """
         Jumps to the specified timestamp in the replay.
 
         Returns applied patches
         """
         if self.current_time == time_stamp:
-            return []
+            return
         if time_stamp < self.replay.get_start_time() == self.current_time:
-            return []
+            return
 
         if time_stamp < self.replay.get_start_time():
             self.game_state = self.replay.load_initial_game_state()
             self.game_state.set_game(self)
-            return []
+            return
 
         patches = self.replay.storage.patch_graph.find_patch_path(self.last_patch_time, time_stamp)
         self._apply_patches_and_update_state(patches, time_stamp)
 
         # Update the current timestamp index for O(1) next/previous operations
         self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
-
-        return patches
 
     def _apply_patches_and_update_state(self, patches, target_time: datetime) -> None:
         """
