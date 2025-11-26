@@ -1,6 +1,9 @@
+
 from pathlib import Path
 
-from conflict_interface.replay.make_bireplay_patch import make_bireplay_patch
+from tqdm import tqdm
+
+from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from tools.recording_converter.recorder_logger import get_logger
@@ -13,8 +16,9 @@ class FromGameStateUsingMakeBiPatchToReplay:
         self.game_states_file = self.reader.game_states_file
 
     def convert(self,
-                output_file: str,
+                output_file: Path,
                 overwrite: bool = False,
+                limit: int = None,
                 game_id: int = None,
                 player_id: int = None) -> bool:
         """
@@ -55,10 +59,10 @@ class FromGameStateUsingMakeBiPatchToReplay:
             output_path.unlink()
 
         # Create replay in write mode
-        with Replay(filename=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
+        with Replay(file_path=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
             # Record initial game state
-            first_datetime = unix_ms_to_datetime(first_timestamp_ms)
-            logger.info(f"Recording initial state at {first_datetime}")
+            first_datetime = unix_ms_to_datetime(int(first_state.time_stamp))
+            logger.info(f"Recording initial state at {first_datetime} game time")
             replay.record_initial_game_state(
                 time_stamp=first_datetime,
                 game_id=game_id,
@@ -82,11 +86,11 @@ class FromGameStateUsingMakeBiPatchToReplay:
             # Create patches between consecutive states
             prev_state = first_state
 
-            for i in range(1, len_game_states):
-                logger.info(f"Creating patch {i}/{len_game_states - 1} at {current_datetime}")
+            number_of_states_to_process = len_game_states if limit is None else min(limit, len_game_states)
 
-                timestamp_ms, current_state = self.reader.read_game_state(i)
-                current_datetime = unix_ms_to_datetime(timestamp_ms)
+            for i in tqdm(range(1, number_of_states_to_process), desc="Processing: ", unit="States", unit_scale=True):
+                _, current_state = self.reader.read_game_state(i)
+                current_datetime = unix_ms_to_datetime(int(current_state.time_stamp))
 
                 # Create bidirectional patch
                 bipatch = make_bireplay_patch(prev_state, current_state)
@@ -101,5 +105,4 @@ class FromGameStateUsingMakeBiPatchToReplay:
 
                 prev_state = current_state
 
-        logger.info(f"Successfully converted recording to replay: {output_file}")
         return True

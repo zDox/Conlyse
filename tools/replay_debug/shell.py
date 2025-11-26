@@ -273,6 +273,12 @@ def run_interactive_shell(cli: ReplayDebugCLI):
                         code.interact(local={'ritf': ritf, 'cli': cli})
                     except Exception as e:
                         print(f"Error: {e}")
+
+                elif command == "check-timestamps":
+                    try:
+                        cli.check_timestamps()
+                    except Exception as e:
+                        print(f"Error during timestamp validation: {e}")
                 
                 else:
                     print(f"Unknown command: {command}")

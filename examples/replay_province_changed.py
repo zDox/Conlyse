@@ -10,17 +10,17 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
-    ritf = ReplayInterface("benchmark_replay_206.db")
+    ritf = ReplayInterface("../tools/recording_converter/rec01.db")
 
     ritf.open()
-    ritf.replay.load_patches_from_disk_into_cache()
-    def province_added(province):
-        print(f"Province added! ID: {province}")
-    def province_owner_changed(province: Province, old_value, new_value):
-        print(f"Owner of Province {province.name}! Changed from {ritf.get_player(old_value).name} -> {ritf.get_player(new_value).name}")
+    def province_owner_changed(province: Province, data):
+        print()
+        print(f"Province {province.name} changed: ")
+        for key, value in data.items():
+            print(f"{key}: {value}")
 
-    ritf.on_province_add(province_added)
-    ritf.on_province_attribute_change(province_owner_changed, "owner_id")
+
+    ritf.on_province_attribute_change(province_owner_changed, ["owner_id", "resource_production"])
 
     # Start timing
     start_time = time.time()
@@ -34,8 +34,8 @@ if __name__ == "__main__":
             jump_count += 1
             current_tstamp = next_tstamp
             next_tstamp = ritf.get_next_timestamp()
-        except Exception:
-            print(f"Failed to jump to {next_tstamp}/{datetime_to_unix_ms(ritf.current_time)}")
+        except Exception as e:
+            print(f"Failed to jump to {next_tstamp}/{datetime_to_unix_ms(ritf.current_time)} {e}")
             ritf.current_time = next_tstamp
             ritf.current_timestamp_index += 1
             current_tstamp = next_tstamp

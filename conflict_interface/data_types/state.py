@@ -5,7 +5,6 @@ from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
-from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 @dataclass

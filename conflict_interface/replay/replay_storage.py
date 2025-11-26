@@ -1,0 +1,77 @@
+import os
+import pickle
+import struct
+from pathlib import Path
+
+import lz4.frame
+
+from conflict_interface.replay.metadata import Metadata
+from conflict_interface.replay.patch_graph import PatchGraph
+from conflict_interface.replay.path_tree import PathTree
+
+
+class ReplayStorage:
+    def __init__(self):
+        self.metadata: Metadata | None = None
+        self.initial_game_state_b: bytes | None = None
+        self.static_map_data_b: bytes | None = None
+        self.path_tree: PathTree | None = None
+        self.patch_graph: PatchGraph | None = None
+
+        self.compressor = lz4.frame.compress
+        self.decompressor = lz4.frame.decompress
+
+    def initialize_empty(self):
+        self.initial_game_state_b = None
+        self.static_map_data_b = None
+        self.path_tree = PathTree()
+        self.patch_graph = PatchGraph()
+
+    def parse_data(self, data):
+        self.metadata = pickle.loads(data[0])
+        self.initial_game_state_b = data[1]
+        self.static_map_data_b = data[2]
+        self.path_tree = pickle.loads(data[3])
+        self.patch_graph = pickle.loads(data[4])
+
+    def load_full_from_disk(self, file_path: Path):
+        data = []
+        with open(file_path, 'rb') as f:
+            while True:
+                length_bytes = f.read(4)
+                if not length_bytes:
+                    break
+
+                (length, ) = struct.unpack('>I', length_bytes)
+                compressed = f.read(length)
+                decompressed = self.decompressor(compressed)
+                data.append(decompressed)
+
+        self.parse_data(data)
+
+    def safe_to_disk(self, file_path: Path):
+        data_chunks = \
+            [
+                pickle.dumps(self.metadata),
+                self.initial_game_state_b,
+                self.static_map_data_b,
+                pickle.dumps(self.path_tree),
+                pickle.dumps(self.patch_graph)
+            ]
+
+        self.write_to_file(data_chunks, file_path)
+
+    def write_to_file(self, data_chunks, file_path: Path):
+        # Partial compression for partial (metadata) reads.
+        with open(file_path, 'wb') as f:
+            for chunk in data_chunks:
+                compressed = self.compressor(chunk)
+                length = len(compressed)
+                f.write(struct.pack('>I', length))
+                f.write(compressed)
+
+    def create_new_file(self, file_path: Path):
+        parent = os.path.dirname(file_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+

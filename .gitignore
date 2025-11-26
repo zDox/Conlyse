@@ -25,13 +25,13 @@ tests/data/full_test_data_3.json
 tests/data/full_test_data_4.json
 tests/full_test_data_1.json
 
-tests/credentials.json
-tests/full_test_data_4.json
+tests/test_data/credentials.json
+tests/test_data/full_test_data_4.json
 /doc/data2.json
 /doc/data3.json
 build
 /doc/main-built-min.js
-tests/full_test_data_5.json
+tests/test_data/full_test_data_5.json
 *.db
 
 examples/
@@ -39,7 +39,7 @@ examples/credentials.json
 main.js
 *.js
 /tests/full_test_data_6_v191.json
-tests/full_test_data_1_v206.json
+tests/test_data/full_test_data_1_v206.json
 /tools/recorder/config.json
 /recordings/
 /tools/recorder/account_pool.json
@@ -47,3 +47,4 @@ tests/full_test_data_1_v206.json
 /tools/recorder/credentials.json
 /tools/recording_converter/recording-json/
 /tools/recorder/account_pool.json
+/tests/test_data/

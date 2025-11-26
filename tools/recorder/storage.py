@@ -4,6 +4,7 @@ Storage management for recording sessions.
 import json
 import logging
 import pickle
+from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
@@ -124,7 +125,7 @@ class RecordingStorage:
         metadata = self._load_metadata()
         metadata["updates"].append({
             "timestamp": timestamp,
-            "datetime": datetime.fromtimestamp(timestamp).isoformat()
+            "datetime": datetime.fromtimestamp(timestamp, tz=UTC).isoformat()
         })
         self._save_metadata(metadata)
 

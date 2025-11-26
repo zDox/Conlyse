@@ -9,12 +9,64 @@ This module provides functionality to:
 from typing import Any
 from typing import get_args
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object import get_inner_type
 from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
-from conflict_interface.replay.apply_replay import recur_path
 
+
+def recur_path(
+        obj: Any,
+        obj_type: type,
+        path: list[str | int],
+        game_state: GameState,
+        game: GameInterface
+) -> tuple[Any, str | int, type] | tuple[Any, str | int]:
+    """
+    Recursively navigate through a nested structure to reach a target location.
+
+    This function follows a path through nested GameObjects, lists, and dicts
+    to reach a specific location where an operation should be applied.
+
+    Args:
+        obj: Current object being traversed
+        obj_type: Type hint for the current object
+        path: Remaining path elements to traverse
+        game_state: Root game state object
+        game: Game interface for parsing
+
+    Returns:
+        Tuple of (parent_object, final_key, target_type) where the operation should be applied
+
+    Raises:
+        ValueError: If path is invalid or attribute doesn't exist
+    """
+    if len(path) == 0:
+        raise ValueError(f"Path is empty for {obj}")
+    if len(path) == 1:
+        if isinstance(obj, GameObject):
+            if not hasattr(obj, path[0]):
+                raise ValueError(f"Object {str(obj)[:100]} has no attribute '{path[0]}'")
+            else:
+                obj_type = obj.get_type_hints_cached()[path[0]]
+        return obj, path[0], obj_type
+
+    # Continue recursing down the path
+    key = path.pop(0)
+    if isinstance(obj, GameObject):
+        if not hasattr(obj, key):
+            raise ValueError(f"Object {str(obj)[:100]} has no attribute '{key}'")
+        return recur_path(getattr(obj, key), obj.get_type_hints_cached()[key], path, game_state, game)
+    elif isinstance(obj, list):
+        if int(key) >= len(obj):
+            raise ValueError(f"List index {key} out of range for list of length {len(obj)} for {str(obj)[:100]}")
+        return recur_path(obj[int(key)], get_args(obj_type)[0], path, game_state, game)
+    elif isinstance(obj, dict):
+        inner_type = get_inner_type(obj_type, obj)
+        key = parse_any(get_args(inner_type)[0], key, game)
+        return recur_path(obj[key], get_args(inner_type)[1], path, game_state, game)
 
 class GameObjectViewer:
     """Views and inspects game objects at current replay position."""

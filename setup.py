@@ -26,7 +26,7 @@ extras_require = {
         "python-dateutil",
     ],
     "tools-recording-converter": [
-        # Add dependencies for recording-converter tool here
+        "tqdm"
     ],
     "tools-recorder": [
         # Add dependencies for recorder tool here
@@ -73,7 +73,8 @@ setup(
         "jsonpatch",
         "cloudscraper25",
         "msgpack",
-        "zstandard"
+        "zstandard",
+        "lz4"
     ],
     extras_require=extras_require,
     entry_points={

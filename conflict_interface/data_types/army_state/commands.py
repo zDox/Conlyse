@@ -9,7 +9,6 @@ from typing import Union
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
 from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
-from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.point import Point
 

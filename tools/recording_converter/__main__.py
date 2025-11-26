@@ -99,6 +99,13 @@ Patch creation modes:
         action='store_true',
         help='Quiet mode (only ERROR level)'
     )
+
+    parser.add_argument(
+        '--limit',
+        type=int,
+        default=None,
+        help='Limit number of game states/json responses to process'
+    )
     
     args = parser.parse_args()
 
@@ -139,7 +146,8 @@ Patch creation modes:
                     sys.exit(1)
                 success = converter.convert(
                     output=args.output_dir,
-                    overwrite=args.overwrite
+                    overwrite=args.overwrite,
+                    limit=args.limit
                 )
 
                 if success:
@@ -152,6 +160,7 @@ Patch creation modes:
                 success = converter.convert(
                     output=args.output_replay,
                     overwrite=args.overwrite,
+                    limit=args.limit,
                     game_id=args.game_id,
                     player_id=args.player_id
                 )

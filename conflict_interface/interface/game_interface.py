@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from datetime import timedelta
 from functools import wraps
-from typing import Callable, Optional
+from typing import Optional
 from typing import TYPE_CHECKING
 
 from conflict_interface.data_types.army_state.army import Army
@@ -26,12 +26,12 @@ from conflict_interface.data_types.research_state.reserach import Research
 from conflict_interface.data_types.resource_state.resource_entry import ResourceEntry
 from conflict_interface.data_types.resource_state.resource_profile import ResourceProfile
 from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
+
 if TYPE_CHECKING:
     from conflict_interface.interface.online_interface import OnlineInterface
 
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException
-from conflict_interface.hook_system import HookSystem, ChangeType
 
 logger = get_logger()
 
@@ -39,7 +39,6 @@ class GameInterface:
     def __init__(self):
         self.player_id = 0
         self.game_state: GameState | None = None
-        self._hook_system = HookSystem()
 
     @property
     def online(self) -> OnlineInterface:
@@ -543,6 +542,7 @@ class GameInterface:
     def get_resource_entry(self, resource_id: ResourceType) -> ResourceEntry | None:
         return self.get_my_resource_profile().get_resource_entry(resource_id)
 
+
     """
     Time utilities
     """
@@ -557,6 +557,11 @@ class GameInterface:
         (e.g., time_scale 0.25 means 4x speed, so ingame time passes twice as fast as real time)
         """
         return self.game_state.states.game_info_state.time_scale
+
+    @property
+    def speed_modifier(self) -> float:
+        # Returns the speed multiplier based on the game's time scale. 4 speed means a 4x game speed.
+        return 1 / self.time_scale
 
     def client_time(self) -> datetime:
         pass
@@ -588,27 +593,3 @@ class GameInterface:
 
     def real_duration_to_ingame(self, real_delta: timedelta) -> timedelta:
         return timedelta(seconds=real_delta.total_seconds() / self.time_scale)
-
-    """
-    Hook System Events
-    """
-    def on_province_attribute_change(self, callback: Callable, attribute: str) -> None:
-        """
-        Register a callback for when an attribute of a province changes.
-        
-        The callback will be called with the province object:
-        callback(province, old_value, new_value)
-        where province is the Province object whose attribute changed,
-        old_value is the previous attribute value, and
-        where new_value is the new attribute value.
-        
-        Args:
-            callback: Function to call when the province attribute changes
-            attribute: The name of the attribute to watch (e.g., "owner_id")
-        """
-        pattern = f"states.map_state.map.locations.?.{attribute}"
-        def wrapper(change_type, path, old_value, new_value):
-            province_id = self.game_state.states.map_state.map.province_index_to_id(int(path[-2]))
-            province = self.get_province(province_id)
-            callback(province, old_value, new_value)
-        self._hook_system.register_hook(pattern, wrapper, {ChangeType.REPLACE})

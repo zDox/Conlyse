@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import Optional
-from typing import override
 
 from conflict_interface.data_types.map_state.map import Map
 from conflict_interface.data_types.custom_types import HashMap
@@ -10,7 +9,6 @@ from conflict_interface.data_types.state import State
 from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
-from conflict_interface.replay.replay_patch import ReplayPatch
 
 
 @dataclass
@@ -54,10 +52,10 @@ class MapState(State):
             self.map.clear_cache()
 
         if other.properties is not None:
-            if any(province_id not in self.properties for province_id  in other.properties.keys()):
+            if self.properties is None:
+                self.properties = other.properties
                 if rp:
                     rp.replace(path + ["properties"], self.properties, other.properties)
-                self.properties = other.properties
                 return
             for province_id, prop in other.properties.items():
                 if rp:

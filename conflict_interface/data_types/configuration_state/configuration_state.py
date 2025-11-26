@@ -1,6 +1,3 @@
-
-from conflict_interface.data_types.game_object import GameObject
-
 from dataclasses import dataclass
 
 from conflict_interface.data_types.state import State

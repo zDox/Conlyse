@@ -1,68 +1,95 @@
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from time import time
+from pathlib import Path
+from typing import Callable
 from typing import override
 
-from conflict_interface.data_types.game_object import parse_any
+from tqdm import tqdm
+
 from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.hook_system.replay_hook import ReplayHook
+from conflict_interface.hook_system.replay_hook_system import ReplayHookSystem
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.apply_replay import apply_patch_any
+from conflict_interface.replay.constants import ADD_OPERATION
+from conflict_interface.replay.constants import REMOVE_OPERATION
+from conflict_interface.replay.constants import REPLACE_OPERATION
+from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay import Replay
 import bisect
 
 logger = get_logger()
 
 class ReplayInterface(GameInterface):
-    def __init__(self, filename: str):
+    def __init__(self, file_path: Path | str):
         super().__init__()
-        self.replay = Replay(filename, 'r')
+        self.file_path = Path(file_path)
+        self.replay = Replay(self.file_path, 'r')
+        self._hook_system = ReplayHookSystem()
         self.game_state: GameState | None = None
         self.static_map_data = None
         self.player_id: int | None = None
         self.current_time: datetime | None = None
         self.game_id: int | None = None
         self.last_patch_time = None
-        self._time_stamps_cache = None  # Cache for converted datetime timestamps
-        self._raw_timestamps_ref = None  # Reference to replay's timestamp list
+        self._time_stamps_cache = None
         self.current_timestamp_index: int = 0
 
     def open(self):
-        t1 = time()
+        # Step 1: open replay
+        logger.debug("Opening Replay")
         self.replay.open()
-        logger.debug(f"Loading Game State from disk took {time() - t1} seconds")
-        t2 = time()
+        logger.debug("Loading Initial Game State")
+        # Step 2: load game state
         self.game_state = self.replay.load_initial_game_state()
+        logger.debug("Setting Game")
         self.game_state.set_game(self)
-        logger.debug(f"GameState parse took {time() - t2} seconds")
-        t3 = time()
+        logger.debug("Parsing TimeStamps for the Cache")
+        # Step 3: parse timestamps
+        _raw = self.replay.storage.patch_graph.time_stamps_cache
+        self._time_stamps_cache = [
+            datetime.fromtimestamp(ts, tz=UTC) for ts in _raw
+        ]
+        logger.debug("Setting Static Map Data")
+
+        # Step 4: static map data
         self.static_map_data = self.replay.load_static_map_data()
         self.static_map_data.set_game(self)
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
+
+        logger.debug("Finishing Setup")
+
+        # Step 5: final metadata
         self._update_player_id()
         self.game_id = self.replay.game_id
-        self.current_time = self.replay.start_time
-        self.last_patch_time = self.replay.start_time
+        self.current_time = self.replay.get_start_time()
+        self.last_patch_time = self.current_time
 
-        # Store reference to replay's timestamps and convert once
-        self._raw_timestamps_ref = self.replay.get_timestamps()
-        self._time_stamps_cache = [datetime.fromtimestamp(ts / 1000, tz=UTC) for ts in self._raw_timestamps_ref]
+        logger.debug("Initialization Completed Successfully")
 
-        logger.debug(f"Loading and setting static map data took {time() - t3} seconds")
 
     def close(self):
         self.replay.close()
 
     def _find_current_player_id(self) -> int | None:
         for player in self.get_players().values():
-            if player.activity_state == "ACTIVE" or player.activity_state == "UNKNOWN":
+            if (
+                    player.activity_state == "ACTIVE" or
+                    player.activity_state == "UNKNOWN" or
+                    player.activity_state == "INACTIVE"or
+                    player.activity_state == "ABANDONED"
+            ):
+
                 return player.player_id
 
     def _update_player_id(self):
-        if self.player_id is not None and (self.get_player(self.player_id).activity_state == "ACTIVE"
-            or self.get_player(self.player_id).activity_state == "UNKNOWN"):
+        if self.player_id is not None and (
+                self.get_player(self.player_id).activity_state == "ACTIVE" or
+                self.get_player(self.player_id).activity_state == "UNKNOWN" or
+                self.get_player(self.player_id).activity_state == "INACTIVE" or
+                self.get_player(self.player_id).activity_state == "ABANDONED"
+        ):
             return
 
         self.player_id = self._find_current_player_id()
@@ -76,27 +103,29 @@ class ReplayInterface(GameInterface):
 
     @property
     def start_time(self) -> datetime:
-        return self.replay.start_time
+        return self.replay.get_start_time()
 
     @property
     def end_time(self) -> datetime:
-        return self.replay.last_time
+        return self.replay.get_last_time()
 
     def jump_to(self, time_stamp: datetime) -> None:
         """
         Jumps to the specified timestamp in the replay.
+
+        Returns applied patches
         """
         if self.current_time == time_stamp:
             return
-        if time_stamp < self.replay.start_time == self.current_time:
+        if time_stamp < self.replay.get_start_time() == self.current_time:
             return
 
-        if time_stamp < self.replay.start_time:
+        if time_stamp < self.replay.get_start_time():
             self.game_state = self.replay.load_initial_game_state()
             self.game_state.set_game(self)
             return
 
-        patches, _ = self.replay.find_patch_path(self.last_patch_time, time_stamp)
+        patches = self.replay.storage.patch_graph.find_patch_path(self.last_patch_time, time_stamp)
         self._apply_patches_and_update_state(patches, time_stamp)
 
         # Update the current timestamp index for O(1) next/previous operations
@@ -108,15 +137,15 @@ class ReplayInterface(GameInterface):
         Reduces code duplication across jump methods.
         """
         for patch in patches:
-            apply_patch_any(patch, self.game_state, self)
+            self.replay.apply_patch(patch, self.game_state, self)
 
         self.current_time = target_time
         self.last_patch_time = target_time
-        self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
+        #self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
         self._update_player_id()
 
         if hasattr(self, '_hook_system'):
-            self._hook_system.execute_queued_hooks()
+            self._hook_system.execute_que()
 
     def jump_to_next_patch(self) -> bool:
         """
@@ -131,7 +160,7 @@ class ReplayInterface(GameInterface):
         if next_timestamp is None:
             return False
 
-        patches, _ = self.replay.find_patch_path(self.current_time, next_timestamp)
+        patches = self.replay.storage.patch_graph.find_patch_path(self.current_time, next_timestamp)
 
         if patches:
             self._apply_patches_and_update_state(patches, next_timestamp)
@@ -149,14 +178,14 @@ class ReplayInterface(GameInterface):
         """
         previous_timestamp = self.get_previous_timestamp()
 
-        if previous_timestamp is None or previous_timestamp < self.replay.start_time:
+        if previous_timestamp is None or previous_timestamp < self.replay.get_start_time():
             return False
 
         # Need to reload and replay from start since patches can't be unapplied
         self.game_state = self.replay.load_initial_game_state()
         self.game_state.set_game(self)
 
-        patches, _ = self.replay.find_patch_path(self.replay.start_time, previous_timestamp)
+        patches, _ = self.replay.storage.patch_graph.find_patch_path(self.replay.get_start_time(), previous_timestamp)
         self._apply_patches_and_update_state(patches, previous_timestamp)
         self.current_timestamp_index -= 1
 
@@ -215,3 +244,45 @@ class ReplayInterface(GameInterface):
         num_intervals = len(timestamps) - 1
 
         return timedelta(seconds=num_intervals / total_time if total_time > 0 else 0.0)
+
+
+    """
+    Hook System
+    """
+
+
+    def get_hook_system(self) -> ReplayHookSystem:
+        return self._hook_system
+
+
+    """
+    Hook System Events
+    """
+
+
+    def on_province_attribute_change(self, callback: Callable, attributes: list[str]) -> None:
+        """
+        Register a callback for when an attribute of a province changes.
+
+        The callback will be called with the province object:
+        callback(province, old_value, new_value)
+        where province is the Province object whose attribute changed,
+        old_value is the previous attribute value, and
+        where new_value is the new attribute value.
+
+        Args:
+            callback: Function to call when the province attribute changes
+            attributes: The name of the attributes to watch (e.g., "owner_id")
+        """
+        path = ["states", "map_state","map","locations"]
+        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+
+        def wrapper(path, reference, changed_data):
+            callback(reference, changed_data)
+
+        hook = ReplayHook( callback = wrapper,
+                           change_types = [ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
+                           attributes = attributes,
+                           path = path_idx
+                           )
+        self._hook_system.register(hook)

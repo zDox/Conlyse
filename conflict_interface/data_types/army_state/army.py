@@ -21,7 +21,6 @@ from conflict_interface.data_types.army_state.unit import Unit
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import LinkedList
 from conflict_interface.data_types.custom_types import UnitList
-from conflict_interface.data_types.game_info_state.game_info_state import GameFeatures
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
@@ -32,7 +31,6 @@ from conflict_interface.data_types.mod_state.configuration import MissileCarrier
 from conflict_interface.data_types.mod_state.configuration import RadarSignatureFeature
 from conflict_interface.data_types.mod_state.configuration import TokenFeature
 from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
-from conflict_interface.data_types.mod_state.unit_type import UnitType
 from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
 
