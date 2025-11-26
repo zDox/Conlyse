@@ -28,7 +28,7 @@ class ReplayRoundtrip:
         self.player_id = 85
         self.current_time = None
         self.last_time = None
-        self.limit = 863
+        self.limit = 100
         self.compare_start_index = 0
 
         if not preconverted:
@@ -154,8 +154,8 @@ class ReplayRoundtrip:
 
     def compare_game_states(self, game_is, game_should):
         # Debug: Working stats:
-        json_is = dump_any(game_is.states.map_state)
-        json_should = dump_any(game_should.states.map_state)
+        json_is = dump_any(game_is.states.game_event_state)
+        json_should = dump_any(game_should.states.game_event_state)
         success = compare_dicts(json_should, json_is)
         return success
 

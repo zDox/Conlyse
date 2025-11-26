@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import pickle
+from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -216,12 +217,20 @@ class Replay:
         for op in operations:
             paths.append(self.storage.path_tree.get_or_add_path_node(op.path))
 
+            if isinstance(op.new_value, GameObject):
+                game_itf = op.new_value.game
+                op.new_value.set_game(None)
+                value = deepcopy(op.new_value)
+                op.new_value.set_game(game_itf)
+            else:
+                value = deepcopy(op.new_value)
+
             if op.Key == 'a':
                 op_types.append(ADD_OPERATION)
-                values.append(op.new_value)
+                values.append(value)
             elif op.Key == 'p':
                 op_types.append(REPLACE_OPERATION)
-                values.append(op.new_value)
+                values.append(value)
             elif op.Key == 'r':
                 op_types.append(REMOVE_OPERATION)
                 values.append(None)
