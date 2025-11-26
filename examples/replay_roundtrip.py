@@ -1,3 +1,4 @@
+from copy import deepcopy
 from logging import getLogger
 from pathlib import Path
 
@@ -8,6 +9,9 @@ from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
+from conflict_interface.replay.constants import ADD_OPERATION
+from conflict_interface.replay.constants import REMOVE_OPERATION
+from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from paths import TEST_DATA
 from tests.helper_functions import compare_dicts
@@ -23,7 +27,9 @@ class ReplayRoundtrip:
         self.replay_file_path: Path = replay_file_path
         self.player_id = 85
         self.current_time = None
-        self.limit = 1000
+        self.last_time = None
+        self.limit = 600
+        self.compare_start_index = 557
 
         if not preconverted:
             self.start_converter()
@@ -47,14 +53,16 @@ class ReplayRoundtrip:
         assert success
 
     def run(self):
+        reader = RecordingReader(self.recording_file_path)
         ritf = ReplayInterface(self.replay_file_path)
         ritf.open()
 
-        reader = RecordingReader( self.recording_file_path )
         mock_game = GameInterface()
+
         initial_game_state_written = False
 
         json_responses = reader.read_json_responses(self.limit)
+        self.current_time = ritf.replay.get_start_time()
 
         for i in tqdm(range(len(json_responses)), desc="Comparing Game States", unit="State", unit_scale=True):
             timestamp_ms, json_response = json_responses[i]
@@ -63,36 +71,92 @@ class ReplayRoundtrip:
             if json_response.get("action") == "UltActivateGameAction":
                 #logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
                 continue
-            new_state = parse_any(GameState, json_response["result"], mock_game)
-            current_time = unix_ms_to_datetime(new_state.time_stamp)
-            self.current_time = current_time
+
+            new_state: GameState = parse_any(GameState, json_response["result"], mock_game)
+            self.last_time = self.current_time
+            self.current_time = unix_ms_to_datetime(int(new_state.time_stamp))
             # Parse JSON response into new state
             if json_response["result"]["@c"] == "ultshared.UltGameState" and not initial_game_state_written:
-                current_state = new_state
+                recorder_state = new_state
                 initial_game_state_written = True
                 continue
             elif json_response["result"]["@c"] == "ultshared.UltGameState" and initial_game_state_written:
                 # Entire new game state -> replace current state
 
-                current_state = new_state
+                recorder_state = new_state
 
             elif initial_game_state_written:
-                current_state.update(new_state, [])
+                recorder_state.update(new_state, [])
 
             else:
                 logger.error("JSON response is not a full game state")
                 return False
 
-            ritf.jump_to(current_time)
+            if i < self.compare_start_index: continue
+            applied_patches = ritf.jump_to(self.current_time)
             replay_state = ritf.game_state
-            self.compare_game_states(replay_state, current_state)
+            success = self.compare_game_states(replay_state, recorder_state)
+            if success: continue
+
+            logger.debug(f"Started Error Analysis")
+            ritf.jump_to(self.last_time)
+            replay_state_before = deepcopy(ritf.game_state)
+            ritf.jump_to(self.current_time)
+            replay_state_now = ritf.game_state
+
+            tree = ritf.replay.storage.path_tree
+
+            if len(applied_patches) == 0:
+                print()
+                logger.error("No patches applied")
+
+            elif len(applied_patches) == 1:
+                print()
+                print("One Patch Applied")
+                patch = applied_patches[0]
+                for i, (op_type, path, value) in enumerate(zip(patch.op_types, patch.paths, patch.values)):
+                    if op_type == ADD_OPERATION:
+                        print(f"{i} ADD: {tree.get_old_path_for_debug(path)}, New Value is : {str(value)[:100]}")
+                    elif op_type == REPLACE_OPERATION:
+                        print(f"{i} REPLACE: {tree.get_old_path_for_debug(path)}, with : {str(value)[:100]}")
+                    elif op_type == REMOVE_OPERATION:
+                        print(f"{i} REMOVE: {tree.get_old_path_for_debug(path)}")
+
+            else:
+                print()
+                print("=" * 60)
+                logger.warning("More then One Patch Applied")
+                print("More then One Patch Applied")
+                print("="*60)
+                print()
+                print()
+                for i in range(len(applied_patches)):
+                    patch = applied_patches[i]
+                    from_ts = patch.from_timestamp
+                    to_ts = patch.to_timestamp
+
+                    print(f"Applying Patch from {from_ts} to {to_ts}")
+                    for i, (op_type, path, value) in enumerate(zip(patch.op_types, patch.paths, patch.values)):
+                        if op_type == ADD_OPERATION:
+                            print(f"{i} ADD: {tree.get_old_path_for_debug(path)}, New Value is : {str(value)[:100]}")
+                        elif op_type == REPLACE_OPERATION:
+                            print(f"{i} REPLACE: {tree.get_old_path_for_debug(path)}, with : {str(value)[:100]}")
+                        elif op_type == REMOVE_OPERATION:
+                            print(f"{i} REMOVE: {tree.get_old_path_for_debug(path)}")
+
+            print("Errors Concluded")
+            return False
+
 
     def compare_game_states(self, game_is, game_should):
         # Debug: Working stats:
         json_is = dump_any(game_is.states.map_state)
         json_should = dump_any(game_should.states.map_state)
         success = compare_dicts(json_should, json_is)
-        assert success, f"Comparing game states, current_time: {self.current_time}"
+        return success
+
+
+
 
 if __name__ == "__main__":
     r = ReplayRoundtrip()

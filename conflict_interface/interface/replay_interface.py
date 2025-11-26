@@ -2,9 +2,10 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from time import time
 from typing import Callable
 from typing import override
+
+from tqdm import tqdm
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.hook_system.replay_hook import ReplayHook
@@ -14,6 +15,7 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
+from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay import Replay
 import bisect
 
@@ -35,25 +37,52 @@ class ReplayInterface(GameInterface):
         self.current_timestamp_index: int = 0
 
     def open(self):
-        t1 = time()
+        steps = [
+            "Opening replay",
+            "Loading initial game state",
+            "Parsing timestamps",
+            "Loading static map data",
+            "Finalizing setup",
+        ]
+
+        pbar = tqdm(total=len(steps), desc="Loading Replay", unit="step")
+
+        # Step 1: open replay
         self.replay.open()
-        logger.debug(f"Loading Game State from disk took {time() - t1} seconds")
-        t2 = time()
+        pbar.set_description(steps[0])
+        pbar.update(1)
+
+        # Step 2: load game state
         self.game_state = self.replay.load_initial_game_state()
         self.game_state.set_game(self)
-        _time_stamps_cache_raw = self.replay.storage.patch_graph.time_stamps_cache
-        self._time_stamps_cache = [datetime.fromtimestamp(ts, tz = UTC) for ts in _time_stamps_cache_raw]
-        logger.debug(f"GameState parse took {time() - t2} seconds")
-        t3 = time()
+        pbar.set_description(steps[1])
+        pbar.update(1)
+
+        # Step 3: parse timestamps
+        _raw = self.replay.storage.patch_graph.time_stamps_cache
+        self._time_stamps_cache = [
+            datetime.fromtimestamp(ts, tz=UTC) for ts in _raw
+        ]
+        pbar.set_description(steps[2])
+        pbar.update(1)
+
+        # Step 4: static map data
         self.static_map_data = self.replay.load_static_map_data()
         self.static_map_data.set_game(self)
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
+        pbar.set_description(steps[3])
+        pbar.update(1)
+
+        # Step 5: final metadata
         self._update_player_id()
         self.game_id = self.replay.game_id
         self.current_time = self.replay.get_start_time()
-        self.last_patch_time = self.replay.get_start_time()
+        self.last_patch_time = self.current_time
+        pbar.set_description(steps[4])
+        pbar.update(1)
 
-        logger.debug(f"Loading and setting static map data took {time() - t3} seconds")
+        pbar.close()
+
 
     def close(self):
         self.replay.close()
@@ -95,25 +124,29 @@ class ReplayInterface(GameInterface):
     def end_time(self) -> datetime:
         return self.replay.get_last_time()
 
-    def jump_to(self, time_stamp: datetime) -> None:
+    def jump_to(self, time_stamp: datetime) -> list[PatchGraphNode]:
         """
         Jumps to the specified timestamp in the replay.
+
+        Returns applied patches
         """
         if self.current_time == time_stamp:
-            return
+            return []
         if time_stamp < self.replay.get_start_time() == self.current_time:
-            return
+            return []
 
         if time_stamp < self.replay.get_start_time():
             self.game_state = self.replay.load_initial_game_state()
             self.game_state.set_game(self)
-            return
+            return []
 
         patches = self.replay.storage.patch_graph.find_patch_path(self.last_patch_time, time_stamp)
         self._apply_patches_and_update_state(patches, time_stamp)
 
         # Update the current timestamp index for O(1) next/previous operations
         self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
+
+        return patches
 
     def _apply_patches_and_update_state(self, patches, target_time: datetime) -> None:
         """

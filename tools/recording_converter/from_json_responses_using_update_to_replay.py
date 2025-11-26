@@ -80,14 +80,17 @@ class FromJsonResponsesUsingUpdateToReplay:
                 game_id=game_id,
                 player_id=player_id
             )
-
+            game_activation_count = 0
             # Process JSON responses and create patches using update method
             for i in tqdm(range(len(json_responses)), desc="Writing Replay: ", unit="Patch", unit_scale=True):
                 _, json_response = json_responses[i] # timestamp_ms is the real timestamp of the response
 
                 try:
                     if json_response.get("action") == "UltActivateGameAction":
-                        logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
+                        game_activation_count += 1
+                        logger.debug(f"Skipping response {i} as it is an UltActivateGameAction")
+                        if game_activation_count > 2:
+                            logger.error(f"More then 2 UltActivateGameActions!!!")
                         continue
                     new_state: GameState = parse_any(GameState, json_response["result"], mock_game)
                     current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
