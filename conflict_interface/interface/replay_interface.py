@@ -37,51 +37,36 @@ class ReplayInterface(GameInterface):
         self.current_timestamp_index: int = 0
 
     def open(self):
-        steps = [
-            "Opening replay",
-            "Loading initial game state",
-            "Parsing timestamps",
-            "Loading static map data",
-            "Finalizing setup",
-        ]
-
-        pbar = tqdm(total=len(steps), desc="Loading Replay", unit="step")
-
         # Step 1: open replay
+        logger.debug("Opening Replay")
         self.replay.open()
-        pbar.set_description(steps[0])
-        pbar.update(1)
-
+        logger.debug("Loading Initial Game State")
         # Step 2: load game state
         self.game_state = self.replay.load_initial_game_state()
+        logger.debug("Setting Game")
         self.game_state.set_game(self)
-        pbar.set_description(steps[1])
-        pbar.update(1)
-
+        logger.debug("Parsing TimeStamps for the Cache")
         # Step 3: parse timestamps
         _raw = self.replay.storage.patch_graph.time_stamps_cache
         self._time_stamps_cache = [
             datetime.fromtimestamp(ts, tz=UTC) for ts in _raw
         ]
-        pbar.set_description(steps[2])
-        pbar.update(1)
+        logger.debug("Setting Static Map Data")
 
         # Step 4: static map data
         self.static_map_data = self.replay.load_static_map_data()
         self.static_map_data.set_game(self)
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
-        pbar.set_description(steps[3])
-        pbar.update(1)
+
+        logger.debug("Finishing Setup")
 
         # Step 5: final metadata
         self._update_player_id()
         self.game_id = self.replay.game_id
         self.current_time = self.replay.get_start_time()
         self.last_patch_time = self.current_time
-        pbar.set_description(steps[4])
-        pbar.update(1)
 
-        pbar.close()
+        logger.debug("Initialization Completed Successfully")
 
 
     def close(self):
