@@ -156,3 +156,4 @@ class ResearchState(State):
             for attr in self.get_mapping().keys():
                 if getattr(self, attr) != getattr(other, attr):
                     rp.replace(path + [attr], getattr(self, attr), getattr(other, attr))
+                    setattr(self, attr, getattr(other, attr))
