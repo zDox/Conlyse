@@ -1,3 +1,4 @@
+import logging
 from copy import deepcopy
 from logging import getLogger
 from pathlib import Path
@@ -21,8 +22,10 @@ from tools.recording_converter.recording_reader import RecordingReader
 
 logger = getLogger()
 
+
 class ReplayRoundtrip:
-    def __init__(self, recording_file_path: Path = TEST_DATA / "test_recording", replay_file_path: Path = TEST_DATA / "test_replay.bin", preconverted = False):
+    def __init__(self, recording_file_path: Path = TEST_DATA / "test_recording",
+                 replay_file_path: Path = TEST_DATA / "test_replay.bin", preconverted=False):
         self.recording_file_path: Path = recording_file_path
         self.replay_file_path: Path = replay_file_path
         self.player_id = 85
@@ -46,8 +49,8 @@ class ReplayRoundtrip:
             output=TEST_DATA / "test_replay.bin",
             overwrite=True,
             game_id=12345,  # optional
-            player_id=self.player_id, # optional
-            limit = self.limit
+            player_id=self.player_id,  # optional
+            limit=self.limit
         )
 
         assert success
@@ -68,9 +71,8 @@ class ReplayRoundtrip:
         for i in tqdm(range(len(json_responses)), desc="Comparing Game States", unit="State", unit_scale=True):
             timestamp_ms, json_response = json_responses[i]
 
-
             if json_response.get("action") == "UltActivateGameAction":
-                #logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
+                # logger.warning(f"Skipping response {i} as it is an UltActivateGameAction")
                 continue
 
             new_state: GameState = parse_any(GameState, json_response["result"], mock_game)
@@ -99,67 +101,57 @@ class ReplayRoundtrip:
             success = self.compare_game_states(replay_state, recorder_state)
             if success: continue
 
-            logger.debug(f"Started Error Analysis")
-            print(f"Error occoured betweeen {self.last_time} and {self.current_time} at i = {i}")
+            # Error occurred - begin analysis
+            logger.error("\n\n")
+            logger.error("Started Error Analysis")
+            logger.error(f"Error occurred between {self.last_time} and {self.current_time} at i = {i}")
 
             ritf.jump_to(self.last_time)
             replay_state_before = deepcopy(ritf.game_state)
             ritf.jump_to(self.current_time)
             replay_state_now = ritf.game_state
 
-            tree = ritf.replay.storage.path_tree
-            tree.validate_tree_structure()
+            compare_dicts(dump_any(replay_state), dump_any(recorder_state))
+            ritf.replay.storage.path_tree.validate_tree_structure()
 
-            if len(applied_patches) == 0:
-                print()
+            # Analyze applied patches
+            if not applied_patches:
                 logger.error("No patches applied")
-
-            elif len(applied_patches) == 1:
-                print()
-                print("One Patch Applied")
-                patch = applied_patches[0]
-                for i, (op_type, path, value) in enumerate(zip(patch.op_types, patch.paths, patch.values)):
-                    if op_type == ADD_OPERATION:
-                        print(f"{i} ADD: {tree.get_old_path_for_debug(path)}, New Value is : {str(value)[:100]}")
-                    elif op_type == REPLACE_OPERATION:
-                        print(f"{i} REPLACE: {tree.get_old_path_for_debug(path)}, with : {str(value)[:100]}")
-                    elif op_type == REMOVE_OPERATION:
-                        print(f"{i} REMOVE: {tree.get_old_path_for_debug(path)}")
-
             else:
-                print()
-                print("=" * 60)
-                logger.warning("More then One Patch Applied")
-                print("More then One Patch Applied")
-                print("="*60)
-                print()
-                print()
-                for i in range(len(applied_patches)):
-                    patch = applied_patches[i]
-                    from_ts = patch.from_timestamp
-                    to_ts = patch.to_timestamp
+                self._print_patches(applied_patches, ritf.replay.storage.path_tree)
 
-                    print(f"Applying Patch from {from_ts} to {to_ts}")
-                    for i, (op_type, path, value) in enumerate(zip(patch.op_types, patch.paths, patch.values)):
-                        if op_type == ADD_OPERATION:
-                            print(f"{i} ADD: {tree.get_old_path_for_debug(path)}, New Value is : {str(value)[:100]}")
-                        elif op_type == REPLACE_OPERATION:
-                            print(f"{i} REPLACE: {tree.get_old_path_for_debug(path)}, with : {str(value)[:100]}")
-                        elif op_type == REMOVE_OPERATION:
-                            print(f"{i} REMOVE: {tree.get_old_path_for_debug(path)}")
-
-            print("Errors Concluded")
+            logger.error("Error analysis concluded")
             return False
 
+    def _print_patches(self, patches, tree):
+        """Print patch operations for debugging."""
+        if len(patches) == 1:
+            logger.error("One patch applied")
+            self._print_single_patch(patches[0], tree)
+        else:
+            logger.error(f"{len(patches)} patches applied")
+            for patch in patches:
+                logger.error(f"Patch from {patch.from_timestamp} to {patch.to_timestamp}")
+                self._print_single_patch(patch, tree)
 
-    def compare_game_states(self, game_is, game_should):
+    def _print_single_patch(self, patch, tree):
+        """Print operations from a single patch."""
+        for idx, (op_type, path, value) in enumerate(zip(patch.op_types, patch.paths, patch.values)):
+            debug_path = tree.get_old_path_for_debug(path)
+
+            if op_type == ADD_OPERATION:
+                logger.error(f"{idx} ADD: {debug_path}, New Value: {str(value)[:100]}")
+            elif op_type == REPLACE_OPERATION:
+                logger.error(f"{idx} REPLACE: {debug_path}, with: {str(value)[:100]}")
+            elif op_type == REMOVE_OPERATION:
+                logger.error(f"{idx} REMOVE: {debug_path}")
+
+    def compare_game_states(self, game_is: GameState, game_should: GameState):
         # Debug: Working stats:
-        json_is = dump_any(game_is.states.game_event_state)
-        json_should = dump_any(game_should.states.game_event_state)
-        success = compare_dicts(json_should, json_is)
-        return success
+        dict_is = dump_any(game_is)
+        dict_should = dump_any(game_should)
 
-
+        return dict_is == dict_should
 
 
 if __name__ == "__main__":
