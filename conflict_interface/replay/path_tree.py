@@ -1,11 +1,13 @@
 from array import array
 from collections import defaultdict
 from collections import deque
+from logging import getLogger
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.replay.apply_replay_helper import get_child_reference
 from conflict_interface.replay.path_tree_node import PathTreeNode
 
+logger = getLogger()
 
 class PathTree:
     def __init__(self):
@@ -211,7 +213,36 @@ class PathTree:
         _validate_node(self.root)
 
     def validate_tree_structure(self):
-        pass # TODO Implement tree structure validation logic
+        current_node = self.root
+        visited: set[int] = {current_node.index}
+        q =  deque([current_node])
+        known_indexes = []
+        while q:
+            u = q.pop()
+            for path_element, v in u.children.items():
+                if v.index in visited: continue
+
+                if v.path_element != path_element:
+                    logger.warning(f"Node at path {self.get_old_path_for_debug(u.index)}, has child at path_elment {path_element} with wrong pathelement {v.path_element}")
+                    return False
+
+                if v.index not in known_indexes:
+                    known_indexes.append(v.index)
+                else:
+                    logger.warning(f"Node at path {self.get_old_path_for_debug(v.index)} has a duplicate index")
+                    return False
+
+                if len(v.children) == 0 and not v.is_leaf:
+                    logger.warning(f"Node at path {self.get_old_path_for_debug(v.index)} has no children but is not a leave")
+                    return False
+
+                elif len(v.children) != 0 and v.is_leaf:
+                    logger.warning(f"Node at path {self.get_old_path_for_debug(v.index)} has children but is leave")
+                    return False
+
+                visited.add(v.index)
+                q.append(v)
+
 
     def print_tree(self):
         def _print_node(node: PathTreeNode, depth: int):

@@ -28,8 +28,8 @@ class ReplayRoundtrip:
         self.player_id = 85
         self.current_time = None
         self.last_time = None
-        self.limit = 600
-        self.compare_start_index = 557
+        self.limit = 863
+        self.compare_start_index = 0
 
         if not preconverted:
             self.start_converter()
@@ -56,6 +56,7 @@ class ReplayRoundtrip:
         reader = RecordingReader(self.recording_file_path)
         ritf = ReplayInterface(self.replay_file_path)
         ritf.open()
+        ritf.replay.storage.path_tree.validate_tree_structure()
 
         mock_game = GameInterface()
 
@@ -99,12 +100,15 @@ class ReplayRoundtrip:
             if success: continue
 
             logger.debug(f"Started Error Analysis")
+            print(f"Error occoured betweeen {self.last_time} and {self.current_time} at i = {i}")
+
             ritf.jump_to(self.last_time)
             replay_state_before = deepcopy(ritf.game_state)
             ritf.jump_to(self.current_time)
             replay_state_now = ritf.game_state
 
             tree = ritf.replay.storage.path_tree
+            tree.validate_tree_structure()
 
             if len(applied_patches) == 0:
                 print()
