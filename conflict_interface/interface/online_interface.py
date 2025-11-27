@@ -64,7 +64,7 @@ class OnlineInterface(GameInterface):
                     r.apply_patch(uptodate_patch, old_game_state, self)
 
                 rp = make_bireplay_patch(old_game_state, self.game_state)
-                r.record_bipatch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp)
+                r.record_bipatch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp, game=self)
 
         self.replay = Replay(self.replay_filepath, mode="a")
         self.replay.open()
@@ -184,7 +184,8 @@ class OnlineInterface(GameInterface):
                 r.record_bipatch(time_stamp=self.client_time(),
                                      game_id=self.game_id,
                                      player_id=self.player_id,
-                                     replay_patch=rp)
+                                     replay_patch=rp,
+                                     game = self)
                 current_time = int(self.client_time().timestamp() * 1000)
 
     """
