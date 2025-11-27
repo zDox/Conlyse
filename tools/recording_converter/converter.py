@@ -51,7 +51,7 @@ class RecordingConverter:
 
         if self.op_mode == OperatingMode.gmr:
             if not self.reader.game_states_file.exists():
-                raise FileNotFoundError(f"Game state file not found: {self.reader.responses_file}, necessary in op mode gmr")
+                raise FileNotFoundError(f"Game state file not found: {self.reader.game_states_file}, necessary in op mode gmr")
         elif self.op_mode == OperatingMode.rur:
             if not self.reader.requests_file.exists():
                 raise FileNotFoundError(f"Requests file not found: {self.reader.requests_file}, necessary in op mode rur")

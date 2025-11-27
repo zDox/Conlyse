@@ -1,11 +1,10 @@
+import bisect
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import Callable
 from typing import override
-
-from tqdm import tqdm
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.hook_system.replay_hook import ReplayHook
@@ -15,9 +14,7 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
-from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay import Replay
-import bisect
 
 logger = get_logger()
 
