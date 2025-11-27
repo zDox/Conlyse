@@ -251,6 +251,8 @@ class ReplayInterface(GameInterface):
     def get_hook_system(self) -> ReplayHookSystem:
         return self._hook_system
 
+    def unregister_all_hooks(self):
+        self.get_hook_system().unregister_all()
 
     """
     Hook System Events

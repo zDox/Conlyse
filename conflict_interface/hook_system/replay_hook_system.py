@@ -19,6 +19,12 @@ class ReplayHookSystem:
     def register(self, replay_hook: ReplayHook):
         self.hooks[replay_hook.path] = replay_hook
 
+    def deregister(self, hook_path: int):
+        del self.hooks[hook_path]
+
+    def unregister_all(self):
+        self.hooks.clear()
+
     def que(self, hook_path: int, child_ref: Any, data: dict):
         assert hook_path in self.hooks
         hook = self.hooks[hook_path]
