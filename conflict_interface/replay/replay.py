@@ -50,6 +50,12 @@ class Replay:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
+    def get_op_counter(self) -> int:
+        return self._op_counter
+
+    def reset_op_counter(self):
+        self._op_counter = 0
+
     def open(self):
         if self.mode == 'r':
             if not os.path.exists(self.file_path):
