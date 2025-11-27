@@ -100,7 +100,8 @@ class FromGameStateUsingMakeBiPatchToReplay:
                     time_stamp=current_datetime,
                     game_id=game_id,
                     player_id=player_id,
-                    replay_patch=bipatch
+                    replay_patch=bipatch,
+                    game=None
                 )
 
                 prev_state = current_state

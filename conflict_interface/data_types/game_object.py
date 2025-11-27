@@ -467,9 +467,10 @@ class GameObject:
         """
         for f in fields(self):
             value = getattr(self, f.name)
-            self._set_game_recursive(value, game)
+            GameObject.set_game_recursive(value, game)
 
-    def _set_game_recursive(self, value: Any, game: GameInterface | None):
+    @staticmethod
+    def set_game_recursive(value: Any, game: GameInterface | None):
         """
         Recursively sets the game instance for nested GameObjects.
 
@@ -488,16 +489,16 @@ class GameObject:
                 mapping = getattr(type(value), "MAPPING")
                 for python_var_name in mapping.keys():
                     nested_value = getattr(value, python_var_name)
-                    self._set_game_recursive(nested_value, game)
+                    GameObject.set_game_recursive(nested_value, game)
         elif isinstance(value, list):
             # Handles list and all custom list types (Vector, LinkedList, etc.)
             for item in value:
-                self._set_game_recursive(item, game)
+                GameObject.set_game_recursive(item, game)
         elif isinstance(value, dict):
             # Handles dict and all custom map types (HashMap, TreeMap, etc.)
             for (key, value) in value.items():
-                self._set_game_recursive(key, game)
-                self._set_game_recursive(value, game)
+                GameObject.set_game_recursive(key, game)
+                GameObject.set_game_recursive(value, game)
 
 
 

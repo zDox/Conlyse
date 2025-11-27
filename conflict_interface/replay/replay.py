@@ -14,6 +14,7 @@ from typing import Union
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.interface.game_interface import GameInterface
 
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
@@ -132,7 +133,8 @@ class Replay:
             time_stamp: datetime,
             game_id: int,
             player_id: int,
-            replay_patch: BidirectionalReplayPatch
+            replay_patch: BidirectionalReplayPatch,
+            game: GameInterface
     ):
         self.validate_game(game_id, player_id)
 
@@ -145,12 +147,12 @@ class Replay:
         forward_node = PatchGraphNode(
             from_timestamp,
             to_timestamp,
-            **self.ops_to_lists(forward_operations)
+            **self.ops_to_lists(forward_operations, game)
         )
         backward_node = PatchGraphNode(
             to_timestamp,
             from_timestamp,
-            **self.ops_to_lists(backward_operations)
+            **self.ops_to_lists(backward_operations, game)
         )
 
         self.storage.patch_graph.add_patch_node(forward_node)
@@ -162,8 +164,7 @@ class Replay:
         idx_to_node = self.storage.path_tree.idx_to_node
 
         def prepare_value(_value):
-            if isinstance(_value, GameObject):
-                _value.set_game(game_interface)
+            GameObject.set_game_recursive(_value, None)
             return _value
 
         def apply_op(_op_type, _value, _target, _pos, _node=None):
@@ -215,7 +216,7 @@ class Replay:
         last_timestamp = self.storage.metadata.info['last_time']
         return datetime.fromtimestamp(last_timestamp, tz=UTC)
 
-    def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]]) -> dict[str, list]:
+    def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]], game: GameInterface) -> dict[str, list]:
         op_types = []
         paths = []
         values = []
@@ -223,13 +224,9 @@ class Replay:
         for op in operations:
             paths.append(self.storage.path_tree.get_or_add_path_node(op.path))
 
-            if isinstance(op.new_value, GameObject):
-                game_itf = op.new_value.game
-                op.new_value.set_game(None)
-                value = deepcopy(op.new_value)
-                op.new_value.set_game(game_itf)
-            else:
-                value = deepcopy(op.new_value)
+            GameObject.set_game_recursive(op.new_value, None)
+            value = deepcopy(op.new_value)
+            GameObject.set_game_recursive(op.new_value, game)
 
             if op.Key == 'a':
                 op_types.append(ADD_OPERATION)

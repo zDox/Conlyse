@@ -127,7 +127,8 @@ class FromJsonResponsesUsingUpdateToReplay:
                         time_stamp=current_timestamp,
                         game_id=game_id,
                         player_id=player_id,
-                        replay_patch=bipatch
+                        replay_patch=bipatch,
+                        game=mock_game
                     )
                 except Exception as e:
                     logger.error(f"Error processing JSON response at {current_timestamp} game time: {e}")
