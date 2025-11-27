@@ -163,6 +163,10 @@ class Replay:
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
 
+        def prepare_value(_value):
+            GameObject.set_game_recursive(_value, None)
+            return _value
+
         def apply_op(_op_type, _value, _target, _pos, _node=None):
             apply_operation(_op_type, _value, _target, _pos)
             self._op_counter += 1
@@ -194,7 +198,7 @@ class Replay:
         # Apply resolved operations
         it = zip(patch.op_types, patch.paths, patch.values)
         for op_type, path_idx, value in it:
-            GameObject.set_game_recursive(value, None)
+            value = prepare_value(value)
             node = idx_to_node[path_idx]
             apply_op(op_type, value, node.reference, node.path_element, node)
 
