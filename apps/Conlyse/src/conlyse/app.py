@@ -67,10 +67,3 @@ class App:
         self.page_manager.update()
         # Trigger repaint if needed
         self.main_window.update()
-
-
-
-if __name__ == "__main__":
-    setup_logger(logging.DEBUG)
-    app = App()
-    app.start()

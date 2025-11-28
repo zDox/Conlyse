@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 import json
 import os
 
-CONFIG_PATH = "../config.json"
+CONFIG_PATH = "app_data/config.json"
 
 class ConfigManager:
     def __init__(self, app: App):
