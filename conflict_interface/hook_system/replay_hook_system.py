@@ -15,6 +15,7 @@ class ReplayHookSystem:
     def __init__(self):
         self.hooks: dict[int, ReplayHook] = {} # Listening to Path -> Hook
         self.queued: dict[int, list[ReplayHookQueueElement]] = {}
+        self.events: list[ReplayHookQueueElement] = []
 
     def register(self, replay_hook: ReplayHook):
         self.hooks[replay_hook.path] = replay_hook
@@ -45,10 +46,18 @@ class ReplayHookSystem:
             reference = child_ref,
             changed_data = data
         )
-        if self.queued.get(hook_path) is None:
-            self.queued[hook_path] = [new_queue_element]
+        if hook.callback is None:
+            self.events.append(new_queue_element)
         else:
-            self.queued[hook_path].append(new_queue_element)
+            if self.queued.get(hook_path) is None:
+                self.queued[hook_path] = [new_queue_element]
+            else:
+                self.queued[hook_path].append(new_queue_element)
+
+    def get_events(self) -> list[ReplayHookQueueElement]:
+        events = self.events
+        self.events = []
+        return events
 
 
     def get_old_values(self, changed_paths: list[int], tree: PathTree):
