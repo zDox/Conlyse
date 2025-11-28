@@ -42,6 +42,10 @@ class Replay:
         self.storage = ReplayStorage()
 
         self._op_counter = 0
+        self._game = None
+
+    def set_game(self, game: ReplayInterface):
+        self._game = game
 
     def __enter__(self):
         return self.open()
@@ -62,10 +66,10 @@ class Replay:
 
             self.storage.read_full_from_disk(self.file_path)
             self.storage.load_metadata()
-            self.storage.load_initial_game_state()
-            self.storage.load_static_map_data()
+            self.storage.load_initial_game_state(self._game)
+            self.storage.load_static_map_data(self._game)
             self.storage.load_path_tree()
-            self.storage.load_patches()
+            self.storage.load_patches(self._game)
             self.storage.path_tree.precompute()
             # -----------
             # Safety Precautions
@@ -80,10 +84,10 @@ class Replay:
 
             self.storage.read_full_from_disk(self.file_path)
             self.storage.load_metadata()
-            self.storage.load_initial_game_state()
-            self.storage.load_static_map_data()
+            self.storage.load_initial_game_state(self._game)
+            self.storage.load_static_map_data(self._game)
             self.storage.load_path_tree()
-            self.storage.load_patches()
+            self.storage.load_patches(self._game)
             self.storage.path_tree.precompute()
             # -----------
             # Safety Precautions

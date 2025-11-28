@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import os
 import pickle
 import struct
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import lz4.frame
 
@@ -11,6 +14,9 @@ from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.replay.metadata import Metadata
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.path_tree import PathTree
+
+if TYPE_CHECKING:
+    from conflict_interface.interface.replay_interface import ReplayInterface
 
 
 class ReplayStorage:
@@ -91,17 +97,19 @@ class ReplayStorage:
         self.metadata = pickle.loads(self._metadata_b)
         return self.metadata
 
-    def load_initial_game_state(self) -> GameState:
+    def load_initial_game_state(self, game: ReplayInterface) -> GameState:
         if self._initial_game_state_b is None:
             raise ValueError("Initial game state is not recorded in the replay.")
 
         self.initial_game_state =  pickle.loads(self._initial_game_state_b)
+        GameObject.set_game_recursive(self.initial_game_state, game)
         return self.initial_game_state
 
-    def load_static_map_data(self) -> StaticMapData:
+    def load_static_map_data(self, game: ReplayInterface) -> StaticMapData:
         if self._static_map_data_b is None:
             raise ValueError("Static map data is not recorded in the replay.")
         self.static_map_data = pickle.loads(self._static_map_data_b)
+        GameObject.set_game_recursive(self.static_map_data, game)
         return self.static_map_data
 
     def load_path_tree(self) -> PathTree:
@@ -110,10 +118,15 @@ class ReplayStorage:
         self.path_tree = pickle.loads(self._path_tree_b)
         return self.path_tree
 
-    def load_patches(self) -> PatchGraph:
+    def load_patches(self, game: ReplayInterface) -> PatchGraph:
         if self._patch_graph_b is None:
             raise ValueError("Patch graph is not recorded in the replay.")
-        self.patch_graph = pickle.loads(self._patch_graph_b)
+        self.patch_graph: PatchGraph = pickle.loads(self._patch_graph_b)
+
+        for patch in self.patch_graph.patches.values():
+            for value in patch.values:
+                GameObject.set_game_recursive(value, game)
+
         return self.patch_graph
 
     def unload_metadata(self):
@@ -137,5 +150,8 @@ class ReplayStorage:
         self._path_tree_b = pickle.dumps(self.path_tree)
 
     def unload_patches(self):
+        for patch in self.patch_graph.patches.values():
+            for value in patch.values:
+                GameObject.set_game_recursive(value, None)
         self._patch_graph_b = pickle.dumps(self.patch_graph)
 

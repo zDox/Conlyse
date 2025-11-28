@@ -40,8 +40,6 @@ class ReplayInterface(GameInterface):
         logger.debug("Loading Initial Game State")
         # Step 2: load game state
         self.game_state = self.replay.storage.initial_game_state
-        logger.debug("Setting Game")
-        self.game_state.set_game(self)
         logger.debug("Parsing TimeStamps for the Cache")
         # Step 3: parse timestamps
         _raw = self.replay.storage.patch_graph.time_stamps_cache
@@ -52,7 +50,6 @@ class ReplayInterface(GameInterface):
 
         # Step 4: static map data
         self.static_map_data = self.replay.storage.static_map_data
-        self.static_map_data.set_game(self)
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
 
         logger.debug("Finishing Setup")
