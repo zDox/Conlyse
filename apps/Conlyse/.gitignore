@@ -8,3 +8,5 @@
 config.json
 /conlyse/managers/events/__pycache__
 *.pyc
+/tests/test_data/
+/app_data/

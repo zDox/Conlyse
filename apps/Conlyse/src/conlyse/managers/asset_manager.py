@@ -13,7 +13,7 @@ from conlyse.logger import get_logger
 if TYPE_CHECKING:
     from conlyse.app import App
 
-ASSETS_PATH = "../assets/"
+ASSETS_PATH = "assets/"
 
 logger = get_logger()
 
