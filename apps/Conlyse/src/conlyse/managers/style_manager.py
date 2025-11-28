@@ -52,7 +52,6 @@ class StyleManager:
         del self.themes[Theme.DARK]
 
     def update_style(self):
-        logger.debug(f"Updating style to {self.current_theme}")
         page_type = self.app.page_manager.get_current_page_type()
         global_style = ""
         header_style = ""
@@ -79,7 +78,6 @@ class StyleManager:
                 logger.error(f"StyleManager: Missing key({e.args}) in theme for page {page_type.name}")
 
         final_style = global_style + "\n" + header_style + "\n" + table_widget_style + "\n" + page_style
-        print(final_style)
         self.app.q_app.setStyleSheet(final_style)
 
     def toggle_theme(self):
@@ -91,6 +89,7 @@ class StyleManager:
         self.app.config_manager.set("ui.theme", self.current_theme.name)
 
     def set_theme(self, theme: Theme):
+        logger.debug(f"Setting theme to {theme.name}")
         self.current_theme = theme
         self.update_style()
 

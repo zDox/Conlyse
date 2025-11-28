@@ -57,9 +57,9 @@ class PlayerListPage(Page):
         Args:
             context: Dictionary containing 'replay_interface' key
         """
-        self.replay_interface = context.get("replay_interface", None)
+        replay_path = context.get("replay_path", None)
 
-        if not self.replay_interface:
+        if not replay_path:
             logger.error("No replay interface provided to PlayerListPage")
             self.app.page_manager.switch_to(PageType.ReplayListPage)
 
@@ -70,6 +70,14 @@ class PlayerListPage(Page):
             msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg_box.exec()
             return
+
+        self.replay_interface = self.app.replay_manager.get_replay(replay_path)
+
+        if not self.app.replay_manager.is_loaded_replay(replay_path):
+            logger.error(f"Replay not loaded for path: {replay_path}")
+            self.app.page_manager.switch_to(PageType.ReplayListPage, error_message=f"Failed to load replay: {replay_path}")
+            return
+
 
         # Initialize UI if first time
         if not self._ui_initialized:

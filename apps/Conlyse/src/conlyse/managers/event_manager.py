@@ -49,8 +49,8 @@ class EventManager:
             except Exception as e:
                 logger.warning(f"Error handling event {type(event).__name__}: {e}")
 
-    def publish_async(self, event: Event) -> None:
+    async def publish_async(self, event: Event) -> None:
         """Publish an event asynchronously in a new thread"""
-        threading.Thread(target=self.publish, args=(event,), daemon=True).start()
+        self.publish(event)
 
 

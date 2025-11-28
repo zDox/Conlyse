@@ -97,7 +97,6 @@ class AssetManager:
     def set_button_icon(button: QPushButton, icon_name: str, color: str = '#E0E0E0', prefix: str = 'fa5s'):
         """
         Set icon on a QPushButton.
-
         Example:
             IconManager.set_button_icon(my_button, 'save', '#1976D2')
         """

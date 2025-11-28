@@ -4,7 +4,6 @@ from conlyse.managers.events.event import Event
 
 
 class ReplayLoadCompleteEvent(Event):
-    def __init__(self, replay_file_path: str, replay_interface: ReplayInterface):
+    def __init__(self, replay_file_path: str):
         super().__init__()
         self.replay_file_path = replay_file_path
-        self.replay_interface = replay_interface

@@ -117,7 +117,7 @@ class ReplayLoadPage(Page):
         if event.replay_file_path != self.replay_path:
             return
 
-        self.app.page_manager.switch_to(PageType.PlayerListPage, replay_interface=event.replay_interface)
+        self.app.page_manager.switch_to(PageType.PlayerListPage, replay_path=event.replay_file_path)
 
     def on_replay_load_failed(self, event: Event):
         assert(isinstance(event, ReplayLoadFailedEvent))

@@ -149,6 +149,14 @@ class ReplayListPage(Page):
         self.refresh_replay_list()
         self.update_details()
 
+        if context.get("error_message"):
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Icon.Critical)
+            msg.setWindowTitle("Error")
+            msg.setText(context["error_message"])
+            msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg.exec()
+
     def setup_ui(self):
         """One-time UI initialization"""
         # Set object name for page-specific styling

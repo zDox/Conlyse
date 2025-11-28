@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from concurrent.futures import Future
+from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 from typing import TYPE_CHECKING
 
@@ -18,7 +20,11 @@ class ReplayManager:
     def __init__(self, app : App):
         self.app = app
         self.replays: dict[str, ReplayInterface] = {}
+        self.executor = ThreadPoolExecutor(max_workers=1)
+
         self.active_replay_path: str | None = None
+        self.is_loading_replay: bool = False
+
 
     def is_valid_replay(self, file_path: str) -> bool:
         if not file_path in self.replays: return False
@@ -27,7 +33,12 @@ class ReplayManager:
 
     def add_replay(self, file_path: str, replay: ReplayInterface):
         self.replays.update({file_path: replay})
-        pass
+
+    def get_replay(self, file_path: str) -> ReplayInterface | None:
+        return self.replays.get(file_path)
+
+    def is_loaded_replay(self, file_path: str) -> bool:
+        return self.active_replay_path == file_path
 
     def _load_replay(self, file_path: str):
         """
@@ -36,15 +47,10 @@ class ReplayManager:
         :param file_path: Path to the replay file
         :return: Replay object if loaded successfully, None otherwise
         """
-        ritf = ReplayInterface(file_path)
-        try:
-            ritf.open()
-            self.active_replay_path = file_path
-            self.app.event_handler.publish_async(ReplayLoadCompleteEvent(file_path, ritf))
-        except Exception as e:
-            self.app.event_handler.publish(ReplayLoadFailedEvent(file_path,
-                                                                       f"Failed to load replay from {file_path}",
-                                                                       str(e)))
+        ritf = self.replays[file_path]
+        ritf.open()
+        self.active_replay_path = file_path
+
 
     def load_replay_async(self, file_path: str):
         """
@@ -53,9 +59,33 @@ class ReplayManager:
         :param file_path: Path to the replay file
         :return: Replay object if loaded successfully, None otherwise
         """
+        if self.is_loading_replay:
+            logger.warning("A replay is already being loaded.")
+            return
+        if self.active_replay_path == file_path:
+            logger.warning("Replay was already loaded. Someone forgot to close it!")
+            self.app.event_handler.publish(ReplayLoadCompleteEvent(file_path))
+            return
 
-        thread = Thread(target=self._load_replay, args=(file_path,))
-        thread.start()
+        self.is_loading_replay = True
+
+        future: Future = self.executor.submit(self._load_replay, file_path)
+
+        # handle result in main thread
+        def on_done(fut: Future):
+            self.is_loading_replay = False
+            try:
+                replay = fut.result()  # will raise exception if _load_replay failed
+                self.active_replay_path = file_path
+                logger.info(f"Loaded replay successfully: {replay}")
+                self.app.event_handler.publish(ReplayLoadCompleteEvent(file_path))
+            except Exception as e:
+                logger.error(f"Failed to load replay: {e}")
+                failed_event = ReplayLoadFailedEvent(file_path,
+                                                     f"Failed to load replay file: {e}",
+                                                     str(e))
+                self.app.event_handler.publish(failed_event)
+        future.add_done_callback(on_done)
 
     def open_new_replay(self, file_path: str) -> bool:
         """
@@ -69,9 +99,7 @@ class ReplayManager:
 
         ritf = ReplayInterface(file_path)
         try:
-            ritf.open()
             self.add_replay(file_path, ritf)
-            ritf.close()
         except Exception as e:
             logger.warning(f"Failed to open replay: {e}")
             return False
@@ -79,11 +107,19 @@ class ReplayManager:
         self.app.config_manager.set("file.default_open_path", file_path)
         return True
 
+    def unload_replay(self, file_path: str):
+        if file_path not in self.replays:
+            logger.warning(f"Replay {file_path} is not registered.")
+            return
+        replay = self.replays[file_path]
+        replay.close()
+        self.active_replay_path = None
+
     def get_replays(self):
         return self.replays
 
     def clear_replays(self):
-        self.replays = []
+        self.replays = {}
 
     def remove_replay(self, file_path: str):
         if file_path in self.replays:
