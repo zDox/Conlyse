@@ -26,7 +26,6 @@ class StyleManager:
 
         self.current_theme: Theme = Theme.LIGHT # Asset loader is not available yet
         self.themes: dict[Theme, dict] = {}
-
         if self.app.config_manager.get("ui.theme", Theme.LIGHT.name) == "LIGHT":
             self.current_theme = Theme.LIGHT
         else:
@@ -77,6 +76,7 @@ class StyleManager:
         else:
             self.current_theme = Theme.LIGHT
         self.update_style()
+        self.app.config_manager.set("ui.theme", self.current_theme.name)
 
     def set_theme(self, theme: Theme):
         self.current_theme = theme

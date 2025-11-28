@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from conlyse.app import App
 
-ASSETS_PATH = "../assets/"
+ASSETS_PATH = "assets/"
 
 
 class AssetManager:
