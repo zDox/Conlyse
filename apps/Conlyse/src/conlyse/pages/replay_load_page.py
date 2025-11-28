@@ -7,8 +7,9 @@ from PyQt6.QtWidgets import QLabel, QVBoxLayout
 from PyQt6.QtWidgets import QMessageBox
 
 from conlyse.logger import get_logger
-from conlyse.managers.events.Event import Event
-from conlyse.managers.events.ReplayLoadCompleteEvent import ReplayLoadCompleteEvent
+from conlyse.managers.events.event import Event
+from conlyse.managers.events.replay_load_complete_event import ReplayLoadCompleteEvent
+from conlyse.managers.events.replay_load_failed_event import ReplayLoadFailedEvent
 from conlyse.pages.page import Page
 from conlyse.utils.enums import PageType
 
@@ -58,6 +59,7 @@ class ReplayLoadPage(Page):
             return
 
         self.app.event_handler.subscribe(ReplayLoadCompleteEvent, self.on_replay_load_complete)
+        self.app.event_handler.subscribe(ReplayLoadFailedEvent, self.on_replay_load_failed)
         self.app.replay_manager.load_replay_async(self.replay_path)
 
         if not self._ui_initialized:
@@ -117,6 +119,23 @@ class ReplayLoadPage(Page):
 
         self.app.page_manager.switch_to(PageType.PlayerListPage, replay_interface=event.replay_interface)
 
+    def on_replay_load_failed(self, event: Event):
+        assert(isinstance(event, ReplayLoadFailedEvent))
+
+        if event.replay_file_path != self.replay_path:
+            return
+
+        logger.error(f"Failed to load replay: {event.trace_info}")
+        self.app.page_manager.switch_to(PageType.ReplayListPage)
+
+        # summon message box to inform user
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Icon.Critical)
+        msg_box.setWindowTitle("Replay Load Failed")
+        msg_box.setText(f"Failed to load replay:\n{event.error_message}")
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg_box.exec()
+
     def clean_up(self):
         """Called when page is closed - stop animation"""
         # Stop the animation timer
@@ -128,5 +147,6 @@ class ReplayLoadPage(Page):
 
         # Unsubscribe from events
         self.app.event_handler.unsubscribe(ReplayLoadCompleteEvent, self.on_replay_load_complete)
+        self.app.event_handler.unsubscribe(ReplayLoadFailedEvent, self.on_replay_load_failed)
 
         # Labels get cleaned up by Qt parent-child system

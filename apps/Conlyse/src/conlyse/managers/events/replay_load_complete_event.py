@@ -1,6 +1,6 @@
 from conflict_interface.interface.replay_interface import ReplayInterface
 
-from conlyse.managers.events.Event import Event
+from conlyse.managers.events.event import Event
 
 
 class ReplayLoadCompleteEvent(Event):

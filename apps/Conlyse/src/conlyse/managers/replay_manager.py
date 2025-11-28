@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger
-from conlyse.managers.events.ReplayLoadCompleteEvent import ReplayLoadCompleteEvent
+from conlyse.managers.events.replay_load_complete_event import ReplayLoadCompleteEvent
+from conlyse.managers.events.replay_load_failed_event import ReplayLoadFailedEvent
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -38,11 +39,12 @@ class ReplayManager:
         ritf = ReplayInterface(file_path)
         try:
             ritf.open()
-            ritf.replay.load_patches_from_disk_into_cache()
             self.active_replay_path = file_path
             self.app.event_handler.publish_async(ReplayLoadCompleteEvent(file_path, ritf))
         except Exception as e:
-            logger.warning(f"Failed to load replay: {e}")
+            self.app.event_handler.publish(ReplayLoadFailedEvent(file_path,
+                                                                       f"Failed to load replay from {file_path}",
+                                                                       str(e)))
 
     def load_replay_async(self, file_path: str):
         """

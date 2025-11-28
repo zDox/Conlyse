@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from typing import Type
 
 from conlyse.logger import get_logger
-from conlyse.managers.events.Event import Event
+from conlyse.managers.events.event import Event
 
 if TYPE_CHECKING:
     from conlyse.app import App
