@@ -356,7 +356,7 @@ timestamps = replay_interface.get_timestamps()
 print(f"Replay has {len(timestamps)} states")
 
 # Load the initial state
-game_state = replay_interface.replay.load_initial_game_state()
+game_state = replay_interface.storage.initial_game_state
 
 # Jump to a specific time
 target_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)

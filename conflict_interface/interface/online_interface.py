@@ -1,5 +1,6 @@
 import os.path
 from datetime import datetime
+from pathlib import Path
 from time import time
 from typing import Callable
 from typing import override
@@ -45,7 +46,7 @@ class OnlineInterface(GameInterface):
 
     def _handle_replay_init(self, static_map_data: StaticMapData):
         if not os.path.exists(self.replay_filepath):
-            with Replay(file_path=self.replay_filepath, mode="w", game_id=self.game_id, player_id=self.player_id) as r:
+            with Replay(file_path=Path(self.replay_filepath), mode="w", game_id=self.game_id, player_id=self.player_id) as r:
                 r.record_initial_game_state(
                                     time_stamp = self.client_time(),
                                     game_id = self.game_id,
@@ -56,8 +57,8 @@ class OnlineInterface(GameInterface):
                                     player_id = self.player_id,
                                     static_map_data = static_map_data)
         else:
-            with Replay(file_path=self.replay_filepath, mode="a", game_id=self.game_id, player_id=self.player_id) as r:
-                old_game_state = r.load_initial_game_state()
+            with Replay(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id) as r:
+                old_game_state = r.storage.initial_game_state
                 old_game_state.set_game(self)
                 uptodate_patches, last_patch_time = r.find_patch_path(r.start_time, self.client_time())
                 for uptodate_patch in uptodate_patches:
@@ -66,7 +67,7 @@ class OnlineInterface(GameInterface):
                 rp = make_bireplay_patch(old_game_state, self.game_state)
                 r.record_patch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp, game=self)
 
-        self.replay = Replay(self.replay_filepath, mode="a")
+        self.replay = Replay(Path(self.replay_filepath), mode="a")
         self.replay.open()
         self.replay.close()
 

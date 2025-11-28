@@ -180,7 +180,7 @@ class ReplayInterface(GameInterface):
             return False
 
         # Need to reload and replay from start since patches can't be unapplied
-        self.game_state = self.replay.load_initial_game_state()
+        self.game_state = self.replay.storage.initial_game_state
         self.game_state.set_game(self)
 
         patches, _ = self.replay.storage.patch_graph.find_patch_path(self.replay.get_start_time(), previous_timestamp)
