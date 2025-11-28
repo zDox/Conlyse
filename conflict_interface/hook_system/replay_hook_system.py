@@ -14,7 +14,7 @@ logger = getLogger()
 class ReplayHookSystem:
     def __init__(self):
         self.hooks: dict[int, ReplayHook] = {} # Listening to Path -> Hook
-        self.queued: dict[int, ReplayHookQueueElement] = {}
+        self.queued: dict[int, list[ReplayHookQueueElement]] = {}
 
     def register(self, replay_hook: ReplayHook):
         self.hooks[replay_hook.path] = replay_hook
@@ -45,7 +45,10 @@ class ReplayHookSystem:
             reference = child_ref,
             changed_data = data
         )
-        self.queued[hook_path] = new_queue_element
+        if self.queued.get(hook_path) is None:
+            self.queued[hook_path] = [new_queue_element]
+        else:
+            self.queued[hook_path].append(new_queue_element)
 
 
     def get_old_values(self, changed_paths: list[int], tree: PathTree):
@@ -61,24 +64,24 @@ class ReplayHookSystem:
         for hook_path, hook in self.hooks.items():
             if hook_path not in relevant_nodes: continue
 
-            for child in steiner_tree[hook_path]:
+            for child in steiner_tree[hook_path]: # for prov in locations
                 relevant_attribute_changed = False
-                attribute_paths = steiner_tree.get(child)
-                if not attribute_paths:
+                attribute_paths = steiner_tree.get(child) # attribute nodes of a prov
+                if not attribute_paths: # no attributes found
                     logger.warning(f"Skipping hook {hook_path} as no attributes were found (Maby full province changed)")
                     continue
 
                 changed_attributes = {}
                 reference_to_child = None
-                for attribute in attribute_paths:
-                    attribute_node = tree.idx_to_node[attribute]
-                    reference_to_child = attribute_node.reference
-                    if not reference_to_child:
+                for attribute in attribute_paths: # for attribute node in attribute nodes of a prov
+                    attribute_node = tree.idx_to_node[attribute] # actual node
+                    reference_to_child = attribute_node.reference # ref to holder of attribute of prov aka a province
+                    if not reference_to_child: # Important warning
                         logger.warning(f"Skipping Attribute {attribute_node.path_element} because the reference was not set")
                         continue
 
-                    if attribute_node.path_element in hook.attributes:
-                        old_ref = getattr(reference_to_child, attribute_node.path_element, None)
+                    if attribute_node.path_element in hook.attributes: # if attribute name in listening hook attribures
+                        old_ref = getattr(reference_to_child, attribute_node.path_element, None) # copy the attribute by acesssing the province
                         old_value = deepcopy(old_ref)
                         changed_attributes[attribute_node.path_element] = [old_value, None]
                         relevant_attribute_changed = True
@@ -102,16 +105,17 @@ class ReplayHookSystem:
         return data
 
     def execute_que(self):
-        for path, ele in self.queued.items():
+        for path, que_elements in self.queued.items():
             hook = self.hooks[path]
-            try:
-                hook.callback(
-                    ele.path,
-                    ele.reference,
-                    ele.changed_data
-                )
-            except Exception as e:
-                logger.error(f"Error executing hook: {e}", exc_info=True)
+            for ele in que_elements:
+                try:
+                    hook.callback(
+                        ele.path,
+                        ele.reference,
+                        ele.changed_data
+                    )
+                except Exception as e:
+                    logger.error(f"Error executing hook: {e}", exc_info=True)
 
         self.clear_que()
 
