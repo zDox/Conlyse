@@ -204,10 +204,11 @@ class Replay:
 
         # Get new values and que the hooks
         if hook_system:
+            # Set new values in hook data
             for hook_path, reference_to_child, changed_attributes in hook_data:
                 for attribute, value in changed_attributes.items():
                     value[1] = getattr(reference_to_child, attribute, None)
-
+            # Queuing the hooks
             for hook_path, reference_to_child, data in hook_data:
                 hook_system._que_hook_path(hook_path, reference_to_child, data)
 
