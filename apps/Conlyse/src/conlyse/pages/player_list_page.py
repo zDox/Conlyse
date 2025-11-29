@@ -57,9 +57,9 @@ class PlayerListPage(Page):
         Args:
             context: Dictionary containing 'replay_interface' key
         """
-        self.replay_interface = context.get("replay_interface", None)
+        replay_path = context.get("replay_path", None)
 
-        if not self.replay_interface:
+        if not replay_path:
             logger.error("No replay interface provided to PlayerListPage")
             self.app.page_manager.switch_to(PageType.ReplayListPage)
 
@@ -70,6 +70,14 @@ class PlayerListPage(Page):
             msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg_box.exec()
             return
+
+        self.replay_interface = self.app.replay_manager.get_replay(replay_path)
+
+        if not self.app.replay_manager.is_active_replay(replay_path):
+            logger.error(f"Replay not loaded for path: {replay_path}")
+            self.app.page_manager.switch_to(PageType.ReplayListPage, error_message=f"Failed to load replay: {replay_path}")
+            return
+
 
         # Initialize UI if first time
         if not self._ui_initialized:
@@ -101,18 +109,6 @@ class PlayerListPage(Page):
         header_layout.addWidget(self.info_label)
 
         header_layout.addStretch()
-
-        # Export button
-        self.export_button = QPushButton("📊 Export Data")
-        self.export_button.setObjectName("player_list_export_button")
-        self.export_button.clicked.connect(self._on_export_clicked)
-        header_layout.addWidget(self.export_button)
-
-        # Back button
-        self.back_button = QPushButton("← Back to Replays")
-        self.back_button.setObjectName("player_list_back_button")
-        self.back_button.clicked.connect(self._on_back_clicked)
-        header_layout.addWidget(self.back_button)
 
         main_layout.addLayout(header_layout)
 

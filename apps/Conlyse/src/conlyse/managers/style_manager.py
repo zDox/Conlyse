@@ -23,6 +23,8 @@ class StyleManager:
 
         self.page_styles: dict[PageType, str] = {}
         self.global_style: str = ""
+        self.header_style: str = ""
+        self.table_widget_style: str = ""
 
         self.current_theme: Theme = Theme.LIGHT # Asset loader is not available yet
         self.themes: dict[Theme, dict] = {}
@@ -34,6 +36,8 @@ class StyleManager:
 
     def load_themes(self):
         self.global_style = self.app.asset_manager.load_string("global_style", "styles/global_style.qss")
+        self.header_style = self.app.asset_manager.load_string("header_style", "styles/header.qss")
+        self.table_widget_style = self.app.asset_manager.load_string("table_widget_style", "styles/table_widget.qss")
         self.app.asset_manager.load_json("theme_light", "styles/theme_light.json")
         self.app.asset_manager.load_json("theme_dark", "styles/theme_dark.json")
         self.themes[Theme.LIGHT] = self.app.asset_manager.get_asset("theme_light")
@@ -48,10 +52,13 @@ class StyleManager:
         del self.themes[Theme.DARK]
 
     def update_style(self):
-        logger.debug(f"Updating style to {self.current_theme}")
         page_type = self.app.page_manager.get_current_page_type()
+        global_style = ""
+        header_style = ""
+        table_widget_style = ""
         if page_type in self.page_styles:
             page_style = self.page_styles[page_type]
+
         else:
             asset_name = camel_to_snake(page_type.name)
             if self.app.asset_manager.is_loaded_asset(asset_name):
@@ -63,11 +70,14 @@ class StyleManager:
                 )
             try:
                 page_style = DollarTemplate(style_raw).substitute(self.themes[self.current_theme])
+                global_style = DollarTemplate(self.global_style).substitute(self.themes[self.current_theme])
+                header_style = DollarTemplate(self.header_style).substitute(self.themes[self.current_theme])
+                table_widget_style = DollarTemplate(self.table_widget_style).substitute(self.themes[self.current_theme])
             except KeyError as e:
                 page_style = ""
                 logger.error(f"StyleManager: Missing key({e.args}) in theme for page {page_type.name}")
 
-        final_style = self.global_style + "\n" + page_style
+        final_style = global_style + "\n" + header_style + "\n" + table_widget_style + "\n" + page_style
         self.app.q_app.setStyleSheet(final_style)
 
     def toggle_theme(self):
@@ -79,6 +89,7 @@ class StyleManager:
         self.app.config_manager.set("ui.theme", self.current_theme.name)
 
     def set_theme(self, theme: Theme):
+        logger.debug(f"Setting theme to {theme.name}")
         self.current_theme = theme
         self.update_style()
 
@@ -90,4 +101,5 @@ class StyleManager:
         self.load_themes()
         self.page_styles.clear()
         self.update_style()
+
 

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from typing import Type
 
 from conlyse.logger import get_logger
-from conlyse.managers.events.Event import Event
+from conlyse.managers.events.event import Event
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -49,8 +49,8 @@ class EventManager:
             except Exception as e:
                 logger.warning(f"Error handling event {type(event).__name__}: {e}")
 
-    def publish_async(self, event: Event) -> None:
+    async def publish_async(self, event: Event) -> None:
         """Publish an event asynchronously in a new thread"""
-        threading.Thread(target=self.publish, args=(event,), daemon=True).start()
+        self.publish(event)
 
 

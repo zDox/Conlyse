@@ -1,8 +1,13 @@
+from copy import deepcopy
+
 from PyQt6.QtWidgets import QStackedWidget
 
+from conlyse.logger import get_logger
 from conlyse.utils.enums import PageType
 from conlyse.pages.page import Page
 
+
+logger = get_logger()
 
 class PageManager:
     """
@@ -35,6 +40,8 @@ class PageManager:
         self.pages[page_type] = page_class
 
     def switch_to(self, next_page_type: PageType, **kwargs):
+        """Schedule a page switch to the specified page type with optional context."""
+        logger.debug(f"Scheduling switch to page {next_page_type} with context {kwargs}")
         if next_page_type not in self.pages:
             raise Exception(
                 f"Page type {type(next_page_type)} {next_page_type} is not registered in PageManager {str(self.pages)} {[type(k) for k in self.pages.keys()]}."
@@ -55,6 +62,7 @@ class PageManager:
         if not self.can_go_back():
             return
 
+        logger.debug(f"Going back from history index {self.history_index}")
         self.history_index -= 1
         page_type, context = self.history[self.history_index]
         self.next_page_type = page_type
@@ -65,6 +73,7 @@ class PageManager:
         if not self.can_go_forward():
             return
 
+        logger.debug(f"Going forward from history index {self.history_index}")
         self.history_index += 1
         page_type, context = self.history[self.history_index]
         self.next_page_type = page_type
@@ -79,13 +88,13 @@ class PageManager:
         return self.history_index < len(self.history) - 1
 
     def _transition_page(self):
+        logger.debug(f"Transitioning to page {self.next_page_type} with context {self.context}")
         if self.current_page:
             self.current_page.clean_up()
             self.stack.removeWidget(self.current_page)
 
         # Create and setup new page
         self.current_page = self.pages[self.next_page_type](self.app)
-        self.current_page.setup(self.context)
         self.current_page_type = self.next_page_type
         self.next_page_type = None
 
@@ -99,7 +108,9 @@ class PageManager:
         self.stack.setCurrentWidget(self.current_page)
         self.app.style_manager.update_style()
 
+        context = deepcopy(self.context)
         self.context = {}
+        self.current_page.setup(context)
 
     def update(self):
         # If scheduled, perform it before delegating update to the current page.
