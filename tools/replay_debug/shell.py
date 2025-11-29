@@ -36,6 +36,27 @@ def setup_readline():
         pass
 
 
+def _print_cmd_group(title: str, cmd_names: list, commands: dict):
+    """Print a group of commands with their descriptions.
+    
+    Args:
+        title: Group title
+        cmd_names: List of command names in this group
+        commands: Dictionary of all registered commands
+    """
+    print(f"{title}:")
+    for name in cmd_names:
+        cmd = commands.get(name)
+        if cmd:
+            aliases_str = f" ({', '.join(cmd.aliases)})" if cmd.aliases else ""
+            usage = cmd.usage if cmd.usage else name
+            desc = cmd.description if cmd.description else ""
+            print(f"  {usage}{aliases_str}")
+            if desc:
+                print(f"      {desc}")
+    print()
+
+
 def print_help():
     """Print help for interactive mode from registered commands."""
     registry = CommandRegistry.get_instance()
@@ -50,23 +71,10 @@ def print_help():
     
     print("\nAvailable Commands:\n")
     
-    def print_cmd_group(title, cmd_names):
-        print(f"{title}:")
-        for name in cmd_names:
-            cmd = commands.get(name)
-            if cmd:
-                aliases_str = f" ({', '.join(cmd.aliases)})" if cmd.aliases else ""
-                usage = cmd.usage if cmd.usage else name
-                desc = cmd.description if cmd.description else ""
-                print(f"  {usage}{aliases_str}")
-                if desc:
-                    print(f"      {desc}")
-        print()
-    
-    print_cmd_group("Navigation", navigation_cmds)
-    print_cmd_group("State Viewing", state_cmds)
-    print_cmd_group("Patch Analysis", patch_cmds)
-    print_cmd_group("Advanced", advanced_cmds)
+    _print_cmd_group("Navigation", navigation_cmds, commands)
+    _print_cmd_group("State Viewing", state_cmds, commands)
+    _print_cmd_group("Patch Analysis", patch_cmds, commands)
+    _print_cmd_group("Advanced", advanced_cmds, commands)
     
     print("Shell Commands:")
     print("  help (?)                                    - Show this help")
