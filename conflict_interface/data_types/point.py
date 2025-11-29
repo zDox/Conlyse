@@ -186,7 +186,7 @@ class Point(GameObject):
         return deepcopy(self)
 
     def __eq__(self, other: "Point"):
-        if other is not self.__class__:
+        if not isinstance(other, Point):
             return False
         return self.x == other.x and self.y == other.y
 
