@@ -460,11 +460,6 @@ class GameObject:
             game: The central game instance.
         """
         self.game = game
-        """
-        Iterate over all fields of the dataclass. We cannot iterate over the get_mapping() 
-        because static_map_data in Map is not in the mapping but needs to have the game set.
-        as it is a GameObject.
-        """
         for f in fields(self):
             value = getattr(self, f.name)
             GameObject.set_game_recursive(value, game)
@@ -482,6 +477,9 @@ class GameObject:
             return
 
         stack = [value]
+        seen = set()  # Track visited objects to avoid cycles and duplicates
+        seen_add = seen.add
+        id_func = id
 
         while stack:
             current = stack.pop()
@@ -489,22 +487,25 @@ class GameObject:
             if current is None:
                 continue
 
+            # Skip if we've already processed this object
+            obj_id = id_func(current)
+            if obj_id in seen:
+                continue
+            seen_add(obj_id)
+
             if isinstance(current, GameObject):
-                current.set_game(game)
+                current.game = game  # Direct assignment instead of recursive call
+                # Add this GameObject's fields to the stack
+                for f in fields(current):
+                    stack.append(getattr(current, f.name))
             elif is_dataclass(current):
-                # Handle dataclasses that might contain GameObjects
-                if hasattr(current, "MAPPING"):
-                    mapping = getattr(type(current), "MAPPING")
-                    for python_var_name in mapping.keys():
-                        nested_value = getattr(current, python_var_name)
-                        stack.append(nested_value)
+                mapping = getattr(type(current), "MAPPING", None)
+                if mapping is not None:
+                    for python_var_name in mapping:
+                        stack.append(getattr(current, python_var_name))
             elif isinstance(current, list):
-                # Handles list and all custom list types (Vector, LinkedList, etc.)
                 stack.extend(current)
             elif isinstance(current, dict):
-                # Handles dict and all custom map types (HashMap, TreeMap, etc.)
-                for key, val in current.items():
-                    stack.append(key)
-                    stack.append(val)
-
-
+                stack.extend(current.values())
+                # Only add keys if they might be GameObjects
+                # stack.extend(current.keys())  # Consider if keys can be GameObjects
