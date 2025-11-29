@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from conflict_interface.data_types.player_state.faction import Faction
 from conflict_interface.data_types.point import Point
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
+from conflict_interface.replay.replay_patch import PathNode
 
 LAST_LOGIN_INACTIVE = 0
 GUEST_PLAYER_ID = 0
@@ -105,3 +107,9 @@ class PlayerProfile(GameObject):
         "daily_victory_points": "dailyVictoryPoints",
         "terrorist_country": "terroristCountry",
     }
+
+    def update(self, other: "PlayerProfile", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        for key in self.get_mapping():
+            if rp and getattr(self, key) != getattr(other, key):
+                rp.replace(path + [key], getattr(self, key), getattr(other, key))
+            setattr(self, key, getattr(other, key))

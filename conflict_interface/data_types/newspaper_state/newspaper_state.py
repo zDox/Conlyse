@@ -10,7 +10,26 @@ from conflict_interface.data_types.state import State
 from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
-
+def list_update(original: list, other: list, path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+    min_length = min(len(original), len(other))
+    for i in range(min_length):
+        if original[i] != other[i]:
+            if type(original[i]) == type(other[i]) and hasattr(original[i], "update"):
+                original[i].update(other[i], path + [i], rp)
+            else:
+                if rp:
+                    rp.replace(path + [i], original[i], other[i])
+                original[i] = other[i]
+    if len(other) > len(original):
+        for i in range(len(original), len(other)):
+            if rp:
+                rp.add(path + [i], None, other[i])
+            original.append(other[i])
+    elif len(original) > len(other):
+        for i in range(len(original)-1, len(other)-1, -1):
+            if rp:
+                rp.remove(path + [i], original[i])
+            original.pop(i)
 
 @dataclass
 class NewspaperState(State):
@@ -37,7 +56,5 @@ class NewspaperState(State):
         if rp:
             if self.day != other.day:
                 rp.replace(path + ["day"], self.day, other.day)
-            if self.articles != other.articles:
-                rp.replace(path + ["articles"], self.articles, other.articles)
         self.day = other.day
-        self.articles = other.articles
+        list_update(self.articles, other.articles, path + ["articles"], rp)

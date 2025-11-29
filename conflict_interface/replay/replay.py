@@ -145,7 +145,7 @@ class Replay:
         to_timestamp = int(time_stamp.timestamp())
 
         forward_operations = replay_patch.forward_patch.operations
-        backward_operations = replay_patch.backward_patch.operations
+        backward_operations = reversed(replay_patch.backward_patch.operations)
 
         forward_node = PatchGraphNode(
             from_timestamp,

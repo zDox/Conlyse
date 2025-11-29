@@ -6,6 +6,7 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import state_update
 from conflict_interface.data_types.state import universal_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
@@ -29,5 +30,17 @@ class PlayerState(State):
         "teams": "teams"
     }
 
-    def update(self, other: "State", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
-        universal_update(self, other, path, rp)
+    def update(self, other: "PlayerState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        state_update(self, other, path, rp)
+
+        for player in other.players.values():
+            if player.player_id not in self.players:
+                if rp:
+                    rp.add(path + ["players", player.player_id], None, player)
+                self.players[player.player_id] = player
+            else:
+                self.players[player.player_id].update(
+                    player,
+                    path + ["players", player.player_id],
+                    rp
+                )

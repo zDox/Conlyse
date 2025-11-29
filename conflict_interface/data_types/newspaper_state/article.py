@@ -5,6 +5,8 @@ from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import SqlDate
 from conflict_interface.data_types.custom_types import Vector
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
+from conflict_interface.replay.replay_patch import PathNode
 
 
 @dataclass
@@ -72,3 +74,12 @@ class Article(GameObject):
         "time": "time",
         "image_id": "imageID",
     }
+
+    def update(self, other: "Article", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        for attr in self.get_mapping():
+            if getattr(self, attr) != getattr(other, attr):
+                if rp:
+                    rp.replace(path + [attr],
+                               getattr(self, attr),
+                               getattr(other, attr))
+                setattr(self, attr, getattr(other, attr))
