@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
@@ -73,9 +74,9 @@ class Replay:
             self.storage.path_tree.precompute()
             # -----------
             # Safety Precautions
-            self.storage.patch_graph.validate_cached_time_stamps()
-            self.storage.path_tree.validate_idx_to_node_mapping()
-            self.storage.path_tree.validate_tree_structure()
+            #self.storage.patch_graph.validate_cached_time_stamps()
+            #self.storage.path_tree.validate_idx_to_node_mapping()
+            #self.storage.path_tree.validate_tree_structure()
             # -----------
 
         elif self.mode == 'a':

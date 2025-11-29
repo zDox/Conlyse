@@ -10,21 +10,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     t1 = perf_counter()
     ritf = ReplayInterface(TEST_DATA / "test_replay10k.bin")
-    ritf.open()
-    # Preload
-    ritf.jump_to(ritf.replay.get_last_time())
-    ritf.jump_to(ritf.replay.get_start_time())
-
-    time_stamps_ = ritf.get_timestamps()
-    time_stamps = len(time_stamps_)
-    amount_patches = len(time_stamps_)
-    times = []
     t2 = perf_counter()
-    for timestamp in ritf.get_timestamps():
-        patches = ritf.jump_to_next_patch()
+    ritf.open()
     t3 = perf_counter()
-
-    print(f"Setting time took {t3 - t2} seconds for {amount_patches} patches. {(t3 - t2) / amount_patches * 1e6} microseconds per patch.")
-    print(f"Loading took {t2 - t1} seconds.")
-    print(f"Applied Operations: {ritf.replay.get_op_counter()}")
+    print(f"Opening took  {t3 - t2:.2f} seconds")
     ritf.close()
