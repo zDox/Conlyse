@@ -1,3 +1,7 @@
+from dataclasses import dataclass
+
+
+@dataclass
 class Metadata:
-    def __init__(self, info: dict):
-        self.info = info
+    start_time: int
+    last_time: int

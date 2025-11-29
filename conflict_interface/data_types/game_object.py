@@ -460,11 +460,6 @@ class GameObject:
             game: The central game instance.
         """
         self.game = game
-        """
-        Iterate over all fields of the dataclass. We cannot iterate over the get_mapping() 
-        because static_map_data in Map is not in the mapping but needs to have the game set.
-        as it is a GameObject.
-        """
         for f in fields(self):
             value = getattr(self, f.name)
             GameObject.set_game_recursive(value, game)
@@ -472,7 +467,7 @@ class GameObject:
     @staticmethod
     def set_game_recursive(value: Any, game: GameInterface | None):
         """
-        Recursively sets the game instance for nested GameObjects.
+        Iteratively sets the game instance for nested GameObjects using a stack.
 
         Args:
             value: The value to traverse.
@@ -481,24 +476,36 @@ class GameObject:
         if value is None:
             return
 
-        if isinstance(value, GameObject):
-            value.set_game(game)
-        elif is_dataclass(value):
-            # Handle dataclasses that might contain GameObjects
-            if hasattr(value, "MAPPING"):
-                mapping = getattr(type(value), "MAPPING")
-                for python_var_name in mapping.keys():
-                    nested_value = getattr(value, python_var_name)
-                    GameObject.set_game_recursive(nested_value, game)
-        elif isinstance(value, list):
-            # Handles list and all custom list types (Vector, LinkedList, etc.)
-            for item in value:
-                GameObject.set_game_recursive(item, game)
-        elif isinstance(value, dict):
-            # Handles dict and all custom map types (HashMap, TreeMap, etc.)
-            for (key, value) in value.items():
-                GameObject.set_game_recursive(key, game)
-                GameObject.set_game_recursive(value, game)
+        stack = [value]
+        seen = set()  # Track visited objects to avoid cycles and duplicates
+        seen_add = seen.add
+        id_func = id
 
+        while stack:
+            current = stack.pop()
 
+            if current is None:
+                continue
 
+            # Skip if we've already processed this object
+            obj_id = id_func(current)
+            if obj_id in seen:
+                continue
+            seen_add(obj_id)
+
+            if isinstance(current, GameObject):
+                current.game = game  # Direct assignment instead of recursive call
+                # Add this GameObject's fields to the stack
+                for f in fields(current):
+                    stack.append(getattr(current, f.name))
+            elif is_dataclass(current):
+                mapping = getattr(type(current), "MAPPING", None)
+                if mapping is not None:
+                    for python_var_name in mapping:
+                        stack.append(getattr(current, python_var_name))
+            elif isinstance(current, list):
+                stack.extend(current)
+            elif isinstance(current, dict):
+                stack.extend(current.values())
+                # Only add keys if they might be GameObjects
+                # stack.extend(current.keys())  # Consider if keys can be GameObjects

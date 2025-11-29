@@ -39,9 +39,7 @@ class ReplayInterface(GameInterface):
         self.replay.open()
         logger.debug("Loading Initial Game State")
         # Step 2: load game state
-        self.game_state = self.replay.load_initial_game_state()
-        logger.debug("Setting Game")
-        self.game_state.set_game(self)
+        self.game_state = self.replay.storage.initial_game_state
         logger.debug("Parsing TimeStamps for the Cache")
         # Step 3: parse timestamps
         _raw = self.replay.storage.patch_graph.time_stamps_cache
@@ -51,8 +49,7 @@ class ReplayInterface(GameInterface):
         logger.debug("Setting Static Map Data")
 
         # Step 4: static map data
-        self.static_map_data = self.replay.load_static_map_data()
-        self.static_map_data.set_game(self)
+        self.static_map_data = self.replay.storage.static_map_data
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
 
         logger.debug("Finishing Setup")
@@ -118,7 +115,7 @@ class ReplayInterface(GameInterface):
             return
 
         if time_stamp < self.replay.get_start_time():
-            self.game_state = self.replay.load_initial_game_state()
+            self.game_state = self.replay.storage.initial_game_state
             self.game_state.set_game(self)
             return
 
@@ -173,13 +170,14 @@ class ReplayInterface(GameInterface):
         Returns:
             True if successfully jumped to previous patch, False if at start of replay.
         """
+        # TODO
         previous_timestamp = self.get_previous_timestamp()
 
         if previous_timestamp is None or previous_timestamp < self.replay.get_start_time():
             return False
 
         # Need to reload and replay from start since patches can't be unapplied
-        self.game_state = self.replay.load_initial_game_state()
+        self.game_state = self.replay.storage.initial_game_state
         self.game_state.set_game(self)
 
         patches, _ = self.replay.storage.patch_graph.find_patch_path(self.replay.get_start_time(), previous_timestamp)

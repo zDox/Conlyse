@@ -320,19 +320,19 @@ with Replay(replay_path, mode='w', game_id=game_id, player_id=player_id) as repl
         game_id=game_id,
         player_id=player_id
     )
-    
+
     # Record static map data
     replay.record_static_map_data(
         static_map_data=map_data,
         game_id=game_id,
         player_id=player_id
     )
-    
+
     # For each state change, create and record a bidirectional patch
     previous_state = initial_state
     for new_state, timestamp in state_changes:
         bi_patch = make_bireplay_patch(previous_state, new_state)
-        replay.record_bipatch(
+        replay.record_patch(
             time_stamp=timestamp,
             game_id=game_id,
             player_id=player_id,
@@ -356,7 +356,7 @@ timestamps = replay_interface.get_timestamps()
 print(f"Replay has {len(timestamps)} states")
 
 # Load the initial state
-game_state = replay_interface.replay.load_initial_game_state()
+game_state = replay_interface.storage.initial_game_state
 
 # Jump to a specific time
 target_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
@@ -380,7 +380,7 @@ replay_interface.close()
 with Replay(replay_path, mode='a') as replay:
     # Record additional patches
     bi_patch = make_bireplay_patch(current_state, new_state)
-    replay.record_bipatch(
+    replay.record_patch(
         time_stamp=datetime.now(UTC),
         game_id=replay.game_id,
         player_id=replay.player_id,
@@ -466,6 +466,6 @@ backward_operations = bi_patch.backward_patch.operations
 Before saving a replay file to disk, ensure both `initial_game_state_b` and `static_map_data_b` are set (they can be empty bytes `b''` if not applicable):
 
 ```python
-replay.storage.initial_game_state_b = pickle.dumps(game_state)  # or b''
-replay.storage.static_map_data_b = pickle.dumps(static_map_data)  # or b''
+replay.storage._initial_game_state_b = pickle.dumps(game_state)  # or b''
+replay.storage._static_map_data_b = pickle.dumps(static_map_data)  # or b''
 ```

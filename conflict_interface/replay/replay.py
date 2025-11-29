@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import pickle
+import time
 from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
@@ -24,7 +24,6 @@ from conflict_interface.replay.apply_replay_helper import apply_operation
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
-from conflict_interface.replay.metadata import Metadata
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay_storage import ReplayStorage
 
@@ -44,6 +43,10 @@ class Replay:
         self.storage = ReplayStorage()
 
         self._op_counter = 0
+        self._game = None
+
+    def set_game(self, game: ReplayInterface):
+        self._game = game
 
     def __enter__(self):
         return self.open()
@@ -62,73 +65,74 @@ class Replay:
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
 
-            self.storage.load_full_from_disk(self.file_path)
-            self.storage.patch_graph.validate_cached_time_stamps()
+            self.storage.read_full_from_disk(self.file_path)
+            self.storage.load_metadata()
+            self.storage.load_initial_game_state(self._game)
+            self.storage.load_static_map_data(self._game)
+            self.storage.load_path_tree()
+            self.storage.load_patches(self._game)
             self.storage.path_tree.precompute()
+            # -----------
+            # Safety Precautions
+            #self.storage.patch_graph.validate_cached_time_stamps()
+            #self.storage.path_tree.validate_idx_to_node_mapping()
+            #self.storage.path_tree.validate_tree_structure()
+            # -----------
 
         elif self.mode == 'a':
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
 
-            self.storage.load_full_from_disk(self.file_path)
-            self.storage.patch_graph.validate_cached_time_stamps()
+            self.storage.read_full_from_disk(self.file_path)
+            self.storage.load_metadata()
+            self.storage.load_initial_game_state(self._game)
+            self.storage.load_static_map_data(self._game)
+            self.storage.load_path_tree()
+            self.storage.load_patches(self._game)
             self.storage.path_tree.precompute()
+            # -----------
+            # Safety Precautions
+            self.storage.patch_graph.validate_cached_time_stamps()
+            self.storage.path_tree.validate_idx_to_node_mapping()
+            self.storage.path_tree.validate_tree_structure()
+            # -----------
 
         elif self.mode == 'w':
             if self.game_id is None or self.player_id is None:
                 raise ValueError("Game ID and Player ID must be provided in write mode")
 
             self.storage.create_new_file(self.file_path)
-            self.storage.initialize_empty()
-            self.create_metadata()
+            self.storage.initialize()
 
         self._is_open = True
         return self
 
     def close(self):
+        self.storage.unload_metadata()
+        self.storage.unload_path_tree()
+        self.storage.unload_patches()
+        # Assumes that initial-game-state and static-map-data have been unloaded on initial record
+
         if self.mode in ['w', 'a']:
-            self.storage.safe_to_disk(self.file_path)
+            self.storage.write_full_to_disk(self.file_path)
 
         self._is_open = False
-
-    def create_metadata(self):
-        info = {
-            'game_id': self.game_id,
-            'player_id': self.player_id,
-            'start_time': 0,
-            'last_time': 0,
-            'end_time': None,
-        }
-        self.storage.metadata = Metadata(info)
-
-    def load_metadata(self) -> Metadata:
-        pass # TODO
 
     def record_initial_game_state(self, game_state: GameState, time_stamp: datetime, game_id: int, player_id: int):
         self.validate_game(game_id, player_id)
 
-        self.storage.metadata.info['start_time'] = int(time_stamp.timestamp())
-        self.storage.metadata.info['last_time'] = int(time_stamp.timestamp())
+        self.storage.metadata.start_time = int(time_stamp.timestamp())
+        self.storage.metadata.last_time = int(time_stamp.timestamp())
 
         # copy the game state to avoid mutations
-        self.storage.initial_game_state_b = pickle.dumps(game_state)
+        self.storage.unload_initial_game_state(game_state)
 
     def record_static_map_data(self, static_map_data: StaticMapData,game_id: int, player_id: int):
         self.validate_game(game_id, player_id)
 
-        self.storage.static_map_data_b = pickle.dumps(static_map_data)
+        self.storage.unload_static_map_data(static_map_data)
 
-    def load_initial_game_state(self) -> GameState:
-        if self.storage.initial_game_state_b is None:
-            raise ValueError("Initial game state is not recorded in the replay.")
-        return pickle.loads(self.storage.initial_game_state_b)
-
-    def load_static_map_data(self) -> StaticMapData:
-        if self.storage.static_map_data_b is None:
-            raise ValueError("Static map data is not recorded in the replay.")
-        return pickle.loads(self.storage.static_map_data_b)
-
-    def record_bipatch(
+    def record_patch(
             self,
             time_stamp: datetime,
             game_id: int,
@@ -138,11 +142,11 @@ class Replay:
     ):
         self.validate_game(game_id, player_id)
 
-        from_timestamp = self.storage.metadata.info['last_time']
+        from_timestamp = self.storage.metadata.last_time
         to_timestamp = int(time_stamp.timestamp())
 
         forward_operations = replay_patch.forward_patch.operations
-        backward_operations = replay_patch.backward_patch.operations
+        backward_operations = reversed(replay_patch.backward_patch.operations)
 
         forward_node = PatchGraphNode(
             from_timestamp,
@@ -158,14 +162,10 @@ class Replay:
         self.storage.patch_graph.add_patch_node(forward_node)
         self.storage.patch_graph.add_patch_node(backward_node)
 
-        self.storage.metadata.info['last_time'] = int(time_stamp.timestamp())
+        self.storage.metadata.last_time = int(time_stamp.timestamp())
 
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
-
-        def prepare_value(_value):
-            GameObject.set_game_recursive(_value, None)
-            return _value
 
         def apply_op(_op_type, _value, _target, _pos, _node=None):
             apply_operation(_op_type, _value, _target, _pos)
@@ -198,7 +198,6 @@ class Replay:
         # Apply resolved operations
         it = zip(patch.op_types, patch.paths, patch.values)
         for op_type, path_idx, value in it:
-            value = prepare_value(value)
             node = idx_to_node[path_idx]
             apply_op(op_type, value, node.reference, node.path_element, node)
 
@@ -213,11 +212,11 @@ class Replay:
                 hook_system._que_hook_path(hook_path, reference_to_child, data)
 
     def get_start_time(self) -> datetime:
-        start_timestamp = self.storage.metadata.info['start_time']
+        start_timestamp = self.storage.metadata.start_time
         return datetime.fromtimestamp(start_timestamp, tz=UTC)
 
     def get_last_time(self) -> datetime:
-        last_timestamp = self.storage.metadata.info['last_time']
+        last_timestamp = self.storage.metadata.last_time
         return datetime.fromtimestamp(last_timestamp, tz=UTC)
 
     def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]], game: GameInterface) -> dict[str, list]:
@@ -255,9 +254,6 @@ class Replay:
             raise ValueError("Game ID or Player ID does not match the initialized values.")
         if not self._is_open:
             raise ValueError("Replay file is not open.")
-
-    def debug_print(self):
-        print(f"Applied operations: {self._op_counter}")
 
 
 
