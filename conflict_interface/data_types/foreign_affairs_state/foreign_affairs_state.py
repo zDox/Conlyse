@@ -9,9 +9,27 @@ from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state_e
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.newspaper_state.article import Article
 from conflict_interface.data_types.state import State
+from conflict_interface.data_types.state import state_update
 from conflict_interface.data_types.state import universal_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
+
+def dict_update(original: dict, other: dict, path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+    for key, value in other.items():
+        if key not in original:
+            if rp:
+                rp.add(path + [key], None, value)
+            original[key] = value
+        else:
+            if original[key] != value:
+                if rp:
+                    rp.replace(path + [key], original[key], value)
+                original[key] = value
+    for key in list(original.keys()):
+        if key not in other:
+            if rp:
+                rp.remove(path + [key], original[key])
+            del original[key]
 
 
 @dataclass
@@ -56,6 +74,19 @@ class ForeignAffairRelations(GameObject):
         "end_of_honor_period": "endOfHonorPeriod",
     }
 
+    def update(self, other: "ForeignAffairRelations", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        if self.state_id != other.state_id:
+            if rp:
+                rp.replace(path + ["state_id"], self.state_id, other.state_id)
+            self.state_id = other.state_id
+        if self.players != other.players:
+            if rp:
+                rp.replace(path + ["players"], self.players, other.players)
+            self.players = other.players
+        dict_update(self.end_of_honor_period, other.end_of_honor_period, path + ["end_of_honor_period"], rp)
+        dict_update(self.neighbor_relations, other.neighbor_relations, path + ["neighbor_relations"], rp)
+
+
     def get_relation(self, sender_id: int, receiver_id: int) -> Optional[ForeignAffairRelationTypes]:
         relations = self.neighbor_relations.get(sender_id-1)
         if relations is None:
@@ -85,5 +116,9 @@ class ForeignAffairsState(State):
         "messages": "messages",
     }
 
-    def update(self, other: "State", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
-        universal_update(self, other, path, rp)
+    def update(self, other: "ForeignAffairsState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        state_update(self, other, path, rp)
+        self.relations.update(other.relations, path + ["relations"], rp)
+        if rp:
+            rp.replace([*path, "messages"], self.messages, other.messages)
+        self.messages = other.messages
