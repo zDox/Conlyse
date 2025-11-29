@@ -4,7 +4,8 @@ Replay Debug CLI Tool - A modular CLI for debugging replay files.
 from .cli import ReplayDebugCLI
 from .navigation import ReplayNavigator
 from .game_object_viewer import GameObjectViewer
-from .args_parser import CommandParser, MainArgumentParser, resolve_alias
+from .args_parser import CommandParser, MainArgumentParser
+from .command_registry import CommandRegistry, CommandExecutor, command, arg, Argument, ArgType, Command
 from .constants import *
 
 __all__ = [
@@ -13,5 +14,11 @@ __all__ = [
     'GameObjectViewer',
     'CommandParser',
     'MainArgumentParser',
-    'resolve_alias',
+    'CommandRegistry',
+    'CommandExecutor',
+    'command',
+    'arg',
+    'Argument',
+    'ArgType',
+    'Command',
 ]

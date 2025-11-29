@@ -605,15 +605,44 @@ replay-debug> python
 
 ## Module Structure
 
-The replay debug tool is now organized into multiple modules for better maintainability:
+The replay debug tool is organized into multiple modules for better maintainability:
 
-- `cli.py` - Command-line interface
+- `cli.py` - Core CLI class with command implementations
+- `shell.py` - Interactive shell
+- `command_registry.py` - Decorator-based command registration system
+- `commands.py` - Command definitions using the `@command` decorator
 - `args_parser.py` - Argument parsing
 - `navigation.py` - Navigation utilities for time travel
 - `game_object_viewer.py` - Game Object inspection and pretty printing
-- `shell.py` - Interactive shell
 - `formatters.py` - Output formatting utilities
 - `constants.py` - Constants and configuration
+
+### Adding New Commands
+
+To add a new command, use the `@command` decorator in `commands.py`:
+
+```python
+from tools.replay_debug.command_registry import command, arg, ArgType
+
+@command(
+    name="my-command",
+    aliases=["mc"],
+    description="Description of the command",
+    usage="my-command <required_arg> [--optional-arg VALUE]",
+    arguments=[
+        arg(name="required_arg", arg_type=ArgType.STRING, required=True,
+            positional=True, position=0, description="A required string argument"),
+        arg(name="optional_arg", arg_type=ArgType.INT, required=False,
+            default=10, description="An optional integer argument"),
+    ]
+)
+def cmd_my_command(cli, required_arg: str, optional_arg: int = 10):
+    """Command implementation."""
+    # Access CLI methods via cli instance
+    print(f"Running with {required_arg}, {optional_arg}")
+```
+
+The command is automatically registered and available in the interactive shell.
 
 ## Understanding Replay Patches
 
