@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
-from threading import Thread
 from typing import TYPE_CHECKING
 
 from conflict_interface.interface.replay_interface import ReplayInterface
@@ -39,7 +38,7 @@ class ReplayManager:
     def get_replay(self, file_path: str) -> ReplayInterface | None:
         return self.replays.get(file_path)
 
-    def is_open_replay(self, file_path: str) -> bool:
+    def is_active_replay(self, file_path: str) -> bool:
         return self.active_replay_path == file_path
 
     def _open_replay(self, file_path: str):
