@@ -5,7 +5,10 @@ from .cli import ReplayDebugCLI
 from .navigation import ReplayNavigator
 from .game_object_viewer import GameObjectViewer
 from .args_parser import CommandParser, MainArgumentParser
-from .command_registry import CommandRegistry, CommandExecutor, command, arg, Argument, ArgType, Command
+from .command_registry import (
+    CommandRegistry, CommandExecutor, command, arg, Argument, ArgType, Command,
+    parse_timedelta, parse_datetime
+)
 from .constants import *
 
 __all__ = [
@@ -21,4 +24,6 @@ __all__ = [
     'Argument',
     'ArgType',
     'Command',
+    'parse_timedelta',
+    'parse_datetime',
 ]

@@ -5,7 +5,9 @@ This module provides a decorator-based system for registering commands
 with their argument specifications, eliminating the need for large
 if-elif chains in the shell.
 """
+import re
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
@@ -16,6 +18,145 @@ class ArgType(Enum):
     INT = "int"
     FLOAT = "float"
     BOOL = "bool"
+    TIMEDELTA = "timedelta"
+    DATETIME = "datetime"
+
+
+# Timedelta parsing pattern: number followed by unit (s, m, h, d, w)
+TIMEDELTA_PATTERN = re.compile(r'^(-?\d+(?:\.\d+)?)\s*([smhdw])$', re.IGNORECASE)
+
+# Timedelta unit multipliers in seconds
+TIMEDELTA_UNITS = {
+    's': 1,           # seconds
+    'm': 60,          # minutes
+    'h': 3600,        # hours
+    'd': 86400,       # days
+    'w': 604800,      # weeks
+}
+
+
+# Maximum Unix timestamp in seconds before assuming milliseconds
+# This corresponds to approximately November 20, 2286 at 17:46:39 UTC
+# Timestamps larger than this are assumed to be in milliseconds
+MAX_UNIX_TIMESTAMP_SECONDS = 9999999999
+
+
+def parse_timedelta(value: str) -> timedelta:
+    """Parse a timedelta string like '1s', '5m', '2h', '1d', '1w'.
+    
+    Args:
+        value: String representation of timedelta (e.g., '1s', '5m', '2h', '1d', '1w')
+        
+    Returns:
+        timedelta object
+        
+    Raises:
+        ValueError: If the format is invalid
+    """
+    match = TIMEDELTA_PATTERN.match(value.strip())
+    if not match:
+        raise ValueError(
+            f"Invalid timedelta format: '{value}'. "
+            f"Expected format: <number><unit> where unit is s(econds), m(inutes), h(ours), d(ays), or w(eeks). "
+            f"Examples: 1s, 5m, 2h, 1d, 1w"
+        )
+    
+    amount = float(match.group(1))
+    unit = match.group(2).lower()
+    
+    seconds = amount * TIMEDELTA_UNITS[unit]
+    return timedelta(seconds=seconds)
+
+
+def parse_datetime(value: str) -> datetime:
+    """Parse a datetime string supporting multiple formats.
+    
+    Supported formats:
+    - Unix timestamp in seconds (e.g., '1764457503')
+    - Unix timestamp in milliseconds (e.g., '1764457503000')
+    - American format: MM/DD/YYYY HH:MM:SS or MM-DD-YYYY HH:MM:SS
+    - German format: DD.MM.YYYY HH:MM:SS
+    - ISO format: YYYY-MM-DDTHH:MM:SS
+    
+    Args:
+        value: String representation of datetime
+        
+    Returns:
+        datetime object (timezone-aware, UTC)
+        
+    Raises:
+        ValueError: If the format is invalid
+    """
+    value = value.strip()
+    
+    # Try Unix timestamp (seconds or milliseconds)
+    # Check if the value looks like a numeric timestamp (integers or floats)
+    try:
+        timestamp = float(value)
+        # If timestamp is too large, it's likely milliseconds
+        if abs(timestamp) > MAX_UNIX_TIMESTAMP_SECONDS:
+            timestamp = timestamp / 1000
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    except ValueError:
+        pass  # Not a numeric timestamp, try other formats
+    
+    # Try ISO format first (most specific)
+    iso_patterns = [
+        '%Y-%m-%dT%H:%M:%S.%f%z',
+        '%Y-%m-%dT%H:%M:%S%z',
+        '%Y-%m-%dT%H:%M:%S.%f',
+        '%Y-%m-%dT%H:%M:%S',
+        '%Y-%m-%d %H:%M:%S.%f',
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%d',
+    ]
+    
+    for pattern in iso_patterns:
+        try:
+            dt = datetime.strptime(value, pattern)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except ValueError:
+            continue
+    
+    # Try American format (MM/DD/YYYY or MM-DD-YYYY)
+    american_patterns = [
+        '%m/%d/%Y %H:%M:%S',
+        '%m/%d/%Y %H:%M',
+        '%m/%d/%Y',
+        '%m-%d-%Y %H:%M:%S',
+        '%m-%d-%Y %H:%M',
+        '%m-%d-%Y',
+    ]
+    
+    for pattern in american_patterns:
+        try:
+            dt = datetime.strptime(value, pattern)
+            return dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    
+    # Try German format (DD.MM.YYYY)
+    german_patterns = [
+        '%d.%m.%Y %H:%M:%S',
+        '%d.%m.%Y %H:%M',
+        '%d.%m.%Y',
+    ]
+    
+    for pattern in german_patterns:
+        try:
+            dt = datetime.strptime(value, pattern)
+            return dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    
+    raise ValueError(
+        f"Invalid datetime format: '{value}'. "
+        f"Supported formats: Unix timestamp (seconds/milliseconds), "
+        f"ISO (YYYY-MM-DDTHH:MM:SS), American (MM/DD/YYYY HH:MM:SS), "
+        f"German (DD.MM.YYYY HH:MM:SS)"
+    )
 
 
 @dataclass
@@ -362,6 +503,14 @@ class CommandExecutor:
                 if isinstance(value, str):
                     return value.lower() in ('true', 'yes', '1', 'on')
                 return bool(value)
+            elif arg_type == ArgType.TIMEDELTA:
+                if isinstance(value, timedelta):
+                    return value
+                return parse_timedelta(str(value))
+            elif arg_type == ArgType.DATETIME:
+                if isinstance(value, datetime):
+                    return value
+                return parse_datetime(str(value))
             else:  # STRING
                 return str(value)
         except (ValueError, TypeError) as e:

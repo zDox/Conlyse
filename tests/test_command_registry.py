@@ -387,6 +387,257 @@ class TestArgumentTypes(unittest.TestCase):
         self.assertEqual(ArgType.INT.value, "int")
         self.assertEqual(ArgType.FLOAT.value, "float")
         self.assertEqual(ArgType.BOOL.value, "bool")
+        self.assertEqual(ArgType.TIMEDELTA.value, "timedelta")
+        self.assertEqual(ArgType.DATETIME.value, "datetime")
+
+
+class TestTimedeltaParsing(unittest.TestCase):
+    """Tests for timedelta parsing."""
+    
+    def setUp(self):
+        """Reset the registry before each test."""
+        CommandRegistry.reset()
+    
+    def tearDown(self):
+        """Reset the registry after each test."""
+        CommandRegistry.reset()
+    
+    def test_parse_seconds(self):
+        """Test parsing seconds."""
+        from tools.replay_debug.command_registry import parse_timedelta
+        from datetime import timedelta
+        
+        result = parse_timedelta("1s")
+        self.assertEqual(result, timedelta(seconds=1))
+        
+        result = parse_timedelta("30s")
+        self.assertEqual(result, timedelta(seconds=30))
+        
+        result = parse_timedelta("1S")  # uppercase
+        self.assertEqual(result, timedelta(seconds=1))
+    
+    def test_parse_minutes(self):
+        """Test parsing minutes."""
+        from tools.replay_debug.command_registry import parse_timedelta
+        from datetime import timedelta
+        
+        result = parse_timedelta("1m")
+        self.assertEqual(result, timedelta(minutes=1))
+        
+        result = parse_timedelta("5m")
+        self.assertEqual(result, timedelta(minutes=5))
+    
+    def test_parse_hours(self):
+        """Test parsing hours."""
+        from tools.replay_debug.command_registry import parse_timedelta
+        from datetime import timedelta
+        
+        result = parse_timedelta("1h")
+        self.assertEqual(result, timedelta(hours=1))
+        
+        result = parse_timedelta("24h")
+        self.assertEqual(result, timedelta(hours=24))
+    
+    def test_parse_days(self):
+        """Test parsing days."""
+        from tools.replay_debug.command_registry import parse_timedelta
+        from datetime import timedelta
+        
+        result = parse_timedelta("1d")
+        self.assertEqual(result, timedelta(days=1))
+        
+        result = parse_timedelta("7d")
+        self.assertEqual(result, timedelta(days=7))
+    
+    def test_parse_weeks(self):
+        """Test parsing weeks."""
+        from tools.replay_debug.command_registry import parse_timedelta
+        from datetime import timedelta
+        
+        result = parse_timedelta("1w")
+        self.assertEqual(result, timedelta(weeks=1))
+        
+        result = parse_timedelta("2w")
+        self.assertEqual(result, timedelta(weeks=2))
+    
+    def test_parse_negative_timedelta(self):
+        """Test parsing negative timedelta."""
+        from tools.replay_debug.command_registry import parse_timedelta
+        from datetime import timedelta
+        
+        result = parse_timedelta("-5m")
+        self.assertEqual(result, timedelta(minutes=-5))
+    
+    def test_parse_float_timedelta(self):
+        """Test parsing float timedelta."""
+        from tools.replay_debug.command_registry import parse_timedelta
+        from datetime import timedelta
+        
+        result = parse_timedelta("1.5h")
+        self.assertEqual(result, timedelta(hours=1.5))
+    
+    def test_invalid_timedelta_format(self):
+        """Test that invalid timedelta format raises ValueError."""
+        from tools.replay_debug.command_registry import parse_timedelta
+        
+        with self.assertRaises(ValueError):
+            parse_timedelta("invalid")
+        
+        with self.assertRaises(ValueError):
+            parse_timedelta("5x")  # invalid unit
+        
+        with self.assertRaises(ValueError):
+            parse_timedelta("abc")
+    
+    def test_timedelta_in_command(self):
+        """Test using timedelta in command execution."""
+        from datetime import timedelta
+        captured = {}
+        
+        @command(
+            name="timedelta-cmd",
+            arguments=[
+                arg(name="duration", arg_type=ArgType.TIMEDELTA, required=True, positional=True, position=0),
+            ]
+        )
+        def handler(context, duration):
+            captured['duration'] = duration
+        
+        executor = CommandExecutor()
+        success = executor.execute("timedelta-cmd", ["5m"], {}, context="ctx")
+        
+        self.assertTrue(success)
+        self.assertEqual(captured['duration'], timedelta(minutes=5))
+
+
+class TestDatetimeParsing(unittest.TestCase):
+    """Tests for datetime parsing."""
+    
+    def setUp(self):
+        """Reset the registry before each test."""
+        CommandRegistry.reset()
+    
+    def tearDown(self):
+        """Reset the registry after each test."""
+        CommandRegistry.reset()
+    
+    def test_parse_unix_timestamp_seconds(self):
+        """Test parsing Unix timestamp in seconds."""
+        from tools.replay_debug.command_registry import parse_datetime
+        from datetime import datetime, timezone
+        
+        result = parse_datetime("1764457503")
+        expected = datetime.fromtimestamp(1764457503, tz=timezone.utc)
+        self.assertEqual(result, expected)
+    
+    def test_parse_unix_timestamp_milliseconds(self):
+        """Test parsing Unix timestamp in milliseconds."""
+        from tools.replay_debug.command_registry import parse_datetime
+        from datetime import datetime, timezone
+        
+        result = parse_datetime("1764457503000")
+        expected = datetime.fromtimestamp(1764457503, tz=timezone.utc)
+        self.assertEqual(result, expected)
+    
+    def test_parse_unix_timestamp_float(self):
+        """Test parsing Unix timestamp as float (with fractional seconds)."""
+        from tools.replay_debug.command_registry import parse_datetime
+        from datetime import datetime, timezone
+        
+        result = parse_datetime("1764457503.5")
+        expected = datetime.fromtimestamp(1764457503.5, tz=timezone.utc)
+        self.assertEqual(result, expected)
+    
+    def test_parse_american_format(self):
+        """Test parsing American format (MM/DD/YYYY)."""
+        from tools.replay_debug.command_registry import parse_datetime
+        from datetime import datetime, timezone
+        
+        result = parse_datetime("12/25/2023")
+        self.assertEqual(result.month, 12)
+        self.assertEqual(result.day, 25)
+        self.assertEqual(result.year, 2023)
+        
+        result = parse_datetime("01/15/2024 14:30:00")
+        self.assertEqual(result.month, 1)
+        self.assertEqual(result.day, 15)
+        self.assertEqual(result.year, 2024)
+        self.assertEqual(result.hour, 14)
+        self.assertEqual(result.minute, 30)
+    
+    def test_parse_american_format_with_dashes(self):
+        """Test parsing American format with dashes (MM-DD-YYYY)."""
+        from tools.replay_debug.command_registry import parse_datetime
+        
+        result = parse_datetime("12-25-2023")
+        self.assertEqual(result.month, 12)
+        self.assertEqual(result.day, 25)
+        self.assertEqual(result.year, 2023)
+    
+    def test_parse_german_format(self):
+        """Test parsing German format (DD.MM.YYYY)."""
+        from tools.replay_debug.command_registry import parse_datetime
+        from datetime import datetime, timezone
+        
+        result = parse_datetime("25.12.2023")
+        self.assertEqual(result.day, 25)
+        self.assertEqual(result.month, 12)
+        self.assertEqual(result.year, 2023)
+        
+        result = parse_datetime("15.01.2024 14:30:00")
+        self.assertEqual(result.day, 15)
+        self.assertEqual(result.month, 1)
+        self.assertEqual(result.year, 2024)
+        self.assertEqual(result.hour, 14)
+        self.assertEqual(result.minute, 30)
+    
+    def test_parse_iso_format(self):
+        """Test parsing ISO format."""
+        from tools.replay_debug.command_registry import parse_datetime
+        from datetime import datetime, timezone
+        
+        result = parse_datetime("2023-12-25T14:30:00")
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 12)
+        self.assertEqual(result.day, 25)
+        self.assertEqual(result.hour, 14)
+        self.assertEqual(result.minute, 30)
+        
+        result = parse_datetime("2023-12-25")
+        self.assertEqual(result.year, 2023)
+        self.assertEqual(result.month, 12)
+        self.assertEqual(result.day, 25)
+    
+    def test_invalid_datetime_format(self):
+        """Test that invalid datetime format raises ValueError."""
+        from tools.replay_debug.command_registry import parse_datetime
+        
+        with self.assertRaises(ValueError):
+            parse_datetime("invalid")
+        
+        with self.assertRaises(ValueError):
+            parse_datetime("not-a-date")
+    
+    def test_datetime_in_command(self):
+        """Test using datetime in command execution."""
+        from datetime import datetime, timezone
+        captured = {}
+        
+        @command(
+            name="datetime-cmd",
+            arguments=[
+                arg(name="timestamp", arg_type=ArgType.DATETIME, required=True, positional=True, position=0),
+            ]
+        )
+        def handler(context, timestamp):
+            captured['timestamp'] = timestamp
+        
+        executor = CommandExecutor()
+        success = executor.execute("datetime-cmd", ["1764457503"], {}, context="ctx")
+        
+        self.assertTrue(success)
+        expected = datetime.fromtimestamp(1764457503, tz=timezone.utc)
+        self.assertEqual(captured['timestamp'], expected)
 
 
 if __name__ == "__main__":
