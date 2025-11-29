@@ -8,8 +8,8 @@ from PyQt6.QtWidgets import QMessageBox
 
 from conlyse.logger import get_logger
 from conlyse.managers.events.event import Event
-from conlyse.managers.events.replay_load_complete_event import ReplayLoadCompleteEvent
-from conlyse.managers.events.replay_load_failed_event import ReplayLoadFailedEvent
+from conlyse.managers.events.replay_load_complete_event import ReplayOpenCompleteEvent
+from conlyse.managers.events.replay_load_failed_event import ReplayOpenFailedEvent
 from conlyse.pages.page import Page
 from conlyse.utils.enums import PageType
 
@@ -58,9 +58,9 @@ class ReplayLoadPage(Page):
             msg_box.exec()
             return
 
-        self.app.event_handler.subscribe(ReplayLoadCompleteEvent, self.on_replay_load_complete)
-        self.app.event_handler.subscribe(ReplayLoadFailedEvent, self.on_replay_load_failed)
-        self.app.replay_manager.load_replay_async(self.replay_path)
+        self.app.event_handler.subscribe(ReplayOpenCompleteEvent, self.on_replay_load_complete)
+        self.app.event_handler.subscribe(ReplayOpenFailedEvent, self.on_replay_load_failed)
+        self.app.replay_manager.open_replay_async(self.replay_path)
 
         if not self._ui_initialized:
             self.setup_ui()
@@ -112,7 +112,7 @@ class ReplayLoadPage(Page):
             self.loading_label.setText(self.loading_frames[self.animation_state])
 
     def on_replay_load_complete(self, event: Event):
-        assert(isinstance(event, ReplayLoadCompleteEvent))
+        assert(isinstance(event, ReplayOpenCompleteEvent))
 
         if event.replay_file_path != self.replay_path:
             return
@@ -120,7 +120,7 @@ class ReplayLoadPage(Page):
         self.app.page_manager.switch_to(PageType.PlayerListPage, replay_path=event.replay_file_path)
 
     def on_replay_load_failed(self, event: Event):
-        assert(isinstance(event, ReplayLoadFailedEvent))
+        assert(isinstance(event, ReplayOpenFailedEvent))
 
         if event.replay_file_path != self.replay_path:
             return
@@ -146,7 +146,7 @@ class ReplayLoadPage(Page):
         self.animation_state = 0
 
         # Unsubscribe from events
-        self.app.event_handler.unsubscribe(ReplayLoadCompleteEvent, self.on_replay_load_complete)
-        self.app.event_handler.unsubscribe(ReplayLoadFailedEvent, self.on_replay_load_failed)
+        self.app.event_handler.unsubscribe(ReplayOpenCompleteEvent, self.on_replay_load_complete)
+        self.app.event_handler.unsubscribe(ReplayOpenFailedEvent, self.on_replay_load_failed)
 
         # Labels get cleaned up by Qt parent-child system

@@ -1,7 +1,7 @@
 from conlyse.managers.events.event import Event
 
 
-class ReplayLoadFailedEvent(Event):
+class ReplayOpenFailedEvent(Event):
     def __init__(self, replay_file_path: str, error_message: str, trace_info: str):
         super().__init__()
         self.replay_file_path = replay_file_path

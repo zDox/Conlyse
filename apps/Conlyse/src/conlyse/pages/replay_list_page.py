@@ -504,7 +504,7 @@ class ReplayListPage(Page):
             return
 
         logger.debug(f"Selected replay file: {file_path}")
-        success = self.app.replay_manager.open_new_replay(file_path)
+        success = self.app.replay_manager.add_replay(file_path)
 
         if success:
             self._previous_replay_count = len(self.app.replay_manager.get_replays())

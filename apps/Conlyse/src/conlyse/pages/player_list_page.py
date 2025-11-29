@@ -73,7 +73,7 @@ class PlayerListPage(Page):
 
         self.replay_interface = self.app.replay_manager.get_replay(replay_path)
 
-        if not self.app.replay_manager.is_loaded_replay(replay_path):
+        if not self.app.replay_manager.is_open_replay(replay_path):
             logger.error(f"Replay not loaded for path: {replay_path}")
             self.app.page_manager.switch_to(PageType.ReplayListPage, error_message=f"Failed to load replay: {replay_path}")
             return
