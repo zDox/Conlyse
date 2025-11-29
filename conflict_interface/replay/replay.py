@@ -191,9 +191,9 @@ class Replay:
 
         # Initialize hook system and safe old values
         hook_system = game_interface.get_hook_system()
-        data_with_old = {}
+        hook_data = {}
         if hook_system:
-            data_with_old = hook_system.get_old_values(patch.paths, self.storage.path_tree)
+            hook_data = self.storage.path_tree.get_old_values(patch.paths, hook_system._hooks)
 
         # Apply resolved operations
         it = zip(patch.op_types, patch.paths, patch.values)
@@ -204,9 +204,12 @@ class Replay:
 
         # Get new values and que the hooks
         if hook_system:
-            data_with_new = hook_system.set_new_values(data_with_old, self.storage.path_tree)
-            for hook_path, reference_to_child, data in data_with_new:
-                hook_system.que(hook_path, reference_to_child, data)
+            for hook_path, reference_to_child, changed_attributes in hook_data:
+                for attribute, value in changed_attributes.items():
+                    value[1] = getattr(reference_to_child, attribute, None)
+
+            for hook_path, reference_to_child, data in hook_data:
+                hook_system._que_hook_path(hook_path, reference_to_child, data)
 
     def get_start_time(self) -> datetime:
         start_timestamp = self.storage.metadata.info['start_time']

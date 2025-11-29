@@ -1,9 +1,11 @@
 from array import array
 from collections import defaultdict
 from collections import deque
+from copy import deepcopy
 from logging import getLogger
 
 from conflict_interface.data_types.game_state.game_state import GameState
+from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.replay.apply_replay_helper import get_child_reference
 from conflict_interface.replay.path_tree_node import PathTreeNode
 
@@ -274,11 +276,57 @@ class PathTree:
         return old_path
 
     def old_path_to_idx(self, path: list[str]) -> int:
+        # Traverse the tree according to the path and return the index of the final node
         current = self.root
         for path_element in path:
             current = current.children[path_element]
         return current.index
 
+    def get_old_values(self, changed_paths: list[int], hooks: dict[int, ReplayHook]):
+        # Here we use a trick.
+        # By creating the smallest subtree that contains all paths from the root to each of the changed paths we get a list of nodes
+        # that lie before / are parents to changed nodes. now if a hook points to any of these parents one of his children has been updated
+        # therefore the hook needs to be queued given that the operation type fits
+        steiner_tree = self.build_steiner_tree(changed_paths)
+        relevant_nodes = set(steiner_tree.keys())
 
+        # intersect hook_paths and relevant_nodes to get the hooks to keep
+        out = []
+        for hook_path, hook in hooks.items():
+            if hook_path not in relevant_nodes: continue
 
+            for child in steiner_tree[hook_path]:  # for prov in locations
+                relevant_attribute_changed = False
+                attribute_paths = steiner_tree.get(child)  # attribute nodes of a prov
+                if not attribute_paths:  # no attributes found
+                    logger.warning(
+                        f"Skipping hook {hook_path} as no attributes were found (Maby full province changed)")
+                    continue
 
+                changed_attributes = {}
+                reference_to_child = None
+                for attribute in attribute_paths:  # for attribute node in attribute nodes of a prov
+                    attribute_node = self.idx_to_node[attribute]  # actual node
+                    reference_to_child = attribute_node.reference  # ref to holder of attribute of prov aka a province
+                    if not reference_to_child:  # Important warning
+                        logger.warning(
+                            f"Skipping Attribute {attribute_node.path_element} because the reference was not set")
+                        continue
+
+                    if attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
+                        old_ref = getattr(reference_to_child, attribute_node.path_element,
+                                          None)  # copy the attribute by acesssing the province
+                        old_value = deepcopy(old_ref)
+                        changed_attributes[attribute_node.path_element] = [old_value, None]
+                        relevant_attribute_changed = True
+
+                if not relevant_attribute_changed:
+                    continue
+
+                assert reference_to_child
+                assert len(changed_attributes) > 0
+                assert hook_path
+
+                out.append((hook_path, reference_to_child, changed_attributes))
+
+        return out
