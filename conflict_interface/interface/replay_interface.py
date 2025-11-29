@@ -142,7 +142,7 @@ class ReplayInterface(GameInterface):
         self._update_player_id()
 
         if hasattr(self, '_hook_system'):
-            self._hook_system.execute_que()
+            self._hook_system.execute_queue()
 
     def jump_to_next_patch(self) -> bool:
         """
@@ -252,36 +252,4 @@ class ReplayInterface(GameInterface):
         return self._hook_system
 
     def unregister_all_hooks(self):
-        self.get_hook_system().unregister_all()
-
-    """
-    Hook System Events
-    """
-
-
-    def on_province_attribute_change(self, callback: Callable, attributes: list[str]) -> None:
-        """
-        Register a callback for when an attribute of a province changes.
-
-        The callback will be called with the province object:
-        callback(province, old_value, new_value)
-        where province is the Province object whose attribute changed,
-        old_value is the previous attribute value, and
-        where new_value is the new attribute value.
-
-        Args:
-            callback: Function to call when the province attribute changes
-            attributes: The name of the attributes to watch (e.g., "owner_id")
-        """
-        path = ["states", "map_state","map","locations"]
-        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
-
-        def wrapper(path, reference, changed_data):
-            callback(reference, changed_data)
-
-        hook = ReplayHook( callback = wrapper,
-                           change_types = [ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
-                           attributes = attributes,
-                           path = path_idx
-                           )
-        self._hook_system.register(hook)
+        self.get_hook_system()._unregister_all_hooks()
