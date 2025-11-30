@@ -180,7 +180,7 @@ class ReplayStorage:
 
     def unload_patches(self):
         patches = self.patch_graph.patches.items()
-        patch_index = np.zeros(len(patches), dtype=PATCH_INDEX_DTYPE)
+        patch_index = np.zeros(self.metadata.max_patches, dtype=PATCH_INDEX_DTYPE)
         data_pool = BinaryWriter()
 
         for i, ((_, _), patch) in enumerate(patches):
