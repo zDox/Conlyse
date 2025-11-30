@@ -50,16 +50,6 @@ def cmd_view_patch(cli, index_or_from: int, to_timestamp: int = None, limit: int
         cli.view_patch_by_index(index_or_from, limit)
 
 
-@command(
-    name="metadata",
-    aliases=["md"],
-    description="Display replay metadata",
-    usage="metadata | md"
-)
-def cmd_metadata(cli):
-    """Display replay metadata."""
-    cli.display_info()
-
 
 @command(
     name="view-operations-by-path",
