@@ -123,7 +123,7 @@ class FromJsonResponsesUsingUpdateToReplay:
                         return False
 
                     # Record the patch
-                    replay.record_patch(
+                    replay.read_write_record_patch(
                         time_stamp=current_timestamp,
                         game_id=game_id,
                         player_id=player_id,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import time
 from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
@@ -83,19 +82,10 @@ class Replay:
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
 
-            self.storage.read_full_from_disk(self.file_path)
+            self.storage.read_append_mode_from_disk(self.file_path)
             self.storage.load_metadata()
-            self.storage.load_initial_game_state(self._game)
-            self.storage.load_static_map_data(self._game)
+            self.storage.load_initial_game_state(None)
             self.storage.load_path_tree()
-            self.storage.load_patches(self._game)
-            self.storage.path_tree.precompute()
-            # -----------
-            # Safety Precautions
-            self.storage.patch_graph.validate_cached_time_stamps()
-            self.storage.path_tree.validate_idx_to_node_mapping()
-            self.storage.path_tree.validate_tree_structure()
-            # -----------
 
         elif self.mode == 'w':
             if self.game_id is None or self.player_id is None:
@@ -103,6 +93,12 @@ class Replay:
 
             self.storage.create_new_file(self.file_path)
             self.storage.initialize()
+
+        elif self.mode == 'rw':
+            if self.game_id is None or self.player_id is None:
+                raise ValueError("Game ID and Player ID must be provided in read write mode")
+
+
 
         self._is_open = True
         return self
@@ -132,7 +128,7 @@ class Replay:
 
         self.storage.unload_static_map_data(static_map_data)
 
-    def record_patch(
+    def read_write_record_patch(
             self,
             time_stamp: datetime,
             game_id: int,
@@ -163,6 +159,9 @@ class Replay:
         self.storage.patch_graph.add_patch_node(backward_node)
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
+
+    def append_record_patch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch, game: GameInterface):
+        pass # TODO
 
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
