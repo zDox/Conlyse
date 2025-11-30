@@ -62,7 +62,7 @@ class CommandParser:
                 positional.append(token)
                 i += 1
         
-        return (command, positional, options)
+        return command, positional, options
     
     @staticmethod
     def get_int_option(options: Dict[str, Any], name: str, default: Optional[int] = None) -> Optional[int]:
@@ -130,7 +130,7 @@ class MainArgumentParser:
             description="Replay Debug CLI Tool - Inspect and debug replay files",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
-Interactive Mode (Recommended):
+Interactive Mode:
   Start the interactive shell for full access to all features:
     %(prog)s replay.db
 
@@ -158,46 +158,3 @@ Interactive Shell Examples:
         )
         
         return parser
-
-
-# Command aliases mapping
-COMMAND_ALIASES = {
-    # Navigation
-    'jr': 'jump-relative',
-    'ja': 'jump-absolute',
-    'jp': 'jump-patches',
-    'ji': 'jump-index',
-    'lt': 'list-timestamps',
-    
-    # Game Object viewing
-    'vg': 'view-game-object',
-    'ls': 'list-states',
-    'sp': 'search-paths',
-    
-    # Patch analysis
-    'lp': 'list-patches',
-    'vp': 'view-patch',
-    'vop': 'view-operations-by-path',
-    'oo': 'operations-overview',
-    'co': 'count-operations',
-    'cop': 'count-operations-by-path',
-    
-    # Metadata
-    'md': 'metadata',
-    
-    # Help
-    '?': 'help',
-    'q': 'quit',
-}
-
-
-def resolve_alias(command: str) -> str:
-    """Resolve command alias to full command name.
-    
-    Args:
-        command: Command name or alias
-        
-    Returns:
-        Full command name
-    """
-    return COMMAND_ALIASES.get(command, command)

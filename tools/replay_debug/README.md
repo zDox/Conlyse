@@ -244,23 +244,40 @@ Total Timestamps: 100
 ```
 
 ##### jump-relative (jr)
-Jump by relative time from current position.
+Jump by relative time from current position. Supports both numeric values (seconds) and time suffixes.
 
 **Usage:**
 ```bash
-replay-debug> jump-relative <seconds>
-replay-debug> jr <seconds>
+replay-debug> jump-relative <time>
+replay-debug> jr <time>
 ```
+
+**Supported Time Formats:**
+- **Plain numbers**: Interpreted as seconds (e.g., `60` = 60 seconds, `300` = 300 seconds)
+- **Time suffixes**:
+  - `s` - seconds (e.g., `30s` = 30 seconds)
+  - `m` - minutes (e.g., `5m` = 5 minutes)
+  - `h` - hours (e.g., `2h` = 2 hours)
+  - `d` - days (e.g., `1d` = 1 day)
+  - `w` - weeks (e.g., `1w` = 1 week)
+- **Negative values**: Jump backward (e.g., `-5m` = 5 minutes backward)
+- **Decimals**: Supported (e.g., `2.5h` = 2.5 hours, `30.5s` = 30.5 seconds)
 
 **Examples:**
 ```bash
 replay-debug> jr 60          # Jump forward 60 seconds
-replay-debug> jr -300        # Jump backward 5 minutes
-replay-debug> jr 3600        # Jump forward 1 hour
+replay-debug> jr 30s         # Jump forward 30 seconds
+replay-debug> jr 5m          # Jump forward 5 minutes
+replay-debug> jr -5m         # Jump backward 5 minutes
+replay-debug> jr 2h          # Jump forward 2 hours
+replay-debug> jr 1d          # Jump forward 1 day
+replay-debug> jr 1w          # Jump forward 1 week
+replay-debug> jr 2.5h        # Jump forward 2.5 hours
+replay-debug> jr -300        # Jump backward 300 seconds
 ```
 
 ##### jump-absolute (ja)
-Jump to an absolute timestamp (ISO format).
+Jump to an absolute timestamp. Supports multiple datetime formats for convenience.
 
 **Usage:**
 ```bash
@@ -268,11 +285,34 @@ replay-debug> jump-absolute <timestamp>
 replay-debug> ja <timestamp>
 ```
 
+**Supported DateTime Formats:**
+- **Unix timestamp (seconds)**: `1764457503`
+- **Unix timestamp (milliseconds)**: `1764457503000` (automatically detected)
+- **ISO format**: 
+  - `2023-01-01T15:30:00+00:00` (with timezone)
+  - `2023-01-01T15:30:00` (without timezone, assumes UTC)
+  - `2023-01-01 15:30:00` (space separator)
+  - `2023-01-01` (date only)
+- **American format**: 
+  - `01/15/2023 15:30:00` (MM/DD/YYYY HH:MM:SS)
+  - `01-15-2023 15:30:00` (MM-DD-YYYY HH:MM:SS)
+  - `01/15/2023` (date only)
+- **German format**: 
+  - `15.01.2023 15:30:00` (DD.MM.YYYY HH:MM:SS)
+  - `15.01.2023` (date only)
+
 **Examples:**
 ```bash
-replay-debug> ja 2023-01-01T15:30:00+00:00
-replay-debug> ja "2023-01-01 15:30:00"
+replay-debug> ja 1764457503                    # Unix timestamp (seconds)
+replay-debug> ja 1764457503000                 # Unix timestamp (milliseconds)
+replay-debug> ja 2023-01-01T15:30:00+00:00     # ISO format with timezone
+replay-debug> ja "2023-01-01 15:30:00"         # ISO format with space
+replay-debug> ja 2023-01-01                    # Date only (midnight UTC)
+replay-debug> ja "01/15/2023 15:30:00"         # American format
+replay-debug> ja "15.01.2023 15:30:00"         # German format
 ```
+
+**Note**: All timestamps without timezone information are assumed to be in UTC.
 
 ##### jump-patches (jp)
 Jump forward or backward by a number of patches.
@@ -605,15 +645,44 @@ replay-debug> python
 
 ## Module Structure
 
-The replay debug tool is now organized into multiple modules for better maintainability:
+The replay debug tool is organized into multiple modules for better maintainability:
 
-- `cli.py` - Command-line interface
+- `cli.py` - Core CLI class with command implementations
+- `shell.py` - Interactive shell
+- `command_registry.py` - Decorator-based command registration system
+- `commands.py` - Command definitions using the `@command` decorator
 - `args_parser.py` - Argument parsing
 - `navigation.py` - Navigation utilities for time travel
 - `game_object_viewer.py` - Game Object inspection and pretty printing
-- `shell.py` - Interactive shell
 - `formatters.py` - Output formatting utilities
 - `constants.py` - Constants and configuration
+
+### Adding New Commands
+
+To add a new command, use the `@command` decorator in `commands.py`:
+
+```python
+from tools.replay_debug.command_registry import command, arg, ArgType
+
+@command(
+    name="my-command",
+    aliases=["mc"],
+    description="Description of the command",
+    usage="my-command <required_arg> [--optional-arg VALUE]",
+    arguments=[
+        arg(name="required_arg", arg_type=ArgType.STRING, required=True,
+            positional=True, position=0, description="A required string argument"),
+        arg(name="optional_arg", arg_type=ArgType.INT, required=False,
+            default=10, description="An optional integer argument"),
+    ]
+)
+def cmd_my_command(cli, required_arg: str, optional_arg: int = 10):
+    """Command implementation."""
+    # Access CLI methods via cli instance
+    print(f"Running with {required_arg}, {optional_arg}")
+```
+
+The command is automatically registered and available in the interactive shell.
 
 ## Understanding Replay Patches
 
