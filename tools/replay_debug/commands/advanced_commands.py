@@ -15,7 +15,7 @@ from tools.replay_debug.command_registry import command
 )
 def cmd_ritf(cli):
     """Show ReplayInterface info."""
-    ritf = cli.get_ritf()
+    ritf = cli.ritf
     if ritf:
         print("\nReplayInterface object is available as 'ritf'")
         print(f"Type: {type(ritf)}")
@@ -42,7 +42,7 @@ def cmd_ritf(cli):
 )
 def cmd_python(cli):
     """Enter Python REPL with ritf."""
-    ritf = cli.get_ritf()
+    ritf = cli.ritf
     print("\nEntering Python REPL. 'ritf' is available.")
     print("Use Ctrl-D (Unix) or Ctrl-Z (Windows) to exit.\n")
     try:

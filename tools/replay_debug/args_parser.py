@@ -62,7 +62,7 @@ class CommandParser:
                 positional.append(token)
                 i += 1
         
-        return (command, positional, options)
+        return command, positional, options
     
     @staticmethod
     def get_int_option(options: Dict[str, Any], name: str, default: Optional[int] = None) -> Optional[int]:
@@ -130,7 +130,7 @@ class MainArgumentParser:
             description="Replay Debug CLI Tool - Inspect and debug replay files",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
-Interactive Mode (Recommended):
+Interactive Mode:
   Start the interactive shell for full access to all features:
     %(prog)s replay.db
 

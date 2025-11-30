@@ -23,7 +23,11 @@ from tools.replay_debug.command_registry import command, arg, ArgType
 )
 def cmd_view_state(cli, path: str, depth: int = 5):
     """View value at a path in the game state."""
-    cli.view_game_object_path(path, depth)
+    if not cli.game_object_viewer:
+        print("Error: Replay not opened.")
+        return
+
+    cli.game_object_viewer.view_path(path, depth)
 
 
 @command(
@@ -34,7 +38,11 @@ def cmd_view_state(cli, path: str, depth: int = 5):
 )
 def cmd_list_states(cli):
     """List available state categories."""
-    cli.list_states()
+    if not cli.game_object_viewer:
+        print("Error: Replay not opened.")
+        return
+
+    cli.game_object_viewer.list_available_states()
 
 
 @command(
@@ -49,4 +57,9 @@ def cmd_list_states(cli):
 )
 def cmd_search_paths(cli, term: str):
     """Search for paths containing a term."""
-    cli.search_paths(term)
+
+    if not cli.game_object_viewer:
+        print("Error: Replay not opened.")
+        return
+
+    cli.game_object_viewer.search_path(term)

@@ -114,13 +114,3 @@ def cmd_count_operations(cli):
 def cmd_count_operations_by_path(cli, path_prefix: str, direction: str = DEFAULT_DIRECTION):
     """Count operations that start with a specific path."""
     cli.count_operations_by_path(path_prefix, direction)
-
-
-@command(
-    name="check-timestamps",
-    description="Check and validate timestamps in the replay",
-    usage="check-timestamps"
-)
-def cmd_check_timestamps(cli):
-    """Check timestamps in the replay."""
-    cli.check_timestamps()
