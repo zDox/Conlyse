@@ -22,7 +22,7 @@ class StyleManager:
     def __init__(self, app: App):
         self.app = app
 
-        self.page_styles: dict[PageType, str] = {}
+        self.page_styles: dict[(Theme, PageType), str] = {}
         self.global_style: str = ""
         self.header_style: str = ""
         self.table_widget_style: str = ""
@@ -36,6 +36,7 @@ class StyleManager:
         self.load_themes()
 
         self.app.keybinding_manager.register_action(KeyAction.RELOAD_STYLES, self.reload_all_styles)
+        self.app.keybinding_manager.register_action(KeyAction.TOGGLE_THEME, self.toggle_theme)
 
     def load_themes(self):
         self.global_style = self.app.asset_manager.load_string("global_style", "styles/global_style.qss")
@@ -48,37 +49,67 @@ class StyleManager:
 
     def unload_themes(self):
         self.app.asset_manager.unload_asset("global_style")
-        self.app.asset_manager.unload_asset("light_theme")
-        self.app.asset_manager.unload_asset("dark_theme")
+        self.app.asset_manager.unload_asset("header_style")
+        self.app.asset_manager.unload_asset("table_widget_style")
+        self.app.asset_manager.unload_asset("theme_light")
+        self.app.asset_manager.unload_asset("theme_dark")
         self.global_style = ""
+        self.header_style = ""
+        self.table_widget_style = ""
         del self.themes[Theme.LIGHT]
         del self.themes[Theme.DARK]
+
+    def get_page_style(self, page_type: PageType) -> str:
+        if (self.current_theme, page_type) not in self.page_styles:
+            self.load_page_style(page_type)
+        return self.page_styles.get((self.current_theme, page_type), "")
+
+    def load_page_style(self, page_type: PageType):
+        asset_name = camel_to_snake(page_type.name)
+        style_raw = self.app.asset_manager.load_string(
+            asset_name,
+            f"styles/{asset_name}.qss"
+        )
+        try:
+            page_style = DollarTemplate(style_raw).substitute(self.themes[self.current_theme])
+            self.page_styles[(self.current_theme, page_type)] = page_style
+        except KeyError as e:
+            logger.error(f"StyleManager: Missing key({e.args}) in theme for page {page_type.name}")
+
+    def unload_page_style(self, page_type: PageType):
+        for theme in Theme:
+            if (theme, page_type) in self.page_styles:
+                del self.page_styles[(theme, page_type)]
+        asset_name = camel_to_snake(page_type.name)
+        self.app.asset_manager.unload_asset(asset_name)
+
+    def unload_all_page_styles(self):
+        for (theme, page_type) in list(self.page_styles.keys()):
+            self.unload_page_style(page_type)
 
     def update_style(self):
         page_type = self.app.page_manager.get_current_page_type()
         global_style = ""
         header_style = ""
         table_widget_style = ""
-        if page_type in self.page_styles:
-            page_style = self.page_styles[page_type]
-
-        else:
-            asset_name = camel_to_snake(page_type.name)
-            if self.app.asset_manager.is_loaded_asset(asset_name):
-                style_raw = self.app.asset_manager.get_asset(asset_name)
-            else:
-                style_raw = self.app.asset_manager.load_string(
-                    asset_name,
-                    f"styles/{asset_name}.qss"
-                )
-            try:
-                page_style = DollarTemplate(style_raw).substitute(self.themes[self.current_theme])
-                global_style = DollarTemplate(self.global_style).substitute(self.themes[self.current_theme])
-                header_style = DollarTemplate(self.header_style).substitute(self.themes[self.current_theme])
-                table_widget_style = DollarTemplate(self.table_widget_style).substitute(self.themes[self.current_theme])
-            except KeyError as e:
-                page_style = ""
-                logger.error(f"StyleManager: Missing key({e.args}) in theme for page {page_type.name}")
+        try:
+            page_style = self.get_page_style(page_type)
+        except KeyError as e:
+            page_style = ""
+            logger.error(f"StyleManager: Missing key({e.args}) in theme for page {page_type.name}")
+        try:
+            global_style = DollarTemplate(self.global_style).substitute(self.themes[self.current_theme])
+        except KeyError as e:
+            logger.error(f"StyleManager: Missing key({e.args}) in global style for theme {self.current_theme.name}")
+        try:
+            header_style = DollarTemplate(self.header_style).substitute(self.themes[self.current_theme])
+        except KeyError as e:
+            logger.error(f"StyleManager: Missing key({e.args}) in header style for theme {self.current_theme.name}")
+        try:
+            table_widget_style = DollarTemplate(self.table_widget_style).substitute(self.themes[self.current_theme])
+        except KeyError as e:
+            logger.error(f"StyleManager: Missing key({e.args}) in table widget style for theme {self.current_theme.name}")
+        self.page_styles[(self.current_theme, page_type)] = page_style
 
         final_style = global_style + "\n" + header_style + "\n" + table_widget_style + "\n" + page_style
         self.app.q_app.setStyleSheet(final_style)
@@ -100,9 +131,10 @@ class StyleManager:
         return self.current_theme
 
     def reload_all_styles(self):
+        logger.debug(f"Reloading all styles")
         self.unload_themes()
+        self.unload_all_page_styles()
         self.load_themes()
-        self.page_styles.clear()
         self.update_style()
 
 

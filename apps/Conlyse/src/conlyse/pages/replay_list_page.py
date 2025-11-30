@@ -1,12 +1,10 @@
 # conlyse/pages/replay_list_page.py
 from __future__ import annotations
 
-import threading
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QSize
 from PyQt6.QtCore import Qt
-from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtWidgets import QFileDialog
 from PyQt6.QtWidgets import QFrame
@@ -23,9 +21,10 @@ from PyQt6.QtWidgets import QWidget
 
 from conlyse.logger import get_logger
 from conlyse.managers.keybinding_manager.key_action import KeyAction
-from conlyse.managers.style_manager import Theme
 from conlyse.pages.page import Page
 from conlyse.utils.enums import PageType
+from conlyse.widgets.mui.button import CButton
+from conlyse.widgets.mui.chip import CChip
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -42,7 +41,7 @@ class ReplayListItem(QWidget):
 
         # Widget references
         self.game_id_label = None
-        self.status_label = None
+        self.status_chip = None
         self.mode_label = None
         self.length_label = None
         self.day_label = None
@@ -69,17 +68,17 @@ class ReplayListItem(QWidget):
         top_layout.addStretch()
 
         status_text = self.replay_data.get('status', 'Running')
-        status_icon = '▶' if status_text == 'Running' else '⏹'
-        self.status_label = QLabel(f"{status_icon} {status_text}")
-        self.status_label.setObjectName("replay_list_item_status")
+
+        self.status_chip = CChip(f"Unknown", "outlined")
+        self.update_status_chip()
 
         # Set status property for styling
         if status_text == 'Running':
-            self.status_label.setProperty("status", "running")
+            self.status_chip.setProperty("status", "running")
         else:
-            self.status_label.setProperty("status", "ended")
+            self.status_chip.setProperty("status", "ended")
 
-        top_layout.addWidget(self.status_label)
+        top_layout.addWidget(self.status_chip)
 
         layout.addLayout(top_layout)
 
@@ -102,6 +101,17 @@ class ReplayListItem(QWidget):
 
         info_layout.addStretch()
         layout.addLayout(info_layout)
+
+    def update_status_chip(self):
+        """Update the status chip text and style"""
+        status_text = self.replay_data.get('status', 'Running')
+        if status_text == 'Running':
+            self.status_chip.set_text('▶ Running')
+            self.status_chip.set_color("success")
+        else:
+            self.status_chip.set_text('⏹ Ended')
+            self.status_chip.set_color("info")
+        self.status_chip.refresh()
 
 
 class ReplayListPage(Page):
@@ -229,6 +239,8 @@ class ReplayListPage(Page):
 
         # Open button (primary style)
         self.open_replay_btn = QPushButton("Open")
+        self.open_replay_btn.setProperty("variant", "contained")
+        self.open_replay_btn.setProperty("color", "primary")
         self.open_replay_btn.setMaximumWidth(100)
         self.open_replay_btn.clicked.connect(self.on_open_replay)
         header_layout.addWidget(self.open_replay_btn)
@@ -387,9 +399,9 @@ class ReplayListPage(Page):
 
         # Right side - status badge
         is_running = True  # TODO: Get actual status
-        status_badge = QLabel('▶ Running' if is_running else '⏹ Ended')
-        status_badge.setObjectName("replay_details_status_badge")
-        status_badge.setProperty("status", "running" if is_running else "ended")
+        status_badge = CChip('▶ Running' if is_running else '⏹ Ended',
+                             variant="outlined",
+                             color="success" if is_running else "default")
         status_layout.addWidget(status_badge)
 
         self.details_content_layout.addLayout(status_layout)
@@ -436,15 +448,12 @@ class ReplayListPage(Page):
         actions_layout.setSpacing(12)
 
         # Analyze button (primary)
-        analyze_btn = QPushButton("Analyze Replay")
+        analyze_btn = CButton("Analyze", "contained", "primary")
         analyze_btn.clicked.connect(self.on_analyze_clicked)
         actions_layout.addWidget(analyze_btn)
 
         # Delete button (important/red)
-        delete_btn = QPushButton("Delete")
-        delete_btn.setProperty("class", "important")
-        delete_btn.style().unpolish(delete_btn)
-        delete_btn.style().polish(delete_btn)
+        delete_btn = CButton("Delete", "contained", "error")
         delete_btn.clicked.connect(self.on_delete_clicked)
         actions_layout.addWidget(delete_btn)
 
