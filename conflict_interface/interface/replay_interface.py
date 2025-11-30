@@ -23,7 +23,7 @@ class ReplayInterface(GameInterface):
         super().__init__()
         self.file_path = Path(file_path)
         self.replay = Replay(self.file_path, 'r')
-        self._hook_system = ReplayHookSystem()
+        self._hook_system = ReplayHookSystem(self.replay)
         self.game_state: GameState | None = None
         self.static_map_data = None
         self.player_id: int | None = None
