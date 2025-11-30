@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import QVBoxLayout
 from PyQt6.QtWidgets import QWidget
 
 from conlyse.logger import get_logger
+from conlyse.managers.keybinding_manager.key_action import KeyAction
 from conlyse.managers.style_manager import Theme
 from conlyse.pages.page import Page
 from conlyse.utils.enums import PageType
@@ -156,6 +157,8 @@ class ReplayListPage(Page):
             msg.setText(context["error_message"])
             msg.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg.exec()
+
+        self.app.keybinding_manager.register_action(KeyAction.OPEN_REPLAY_FILE_DIALOG, self.on_open_replay)
 
     def setup_ui(self):
         """One-time UI initialization"""
@@ -569,3 +572,5 @@ class ReplayListPage(Page):
         # Clear references
         self.selected_replay = None
         self.selected_filepath = None
+
+        self.app.keybinding_manager.unregister_action(KeyAction.OPEN_REPLAY_FILE_DIALOG)

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from string import Template
 
 from conlyse.logger import get_logger
+from conlyse.managers.keybinding_manager.key_action import KeyAction
 from conlyse.utils.enums import PageType
 from conlyse.utils.enums import Theme
 from conlyse.utils.string_manipulation import camel_to_snake
@@ -33,6 +34,8 @@ class StyleManager:
         else:
             self.current_theme = Theme.DARK
         self.load_themes()
+
+        self.app.keybinding_manager.register_action(KeyAction.RELOAD_STYLES, self.reload_all_styles)
 
     def load_themes(self):
         self.global_style = self.app.asset_manager.load_string("global_style", "styles/global_style.qss")

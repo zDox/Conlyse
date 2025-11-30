@@ -4,11 +4,12 @@ import sys
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
+from conlyse.managers.config_manager.config_manager import ConfigManager
+from conlyse.managers.keybinding_manager.keybinding_manager import KeybindingManager
 from conlyse.managers.replay_manager import ReplayManager
 from conlyse.pages.player_list_page import PlayerListPage
 from conlyse.pages.replay_load_page import ReplayLoadPage
 from conlyse.logger import setup_logger
-from conlyse.managers.config_manager import ConfigManager
 from conlyse.managers.event_manager import EventManager
 from conlyse.managers.style_manager import StyleManager
 from conlyse.managers.asset_manager import AssetManager
@@ -26,12 +27,13 @@ class App:
         self.q_app : QApplication = QApplication(sys.argv)
         self.main_window : MainWindow = MainWindow()
 
-        self.asset_manager = AssetManager(self)
-        self.config_manager = ConfigManager(self)
-        self.event_handler : EventManager = EventManager(self)
-        self.style_manager = StyleManager(self)
-        self.page_manager : PageManager = PageManager(self)
-        self.replay_manager : ReplayManager = ReplayManager(self)
+        self.asset_manager      = AssetManager(self)
+        self.config_manager     = ConfigManager(self)
+        self.keybinding_manager = KeybindingManager(self)
+        self.event_handler      = EventManager(self)
+        self.style_manager      = StyleManager(self)
+        self.page_manager       = PageManager(self)
+        self.replay_manager     = ReplayManager(self)
 
         self.frame_timer : QTimer = QTimer()
 
