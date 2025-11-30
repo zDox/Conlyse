@@ -9,6 +9,7 @@ from .command_registry import (
     CommandRegistry, CommandExecutor, command, arg, Argument, ArgType, Command,
     parse_timedelta, parse_datetime
 )
+from .patch_analysis import PatchAnalysisMixin
 from .constants import *
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     'Command',
     'parse_timedelta',
     'parse_datetime',
+    'PatchAnalysisMixin',
 ]
