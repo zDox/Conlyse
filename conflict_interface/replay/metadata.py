@@ -5,3 +5,4 @@ from dataclasses import dataclass
 class Metadata:
     start_time: int
     last_time: int
+    max_patches: int

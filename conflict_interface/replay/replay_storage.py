@@ -7,13 +7,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import lz4.frame
+import numpy as np
 
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.replay.custom_data_types import PATCH_INDEX_DTYPE
 from conflict_interface.replay.metadata import Metadata
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.path_tree import PathTree
+from conflict_interface.utils.binary import BinaryWriter
 
 if TYPE_CHECKING:
     from conflict_interface.interface.replay_interface import ReplayInterface
@@ -24,7 +27,8 @@ class ReplayStorage:
         self._metadata_b: bytes | None = None
         self._initial_game_state_b: bytes | None = None
         self._static_map_data_b: bytes | None = None
-        self._patch_graph_b: bytes | None = None
+        self._path_tree_b: bytes | None = None
+        self._patch_index_b: bytes | None = None
         self._d_pool_b: bytes | None = None
 
         self.metadata: Metadata | None = None
@@ -52,12 +56,13 @@ class ReplayStorage:
         self._metadata_b = data[0]
         self._initial_game_state_b = data[1]
         self._static_map_data_b = data[2]
-        self._patch_graph_b = data[3]
-        self._d_pool_b = data[4]
+        self._path_tree_b = data[3]
+        self._patch_index_b = data[4]
+        self._d_pool_b = data[5]
 
     def read_append_mode_from_disk(self, file_path: Path):
         data = []
-        idx_to_read = (0,3,4)
+        idx_to_read = (0,3,4,5)
         with open(file_path, 'rb') as f:
             i = 0
             while True:
@@ -76,22 +81,25 @@ class ReplayStorage:
                 i += 1
 
         self._metadata_b = data[0]
-        self._patch_graph_b = data[1]
-        self._d_pool_b = data[2]
+        self._path_tree_b = data[1]
+        self._patch_index_b = data[2]
+        self._d_pool_b = data[3]
 
     def write_full_to_disk(self, file_path: Path):
         print("Saving")
         assert self._metadata_b is not None, "Metadata is not recorded in the replay."
         assert self._initial_game_state_b is not None, "Initial game state is not recorded in the replay."
         assert self._static_map_data_b is not None, "Static map data is not recorded in the replay."
-        assert self._patch_graph_b is not None, "Patch graph metadat has not been read."
+        assert self._path_tree_b is not None, "No Path Tree to put into memory"
+        assert self._patch_index_b is not None, "Patch graph metadat has not been read."
         assert self._d_pool_b is not None, "Data pool has not been read"
 
         data_chunks = [
             self._metadata_b,
             self._initial_game_state_b,
             self._static_map_data_b,
-            self._patch_graph_b,
+            self._path_tree_b,
+            self._patch_index_b,
             self._d_pool_b
         ]
 
@@ -114,7 +122,8 @@ class ReplayStorage:
     def initialize(self):
         self.metadata = Metadata(
             start_time = 0,
-            last_time = 0
+            last_time = 0,
+            max_patches=24000 # TODO
         )
         self.path_tree = PathTree()
         self.patch_graph = PatchGraph()
@@ -142,7 +151,9 @@ class ReplayStorage:
         return self.static_map_data
 
     def load_path_tree(self):
-        pass # TODO
+        if self._path_tree_b is None:
+            raise ValueError("Path Tree is not recorded in the replay.")
+        self.path_tree = pickle.loads(self._path_tree_b)
 
     def load_patches(self, game: ReplayInterface) -> PatchGraph:
         pass # TODO
@@ -165,7 +176,25 @@ class ReplayStorage:
         self.static_map_data = static_map_data
 
     def unload_path_tree(self):
-        pass # TODO
+        self._path_tree_b = pickle.dumps(self.path_tree)
 
     def unload_patches(self):
-        pass # TODO
+        patches = self.patch_graph.patches.items()
+        patch_index = np.zeros(len(patches), dtype=PATCH_INDEX_DTYPE)
+        data_pool = BinaryWriter()
+
+        for i, ((_, _), patch) in enumerate(patches):
+            offset = data_pool.tell()
+            patch_s: memoryview = patch.serialize([])
+            size = len(patch_s)
+            patch_index[i]['offset'] = offset
+            patch_index[i]['size'] = size
+            data_pool.write_bytes(patch_s)
+
+        self._patch_index_b = patch_index
+        self._d_pool_b = data_pool.getbuffer()
+
+
+
+
+

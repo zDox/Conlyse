@@ -56,3 +56,7 @@ def safe_issubclass(obj, cls):
         return issubclass(obj, cls)
     else:
         return False
+
+def is_primitive(v) -> bool:
+    """Returns True if value can be serialized with msgpack."""
+    return v is None or isinstance(v, (bool, int, float, str, bytes, list, dict))
