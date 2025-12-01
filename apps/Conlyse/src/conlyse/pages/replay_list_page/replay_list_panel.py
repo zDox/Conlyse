@@ -148,5 +148,5 @@ class ReplayListPanel(QWidget):
         """Cleanup resources"""
         try:
             self.replay_list.currentItemChanged.disconnect(self._on_selection_changed)
-        except:
+        except Exception:
             pass
