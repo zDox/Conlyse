@@ -13,10 +13,13 @@ requires-python = "==3.12.*"
 dependencies = [
     "PyQt6>=6.2.0",
     "numpy>=1.21.0",
-    "qtawesome>=7.0.0",
-    "git+https://github.com/zDox/ConflictInterface.git@main#egg=conflict-interface",
+    "qtawesome>=1.4.0",
+    "conflict-interface @ git+ssh://git@github.com/zDox/ConflictInterface.git@main",
 ]
 
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 # This tells pip that Setuptools builds the project
 [build-system]

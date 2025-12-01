@@ -46,16 +46,7 @@ class ReplayLoadPage(Page):
 
         if not self.replay_path or not self.app.replay_manager.is_valid_replay(self.replay_path):
             logger.error(f"Invalid replay path provided to ReplayLoadPage: {self.replay_path}")
-            self.app.page_manager.switch_to(PageType.ReplayListPage)
-
-            # summon message box to inform user
-
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Icon.Critical)
-            msg_box.setWindowTitle("Invalid Replay")
-            msg_box.setText("The selected replay file is invalid or could not be found.")
-            msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-            msg_box.exec()
+            self.app.page_manager.switch_to(PageType.ReplayListPage, error_message="Invalid replay file selected.")
             return
 
         self.app.event_handler.subscribe(ReplayOpenCompleteEvent, self.on_replay_load_complete)

@@ -25,6 +25,7 @@ from conlyse.pages.page import Page
 from conlyse.utils.enums import PageType
 from conlyse.widgets.mui.button import CButton
 from conlyse.widgets.mui.chip import CChip
+from conlyse.widgets.mui.label import CLabel
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -61,29 +62,23 @@ class ReplayListItem(QWidget):
         top_layout = QHBoxLayout()
         top_layout.setSpacing(12)
 
-        self.game_id_label = QLabel(f"📄 {self.replay_data.get('game_id', 'Unknown')}")
+        self.game_id_label = CLabel(f"{self.replay_data.get('game_id', 'Unknown')}", "mdi.gamepad-square", "primary")
         self.game_id_label.setObjectName("replay_list_item_title")
         top_layout.addWidget(self.game_id_label)
 
         top_layout.addStretch()
 
-        status_text = self.replay_data.get('status', 'Running')
 
         self.status_chip = CChip(f"Unknown", "outlined")
         self.update_status_chip()
 
-        # Set status property for styling
-        if status_text == 'Running':
-            self.status_chip.setProperty("status", "running")
-        else:
-            self.status_chip.setProperty("status", "ended")
 
         top_layout.addWidget(self.status_chip)
 
         layout.addLayout(top_layout)
 
         # Game mode
-        self.mode_label = QLabel(self.replay_data.get('game_mode', 'Unknown'))
+        self.mode_label = CLabel(self.replay_data.get('game_mode', 'Unknown'))
         self.mode_label.setObjectName("replay_list_item_mode")
         layout.addWidget(self.mode_label)
 
@@ -91,11 +86,11 @@ class ReplayListItem(QWidget):
         info_layout = QHBoxLayout()
         info_layout.setSpacing(16)
 
-        self.length_label = QLabel(f"🕐 {self.replay_data.get('length', '-1')}")
+        self.length_label = CLabel(f"{self.replay_data.get('length', '-1')}", "ri.time-fill", "primary")
         self.length_label.setObjectName("replay_list_item_info")
         info_layout.addWidget(self.length_label)
 
-        self.day_label = QLabel(f"📅 Day {self.replay_data.get('day', '-1')}")
+        self.day_label = CLabel(f"Day {self.replay_data.get('day', '-1')}", "ei.calendar", "primary")
         self.day_label.setObjectName("replay_list_item_info")
         info_layout.addWidget(self.day_label)
 
@@ -238,10 +233,8 @@ class ReplayListPage(Page):
         header_layout.addStretch()
 
         # Open button (primary style)
-        self.open_replay_btn = QPushButton("Open")
-        self.open_replay_btn.setProperty("variant", "contained")
-        self.open_replay_btn.setProperty("color", "primary")
-        self.open_replay_btn.setMaximumWidth(100)
+        self.open_replay_btn = CButton("Open", "contained", "primary", icon_name="mdi.folder-open")
+        self.open_replay_btn.setMinimumWidth(90)
         self.open_replay_btn.clicked.connect(self.on_open_replay)
         header_layout.addWidget(self.open_replay_btn)
 
@@ -448,12 +441,12 @@ class ReplayListPage(Page):
         actions_layout.setSpacing(12)
 
         # Analyze button (primary)
-        analyze_btn = CButton("Analyze", "contained", "primary")
+        analyze_btn = CButton("Analyze", "contained", "primary", "mdi.google-analytics")
         analyze_btn.clicked.connect(self.on_analyze_clicked)
         actions_layout.addWidget(analyze_btn)
 
         # Delete button (important/red)
-        delete_btn = CButton("Delete", "contained", "error")
+        delete_btn = CButton("Delete", "contained", "error", "mdi.delete-forever")
         delete_btn.clicked.connect(self.on_delete_clicked)
         actions_layout.addWidget(delete_btn)
 
@@ -522,6 +515,7 @@ class ReplayListPage(Page):
             self._previous_replay_count = len(self.app.replay_manager.get_replays())
             self.selected_replay = self.app.replay_manager.get_replays()[file_path]
             self.selected_filepath = file_path
+            self.app.config_manager.set("file.default_open_path", file_path)
             self.refresh_replay_list()
             self.update_details()
         else:
