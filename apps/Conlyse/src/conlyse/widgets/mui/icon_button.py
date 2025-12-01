@@ -35,7 +35,6 @@ class CIconButton(QPushButton):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
         self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.icon_label)
         self._update_icon()
 
     @pyqtProperty(str)
