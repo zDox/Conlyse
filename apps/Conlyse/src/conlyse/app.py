@@ -25,7 +25,7 @@ logger = get_logger()
 class App:
     def __init__(self):
         self.q_app : QApplication = QApplication(sys.argv)
-        self.main_window : MainWindow = MainWindow()
+        self.main_window : MainWindow = MainWindow(self)
 
         self.asset_manager      = AssetManager(self)
         self.config_manager     = ConfigManager(self)
@@ -48,6 +48,7 @@ class App:
         self.page_manager.register_page(PageType.ReplayLoadPage, ReplayLoadPage)
         self.page_manager.register_page(PageType.PlayerListPage, PlayerListPage)
 
+        self.main_window.drawer.register_entry("Replays", lambda: self.page_manager.switch_to(PageType.ReplayListPage))
         # Connect buttons
 
         # Start with home

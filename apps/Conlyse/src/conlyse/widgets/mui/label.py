@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QEvent, Qt, pyqtProperty
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget, QSizePolicy
 import qtawesome as qta
 
 from conlyse.logger import get_logger
@@ -7,6 +7,7 @@ from conlyse.logger import get_logger
 logger = get_logger()
 
 DEFAULT_ICON_COLOR = "#E0E0E0"
+
 
 class CLabel(QWidget):
     def __init__(
@@ -36,11 +37,17 @@ class CLabel(QWidget):
             self.icon_label = QLabel(self)
             self.icon_label.setObjectName("icon_label")
             self.icon_label.setProperty("color", icon_color)
+            # Prevent the icon label from expanding and ensure a small fixed size
+            self.icon_label.setFixedSize(16, 16)
+            self.icon_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(self.icon_label)
 
         # The text part
         self.text_label = QLabel(text, self)
         self.text_label.setObjectName("text_label")
+        # Prevent the text label from expanding to fill the whole row; let it take minimal width
+        self.text_label.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         layout.addWidget(self.text_label)
 
         # If icon at the end
@@ -48,6 +55,10 @@ class CLabel(QWidget):
             self.icon_label = QLabel(self)
             self.icon_label.setObjectName("icon_label")
             self.icon_label.setProperty("color", icon_color)
+            # Prevent the icon label from expanding and ensure a small fixed size
+            self.icon_label.setFixedSize(16, 16)
+            self.icon_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(self.icon_label)
 
         self.setLayout(layout)

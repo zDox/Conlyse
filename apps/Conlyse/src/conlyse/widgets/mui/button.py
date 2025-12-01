@@ -43,7 +43,7 @@ class CButton(QPushButton):
         container.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         layout = QHBoxLayout(container)
         layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(4)  # Reduced from 6 to 4
+        layout.setSpacing(4)
 
         # Icon at start
         if self.icon_position == "start":

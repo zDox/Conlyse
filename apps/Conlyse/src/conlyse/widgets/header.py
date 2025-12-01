@@ -1,18 +1,23 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QHBoxLayout
 from PyQt6.QtWidgets import QLabel
-from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtWidgets import QSizePolicy
 from PyQt6.QtWidgets import QWidget
 
 
+from conlyse.widgets.mui.icon_button import CIconButton
+if TYPE_CHECKING:
+    from conlyse.app import App
 
 class Header(QWidget):
     """A reusable header bar with a burger menu button."""
 
-    def __init__(self, title: str = "My Application"):
+    def __init__(self, app: App, title: str = "My Application"):
         super().__init__()
+        self.app = app
 
         # --- Layout setup ---
         layout = QHBoxLayout(self)
@@ -20,13 +25,10 @@ class Header(QWidget):
         layout.setSpacing(10)
 
         # --- Burger menu button ---
-        self.menu_button = QPushButton()
-        self.menu_button.setObjectName("menuButton")
+        self.menu_button = CIconButton("mdi.menu", "primary",size=40)
         self.menu_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.menu_button.setToolTip("Open menu")
-        self.menu_button.setIcon(QIcon.fromTheme("application-menu"))  # fallback icon
-        self.menu_button.setText("☰")  # Unicode fallback if no icon theme
-        self.menu_button.setFixedSize(36, 36)
+
 
         # --- Title label ---
         self.title_label = QLabel(title)
@@ -41,3 +43,6 @@ class Header(QWidget):
         # Placeholder stretch for right side (optional icons later)
         layout.addStretch()
 
+    def set_drawer_toggle_function(self, toggle_function):
+        """Set the function to be called when the menu button is clicked."""
+        self.menu_button.clicked.connect(toggle_function)

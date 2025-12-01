@@ -15,9 +15,11 @@ from PyQt6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 )
 
+from conlyse.widgets.mui.icon_button import CIconButton
 from conlyse.widgets.table_widget.cell_helpers import CellHelpers
 from conlyse.widgets.table_widget.data_manager import DataManager
-from conlyse.widgets.table_widget.panels import ColumnPanel, FilterPanel
+from conlyse.widgets.table_widget.column_panel import ColumnPanel
+from conlyse.widgets.table_widget.filter_panel import FilterPanel
 from conlyse.widgets.table_widget.sort_manager import SortManager
 
 
@@ -74,7 +76,7 @@ class MUIDataGrid(QWidget):
         """Build the main data grid UI structure."""
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        main_layout.setSpacing(20)
 
         # Top Toolbar
         self.toolbar = self._create_toolbar()
@@ -113,29 +115,23 @@ class MUIDataGrid(QWidget):
         toolbar_layout.addStretch()
 
         # Columns Button
-        self.columns_button = QPushButton("⋮")
+        self.columns_button = CIconButton("fa6s.table-columns", "primary", 30)
         self.columns_button.setObjectName("toolbar_columns_button")
         self.columns_button.setToolTip("Show/Hide Columns")
-        self.columns_button.setMaximumWidth(40)
-        self.columns_button.setCheckable(True)
         self.columns_button.clicked.connect(self._toggle_column_panel)
         toolbar_layout.addWidget(self.columns_button)
 
         # Filter Button
-        self.filter_button = QPushButton("⚑")
+        self.filter_button = CIconButton("fa6s.filter", "primary", 30)
         self.filter_button.setObjectName("toolbar_filter_button")
         self.filter_button.setToolTip("Add Filters")
-        self.filter_button.setMaximumWidth(40)
-        self.filter_button.setCheckable(True)
         self.filter_button.clicked.connect(self._toggle_filter_panel)
         toolbar_layout.addWidget(self.filter_button)
 
         # Search Button
-        self.search_button = QPushButton("⚲")
+        self.search_button = CIconButton("fa5s.search", "primary", 30)
         self.search_button.setObjectName("toolbar_search_button")
         self.search_button.setToolTip("Search")
-        self.search_button.setMaximumWidth(40)
-        self.search_button.setCheckable(True)
         self.search_button.clicked.connect(self._toggle_search)
         toolbar_layout.addWidget(self.search_button)
 
@@ -176,17 +172,13 @@ class MUIDataGrid(QWidget):
         self._update_page_info()
         pagination_layout.addWidget(self.page_info_label)
 
-        self.prev_button = QPushButton("◀")
-        self.prev_button.setObjectName("pagination_prev_button")
+        self.prev_button = CIconButton("ei.caret-left", "primary", 30)
         self.prev_button.setToolTip("Previous Page")
-        self.prev_button.setMaximumWidth(40)
         self.prev_button.clicked.connect(self._prev_page)
         pagination_layout.addWidget(self.prev_button)
 
-        self.next_button = QPushButton("▶")
-        self.next_button.setObjectName("pagination_next_button")
+        self.next_button = CIconButton("ei.caret-right", "primary", 30)
         self.next_button.setToolTip("Next Page")
-        self.next_button.setMaximumWidth(40)
         self.next_button.clicked.connect(self._next_page)
         pagination_layout.addWidget(self.next_button)
 
@@ -265,7 +257,6 @@ class MUIDataGrid(QWidget):
 
         if self.filter_panel_visible and self.column_panel_visible:
             self.column_panel_visible = False
-            self.columns_button.setChecked(False)
             if self.column_panel:
                 self.column_panel.setVisible(False)
 
@@ -291,7 +282,6 @@ class MUIDataGrid(QWidget):
 
         if self.column_panel_visible and self.filter_panel_visible:
             self.filter_panel_visible = False
-            self.filter_button.setChecked(False)
             if self.filter_panel:
                 self.filter_panel.setVisible(False)
 
@@ -320,19 +310,11 @@ class MUIDataGrid(QWidget):
         """Handle filters applied from filter panel."""
         self.data_manager.filters = filters
         self._apply_filters()
-        self.filter_panel_visible = False
-        self.filter_button.setChecked(False)
-        self.filter_panel.setVisible(False)
-        self.panel_container.setVisible(False)
 
     def _on_columns_changed(self, visible_columns: List[str]):
         """Handle column visibility changes."""
         self.data_manager.visible_columns = visible_columns
         self._refresh_table()
-        self.column_panel_visible = False
-        self.columns_button.setChecked(False)
-        self.column_panel.setVisible(False)
-        self.panel_container.setVisible(False)
 
     def _clear_panels(self):
         """Remove and cleanup filter and column panels."""

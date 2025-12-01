@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import QWidget
 
 from conlyse.widgets.mui.button import CButton
 from conlyse.widgets.mui.chip import CChip
+from conlyse.widgets.mui.label import CLabel
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -157,20 +158,20 @@ class ReplayDetailsPanel(QWidget):
         grid.setColumnStretch(1, 1)
 
         # Row 0
-        self._add_info_field(grid, 0, 0, "📄 Game ID", "-1")
-        self._add_info_field(grid, 0, 1, "🎮 Game Mode", "WW III")
+        self._add_info_field(grid, 0, 0, "mdi6.gamepad-square", "Game ID", "-1")
+        self._add_info_field(grid, 0, 1, "mdi6.gamepad-circle-down", "Game Mode", "WW III")
 
         # Row 1
-        self._add_info_field(grid, 1, 0, "🕐 Replay Length", "-1")
-        self._add_info_field(grid, 1, 1, "📅 Game Day", "Day -1")
+        self._add_info_field(grid, 1, 0, "mdi.clock-time-three", "Replay Length", "-1")
+        self._add_info_field(grid, 1, 1, "ei.calendar", "Game Day", "Day -1")
 
         # Row 2
-        self._add_info_field(grid, 2, 0, "⚡ Game Speed", "-1")
-        self._add_info_field(grid, 2, 1, "📍 Player Country", "-1")
+        self._add_info_field(grid, 2, 0, "mdi.speedometer", "Game Speed", "-1")
+        self._add_info_field(grid, 2, 1, "ei.map-marker", "Player Country", "-1")
 
         # Row 3
-        self._add_info_field(grid, 3, 0, "💾 File Size", "-1")
-        self._add_info_field(grid, 3, 1, "📅 Started", "-1")
+        self._add_info_field(grid, 3, 0, "ei.file", "File Size", "-1")
+        self._add_info_field(grid, 3, 1, "mdi.calendar-start", "Started", "-1")
 
         self.details_content_layout.addLayout(grid)
 
@@ -209,12 +210,12 @@ class ReplayDetailsPanel(QWidget):
         separator.setFrameShape(QFrame.Shape.HLine)
         self.details_content_layout.addWidget(separator)
 
-    def _add_info_field(self, grid, row, col, label_text, value_text):
+    def _add_info_field(self, grid, row, col, icon_name, label_text, value_text):
         """Add an info field to the grid"""
         container = QVBoxLayout()
         container.setSpacing(4)
 
-        label = QLabel(label_text)
+        label = CLabel(label_text, icon_name)
         label.setObjectName("replay_details_field_label")
         container.addWidget(label)
 
