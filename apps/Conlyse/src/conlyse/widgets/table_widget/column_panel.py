@@ -127,7 +127,7 @@ class ColumnPanel(QFrame):
         scroll.setWidget(scroll_content)
         main_layout.addWidget(scroll)
 
-        # ===== Seperator =====
+        # ===== Separator =====
         separator = QFrame()
         separator.setObjectName("separator")
         separator.setFrameShape(QFrame.Shape.HLine)
