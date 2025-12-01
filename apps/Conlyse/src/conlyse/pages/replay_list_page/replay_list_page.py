@@ -207,8 +207,6 @@ class ReplayListPage(Page):
 
     def clean_up(self):
         """Called when page is closed - cleanup resources"""
-        logger.debug("ReplayListPage cleanup")
-
         # Cleanup panels
         if self.list_panel:
             self.list_panel.cleanup()

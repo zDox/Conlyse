@@ -404,8 +404,6 @@ class PlayerListPage(Page):
 
     def clean_up(self):
         """Called when page is closed - cleanup resources."""
-        logger.debug("PlayerListPage cleanup")
-
         # Clear data
         self._players_data = []
         self.replay_interface = None

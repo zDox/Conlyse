@@ -10,13 +10,9 @@ if TYPE_CHECKING:
 class Drawer(QWidget):
     def __init__(self, app: App, parent=None, width=200):
         super().__init__(parent)
-        # Keep the drawer as a child widget (not a top-level tool window).
-        # Using a child makes 'pos' relative to the parent and avoids
-        # platform-specific WM issues that can lead to crashes.
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFixedWidth(width)
-        # Prefer to be treated as vertically expanding by layouts
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
         self.visible = False
@@ -95,7 +91,7 @@ class Drawer(QWidget):
 
         # Animate sliding in (pos is relative to parent because this is a child widget)
         anim = QPropertyAnimation(self, b"pos", self)
-        anim.setDuration(200)
+        anim.setDuration(100)
         anim.setStartValue(QPoint(-self.width(), 0))
         anim.setEndValue(QPoint(0, 0))
         # cleanup reference when done
@@ -129,6 +125,9 @@ class Drawer(QWidget):
         self.anim = anim
 
     def toggle_drawer(self):
+        if self.app.page_manager.out_replay:
+            # Don't allow drawer toggling during replay playback
+            return
         if self.visible:
             self.hide_drawer()
         else:
