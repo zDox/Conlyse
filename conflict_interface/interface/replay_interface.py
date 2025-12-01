@@ -3,26 +3,22 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from typing import Callable
+from typing import Literal
 from typing import override
 
 from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.hook_system.replay_hook_system import ReplayHookSystem
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.constants import ADD_OPERATION
-from conflict_interface.replay.constants import REMOVE_OPERATION
-from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.replay import Replay
 
 logger = get_logger()
 
 class ReplayInterface(GameInterface):
-    def __init__(self, file_path: Path | str):
+    def __init__(self, file_path: Path | str, mode: Literal['r', 'w', 'a', 'rw'] = 'r'):
         super().__init__()
         self.file_path = Path(file_path)
-        self.replay = Replay(self.file_path, 'r')
+        self.replay = Replay(self.file_path, mode)
         self._hook_system = ReplayHookSystem(self.replay)
         self.game_state: GameState | None = None
         self.static_map_data = None
@@ -50,12 +46,12 @@ class ReplayInterface(GameInterface):
 
         # Step 4: static map data
         self.static_map_data = self.replay.storage.static_map_data
-        self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
+        #self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
 
         logger.debug("Finishing Setup")
 
         # Step 5: final metadata
-        self._update_player_id()
+        #self._update_player_id()
         self.game_id = self.replay.game_id
         self.current_time = self.replay.get_start_time()
         self.last_patch_time = self.current_time

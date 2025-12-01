@@ -136,7 +136,7 @@ class ReplayRoundtrip:
     def _print_single_patch(self, patch, tree):
         """Print operations from a single patch."""
         for idx, (op_type, path, value) in enumerate(zip(patch.op_types, patch.paths, patch.values)):
-            debug_path = tree.get_old_path_for_debug(path)
+            debug_path = tree.idx_to_old_path(path)
 
             if op_type == ADD_OPERATION:
                 logger.error(f"{idx} ADD: {debug_path}, New Value: {str(value)[:100]}")

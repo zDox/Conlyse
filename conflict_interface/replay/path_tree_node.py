@@ -29,12 +29,6 @@ class PathTreeNode:
     def is_leaf_node(self) -> bool:
         return self.is_leaf
 
-    def serialize(self) -> bytes:
-        pass
-
-    def deserialize(self, data: bytes) -> 'PathTreeNode':
-        pass
-
     def __repr__(self):
         return f"PathNode(key={self.path_element}, is_leaf={self.is_leaf}, index={self.index}, children_keys={list(self.children.keys())})"
 

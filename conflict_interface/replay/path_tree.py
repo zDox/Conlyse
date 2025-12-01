@@ -225,21 +225,21 @@ class PathTree:
                 if v.index in visited: continue
 
                 if v.path_element != path_element:
-                    logger.warning(f"Node at path {self.get_old_path_for_debug(u.index)}, has child at path_elment {path_element} with wrong pathelement {v.path_element}")
+                    logger.warning(f"Node at path {self.idx_to_old_path(u.index)}, has child at path_elment {path_element} with wrong pathelement {v.path_element}")
                     return False
 
                 if v.index not in known_indexes:
                     known_indexes.append(v.index)
                 else:
-                    logger.warning(f"Node at path {self.get_old_path_for_debug(v.index)} has a duplicate index")
+                    logger.warning(f"Node at path {self.idx_to_old_path(v.index)} has a duplicate index")
                     return False
 
                 if len(v.children) == 0 and not v.is_leaf:
-                    logger.warning(f"Node at path {self.get_old_path_for_debug(v.index)} has no children but is not a leave")
+                    logger.warning(f"Node at path {self.idx_to_old_path(v.index)} has no children but is not a leave")
                     return False
 
                 elif len(v.children) != 0 and v.is_leaf:
-                    logger.warning(f"Node at path {self.get_old_path_for_debug(v.index)} has children but is leave")
+                    logger.warning(f"Node at path {self.idx_to_old_path(v.index)} has children but is leave")
                     return False
 
                 visited.add(v.index)
@@ -266,7 +266,7 @@ class PathTree:
             print(f"  k={k}: {list(row)}")
 
 
-    def get_old_path_for_debug(self, node_idx):
+    def idx_to_old_path(self, node_idx):
         path_sub_tree = self.build_steiner_tree([node_idx])
         current = self.root.index
         old_path = []
@@ -281,6 +281,14 @@ class PathTree:
         for path_element in path:
             current = current.children[path_element]
         return current.index
+
+    def exists(self, path: list[str]) -> bool:
+        current = self.root
+        for path_element in path:
+            current = current.children.get(path_element, -1)
+            if current == -1:
+                return False
+        return True
 
     def get_old_values(self, changed_paths: list[int], hooks: dict[int, ReplayHook]):
         # Here we use a trick.

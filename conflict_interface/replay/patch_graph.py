@@ -10,6 +10,7 @@ class PatchGraph:
         self.nodes = {}
         self.time_stamps_cache: list[int] = []  # Sorted list of time stamps
         self.patches: dict[tuple[int, int], PatchGraphNode] = {}
+        self._time_stamps: set[int] = set() # For precomputation and later sorting
         self.adj: dict[int, list[int]] = {}
 
     def add_patch_node(self, patch_node: PatchGraphNode):
@@ -26,6 +27,25 @@ class PatchGraph:
 
         self.adj[patch_node.from_timestamp].append(patch_node.to_timestamp)
         self.adj[patch_node.to_timestamp].append(patch_node.from_timestamp)
+
+    def add_patch_node_fast(self, patch_node: PatchGraphNode):
+        key = (patch_node.from_timestamp, patch_node.to_timestamp)
+        self.patches[key] = patch_node
+
+        if patch_node.from_timestamp not in self.time_stamps_cache:
+            self._time_stamps.add(patch_node.from_timestamp)
+            self.adj[patch_node.from_timestamp] = []
+
+        if patch_node.to_timestamp not in self.time_stamps_cache:
+            self._time_stamps.add(patch_node.to_timestamp)
+            self.adj[patch_node.to_timestamp] = []
+
+        self.adj[patch_node.from_timestamp].append(patch_node.to_timestamp)
+        self.adj[patch_node.to_timestamp].append(patch_node.from_timestamp)
+
+    def finalize(self):
+        self.time_stamps_cache = sorted(self._time_stamps)
+        self._time_stamps.clear()
 
     def validate_cached_time_stamps(self):
         for patch in self.patches.keys():

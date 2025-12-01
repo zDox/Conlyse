@@ -15,6 +15,7 @@ from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.replay.custom_data_types import PATCH_INDEX_DTYPE
 from conflict_interface.replay.metadata import Metadata
 from conflict_interface.replay.patch_graph import PatchGraph
+from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.path_tree import PathTree
 from conflict_interface.utils.binary import BinaryWriter
 
@@ -62,17 +63,12 @@ class ReplayStorage:
 
     def read_append_mode_from_disk(self, file_path: Path):
         data = []
-        idx_to_read = (0,3,4,5)
         with open(file_path, 'rb') as f:
             i = 0
             while True:
                 length_bytes = f.read(4)
                 if not length_bytes:
                     break
-
-                if i not in idx_to_read:
-                    i+=1
-                    continue
 
                 (length,) = struct.unpack('>I', length_bytes)
                 compressed = f.read(length)
@@ -81,9 +77,9 @@ class ReplayStorage:
                 i += 1
 
         self._metadata_b = data[0]
-        self._path_tree_b = data[1]
-        self._patch_index_b = data[2]
-        self._d_pool_b = data[3]
+        self._path_tree_b = data[3]
+        self._patch_index_b = data[4]
+        self._d_pool_b = data[5]
 
     def write_full_to_disk(self, file_path: Path):
         print("Saving")
@@ -111,6 +107,12 @@ class ReplayStorage:
                 f.write(struct.pack('>I', length))
                 f.write(compressed)
 
+    def update_metadata(self):
+        pass #TODO
+
+    def read_metadata_from_disk(self):
+        pass # TODO
+
     def append_at_end(self, file_path: Path):
         pass #TODO
 
@@ -119,11 +121,11 @@ class ReplayStorage:
         if parent:
             os.makedirs(parent, exist_ok=True)
 
-    def initialize(self):
+    def initialize(self, max_patches):
         self.metadata = Metadata(
             start_time = 0,
             last_time = 0,
-            max_patches=24000 # TODO
+            max_patches=max_patches
         )
         self.path_tree = PathTree()
         self.patch_graph = PatchGraph()
@@ -143,20 +145,53 @@ class ReplayStorage:
             GameObject.set_game_recursive(self.initial_game_state, game)
         return self.initial_game_state
 
-    def load_static_map_data(self, game: ReplayInterface) -> StaticMapData:
+    def load_static_map_data(self, game: ReplayInterface | None) -> StaticMapData:
         if self._static_map_data_b is None:
             raise ValueError("Static map data is not recorded in the replay.")
         self.static_map_data = pickle.loads(self._static_map_data_b)
-        GameObject.set_game_recursive(self.static_map_data, game)
+        if game is not None:
+            GameObject.set_game_recursive(self.static_map_data, game)
         return self.static_map_data
 
-    def load_path_tree(self):
+    def load_path_tree(self) -> PathTree:
         if self._path_tree_b is None:
             raise ValueError("Path Tree is not recorded in the replay.")
         self.path_tree = pickle.loads(self._path_tree_b)
+        patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
+
+        data_pool = memoryview(self._d_pool_b)
+
+        for offset, size in patch_index:
+            patch_data = data_pool[offset:offset+size]
+            if size == 0: break
+            original_paths = PatchGraphNode.extract_tree_nodes(patch_data)
+
+            if len(original_paths) == 0:
+                continue
+
+            for p in original_paths:
+                self.path_tree.get_or_add_path_node(p)
+
+        return self.path_tree
+
 
     def load_patches(self, game: ReplayInterface) -> PatchGraph:
-        pass # TODO
+        self.patch_graph = PatchGraph()
+        patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
+        data_pool = memoryview(self._d_pool_b)
+        for offset, size in patch_index:
+            if size == 0: break
+            patch_data = data_pool[offset:offset + size]
+            patch, original_paths = PatchGraphNode.deserialize(patch_data)
+
+            for p in original_paths:
+                self.path_tree.get_or_add_path_node(p)
+
+            self.patch_graph.add_patch_node_fast(patch)
+
+        return self.patch_graph
+
+
 
     def unload_metadata(self):
         self._metadata_b = pickle.dumps(self.metadata)
@@ -193,8 +228,6 @@ class ReplayStorage:
 
         self._patch_index_b = patch_index
         self._d_pool_b = data_pool.getbuffer()
-
-
 
 
 

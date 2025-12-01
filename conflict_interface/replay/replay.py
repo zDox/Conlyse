@@ -13,7 +13,7 @@ from typing import Union
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
-from conflict_interface.interface.game_interface import GameInterface
+from conflict_interface.replay.patch_graph import PatchGraph
 
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
@@ -27,11 +27,12 @@ from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay_storage import ReplayStorage
 
 if TYPE_CHECKING:
+    from conflict_interface.interface.game_interface import GameInterface
     from conflict_interface.interface.replay_interface import ReplayInterface
 
 
 class Replay:
-    def __init__(self, file_path: Path, mode: Literal['r', 'w', 'a'] = 'r', game_id: int = None, player_id: int = None):
+    def __init__(self, file_path: Path, mode: Literal['r', 'w', 'a', 'rw'] = 'r', game_id: int = None, player_id: int = None):
         self.file_path: Path = file_path
         self.mode = mode
         self.game_id = game_id
@@ -48,7 +49,7 @@ class Replay:
         self._game = game
 
     def __enter__(self):
-        return self.open()
+        return self.open(24000) # TODO
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
@@ -59,7 +60,7 @@ class Replay:
     def reset_op_counter(self):
         self._op_counter = 0
 
-    def open(self):
+    def open(self, max_patches = None):
         if self.mode == 'r':
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
@@ -71,6 +72,7 @@ class Replay:
             self.storage.load_path_tree()
             self.storage.load_patches(self._game)
             self.storage.path_tree.precompute()
+            self.storage.patch_graph.finalize()
             # -----------
             # Safety Precautions
             #self.storage.patch_graph.validate_cached_time_stamps()
@@ -84,15 +86,18 @@ class Replay:
 
             self.storage.read_append_mode_from_disk(self.file_path)
             self.storage.load_metadata()
-            self.storage.load_initial_game_state(None)
             self.storage.load_path_tree()
+            self.storage.patch_graph = PatchGraph()
 
         elif self.mode == 'w':
             if self.game_id is None or self.player_id is None:
                 raise ValueError("Game ID and Player ID must be provided in write mode")
 
+            if max_patches is None:
+                raise ValueError("Max Patches not set")
+
             self.storage.create_new_file(self.file_path)
-            self.storage.initialize()
+            self.storage.initialize(max_patches)
 
         elif self.mode == 'rw':
             if self.game_id is None or self.player_id is None:
@@ -104,13 +109,14 @@ class Replay:
         return self
 
     def close(self):
-        self.storage.unload_metadata()
-        self.storage.unload_path_tree()
-        self.storage.unload_patches()
-        # Assumes that initial-game-state and static-map-data have been unloaded on initial record
-
-        if self.mode in ['w', 'a']:
+        if self.mode in ['w', 'rw']:
+            self.storage.unload_metadata()
+            self.storage.unload_path_tree()
+            self.storage.unload_patches()
+            # Assumes that initial-game-state and static-map-data have been unloaded on initial record
             self.storage.write_full_to_disk(self.file_path)
+        elif self.mode in ['a']:
+            self.storage.update_metadata()
 
         self._is_open = False
 

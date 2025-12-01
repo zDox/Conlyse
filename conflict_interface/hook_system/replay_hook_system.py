@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from logging import getLogger
 from typing import Any
 from typing import Callable
+from typing import TYPE_CHECKING
 
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.hook_system.replay_hook import ReplayHook
@@ -9,7 +12,9 @@ from conflict_interface.hook_system.replay_hook_queue_element import ReplayHookQ
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
-from conflict_interface.replay.replay import Replay
+
+if TYPE_CHECKING:
+    from conflict_interface.replay.replay import Replay
 
 logger = getLogger()
 
