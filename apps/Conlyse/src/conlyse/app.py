@@ -17,7 +17,7 @@ from conlyse.logger import get_logger
 from conlyse.main_window import MainWindow
 from conlyse.managers.page_manager import PageManager
 from conlyse.utils.enums import PageType
-from conlyse.pages.replay_list_page import ReplayListPage
+from conlyse.pages.replay_list_page.replay_list_page import ReplayListPage
 
 logger = get_logger()
 

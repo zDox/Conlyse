@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFileDialog
 from PyQt6.QtWidgets import QHBoxLayout
 from PyQt6.QtWidgets import QLabel
@@ -12,8 +13,8 @@ from PyQt6.QtWidgets import QVBoxLayout
 from conlyse.logger import get_logger
 from conlyse.managers.keybinding_manager.key_action import KeyAction
 from conlyse.pages.page import Page
-from conlyse.pages.replay_list.replay_details_panel import ReplayDetailsPanel
-from conlyse.pages.replay_list.replay_list_panel import ReplayListPanel
+from conlyse.pages.replay_list_page.replay_details_panel import ReplayDetailsPanel
+from conlyse.pages.replay_list_page.replay_list_panel import ReplayListPanel
 from conlyse.utils.enums import PageType
 
 if TYPE_CHECKING:
@@ -40,16 +41,12 @@ class ReplayListPage(Page):
         self.list_panel: ReplayListPanel | None = None
         self.details_panel: ReplayDetailsPanel | None = None
 
-        # Track if UI has been set up
-        self._ui_initialized = False
         # Track previous replay count for update detection
         self._previous_replay_count = 0
 
     def setup(self, context):
         """Called when page is opened - initialize UI"""
-        if not self._ui_initialized:
-            self.setup_ui()
-            self._ui_initialized = True
+        self.setup_ui()
 
         # Reset selection and refresh on page open
         self.selected_replay = None
@@ -68,8 +65,8 @@ class ReplayListPage(Page):
         )
 
     def setup_ui(self):
-        """One-time UI initialization"""
-        self.setObjectName("replay_list_page")
+        """UI initialization"""
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         # Main layout
         main_layout = QVBoxLayout(self)
@@ -118,9 +115,6 @@ class ReplayListPage(Page):
 
     def update(self):
         """Called every frame - check for changes and update if needed"""
-        if not self._ui_initialized:
-            return
-
         # Check if replay count has changed
         current_replay_count = len(self.app.replay_manager.get_replays())
         if current_replay_count != self._previous_replay_count:

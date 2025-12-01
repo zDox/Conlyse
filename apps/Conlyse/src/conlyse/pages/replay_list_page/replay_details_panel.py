@@ -43,7 +43,7 @@ class ReplayDetailsPanel(QWidget):
 
     def setup_ui(self):
         """Setup the details panel UI"""
-        self.setObjectName("replay_details_card")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)

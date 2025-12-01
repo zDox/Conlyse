@@ -28,7 +28,7 @@ class ReplayListItem(QWidget):
 
     def setup_ui(self):
         """Setup the list item UI"""
-        self.setObjectName("replay_list_item")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)

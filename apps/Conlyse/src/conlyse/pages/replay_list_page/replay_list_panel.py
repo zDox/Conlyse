@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import QListWidgetItem
 from PyQt6.QtWidgets import QVBoxLayout
 from PyQt6.QtWidgets import QWidget
 
-from conlyse.pages.replay_list.replay_list_item import ReplayListItem
+from conlyse.pages.replay_list_page.replay_list_item import ReplayListItem
 from conlyse.widgets.mui.button import CButton
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ class ReplayListPanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         # Callbacks
         self.on_open_callback: Callable | None = None
         self.on_selection_changed_callback: Callable | None = None
