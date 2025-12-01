@@ -111,7 +111,7 @@ class Drawer(QWidget):
         self._update_geometry()
 
         anim = QPropertyAnimation(self, b"pos", self)
-        anim.setDuration(200)
+        anim.setDuration(100)
         anim.setStartValue(QPoint(0, 0))
         anim.setEndValue(QPoint(-self.width(), 0))
         # hide the widget after the animation completes and cleanup the anim ref
