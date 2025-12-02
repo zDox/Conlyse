@@ -51,6 +51,22 @@ class ProvinceRenderer(EntityRenderer):
         """
         self.province_colors[province_id] = color
 
+    def _calculate_bounds(self, border_points: List[Tuple[float, float]]) -> Tuple[float, float, float, float]:
+        """
+        Calculate bounding box for a list of points.
+
+        Args:
+            border_points: List of (x, y) points
+
+        Returns:
+            Tuple of (min_x, max_x, min_y, max_y)
+        """
+        if not border_points:
+            return (0, 0, 0, 0)
+        
+        x_coords, y_coords = zip(*border_points)
+        return (min(x_coords), max(x_coords), min(y_coords), max(y_coords))
+
     def render(self, camera: Camera, provinces: Dict[int, Any]):
         """
         Render provinces.
@@ -76,10 +92,7 @@ class ProvinceRenderer(EntityRenderer):
                 continue
 
             # Simple culling: check if province might be visible
-            min_x = min(p[0] for p in border_points)
-            max_x = max(p[0] for p in border_points)
-            min_y = min(p[1] for p in border_points)
-            max_y = max(p[1] for p in border_points)
+            min_x, max_x, min_y, max_y = self._calculate_bounds(border_points)
             
             if (max_x < visible_rect[0] or min_x > visible_rect[2] or
                 max_y < visible_rect[1] or min_y > visible_rect[3]):
@@ -112,10 +125,7 @@ class ProvinceRenderer(EntityRenderer):
                 continue
 
             # Simple culling
-            min_x = min(p[0] for p in border_points)
-            max_x = max(p[0] for p in border_points)
-            min_y = min(p[1] for p in border_points)
-            max_y = max(p[1] for p in border_points)
+            min_x, max_x, min_y, max_y = self._calculate_bounds(border_points)
             
             if (max_x < visible_rect[0] or min_x > visible_rect[2] or
                 max_y < visible_rect[1] or min_y > visible_rect[3]):

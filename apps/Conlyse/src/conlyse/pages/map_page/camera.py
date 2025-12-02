@@ -15,7 +15,9 @@ from typing import Tuple
 
 
 # Configuration
+# Predefined zoom levels for smooth navigation
 ZOOM_STEPS = [0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0]
+# Scale factor for isometric/angled map projection (simulates viewing angle)
 VERTICAL_ANGLE_SCALE = 0.8
 
 

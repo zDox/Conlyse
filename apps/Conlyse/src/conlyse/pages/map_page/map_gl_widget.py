@@ -199,6 +199,7 @@ class MapGLWidget(QOpenGLWidget):
         delta = event.angleDelta().y()
         
         # Zoom towards mouse position
+        # Use pos() for better compatibility across PyQt6 versions
         mouse_pos = (event.position().x(), event.position().y())
         
         if delta > 0:
