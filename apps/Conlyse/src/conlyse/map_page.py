@@ -3,6 +3,7 @@ import logging
 
 import numpy as np
 import OpenGL.GL as gl
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 
@@ -22,11 +23,25 @@ fragment_code = '''
 out vec4 fragColor;
 void main()
 {
-  fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+  fragColor = vec4(1.0, 1.0, 0.0, 1.0);
 }
 '''
 
 class MinimalGLWidget(QOpenGLWidget):
+    def __init__(self):
+        super().__init__()
+        # Create a timer to update positions periodically
+        self.position_timer: QTimer = QTimer()
+        self.position_timer.timeout.connect(self.update_positions)
+        self.position_timer.start(1000)  # Update every second
+
+        # Prepare vertex data
+        self.data = np.array([
+            -1.0,  1.0,
+             1.0, -1.0,
+            -1.0, -1.0,
+        ], dtype=np.float32)
+
     def initializeGL(self):
         # Compile shaders and link program
         self.program = gl.glCreateProgram()
@@ -57,13 +72,7 @@ class MinimalGLWidget(QOpenGLWidget):
 
         gl.glUseProgram(self.program)
 
-        # Prepare vertex data
-        self.data = np.array([
-            -1.0,  1.0,
-             1.0, -1.0,
-            -1.0, -1.0,
-             1.0, -1.0
-        ], dtype=np.float32)
+
 
         self.vao = gl.glGenVertexArrays(1)
         gl.glBindVertexArray(self.vao)
@@ -85,12 +94,20 @@ class MinimalGLWidget(QOpenGLWidget):
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         gl.glUseProgram(self.program)
         gl.glBindVertexArray(self.vao)
-        gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, 4)
+        gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, 3)
         gl.glBindVertexArray(0)
 
     def resizeGL(self, w: int, h: int):
         gl.glViewport(0, 0, w, h)
         self.update()  # Force redraw on resize
+
+    def update_positions(self):
+        # Update vertex positions with random values
+        self.data = np.random.uniform(-1.0, 1.0, self.data.shape).astype(np.float32)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
+        gl.glBufferSubData(gl.GL_ARRAY_BUFFER, 0, self.data.nbytes, self.data)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        self.update()  # Trigger a repaint
 
 if __name__ == '__main__':
     from PyQt6.QtGui import QSurfaceFormat
