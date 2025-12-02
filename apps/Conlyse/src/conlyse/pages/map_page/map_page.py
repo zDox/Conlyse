@@ -185,14 +185,18 @@ class MapPage(Page):
                 owner_colors[owner_id] = get_distinct_color(i, len(owner_ids))
 
             # Assign colors to provinces
+            province_colors = {}
             for province_id, province in provinces.items():
                 if hasattr(province, 'owner_id') and province.owner_id is not None:
                     color = owner_colors[province.owner_id]
                 else:
                     # Neutral/unowned provinces - gray
                     color = (0.7, 0.7, 0.7, 0.3)
+                
+                province_colors[province_id] = color
 
-                self.province_renderer.set_province_color(province_id, color)
+            # Update renderer with provinces and colors
+            self.province_renderer.update_provinces(provinces, province_colors)
 
             # Set provinces to map widget
             self.map_widget.set_provinces(provinces)
