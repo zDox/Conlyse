@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import lz4.frame
+import msgpack
 import numpy as np
 
 from conflict_interface.data_types.game_object import GameObject
@@ -216,7 +217,10 @@ class ReplayStorage:
     def load_path_tree(self) -> PathTree:
         if self._path_tree_b is None:
             raise ValueError("Path Tree is not recorded in the replay.")
-        self.path_tree = pickle.loads(self._path_tree_b)
+        self.path_tree = PathTree()
+        paths = msgpack.unpackb(self._path_tree_b, raw=False)
+        for p in paths:
+            self.path_tree.get_or_add_path_node(p)
         patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
 
         data_pool = memoryview(self._d_pool_b)
@@ -273,7 +277,12 @@ class ReplayStorage:
         self.static_map_data = static_map_data
 
     def unload_path_tree(self):
-        self._path_tree_b = pickle.dumps(self.path_tree)
+        self.path_tree.precompute()
+        paths: list[list[int | str]] = []
+        for idx in self.path_tree.idx_to_node.keys():
+            paths.append(self.path_tree.idx_to_old_path(idx))
+
+        self._path_tree_b = msgpack.packb(paths)
 
     def unload_patches(self):
         patches = self.patch_graph.patches.items()

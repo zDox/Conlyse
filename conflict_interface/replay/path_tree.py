@@ -266,7 +266,7 @@ class PathTree:
             print(f"  k={k}: {list(row)}")
 
 
-    def idx_to_old_path(self, node_idx):
+    def idx_to_old_path(self, node_idx) -> list[int | str]:
         path_sub_tree = self.build_steiner_tree([node_idx])
         current = self.root.index
         old_path = []

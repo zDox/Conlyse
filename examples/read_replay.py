@@ -1,8 +1,6 @@
 import logging
-from copy import deepcopy
 from time import perf_counter
 
-from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
 from paths import TEST_DATA
@@ -16,6 +14,11 @@ if __name__ == "__main__":
     t1 = perf_counter()
     ritf.open()
     t2 = perf_counter()
+    # --------------------------------------------------
+    # Needed for rw mode:
+    #ritf.jump_to(ritf.replay.get_last_time())
+    #ritf.replay.set_last_game_state(ritf.game_state)
+    # --------------------------------------------------
     t3 = perf_counter()
     ritf.close()
     t4 = perf_counter()
