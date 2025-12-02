@@ -12,6 +12,8 @@ requires-python = "==3.12.*"
 # Core dependencies (adjust as needed)
 dependencies = [
     "PyQt6>=6.2.0",
+    "PyOpenGL>=3.1.0",
+    "PyOpenGL-accelerate>=3.1.0",
     "numpy>=1.21.0",
     "qtawesome>=1.4.0",
     "conflict-interface @ git+ssh://git@github.com/zDox/ConflictInterface.git@main",

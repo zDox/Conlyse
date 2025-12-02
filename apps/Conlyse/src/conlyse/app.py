@@ -10,6 +10,7 @@ from conlyse.managers.keybinding_manager.keybinding_manager import KeybindingMan
 from conlyse.managers.replay_manager import ReplayManager
 from conlyse.pages.player_list_page import PlayerListPage
 from conlyse.pages.replay_load_page import ReplayLoadPage
+from conlyse.pages.map_page import MapPage
 from conlyse.logger import setup_logger
 from conlyse.managers.event_manager import EventManager
 from conlyse.managers.style_manager import StyleManager
@@ -48,6 +49,7 @@ class App:
         self.page_manager.register_page(PageType.ReplayListPage, ReplayListPage)
         self.page_manager.register_page(PageType.ReplayLoadPage, ReplayLoadPage)
         self.page_manager.register_page(PageType.PlayerListPage, PlayerListPage)
+        self.page_manager.register_page(PageType.MapPage, MapPage)
 
         # Setting up drawer
         self.main_window.drawer.register_entry("Replays", lambda: self.page_manager.switch_to(PageType.ReplayListPage))

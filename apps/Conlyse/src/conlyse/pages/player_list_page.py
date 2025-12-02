@@ -110,6 +110,12 @@ class PlayerListPage(Page):
 
         header_layout.addStretch()
 
+        # Add button to navigate to map
+        map_button = QPushButton("View Map")
+        map_button.setObjectName("view_map_button")
+        map_button.clicked.connect(self._on_view_map_clicked)
+        header_layout.addWidget(map_button)
+
         main_layout.addLayout(header_layout)
 
         # ===== Data Grid =====
@@ -418,6 +424,15 @@ class PlayerListPage(Page):
         """Handle back button click."""
         logger.info("Navigating back to replay list")
         self.app.page_manager.switch_to(PageType.ReplayListPage)
+
+    def _on_view_map_clicked(self):
+        """Handle view map button click."""
+        if not self.replay_interface:
+            return
+        
+        logger.info("Navigating to map page")
+        replay_path = self.app.replay_manager.active_replay_path
+        self.app.page_manager.switch_to(PageType.MapPage, replay_path=replay_path)
 
     def _on_export_clicked(self):
         """Handle export button click."""
