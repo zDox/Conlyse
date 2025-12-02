@@ -9,16 +9,18 @@ Date: 2025-12-02
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
+from typing import TYPE_CHECKING
 
-from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QHBoxLayout
+from PyQt6.QtWidgets import QVBoxLayout
 
 from conlyse.logger import get_logger
-from conlyse.pages.page import Page
 from conlyse.pages.map_page.map_gl_widget import MapGLWidget
-from conlyse.pages.map_page.province_renderer import ProvinceRenderer, get_distinct_color
-from conlyse.widgets.mui.button import CButton
+from conlyse.pages.map_page.province_renderer import ProvinceRenderer
+from conlyse.pages.map_page.province_renderer import get_distinct_color
+from conlyse.pages.page import Page
 from conlyse.widgets.mui.label import CLabel
 
 if TYPE_CHECKING:
@@ -149,7 +151,7 @@ class MapPage(Page):
             "Controls: Left-click and drag to pan | Mouse wheel to zoom"
         )
         instructions.setObjectName("map_page_instructions")
-        instructions.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        instructions.text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(instructions)
 
         logger.debug("Map page UI setup complete")
@@ -165,11 +167,11 @@ class MapPage(Page):
 
             if not provinces:
                 logger.warning("No provinces found in replay")
-                self.info_label.setText("No map data available")
+                self.info_label.set_text("No map data available")
                 return
 
             # Update province count
-            self.province_count_label.setText(f"{len(provinces)} provinces")
+            self.province_count_label.set_text(f"{len(provinces)} provinces")
 
             # Set province colors based on ownership
             owner_ids = set()
@@ -196,13 +198,13 @@ class MapPage(Page):
             self.map_widget.set_provinces(provinces)
 
             # Update info label
-            self.info_label.setText(f"Loaded map | {len(owner_ids)} owners")
+            self.info_label.set_text(f"Loaded map | {len(owner_ids)} owners")
 
             logger.info(f"Loaded {len(provinces)} provinces with {len(owner_ids)} owners")
 
         except Exception as e:
             logger.error(f"Error loading map data: {e}", exc_info=True)
-            self.info_label.setText("Error loading map data")
+            self.info_label.set_text("Error loading map data")
 
     def update(self):
         """Called every frame - trigger map widget update if needed."""

@@ -9,14 +9,24 @@ Date: 2025-12-02
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Any, List, Tuple
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import TYPE_CHECKING
+from typing import Tuple
 
-import numpy as np
-from OpenGL.GL import (
-    glBegin, glEnd, glVertex2f, glColor4f, glLineWidth,
-    GL_POLYGON, GL_LINE_LOOP, glEnable, glDisable, glBlendFunc,
-    GL_BLEND, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA
-)
+from OpenGL.GL import GL_BLEND
+from OpenGL.GL import GL_LINE_LOOP
+from OpenGL.GL import GL_ONE_MINUS_SRC_ALPHA
+from OpenGL.GL import GL_POLYGON
+from OpenGL.GL import GL_SRC_ALPHA
+from OpenGL.GL import glBegin
+from OpenGL.GL import glBlendFunc
+from OpenGL.GL import glColor4f
+from OpenGL.GL import glEnable
+from OpenGL.GL import glEnd
+from OpenGL.GL import glLineWidth
+from OpenGL.GL import glVertex2f
 
 from conlyse.pages.map_page.entity_renderer import EntityRenderer
 
@@ -79,7 +89,9 @@ class ProvinceRenderer(EntityRenderer):
             return
 
         visible_rect = camera.get_visible_rect()
-        
+
+        print(f"Rendering provinces within visible rect: {visible_rect}")
+
         # Render province fills
         for province_id, province in provinces.items():
             if not hasattr(province, 'static_data') or not hasattr(province.static_data, 'borders'):

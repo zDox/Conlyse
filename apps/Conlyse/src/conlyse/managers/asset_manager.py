@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import qtawesome as qta
@@ -23,6 +25,9 @@ class AssetManager:
         self.assets = {}
 
     def load_string(self, asset_name: str, file_path: str):
+        if not Path(ASSETS_PATH+file_path).exists():
+            logger.error(f"Asset file not found: {ASSETS_PATH+file_path}")
+            return ""
         with open(ASSETS_PATH+file_path, 'r', encoding='utf-8') as f:
             self.assets[asset_name] = f.read()
             return self.assets[asset_name]
