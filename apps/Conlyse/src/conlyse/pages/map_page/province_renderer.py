@@ -83,10 +83,7 @@ class ProvinceRenderer(EntityRenderer):
             old_color = self.province_data[province_id].color
             if old_color != color:
                 self.province_data[province_id].color = color
-                self.dirty_provinces.add(province_id)
-        else:
-            # Will be set when province data is built
-            self.dirty_provinces.add(province_id)
+        self.dirty_provinces.add(province_id)
 
     def mark_province_dirty(self, province_id: int):
         """
@@ -147,21 +144,21 @@ class ProvinceRenderer(EntityRenderer):
         pdata.world_coords = world_coords
         pdata.color = color
 
-    def _rebuild_dirty_provinces(self, provinces: Dict[int, Any]):
+    def _rebuild_dirty_provinces(self, provinces: Dict[int, Any], province_colors: Dict[int, Tuple[float, float, float, float]]):
         """
         Rebuild cached data for provinces that have changed.
 
         Args:
             provinces: Dictionary of province_id -> province object
+            province_colors: Dictionary of province_id -> color
         """
         if not self.dirty_provinces:
             return
 
         for province_id in list(self.dirty_provinces):
-            if province_id in provinces and province_id in self.province_data:
-                # Just update the color if data already exists
-                pdata = self.province_data[province_id]
-                # Color may have been set via set_province_color
+            if province_id in provinces:
+                color = province_colors.get(province_id, (0.8, 0.8, 0.8, 0.4))
+                self._build_province_data(province_id, provinces[province_id], color)
         
         self.dirty_provinces.clear()
         logger.debug(f"Rebuilt data for dirty provinces")
@@ -192,7 +189,7 @@ class ProvinceRenderer(EntityRenderer):
         if self._needs_full_rebuild or not self.province_data:
             self._build_all_data(provinces, province_colors)
         else:
-            self._rebuild_dirty_provinces(provinces)
+            self._rebuild_dirty_provinces(provinces, province_colors)
 
     def render(self, camera: Camera, provinces: Dict[int, Any]):
         """
