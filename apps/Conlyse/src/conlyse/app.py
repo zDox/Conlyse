@@ -5,6 +5,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
 from conlyse.managers.config_manager.config_manager import ConfigManager
+from conlyse.managers.keybinding_manager.key_action import KeyAction
 from conlyse.managers.keybinding_manager.keybinding_manager import KeybindingManager
 from conlyse.managers.replay_manager import ReplayManager
 from conlyse.pages.player_list_page import PlayerListPage
@@ -17,7 +18,7 @@ from conlyse.logger import get_logger
 from conlyse.main_window import MainWindow
 from conlyse.managers.page_manager import PageManager
 from conlyse.utils.enums import PageType
-from conlyse.pages.replay_list_page import ReplayListPage
+from conlyse.pages.replay_list_page.replay_list_page import ReplayListPage
 
 logger = get_logger()
 
@@ -25,7 +26,7 @@ logger = get_logger()
 class App:
     def __init__(self):
         self.q_app : QApplication = QApplication(sys.argv)
-        self.main_window : MainWindow = MainWindow()
+        self.main_window : MainWindow = MainWindow(self)
 
         self.asset_manager      = AssetManager(self)
         self.config_manager     = ConfigManager(self)
@@ -48,6 +49,9 @@ class App:
         self.page_manager.register_page(PageType.ReplayLoadPage, ReplayLoadPage)
         self.page_manager.register_page(PageType.PlayerListPage, PlayerListPage)
 
+        # Setting up drawer
+        self.main_window.drawer.register_entry("Replays", lambda: self.page_manager.switch_to(PageType.ReplayListPage))
+        self.keybinding_manager.register_action(KeyAction.TOGGLE_DRAWER, self.main_window.toggle_drawer)
         # Connect buttons
 
         # Start with home

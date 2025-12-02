@@ -3,7 +3,6 @@ from typing import List
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QCheckBox
 from PyQt6.QtWidgets import QComboBox
 from PyQt6.QtWidgets import QFrame
 from PyQt6.QtWidgets import QHBoxLayout
@@ -14,10 +13,8 @@ from PyQt6.QtWidgets import QScrollArea
 from PyQt6.QtWidgets import QVBoxLayout
 from PyQt6.QtWidgets import QWidget
 
+from conlyse.widgets.mui.button import CButton
 
-# ==============================================================================
-# FILTER PANEL COMPONENT
-# ==============================================================================
 
 class FilterPanel(QFrame):
     """
@@ -70,11 +67,17 @@ class FilterPanel(QFrame):
         title_layout = QHBoxLayout()
 
         title_label = QLabel("Filters")
-        title_label.setObjectName("filter_panel_title")
+        title_label.setObjectName("panel_title")
         title_layout.addWidget(title_label)
         title_layout.addStretch()
 
         main_layout.addLayout(title_layout)
+
+        # ===== Separator =====
+        separator = QFrame()
+        separator.setObjectName("separator")
+        separator.setFrameShape(QFrame.Shape.HLine)
+        main_layout.addWidget(separator)
 
         # ===== Scrollable Filter Rows Section =====
         scroll = QScrollArea()
@@ -91,12 +94,18 @@ class FilterPanel(QFrame):
         scroll.setWidget(scroll_content)
         main_layout.addWidget(scroll)
 
+        # ===== Separator =====
+        separator = QFrame()
+        separator.setObjectName("separator")
+        separator.setFrameShape(QFrame.Shape.HLine)
+        main_layout.addWidget(separator)
+
         # ===== Action Buttons Section =====
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(8)
 
         # Add filter button
-        add_button = QPushButton("+ Add Filter")
+        add_button = CButton("Add Filter", "contained", "primary", "mdi.plus")
         add_button.setObjectName("filter_add_button")
         add_button.clicked.connect(self._add_filter_row)
         buttons_layout.addWidget(add_button)
@@ -104,16 +113,17 @@ class FilterPanel(QFrame):
         buttons_layout.addStretch()
 
         # Clear all button
-        clear_button = QPushButton("Clear All")
+        clear_button = CButton("Clear All", "contained", "secondary", "mdi.close-circle")
         clear_button.setObjectName("filter_clear_button")
         clear_button.clicked.connect(self._clear_all_filters)
         buttons_layout.addWidget(clear_button)
 
         # Apply button
-        apply_button = QPushButton("Apply")
+        apply_button = CButton("Apply", "contained", "primary", "mdi.check")
         apply_button.setObjectName("filter_apply_button")
         apply_button.clicked.connect(self._apply_filters)
         buttons_layout.addWidget(apply_button)
+
 
         main_layout.addLayout(buttons_layout)
 
@@ -272,142 +282,4 @@ class FilterPanel(QFrame):
             if f['column'] and (f['value'] or f['operator'] in ['is empty', 'is not empty'])
         ]
         self.filtersApplied.emit(filters)
-
-
-# ==============================================================================
-# COLUMN SELECTOR PANEL COMPONENT
-# ==============================================================================
-
-class ColumnPanel(QFrame):
-    """
-    Integrated column selector panel that slides down from toolbar.
-    Allows users to show/hide columns via checkboxes.
-
-    Object Names for Styling:
-    - ColumnPanel (QFrame)
-    - column_panel_title (QLabel)
-    - column_panel_scroll (QScrollArea)
-    - column_panel_scroll_content (QWidget)
-    - column_checkbox (QCheckBox) - each column checkbox
-    - column_select_all_button (QPushButton)
-    - column_deselect_all_button (QPushButton)
-    - column_apply_button (QPushButton)
-    """
-
-    # Signal emitted when column visibility changes
-    columnsChanged = pyqtSignal(list)
-
-    def __init__(self, columns: List[str], visible_columns: List[str], parent=None):
-        """
-        Initialize the column selector panel.
-
-        Args:
-            columns: List of all available column names
-            visible_columns: List of currently visible column names
-            parent: Parent widget
-        """
-        super().__init__(parent)
-        self.columns = columns
-        self.visible_columns = visible_columns.copy()
-        self.checkboxes = []  # List of QCheckBox widgets
-
-        # Set object name for styling
-        self.setObjectName("ColumnPanel")
-        self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
-        self.setLineWidth(2)
-
-        self._setup_ui()
-
-    def _setup_ui(self):
-        """Build the column panel UI."""
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
-
-        # ===== Title Section =====
-        title_layout = QHBoxLayout()
-
-        title_label = QLabel("Show/Hide Columns")
-        title_label.setObjectName("column_panel_title")
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
-
-        main_layout.addLayout(title_layout)
-
-        # ===== Scrollable Checkboxes Section =====
-        scroll = QScrollArea()
-        scroll.setObjectName("column_panel_scroll")
-        scroll.setWidgetResizable(True)
-        scroll.setMaximumHeight(300)
-
-        scroll_content = QWidget()
-        scroll_content.setObjectName("column_panel_scroll_content")
-        columns_layout = QVBoxLayout(scroll_content)
-        columns_layout.setSpacing(5)
-
-        # Create checkbox for each column
-        for column in self.columns:
-            checkbox = QCheckBox(column)
-            checkbox.setObjectName("column_checkbox")
-            checkbox.setChecked(column in self.visible_columns)
-            self.checkboxes.append(checkbox)
-            columns_layout.addWidget(checkbox)
-
-        scroll.setWidget(scroll_content)
-        main_layout.addWidget(scroll)
-
-        # ===== Action Buttons Section =====
-        buttons_layout = QHBoxLayout()
-        buttons_layout.setSpacing(8)
-
-        # Select all button
-        select_all_button = QPushButton("Select All")
-        select_all_button.setObjectName("column_select_all_button")
-        select_all_button.clicked.connect(self._select_all)
-        buttons_layout.addWidget(select_all_button)
-
-        # Deselect all button
-        deselect_all_button = QPushButton("Deselect All")
-        deselect_all_button.setObjectName("column_deselect_all_button")
-        deselect_all_button.clicked.connect(self._deselect_all)
-        buttons_layout.addWidget(deselect_all_button)
-
-        buttons_layout.addStretch()
-
-        # Apply button
-        apply_button = QPushButton("Apply")
-        apply_button.setObjectName("column_apply_button")
-        apply_button.clicked.connect(self._apply_columns)
-        buttons_layout.addWidget(apply_button)
-
-        main_layout.addLayout(buttons_layout)
-
-    def _select_all(self):
-        """Check all column checkboxes."""
-        for checkbox in self.checkboxes:
-            checkbox.setChecked(True)
-
-    def _deselect_all(self):
-        """Uncheck all column checkboxes."""
-        for checkbox in self.checkboxes:
-            checkbox.setChecked(False)
-
-    def get_visible_columns(self) -> List[str]:
-        """
-        Get list of selected (visible) columns.
-
-        Returns:
-            List of column names that are checked
-        """
-        return [
-            self.columns[i] for i, checkbox in enumerate(self.checkboxes)
-            if checkbox.isChecked()
-        ]
-
-    def _apply_columns(self):
-        """Apply column visibility changes and emit signal."""
-        visible = self.get_visible_columns()
-        # Allow empty list (no columns selected = show nothing)
-        self.columnsChanged.emit(visible)
-
 

@@ -122,3 +122,12 @@ class PageManager:
 
     def get_current_page_type(self) -> PageType | None:
         return self.current_page_type
+
+    @property
+    def in_replay(self) -> bool:
+        """Check if we are in Replay e.g. The user is visiting a Replay"""
+        return self.current_page_type != PageType.ReplayListPage
+
+    @property
+    def out_replay(self) -> bool:
+        return self.current_page_type == PageType.ReplayListPage

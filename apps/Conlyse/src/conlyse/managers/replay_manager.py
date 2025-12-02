@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import threading
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
+from PyQt6.QtCore import QMetaObject
+from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger
@@ -70,11 +75,10 @@ class ReplayManager:
 
         future: Future = self.executor.submit(self._open_replay, file_path)
 
-        # handle result in main thread
         def on_done(fut: Future):
             self.is_opening_replay = False
             try:
-                replay = fut.result()  # will raise exception if _load_replay failed
+                replay = fut.result()  # raises if _open_replay failed
                 self.active_replay_path = file_path
                 logger.info(f"Opened replay successfully from {file_path}")
                 self.app.event_handler.publish(ReplayOpenCompleteEvent(file_path))
@@ -85,6 +89,7 @@ class ReplayManager:
                                                      str(e))
                 self.app.event_handler.publish(failed_event)
         future.add_done_callback(on_done)
+
 
     def close_replay(self, file_path: str):
         if file_path not in self.replays:
