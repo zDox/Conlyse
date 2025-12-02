@@ -79,7 +79,22 @@ class MapGLWidget(QOpenGLWidget):
             provinces: Dictionary of province_id -> province object
         """
         self.provinces = provinces
+        # Mark for full rebuild on next render
+        if self.province_renderer:
+            self.province_renderer._needs_full_rebuild = True
         self.update()
+
+    def on_province_changed(self, province_id: int):
+        """
+        Notify the widget that a province has changed.
+        
+        This should be called when province ownership or attributes change.
+
+        Args:
+            province_id: ID of the province that changed
+        """
+        if self.province_renderer:
+            self.province_renderer.mark_province_dirty(province_id)
 
     def initializeGL(self):
         """Initialize OpenGL context and resources."""

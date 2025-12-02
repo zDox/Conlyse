@@ -207,9 +207,15 @@ class MapPage(Page):
             self.info_label.set_text("Error loading map data")
 
     def update(self):
-        """Called every frame - trigger map widget update if needed."""
-        # The map widget handles its own rendering via OpenGL
-        # We can add game state updates here if needed
+        """
+        Called every frame - trigger map widget update if needed.
+        
+        Note: For province changes, call self.map_widget.on_province_changed(province_id)
+        when a province's ownership or attributes change to efficiently update only
+        the affected province's GPU data.
+        """
+        # The map widget handles its own rendering via OpenGL with VBOs
+        # Province data is stored on GPU and only updated when marked dirty
         pass
 
     def clean_up(self):
