@@ -21,7 +21,7 @@ from OpenGL.GL import (
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.camera import Camera
-from conlyse.pages.map_page.entity_renderer import EntityRenderer
+from conlyse.pages.map_page.province_renderer import ProvinceRenderer
 
 if TYPE_CHECKING:
     from PyQt6.QtGui import QMouseEvent, QWheelEvent
@@ -49,7 +49,7 @@ class MapGLWidget(QOpenGLWidget):
         self.camera: Optional[Camera] = None
         
         # Renderers for different entity types
-        self.renderers: Dict[str, EntityRenderer] = {}
+        self.province_renderer: Optional[ProvinceRenderer] = None
         
         # Data to render
         self.provinces: Dict[int, Any] = {}
@@ -62,15 +62,14 @@ class MapGLWidget(QOpenGLWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
 
-    def add_renderer(self, name: str, renderer: EntityRenderer):
+    def set_province_renderer(self, renderer: ProvinceRenderer):
         """
-        Add a renderer for a specific entity type.
+        Set the province renderer.
 
         Args:
-            name: Name/identifier for the renderer
-            renderer: EntityRenderer instance
+            renderer: ProvinceRenderer instance
         """
-        self.renderers[name] = renderer
+        self.province_renderer = renderer
 
     def set_provinces(self, provinces: Dict[int, Any]):
         """
@@ -91,10 +90,10 @@ class MapGLWidget(QOpenGLWidget):
             # Initialize camera
             self.camera = Camera(self.width(), self.height())
             
-            # Initialize all renderers
-            for name, renderer in self.renderers.items():
-                logger.debug(f"Initializing renderer: {name}")
-                renderer.initialize()
+            # Initialize province renderer
+            if self.province_renderer:
+                logger.debug("Initializing province renderer")
+                self.province_renderer.initialize()
             
             logger.info("OpenGL initialized successfully")
         except Exception as e:
@@ -130,15 +129,16 @@ class MapGLWidget(QOpenGLWidget):
             if not self.camera:
                 return
             
-            # Render all entities using their respective renderers
-            for name, renderer in self.renderers.items():
-                if not renderer.is_initialized():
-                    continue
-                
-                # For now, we only pass provinces to all renderers
-                # In the future, this can be extended to pass different data
-                if name == "province":
-                    renderer.render(self.camera, self.provinces)
+            # Render provinces explicitly
+            if self.province_renderer and self.province_renderer.is_initialized():
+                self.province_renderer.render(self.camera, self.provinces)
+            
+            # Future renderers can be called explicitly here:
+            # if self.unit_renderer and self.unit_renderer.is_initialized():
+            #     self.unit_renderer.render(self.camera, self.units)
+            # if self.border_renderer and self.border_renderer.is_initialized():
+            #     self.border_renderer.render(self.camera, self.borders)
+            
         except Exception as e:
             logger.error(f"Error rendering map: {e}", exc_info=True)
 
@@ -212,7 +212,8 @@ class MapGLWidget(QOpenGLWidget):
 
     def cleanup(self):
         """Clean up OpenGL resources."""
-        for renderer in self.renderers.values():
-            renderer.cleanup()
-        self.renderers.clear()
+        if self.province_renderer:
+            self.province_renderer.cleanup()
+            self.province_renderer = None
+        
         self.provinces.clear()

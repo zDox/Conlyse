@@ -138,9 +138,9 @@ class MapPage(Page):
         self.map_widget.setObjectName("map_gl_widget")
         self.map_widget.setMinimumHeight(400)
 
-        # Create and add province renderer
+        # Create and set province renderer
         self.province_renderer = ProvinceRenderer()
-        self.map_widget.add_renderer("province", self.province_renderer)
+        self.map_widget.set_province_renderer(self.province_renderer)
 
         main_layout.addWidget(self.map_widget, stretch=1)
 
