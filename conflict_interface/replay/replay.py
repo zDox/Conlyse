@@ -131,6 +131,7 @@ class Replay:
 
     def close(self):
         if self.mode in ['w', 'rw']:
+            self.storage.metadata.is_fragmented = False
             self.storage.unload_metadata()
             self.storage.unload_path_tree()
             self.storage.unload_patches()
@@ -201,7 +202,7 @@ class Replay:
 
     def append_record_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
         self.validate_game(game_id, player_id)
-
+        self.storage.metadata.is_fragmented = True
         from_timestamp = self.storage.metadata.last_time
         to_timestamp = int(time_stamp.timestamp())
 
@@ -297,10 +298,12 @@ class Replay:
         paths_added = []
 
         for op in operations:
-            if not self.storage.path_tree.exists(op.path):
-                paths_added.append(op.path)
-            paths.append(self.storage.path_tree.get_or_add_path_node(op.path))
-
+            existed = self.storage.path_tree.exists(op.path)
+            idx = self.storage.path_tree.get_or_add_path_node(op.path)
+            paths.append(idx)
+            if not existed:
+                node = self.storage.path_tree.idx_to_node[idx]
+                paths_added.append((idx, node.parent.index, node.path_element))
 
             if game is not None:
                 GameObject.set_game_recursive(op.new_value, None)

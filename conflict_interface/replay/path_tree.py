@@ -13,7 +13,7 @@ logger = getLogger()
 
 class PathTree:
     def __init__(self):
-        self.root: PathTreeNode = PathTreeNode(path_element="root", index=0)
+        self.root: PathTreeNode = PathTreeNode(parent = None, path_element="root", index=0)
         self.idx_counter: int = 1  # Start from 1 since root is 0
         self.idx_to_node: dict[int, PathTreeNode] = {0: self.root}
 
@@ -26,12 +26,16 @@ class PathTree:
         self.parent = None
         self.first = None
 
-    def add_node(self, parent: PathTreeNode, path_element: str | int) -> PathTreeNode:
-        new_node = PathTreeNode(path_element=path_element, index=self.idx_counter)
+    def add_node(self, parent: PathTreeNode, path_element: str | int, idx = None) -> PathTreeNode:
+        new_node = PathTreeNode(parent = parent, path_element=path_element, index=self.idx_counter)
         if path_element == 'action_results':
             pass
         parent.add_child(new_node)
+        if idx is not None:
+            if idx != self.idx_counter:
+                raise ValueError("Wrong index probably")
         self.idx_to_node[self.idx_counter] = new_node
+
         self.idx_counter += 1
         return new_node
 

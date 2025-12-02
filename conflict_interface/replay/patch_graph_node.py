@@ -28,7 +28,7 @@ class PatchGraphNode:
         """Compute the cost of this patch node."""
         return len(self.op_types)
 
-    def serialize(self, new_paths: list[list[str | int]]) -> memoryview:
+    def serialize(self, new_paths: list[tuple[int, int, str]]) -> memoryview:
         writer = BinaryWriter()
 
         # Header
@@ -72,7 +72,7 @@ class PatchGraphNode:
         return writer.getbuffer()
 
     @staticmethod
-    def deserialize(patch_b, game: GameInterface | None) -> tuple['PatchGraphNode', list[list[str | int]]]:
+    def deserialize(patch_b, game: GameInterface | None) -> tuple['PatchGraphNode', list[tuple[int, int, int |str]]]:
         reader = BinaryReader(patch_b)
 
         from_ts = reader.read_int64()
@@ -124,7 +124,7 @@ class PatchGraphNode:
         return patch_graph_node, new_paths
 
     @staticmethod
-    def extract_tree_nodes(patch_b) -> list[list[str | int]]:
+    def extract_tree_nodes(patch_b) -> list[tuple[int,int,int | str]]:
         offset = 24  # 8 + 8 + 4 + 4
 
         # Read uint32 (use '<I' for little-endian unsigned int, '>I' for big-endian)

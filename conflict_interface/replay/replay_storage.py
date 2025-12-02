@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pickle
 import struct
+from array import array
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,6 +18,7 @@ from conflict_interface.replay.metadata import Metadata
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.path_tree import PathTree
+from conflict_interface.replay.path_tree_node import PathTreeNode
 from conflict_interface.utils.binary import BinaryReader
 from conflict_interface.utils.binary import BinaryWriter
 
@@ -117,8 +119,8 @@ class ReplayStorage:
         assert self._last_game_state_b is not None, "Last Game state has not been set"
 
         data = BinaryWriter()
-        data.write_int32(20)
-        data.seek(24)# Space holder for metadata
+        data.write_int32(Metadata.size)
+        data.seek(Metadata.size+4)# Space holder for metadata
         write_compressed(data, self._initial_game_state_b)
         write_compressed(data, self._static_map_data_b)
         write_compressed(data, self._path_tree_b)
@@ -151,7 +153,7 @@ class ReplayStorage:
             assert(len_metadata == len(metadata_b)), "Metadat has changed length"
             f.write(metadata_b)
 
-    def append_patches_to_disk(self, nodes: list[PatchGraphNode], paths: list[list[list[int| str]]], file_path: Path):
+    def append_patches_to_disk(self, nodes: list[PatchGraphNode], paths: list[list[tuple[int, int, str | int]]], file_path: Path):
         # update patch index
         patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
         data = BinaryWriter()
@@ -180,6 +182,7 @@ class ReplayStorage:
             max_patches=max_patches,
             current_patches=0,
             patch_index_start=0,
+            is_fragmented=False
         )
         self.path_tree = PathTree()
         self.patch_graph = PatchGraph()
@@ -217,10 +220,41 @@ class ReplayStorage:
     def load_path_tree(self) -> PathTree:
         if self._path_tree_b is None:
             raise ValueError("Path Tree is not recorded in the replay.")
+
+        n, path_elements, parent_bytes, is_leaf_bytes = msgpack.unpackb(self._path_tree_b, raw=False)
+
+        parent_indices = array('i')
+        parent_indices.frombytes(parent_bytes)
+
+        is_leaf_flags = array('B')
+        is_leaf_flags.frombytes(is_leaf_bytes)
+
         self.path_tree = PathTree()
-        paths = msgpack.unpackb(self._path_tree_b, raw=False)
-        for p in paths:
-            self.path_tree.get_or_add_path_node(p)
+        self.path_tree.idx_counter = n
+
+
+
+        # Create all nodes O(n)
+        for idx in range(1,n):
+            node = PathTreeNode(
+                path_element=path_elements[idx],
+                index=idx,
+                parent=None
+            )
+            node.is_leaf = bool(is_leaf_flags[idx])
+            self.path_tree.idx_to_node[idx] = node
+
+        # Link relationships O(n)
+
+        for idx in range(n):
+            parent_idx = parent_indices[idx]
+            if parent_idx != -1:
+                if parent_idx == 0:
+                    pass
+                self.path_tree.idx_to_node[idx].parent = self.path_tree.idx_to_node[parent_idx]
+                self.path_tree.idx_to_node[parent_idx].children[path_elements[idx]] = self.path_tree.idx_to_node[idx]
+
+        if not self.metadata.is_fragmented: return self.path_tree
         patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
 
         data_pool = memoryview(self._d_pool_b)
@@ -234,7 +268,7 @@ class ReplayStorage:
                 continue
 
             for p in original_paths:
-                self.path_tree.get_or_add_path_node(p)
+                self.path_tree.add_node(self.path_tree.idx_to_node[p[1]], p[2], p[0])
 
         return self.path_tree
 
@@ -248,7 +282,7 @@ class ReplayStorage:
             patch, original_paths = PatchGraphNode.deserialize(patch_data, game)
 
             for p in original_paths:
-                self.path_tree.get_or_add_path_node(p)
+                self.path_tree.add_node(self.path_tree.idx_to_node[p[1]], p[2], p[0])
 
             self.patch_graph.add_patch_node_fast(patch)
 
@@ -277,12 +311,22 @@ class ReplayStorage:
         self.static_map_data = static_map_data
 
     def unload_path_tree(self):
-        self.path_tree.precompute()
-        paths: list[list[int | str]] = []
-        for idx in self.path_tree.idx_to_node.keys():
-            paths.append(self.path_tree.idx_to_old_path(idx))
+        n = self.path_tree.idx_counter
+        path_elements = [None] * n
+        parent_indices = array('i', [-1] * n)  # signed int array
+        is_leaf_flags = array('B', [0] * n)  # byte array for booleans
 
-        self._path_tree_b = msgpack.packb(paths)
+        for idx, node in self.path_tree.idx_to_node.items():
+            path_elements[idx] = node.path_element
+            parent_indices[idx] = node.parent.index if node.parent else -1
+            is_leaf_flags[idx] = 1 if node.is_leaf else 0
+
+        self._path_tree_b = msgpack.packb([
+            n,
+            path_elements,
+            parent_indices.tobytes(),
+            is_leaf_flags.tobytes()
+        ], use_bin_type=True)
 
     def unload_patches(self):
         patches = self.patch_graph.patches.items()
