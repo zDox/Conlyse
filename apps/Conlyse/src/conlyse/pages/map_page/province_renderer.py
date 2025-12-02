@@ -128,7 +128,9 @@ class ProvinceRenderer(EntityRenderer):
         # Shader program and uniform locations
         self.shader_program = None
         self.transform_loc = None
-        self.color_loc = None
+        
+        # Pre-allocated matrix for performance
+        self._transform_matrix = np.eye(4, dtype=np.float32)
 
     def _compile_shader(self, source: str, shader_type) -> int:
         """
@@ -253,6 +255,10 @@ class ProvinceRenderer(EntityRenderer):
         """
         Triangulate a polygon using simple fan triangulation.
         
+        Note: This uses fan triangulation which works for convex polygons.
+        For complex/concave polygons, a more robust triangulation algorithm
+        would be needed (e.g., ear clipping or Delaunay triangulation).
+        
         Args:
             coords: List of (x, y) coordinates forming a polygon
             
@@ -315,7 +321,10 @@ class ProvinceRenderer(EntityRenderer):
         if pdata.vbo is not None and glIsBuffer(pdata.vbo):
             glDeleteBuffers(1, [pdata.vbo])
         if pdata.vao is not None:
-            glDeleteVertexArrays(1, [pdata.vao])
+            try:
+                glDeleteVertexArrays(1, [pdata.vao])
+            except:
+                pass  # Ignore errors if context is invalid
 
         # Create VAO
         pdata.vao = glGenVertexArrays(1)
@@ -333,7 +342,8 @@ class ProvinceRenderer(EntityRenderer):
         
         # Color attribute (location = 1)
         glEnableVertexAttribArray(1)
-        glVertexAttribPointer(1, 4, GL_FLOAT, False, 6 * 4, np.ctypeslib.as_ctypes_type(np.int64)(8))  # offset 8 bytes
+        from ctypes import c_void_p
+        glVertexAttribPointer(1, 4, GL_FLOAT, False, 6 * 4, c_void_p(8))  # offset 8 bytes
 
         pdata.vertex_count = len(triangulated)
 
@@ -396,7 +406,7 @@ class ProvinceRenderer(EntityRenderer):
             camera: Camera for coordinate transformations
             
         Returns:
-            4x4 transformation matrix
+            4x4 transformation matrix (updates pre-allocated matrix)
         """
         # Create transformation matrix that converts world coordinates to screen coordinates
         # This combines translation, scaling (zoom), and projection
@@ -429,10 +439,10 @@ class ProvinceRenderer(EntityRenderer):
             [-1, 1, 0, 1]
         ], dtype=np.float32)
         
-        # Combine transformations
-        final_transform = ndc_matrix @ transform
+        # Combine transformations into pre-allocated matrix
+        np.dot(ndc_matrix, transform, out=self._transform_matrix)
         
-        return final_transform
+        return self._transform_matrix
 
     def render(self, camera: Camera, provinces: Dict[int, Any]):
         """
@@ -477,22 +487,35 @@ class ProvinceRenderer(EntityRenderer):
 
     def cleanup(self):
         """Clean up GPU resources."""
-        # Delete all GPU buffers
-        for pdata in self.province_data.values():
-            if pdata.vbo is not None and glIsBuffer(pdata.vbo):
-                glDeleteBuffers(1, [pdata.vbo])
-            if pdata.vao is not None:
-                glDeleteVertexArrays(1, [pdata.vao])
-        
-        # Delete shader program
-        if self.shader_program is not None:
-            glDeleteProgram(self.shader_program)
-            self.shader_program = None
-        
-        self.province_data.clear()
-        self.dirty_provinces.clear()
-        self._initialized = False
-        logger.info("Province renderer cleaned up")
+        try:
+            # Delete all GPU buffers
+            for pdata in self.province_data.values():
+                try:
+                    if pdata.vbo is not None and glIsBuffer(pdata.vbo):
+                        glDeleteBuffers(1, [pdata.vbo])
+                except:
+                    pass  # Ignore errors if context is invalid
+                
+                try:
+                    if pdata.vao is not None:
+                        glDeleteVertexArrays(1, [pdata.vao])
+                except:
+                    pass  # Ignore errors if context is invalid
+            
+            # Delete shader program
+            if self.shader_program is not None:
+                try:
+                    glDeleteProgram(self.shader_program)
+                except:
+                    pass  # Ignore errors if context is invalid
+                self.shader_program = None
+        except Exception as e:
+            logger.warning(f"Error during cleanup: {e}")
+        finally:
+            self.province_data.clear()
+            self.dirty_provinces.clear()
+            self._initialized = False
+            logger.info("Province renderer cleaned up")
 
 
 def get_distinct_color(index: int, total: int) -> Tuple[float, float, float, float]:
