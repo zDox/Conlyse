@@ -5,6 +5,8 @@ from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import Any
+from typing import Iterator
 
 from typing import Literal
 from typing import TYPE_CHECKING
@@ -25,6 +27,7 @@ from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay_storage import ReplayStorage
+from conflict_interface.utils.helper import create_new_file
 
 if TYPE_CHECKING:
     from conflict_interface.interface.game_interface import GameInterface
@@ -32,7 +35,7 @@ if TYPE_CHECKING:
 
 
 class Replay:
-    def __init__(self, file_path: Path, mode: Literal['r', 'w', 'a', 'rw'] = 'r', game_id: int = None, player_id: int = None):
+    def __init__(self, file_path: Path, mode: Literal['r', 'w', 'a', 'rw'] = 'r', game_id: int = None, player_id: int = None, max_patches: int = None):
         self.file_path: Path = file_path
         self.mode = mode
         self.game_id = game_id
@@ -43,13 +46,20 @@ class Replay:
         self.storage = ReplayStorage()
 
         self._op_counter = 0
-        self._game = None
+        self._game: ReplayInterface | None = None
+        self._max_patches = max_patches
 
     def set_game(self, game: ReplayInterface):
         self._game = game
 
+    def set_last_game_state(self, game_state: GameState):
+        self.storage.last_game_state = game_state
+
+    def set_max_patches(self, max_patches: int):
+        self._max_patches = max_patches
+
     def __enter__(self):
-        return self.open(24000) # TODO
+        return self.open()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
@@ -60,7 +70,7 @@ class Replay:
     def reset_op_counter(self):
         self._op_counter = 0
 
-    def open(self, max_patches = None):
+    def open(self):
         if self.mode == 'r':
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
@@ -86,6 +96,7 @@ class Replay:
 
             self.storage.read_append_mode_from_disk(self.file_path)
             self.storage.load_metadata()
+            self.storage.load_last_game_state()
             self.storage.load_path_tree()
             self.storage.patch_graph = PatchGraph()
 
@@ -93,17 +104,27 @@ class Replay:
             if self.game_id is None or self.player_id is None:
                 raise ValueError("Game ID and Player ID must be provided in write mode")
 
-            if max_patches is None:
+            if self._max_patches is None:
                 raise ValueError("Max Patches not set")
 
-            self.storage.create_new_file(self.file_path)
-            self.storage.initialize(max_patches)
+            create_new_file(self.file_path)
+            self.storage.initialize(self._max_patches)
 
         elif self.mode == 'rw':
             if self.game_id is None or self.player_id is None:
                 raise ValueError("Game ID and Player ID must be provided in read write mode")
 
+            if self._max_patches is None:
+                raise ValueError("Max Patches not set")
 
+            self.storage.read_full_from_disk(self.file_path)
+            self.storage.load_metadata()
+            self.storage.load_initial_game_state(self._game)
+            self.storage.load_static_map_data(self._game)
+            self.storage.load_path_tree()
+            self.storage.load_patches(self._game)
+            self.storage.path_tree.precompute()
+            self.storage.patch_graph.finalize()
 
         self._is_open = True
         return self
@@ -113,10 +134,15 @@ class Replay:
             self.storage.unload_metadata()
             self.storage.unload_path_tree()
             self.storage.unload_patches()
+            self.storage.unload_last_game_state()
+            self.storage.write_last_game_state(self.file_path)
             # Assumes that initial-game-state and static-map-data have been unloaded on initial record
             self.storage.write_full_to_disk(self.file_path)
         elif self.mode in ['a']:
-            self.storage.update_metadata()
+            self.storage.update_metadata(self.file_path)
+            self.storage.unload_last_game_state()
+            self.storage.write_last_game_state(self.file_path)
+            # no additional writes needed
 
         self._is_open = False
 
@@ -150,15 +176,22 @@ class Replay:
         forward_operations = replay_patch.forward_patch.operations
         backward_operations = reversed(replay_patch.backward_patch.operations)
 
+        forward = self.ops_to_lists(forward_operations, game)
+        backward = self.ops_to_lists(backward_operations, game)
+
         forward_node = PatchGraphNode(
-            from_timestamp,
-            to_timestamp,
-            **self.ops_to_lists(forward_operations, game)
+            from_timestamp=from_timestamp,
+            to_timestamp=to_timestamp,
+            op_types=forward['op_types'],
+            paths = forward['paths'],
+            values= forward['values']
         )
         backward_node = PatchGraphNode(
-            to_timestamp,
-            from_timestamp,
-            **self.ops_to_lists(backward_operations, game)
+            from_timestamp=to_timestamp,
+            to_timestamp=from_timestamp,
+            op_types=backward['op_types'],
+            paths=backward['paths'],
+            values=backward['values']
         )
 
         self.storage.patch_graph.add_patch_node(forward_node)
@@ -166,8 +199,41 @@ class Replay:
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
-    def append_record_patch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch, game: GameInterface):
-        pass # TODO
+    def append_record_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
+        self.validate_game(game_id, player_id)
+
+        from_timestamp = self.storage.metadata.last_time
+        to_timestamp = int(time_stamp.timestamp())
+
+        nodes = []
+        paths_added = []
+        for patch in replay_patches:
+            forward = self.ops_to_lists(patch.forward_patch.operations, None)
+            backward = self.ops_to_lists(reversed(patch.backward_patch.operations), None)
+
+            forward_node = PatchGraphNode(
+                from_timestamp = from_timestamp,
+                to_timestamp = to_timestamp,
+                op_types = forward['op_types'],
+                paths = forward['paths'],
+                values = forward['values']
+            )
+            backward_node = PatchGraphNode(
+                from_timestamp = to_timestamp,
+                to_timestamp = from_timestamp,
+                op_types = backward['op_types'],
+                paths = backward['paths'],
+                values = backward['values']
+            )
+            paths_added.append(forward['paths_added'])
+            paths_added.append(backward['paths_added'])
+            nodes.append(forward_node)
+            nodes.append(backward_node)
+
+
+        self.storage.metadata.last_time = int(time_stamp.timestamp())
+
+        self.storage.append_patches_to_disk(nodes, paths_added, self.file_path)
 
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
@@ -224,17 +290,25 @@ class Replay:
         last_timestamp = self.storage.metadata.last_time
         return datetime.fromtimestamp(last_timestamp, tz=UTC)
 
-    def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]], game: GameInterface) -> dict[str, list]:
+    def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]] | Iterator[Any], game: GameInterface | None) -> dict[str, list]:
         op_types = []
         paths = []
         values = []
+        paths_added = []
 
         for op in operations:
+            if not self.storage.path_tree.exists(op.path):
+                paths_added.append(op.path)
             paths.append(self.storage.path_tree.get_or_add_path_node(op.path))
 
-            GameObject.set_game_recursive(op.new_value, None)
+
+            if game is not None:
+                GameObject.set_game_recursive(op.new_value, None)
+
             value = deepcopy(op.new_value)
-            GameObject.set_game_recursive(op.new_value, game)
+
+            if game is not None:
+                GameObject.set_game_recursive(op.new_value, game)
 
             if op.Key == 'a':
                 op_types.append(ADD_OPERATION)
@@ -251,7 +325,8 @@ class Replay:
         return {
             'op_types': op_types,
             'paths': paths,
-            'values': values
+            'values': values,
+            'paths_added': paths_added,
         }
 
     def validate_game(self, game_id: int, player_id: int):

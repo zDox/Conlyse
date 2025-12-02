@@ -1,6 +1,8 @@
 import inspect
+import os
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 MS_PER_SECOND = 1000
@@ -76,3 +78,8 @@ def is_primitive(v) -> bool:
 
     # Anything else is not primitive
     return False
+
+def create_new_file(file_path: Path):
+    parent = os.path.dirname(file_path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)

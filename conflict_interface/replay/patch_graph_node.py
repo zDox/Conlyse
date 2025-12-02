@@ -6,6 +6,7 @@ import msgpack
 import numpy as np
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.utils.binary import BinaryReader
 from conflict_interface.utils.binary import BinaryWriter
 from conflict_interface.utils.helper import is_primitive
@@ -71,7 +72,7 @@ class PatchGraphNode:
         return writer.getbuffer()
 
     @staticmethod
-    def deserialize(patch_b) -> tuple['PatchGraphNode', list[list[str | int]]]:
+    def deserialize(patch_b, game: GameInterface | None) -> tuple['PatchGraphNode', list[list[str | int]]]:
         reader = BinaryReader(patch_b)
 
         from_ts = reader.read_int64()
@@ -96,6 +97,10 @@ class PatchGraphNode:
 
         primitive_values = msgpack.unpackb(primitives, raw=False)
         complex_values = pickle.loads(complexes)
+
+        if not game is None:
+            for v in complex_values:
+                GameObject.set_game_recursive(v, game)
 
         values = []
         prim_idx = 0

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
@@ -68,7 +69,11 @@ class FromJsonResponsesUsingUpdateToReplay:
             return False
 
         # Create replay in write mode
-        with Replay(file_path=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
+        if limit:
+            max_patches = limit * 4
+        else:
+            max_patches = len(json_responses) * 4
+        with Replay(file_path=output_file, mode='w', game_id=game_id, player_id=player_id, max_patches=max_patches) as replay:
             # Record static map data if available
             static_map_data = self.reader.read_static_map_data()
             if not static_map_data:
@@ -134,4 +139,7 @@ class FromJsonResponsesUsingUpdateToReplay:
                     logger.error(f"Error processing JSON response at {current_timestamp} game time: {e}")
                     # Continue with next response
                     continue
+
+            GameObject.set_game_recursive(current_state, None)
+            replay.set_last_game_state(current_state)
         return True

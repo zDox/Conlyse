@@ -15,10 +15,10 @@ from conflict_interface.replay.replay import Replay
 logger = get_logger()
 
 class ReplayInterface(GameInterface):
-    def __init__(self, file_path: Path | str, mode: Literal['r', 'w', 'a', 'rw'] = 'r'):
+    def __init__(self, file_path: Path | str, mode: Literal['r', 'w', 'a', 'rw'] = 'r', player_id: int | None = None, game_id: int | None = None):
         super().__init__()
         self.file_path = Path(file_path)
-        self.replay = Replay(self.file_path, mode)
+        self.replay = Replay(self.file_path, mode, player_id=player_id, game_id=game_id)
         self._hook_system = ReplayHookSystem(self.replay)
         self.game_state: GameState | None = None
         self.static_map_data = None
