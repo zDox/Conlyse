@@ -1,7 +1,7 @@
 """
 Province Renderer
 =================
-Renders provinces on the map using OpenGL with cached geometry.
+Renders provinces on the map using OpenGL shaders with GPU-stored data.
 
 Author: Copilot
 Date: 2025-12-02
@@ -16,18 +16,49 @@ from typing import Set
 from typing import TYPE_CHECKING
 from typing import Tuple
 
+import numpy as np
+from OpenGL.GL import GL_ARRAY_BUFFER
 from OpenGL.GL import GL_BLEND
-from OpenGL.GL import GL_LINE_LOOP
+from OpenGL.GL import GL_COMPILE_STATUS
+from OpenGL.GL import GL_FALSE
+from OpenGL.GL import GL_FLOAT
+from OpenGL.GL import GL_FRAGMENT_SHADER
+from OpenGL.GL import GL_LINK_STATUS
 from OpenGL.GL import GL_ONE_MINUS_SRC_ALPHA
-from OpenGL.GL import GL_POLYGON
 from OpenGL.GL import GL_SRC_ALPHA
-from OpenGL.GL import glBegin
+from OpenGL.GL import GL_STATIC_DRAW
+from OpenGL.GL import GL_TRIANGLES
+from OpenGL.GL import GL_VERTEX_SHADER
+from OpenGL.GL import glAttachShader
+from OpenGL.GL import glBindBuffer
+from OpenGL.GL import glBindVertexArray
 from OpenGL.GL import glBlendFunc
-from OpenGL.GL import glColor4f
+from OpenGL.GL import glBufferData
+from OpenGL.GL import glCompileShader
+from OpenGL.GL import glCreateProgram
+from OpenGL.GL import glCreateShader
+from OpenGL.GL import glDeleteBuffers
+from OpenGL.GL import glDeleteProgram
+from OpenGL.GL import glDeleteShader
+from OpenGL.GL import glDeleteVertexArrays
+from OpenGL.GL import glDrawArrays
 from OpenGL.GL import glEnable
-from OpenGL.GL import glEnd
-from OpenGL.GL import glLineWidth
-from OpenGL.GL import glVertex2f
+from OpenGL.GL import glEnableVertexAttribArray
+from OpenGL.GL import glGenBuffers
+from OpenGL.GL import glGenVertexArrays
+from OpenGL.GL import glGetAttribLocation
+from OpenGL.GL import glGetProgramInfoLog
+from OpenGL.GL import glGetProgramiv
+from OpenGL.GL import glGetShaderInfoLog
+from OpenGL.GL import glGetShaderiv
+from OpenGL.GL import glGetUniformLocation
+from OpenGL.GL import glIsBuffer
+from OpenGL.GL import glLinkProgram
+from OpenGL.GL import glShaderSource
+from OpenGL.GL import glUniform4f
+from OpenGL.GL import glUniformMatrix4fv
+from OpenGL.GL import glUseProgram
+from OpenGL.GL import glVertexAttribPointer
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.entity_renderer import EntityRenderer
@@ -38,38 +69,143 @@ if TYPE_CHECKING:
 logger = get_logger()
 
 
-class ProvinceData:
-    """Stores cached data for a single province."""
+# Vertex shader: transforms world coordinates to screen coordinates
+VERTEX_SHADER = """
+#version 330 core
+layout(location = 0) in vec2 position;
+layout(location = 1) in vec4 color;
+
+out vec4 fragColor;
+
+uniform mat4 transform;
+
+void main() {
+    vec4 worldPos = vec4(position, 0.0, 1.0);
+    gl_Position = transform * worldPos;
+    fragColor = color;
+}
+"""
+
+# Fragment shader: outputs the color
+FRAGMENT_SHADER = """
+#version 330 core
+in vec4 fragColor;
+out vec4 outColor;
+
+void main() {
+    outColor = fragColor;
+}
+"""
+
+
+class ProvinceGPUData:
+    """Stores GPU buffer data for a single province."""
     
     def __init__(self, province_id: int):
         self.province_id = province_id
         self.bounds = (0.0, 0.0, 0.0, 0.0)  # min_x, max_x, min_y, max_y (world space)
-        self.world_coords = []  # World coordinates cached in memory
+        self.vao = None  # Vertex Array Object
+        self.vbo = None  # Vertex Buffer Object
+        self.vertex_count = 0
         self.color = (0.8, 0.8, 0.8, 0.4)  # RGBA color
         
 
 class ProvinceRenderer(EntityRenderer):
     """
-    Renders provinces with their borders and colors.
+    Renders provinces with their borders and colors using OpenGL shaders.
     
-    This renderer caches province geometry in memory and only updates when
-    province data changes, avoiding expensive per-frame data processing.
+    This renderer uploads province geometry to GPU and uses shaders for
+    efficient rendering with transformation matrices.
     """
 
     def __init__(self):
         """Initialize the province renderer."""
         super().__init__()
-        self.province_data: Dict[int, ProvinceData] = {}
+        self.province_data: Dict[int, ProvinceGPUData] = {}
         self.dirty_provinces: Set[int] = set()
         self._needs_full_rebuild = False
+        
+        # Shader program and uniform locations
+        self.shader_program = None
+        self.transform_loc = None
+        self.color_loc = None
+
+    def _compile_shader(self, source: str, shader_type) -> int:
+        """
+        Compile a shader from source code.
+
+        Args:
+            source: Shader source code
+            shader_type: GL_VERTEX_SHADER or GL_FRAGMENT_SHADER
+
+        Returns:
+            Compiled shader handle
+
+        Raises:
+            RuntimeError: If compilation fails
+        """
+        shader = glCreateShader(shader_type)
+        glShaderSource(shader, source)
+        glCompileShader(shader)
+        
+        # Check compilation status
+        if glGetShaderiv(shader, GL_COMPILE_STATUS) == GL_FALSE:
+            error = glGetShaderInfoLog(shader).decode()
+            glDeleteShader(shader)
+            raise RuntimeError(f"Shader compilation failed: {error}")
+        
+        return shader
+
+    def _create_shader_program(self) -> int:
+        """
+        Create and link the shader program.
+
+        Returns:
+            Shader program handle
+
+        Raises:
+            RuntimeError: If linking fails
+        """
+        vertex_shader = self._compile_shader(VERTEX_SHADER, GL_VERTEX_SHADER)
+        fragment_shader = self._compile_shader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER)
+        
+        program = glCreateProgram()
+        glAttachShader(program, vertex_shader)
+        glAttachShader(program, fragment_shader)
+        glLinkProgram(program)
+        
+        # Check link status
+        if glGetProgramiv(program, GL_LINK_STATUS) == GL_FALSE:
+            error = glGetProgramInfoLog(program).decode()
+            glDeleteProgram(program)
+            glDeleteShader(vertex_shader)
+            glDeleteShader(fragment_shader)
+            raise RuntimeError(f"Shader linking failed: {error}")
+        
+        # Shaders can be deleted after linking
+        glDeleteShader(vertex_shader)
+        glDeleteShader(fragment_shader)
+        
+        return program
 
     def initialize(self):
         """Initialize OpenGL resources for province rendering."""
-        # Enable blending for transparency
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        self._initialized = True
-        logger.info("Province renderer initialized")
+        try:
+            # Enable blending for transparency
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            
+            # Create shader program
+            self.shader_program = self._create_shader_program()
+            
+            # Get uniform locations
+            self.transform_loc = glGetUniformLocation(self.shader_program, "transform")
+            
+            self._initialized = True
+            logger.info("Province renderer initialized with shaders")
+        except Exception as e:
+            logger.error(f"Failed to initialize province renderer: {e}", exc_info=True)
+            raise
 
     def set_province_color(self, province_id: int, color: Tuple[float, float, float, float]):
         """
@@ -87,7 +223,7 @@ class ProvinceRenderer(EntityRenderer):
 
     def mark_province_dirty(self, province_id: int):
         """
-        Mark a province as dirty, requiring geometry rebuild.
+        Mark a province as dirty, requiring GPU buffer rebuild.
         
         This should be called when a province changes ownership or attributes.
 
@@ -113,11 +249,31 @@ class ProvinceRenderer(EntityRenderer):
         x_coords, y_coords = zip(*border_points)
         return (min(x_coords), max(x_coords), min(y_coords), max(y_coords))
 
-    def _build_province_data(self, province_id: int, province: Any, color: Tuple[float, float, float, float]):
+    def _triangulate_polygon(self, coords: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
         """
-        Build cached data for a single province.
+        Triangulate a polygon using simple fan triangulation.
         
-        Stores world coordinates in memory to avoid reprocessing province geometry.
+        Args:
+            coords: List of (x, y) coordinates forming a polygon
+            
+        Returns:
+            List of vertices for triangles
+        """
+        if len(coords) < 3:
+            return []
+        
+        # Simple fan triangulation from first vertex
+        triangles = []
+        for i in range(1, len(coords) - 1):
+            triangles.extend([coords[0], coords[i], coords[i + 1]])
+        
+        return triangles
+
+    def _build_province_gpu_data(self, province_id: int, province: Any, color: Tuple[float, float, float, float]):
+        """
+        Build GPU data for a single province and upload to GPU.
+        
+        Creates VAO and VBO with province geometry stored on GPU.
 
         Args:
             province_id: Province ID
@@ -137,16 +293,57 @@ class ProvinceRenderer(EntityRenderer):
 
         # Get or create province data
         if province_id not in self.province_data:
-            self.province_data[province_id] = ProvinceData(province_id)
+            self.province_data[province_id] = ProvinceGPUData(province_id)
         
         pdata = self.province_data[province_id]
         pdata.bounds = bounds
-        pdata.world_coords = world_coords
         pdata.color = color
+
+        # Triangulate the polygon for GPU rendering
+        triangulated = self._triangulate_polygon(world_coords)
+        if not triangulated:
+            return
+
+        # Create vertex data: position (x, y) + color (r, g, b, a)
+        vertices = []
+        for x, y in triangulated:
+            vertices.extend([x, y, color[0], color[1], color[2], color[3]])
+        
+        vertex_data = np.array(vertices, dtype=np.float32)
+
+        # Delete old GPU buffers if they exist
+        if pdata.vbo is not None and glIsBuffer(pdata.vbo):
+            glDeleteBuffers(1, [pdata.vbo])
+        if pdata.vao is not None:
+            glDeleteVertexArrays(1, [pdata.vao])
+
+        # Create VAO
+        pdata.vao = glGenVertexArrays(1)
+        glBindVertexArray(pdata.vao)
+
+        # Create VBO and upload data
+        pdata.vbo = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, pdata.vbo)
+        glBufferData(GL_ARRAY_BUFFER, vertex_data.nbytes, vertex_data, GL_STATIC_DRAW)
+
+        # Set up vertex attributes
+        # Position attribute (location = 0)
+        glEnableVertexAttribArray(0)
+        glVertexAttribPointer(0, 2, GL_FLOAT, False, 6 * 4, None)  # 6 floats per vertex, stride 24 bytes
+        
+        # Color attribute (location = 1)
+        glEnableVertexAttribArray(1)
+        glVertexAttribPointer(1, 4, GL_FLOAT, False, 6 * 4, np.ctypeslib.as_ctypes_type(np.int64)(8))  # offset 8 bytes
+
+        pdata.vertex_count = len(triangulated)
+
+        # Unbind
+        glBindVertexArray(0)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
 
     def _rebuild_dirty_provinces(self, provinces: Dict[int, Any], province_colors: Dict[int, Tuple[float, float, float, float]]):
         """
-        Rebuild cached data for provinces that have changed.
+        Rebuild GPU data for provinces that have changed.
 
         Args:
             provinces: Dictionary of province_id -> province object
@@ -158,25 +355,25 @@ class ProvinceRenderer(EntityRenderer):
         for province_id in list(self.dirty_provinces):
             if province_id in provinces:
                 color = province_colors.get(province_id, (0.8, 0.8, 0.8, 0.4))
-                self._build_province_data(province_id, provinces[province_id], color)
+                self._build_province_gpu_data(province_id, provinces[province_id], color)
         
         self.dirty_provinces.clear()
-        logger.debug(f"Rebuilt data for dirty provinces")
+        logger.debug(f"Rebuilt GPU data for dirty provinces")
 
     def _build_all_data(self, provinces: Dict[int, Any], province_colors: Dict[int, Tuple[float, float, float, float]]):
         """
-        Build cached data for all provinces (initial load or full rebuild).
+        Build GPU data for all provinces (initial load or full rebuild).
 
         Args:
             provinces: Dictionary of province_id -> province object
             province_colors: Dictionary of province_id -> color
         """
-        logger.info(f"Building cached data for {len(provinces)} provinces")
+        logger.info(f"Building GPU data for {len(provinces)} provinces")
         for province_id, province in provinces.items():
             color = province_colors.get(province_id, (0.8, 0.8, 0.8, 0.4))
-            self._build_province_data(province_id, province, color)
+            self._build_province_gpu_data(province_id, province, color)
         self._needs_full_rebuild = False
-        logger.info("Province data caching complete")
+        logger.info("Province GPU data upload complete")
 
     def update_provinces(self, provinces: Dict[int, Any], province_colors: Dict[int, Tuple[float, float, float, float]]):
         """
@@ -191,23 +388,75 @@ class ProvinceRenderer(EntityRenderer):
         else:
             self._rebuild_dirty_provinces(provinces, province_colors)
 
+    def _create_transform_matrix(self, camera: Camera) -> np.ndarray:
+        """
+        Create transformation matrix from world space to screen space.
+        
+        Args:
+            camera: Camera for coordinate transformations
+            
+        Returns:
+            4x4 transformation matrix
+        """
+        # Create transformation matrix that converts world coordinates to screen coordinates
+        # This combines translation, scaling (zoom), and projection
+        
+        # Calculate scale factors
+        scale_x = camera.zoom * camera.scale_factor
+        scale_y = camera.zoom * camera.scale_factor * 0.8  # VERTICAL_ANGLE_SCALE
+        
+        # Calculate translation
+        # Screen center is at (screen_width/2, screen_height/2)
+        # World point (camera.x, camera.y) should map to screen center
+        translate_x = camera.screen_width / 2 - camera.x * scale_x
+        translate_y = camera.screen_height / 2 - camera.y * scale_y
+        
+        # Create transformation matrix (column-major for OpenGL)
+        # This transforms world coordinates to screen pixel coordinates
+        transform = np.array([
+            [scale_x, 0, 0, 0],
+            [0, scale_y, 0, 0],
+            [0, 0, 1, 0],
+            [translate_x, translate_y, 0, 1]
+        ], dtype=np.float32)
+        
+        # Convert screen coordinates to NDC (Normalized Device Coordinates) for OpenGL
+        # NDC range is -1 to 1 for both x and y
+        ndc_matrix = np.array([
+            [2.0 / camera.screen_width, 0, 0, 0],
+            [0, -2.0 / camera.screen_height, 0, 0],  # Flip Y axis
+            [0, 0, 1, 0],
+            [-1, 1, 0, 1]
+        ], dtype=np.float32)
+        
+        # Combine transformations
+        final_transform = ndc_matrix @ transform
+        
+        return final_transform
+
     def render(self, camera: Camera, provinces: Dict[int, Any]):
         """
-        Render provinces using cached geometry data.
+        Render provinces using GPU-stored data and shaders.
         
-        World coordinates are cached in memory and transformed to screen space
-        during rendering. Only provinces are reprocessed when they change.
+        Province geometry is stored on GPU. Only transformation matrix is updated per frame.
 
         Args:
             camera: Camera for coordinate transformations
             provinces: Dictionary of province_id -> province object (only needed for initial load)
         """
-        if not self._initialized:
+        if not self._initialized or self.shader_program is None:
             return
 
         visible_rect = camera.get_visible_rect()
 
-        # Render province fills
+        # Use shader program
+        glUseProgram(self.shader_program)
+        
+        # Create and set transformation matrix
+        transform = self._create_transform_matrix(camera)
+        glUniformMatrix4fv(self.transform_loc, 1, False, transform)
+
+        # Render each province
         for province_id, pdata in self.province_data.items():
             # Frustum culling in world space
             min_x, max_x, min_y, max_y = pdata.bounds
@@ -215,44 +464,31 @@ class ProvinceRenderer(EntityRenderer):
                 max_y < visible_rect[1] or min_y > visible_rect[3]):
                 continue
 
-            if not pdata.world_coords:
+            if pdata.vao is None or pdata.vertex_count == 0:
                 continue
 
-            # Transform world coordinates to screen coordinates for rendering
-            screen_coords = [camera.world_to_screen(p) for p in pdata.world_coords]
-            
-            # Render filled polygon
-            glColor4f(*pdata.color)
-            glBegin(GL_POLYGON)
-            for sx, sy in screen_coords:
-                glVertex2f(sx, sy)
-            glEnd()
+            # Bind VAO and draw
+            glBindVertexArray(pdata.vao)
+            glDrawArrays(GL_TRIANGLES, 0, pdata.vertex_count)
 
-        # Render province borders
-        glColor4f(0.0, 0.0, 0.0, 1.0)  # Black borders
-        glLineWidth(1.0)
-
-        for province_id, pdata in self.province_data.items():
-            # Frustum culling in world space
-            min_x, max_x, min_y, max_y = pdata.bounds
-            if (max_x < visible_rect[0] or min_x > visible_rect[2] or
-                max_y < visible_rect[1] or min_y > visible_rect[3]):
-                continue
-
-            if not pdata.world_coords:
-                continue
-
-            # Transform world coordinates to screen coordinates
-            screen_coords = [camera.world_to_screen(p) for p in pdata.world_coords]
-            
-            # Render border
-            glBegin(GL_LINE_LOOP)
-            for sx, sy in screen_coords:
-                glVertex2f(sx, sy)
-            glEnd()
+        # Unbind
+        glBindVertexArray(0)
+        glUseProgram(0)
 
     def cleanup(self):
-        """Clean up resources."""
+        """Clean up GPU resources."""
+        # Delete all GPU buffers
+        for pdata in self.province_data.values():
+            if pdata.vbo is not None and glIsBuffer(pdata.vbo):
+                glDeleteBuffers(1, [pdata.vbo])
+            if pdata.vao is not None:
+                glDeleteVertexArrays(1, [pdata.vao])
+        
+        # Delete shader program
+        if self.shader_program is not None:
+            glDeleteProgram(self.shader_program)
+            self.shader_program = None
+        
         self.province_data.clear()
         self.dirty_provinces.clear()
         self._initialized = False
