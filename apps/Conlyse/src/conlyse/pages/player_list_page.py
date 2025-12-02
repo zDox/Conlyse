@@ -53,31 +53,13 @@ class PlayerListPage(Page):
     def setup(self, context):
         """
         Called when page is opened - initialize with replay data.
-
-        Args:
-            context: Dictionary containing 'replay_interface' key
         """
-        replay_path = context.get("replay_path", None)
+        self.replay_interface = self.app.replay_manager.get_active_replay()
 
-        if not replay_path:
-            logger.error("No replay interface provided to PlayerListPage")
-            self.app.page_manager.switch_to(PageType.ReplayListPage)
-
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Icon.Warning)
-            msg_box.setWindowTitle("No Replay Data")
-            msg_box.setText("No replay data available to display players.")
-            msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-            msg_box.exec()
+        if not self.replay_interface:
+            logger.error("No active replay found in Replay Manager")
+            self.app.page_manager.switch_to(PageType.ReplayListPage, error_message="No active replay loaded.")
             return
-
-        self.replay_interface = self.app.replay_manager.get_replay(replay_path)
-
-        if not self.app.replay_manager.is_active_replay(replay_path):
-            logger.error(f"Replay not loaded for path: {replay_path}")
-            self.app.page_manager.switch_to(PageType.ReplayListPage, error_message=f"Failed to load replay: {replay_path}")
-            return
-
 
         # Initialize UI if first time
         if not self._ui_initialized:

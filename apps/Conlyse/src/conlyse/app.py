@@ -8,6 +8,7 @@ from conlyse.managers.config_manager.config_manager import ConfigManager
 from conlyse.managers.keybinding_manager.key_action import KeyAction
 from conlyse.managers.keybinding_manager.keybinding_manager import KeybindingManager
 from conlyse.managers.replay_manager import ReplayManager
+from conlyse.pages.map_page.map_page import MapPage
 from conlyse.pages.player_list_page import PlayerListPage
 from conlyse.pages.replay_load_page import ReplayLoadPage
 from conlyse.logger import setup_logger
@@ -34,7 +35,7 @@ class App:
         self.event_handler      = EventManager(self)
         self.style_manager      = StyleManager(self)
         self.page_manager       = PageManager(self)
-        self.replay_manager     = ReplayManager(self)
+        self.replay_manager: ReplayManager     = ReplayManager(self)
 
         self.frame_timer : QTimer = QTimer()
 
@@ -48,6 +49,7 @@ class App:
         self.page_manager.register_page(PageType.ReplayListPage, ReplayListPage)
         self.page_manager.register_page(PageType.ReplayLoadPage, ReplayLoadPage)
         self.page_manager.register_page(PageType.PlayerListPage, PlayerListPage)
+        self.page_manager.register_page(PageType.MapPage, MapPage)
 
         # Setting up drawer
         self.main_window.drawer.register_entry("Replays", lambda: self.page_manager.switch_to(PageType.ReplayListPage))

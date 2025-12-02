@@ -34,10 +34,7 @@ class ConfigFile:
 
     def create_default(self) -> Dict[str, Any]:
         """Create and save a default configuration."""
-        default_data = self.app.asset_manager.load_json(
-            self.default_config_key,
-            f"{self.default_config_key}.json"
-        )
+        default_data = self.app.asset_manager.load_json(self.default_config_key)
         self.save(default_data)
         return default_data
 
@@ -73,8 +70,7 @@ class ConfigFile:
     def merge_defaults(self):
         """Merge missing default keys into current config."""
         default_data = self.app.asset_manager.load_json(
-            self.default_config_key,
-            f"{self.default_config_key}.json"
+            self.default_config_key
         )
 
         def merge(current, defaults):
