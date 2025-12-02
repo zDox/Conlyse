@@ -91,7 +91,7 @@ class ColumnPanel(QFrame):
 
         main_layout.addLayout(title_layout)
 
-        # ===== Seperator =====
+        # ===== Separator =====
         separator = QFrame()
         separator.setObjectName("separator")
         separator.setFrameShape(QFrame.Shape.HLine)
