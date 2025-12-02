@@ -193,6 +193,11 @@ class ProvinceRenderer(EntityRenderer):
     def initialize(self):
         """Initialize OpenGL resources for province rendering."""
         try:
+            # Check OpenGL version
+            from OpenGL.GL import glGetString, GL_VERSION
+            version = glGetString(GL_VERSION)
+            logger.info(f"OpenGL version: {version}")
+            
             # Enable blending for transparency
             glEnable(GL_BLEND)
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -207,6 +212,7 @@ class ProvinceRenderer(EntityRenderer):
             logger.info("Province renderer initialized with shaders")
         except Exception as e:
             logger.error(f"Failed to initialize province renderer: {e}", exc_info=True)
+            self._initialized = False
             raise
 
     def set_province_color(self, province_id: int, color: Tuple[float, float, float, float]):
@@ -327,11 +333,23 @@ class ProvinceRenderer(EntityRenderer):
                 pass  # Ignore errors if context is invalid
 
         # Create VAO
-        pdata.vao = glGenVertexArrays(1)
-        glBindVertexArray(pdata.vao)
+        try:
+            pdata.vao = glGenVertexArrays(1)
+            if pdata.vao == 0:
+                logger.error("Failed to generate VAO (returned 0)")
+                return
+            glBindVertexArray(pdata.vao)
+        except Exception as e:
+            logger.error(f"Error creating VAO: {e}")
+            return
 
         # Create VBO and upload data
         pdata.vbo = glGenBuffers(1)
+        if pdata.vbo == 0:
+            logger.error("Failed to generate VBO (returned 0)")
+            glBindVertexArray(0)
+            return
+            
         glBindBuffer(GL_ARRAY_BUFFER, pdata.vbo)
         glBufferData(GL_ARRAY_BUFFER, vertex_data.nbytes, vertex_data, GL_STATIC_DRAW)
 
@@ -474,12 +492,16 @@ class ProvinceRenderer(EntityRenderer):
                 max_y < visible_rect[1] or min_y > visible_rect[3]):
                 continue
 
-            if pdata.vao is None or pdata.vertex_count == 0:
+            if pdata.vao is None or pdata.vao == 0 or pdata.vertex_count == 0:
                 continue
 
-            # Bind VAO and draw
-            glBindVertexArray(pdata.vao)
-            glDrawArrays(GL_TRIANGLES, 0, pdata.vertex_count)
+            try:
+                # Bind VAO and draw
+                glBindVertexArray(pdata.vao)
+                glDrawArrays(GL_TRIANGLES, 0, pdata.vertex_count)
+            except Exception as e:
+                logger.error(f"Error rendering province {province_id}: {e}")
+                continue
 
         # Unbind
         glBindVertexArray(0)

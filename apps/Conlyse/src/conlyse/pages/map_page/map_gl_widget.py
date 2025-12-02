@@ -43,6 +43,15 @@ class MapGLWidget(QOpenGLWidget):
         Args:
             parent: Parent widget
         """
+        # Request OpenGL 3.3 Core Profile before calling super().__init__
+        from PyQt6.QtGui import QSurfaceFormat
+        fmt = QSurfaceFormat()
+        fmt.setVersion(3, 3)
+        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        fmt.setDepthBufferSize(24)
+        fmt.setStencilBufferSize(8)
+        self.setFormat(fmt)
+        
         super().__init__(parent)
         
         # Camera for view transformation
