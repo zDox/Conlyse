@@ -12,16 +12,31 @@ logger = get_logger()
 
 
 class ProvinceFillRenderer:
-    def __init__(self):
+    def __init__(self, camera):
+        self.camera = camera
         # Prepare vertex data
-        self.data = np.array([
-            -1.0, 1.0,
-            1.0, -1.0,
-            -1.0, -1.0,
+        self.vertex_data = np.array([
+            # Triangle 1
+            [100, 100],
+            [200, 100],
+            [150, 200],
+            # Triangle 2
+            [300, 300],
+            [400, 300],
+            [350, 400],
+        ], dtype=np.float32)
+        self.color_data = np.array([
+            1.0, 0.0, 0.0, 1.0,
+            0.0, 1.0, 0.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
+            1.0, 0.0, 0.0, 1.0,
+            0.0, 1.0, 0.0, 1.0,
+            0.0, 0.0, 1.0, 1.0,
         ], dtype=np.float32)
         self.program = None
         self.vao = None
-        self.vbo = None
+        self.positions_vbo = None
+        self.colors_vbo = None
 
     def initialize(self):
         # Compile shaders and link program
@@ -41,13 +56,20 @@ class ProvinceFillRenderer:
         self.vao = gl.glGenVertexArrays(1)
         gl.glBindVertexArray(self.vao)
 
-        self.vbo = gl.glGenBuffers(1)
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
-        gl.glBufferData(gl.GL_ARRAY_BUFFER, self.data.nbytes, self.data, gl.GL_DYNAMIC_DRAW)
+        self.positions_vbo = gl.glGenBuffers(1)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.positions_vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, self.vertex_data.nbytes, self.vertex_data, gl.GL_DYNAMIC_DRAW)
 
         loc = gl.glGetAttribLocation(self.program.program_id, b"position")
         gl.glEnableVertexAttribArray(loc)
         gl.glVertexAttribPointer(loc, 2, gl.GL_FLOAT, False, 0, ctypes.c_void_p(0))
+
+        self.colors_vbo = gl.glGenBuffers(1)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.colors_vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, self.color_data.nbytes, self.color_data, gl.GL_DYNAMIC_DRAW)
+
+        gl.glEnableVertexAttribArray(1)
+        gl.glVertexAttribPointer(1, 4, gl.GL_FLOAT, False, 0, ctypes.c_void_p(0))
 
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
         gl.glBindVertexArray(0)
@@ -55,6 +77,10 @@ class ProvinceFillRenderer:
     def render(self):
         # Render the filled provinces
         self.program.use_program()
+
+        vp = self.camera.get_view_projection_matrix()
+        gl.glUniformMatrix3fv(gl.glGetUniformLocation(self.program.program_id, "uViewProjection"), 1, gl.GL_TRUE, vp)
+
         gl.glBindVertexArray(self.vao)
-        gl.glDrawArrays(gl.GL_TRIANGLES, 0, 3)
+        gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.vertex_data))
         gl.glBindVertexArray(0)

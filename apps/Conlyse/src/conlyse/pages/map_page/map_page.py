@@ -1,41 +1,58 @@
 import logging
 
-import OpenGL.GL as gl
-from PyQt6.QtOpenGLWidgets import QOpenGLWidget
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QKeySequence
+from PyQt6.QtGui import QShortcut
+from PyQt6.QtGui import QSurfaceFormat
+from PyQt6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
-from conlyse.pages.map_page.province_fill_renderer import ProvinceFillRenderer
+from conlyse.pages.map_page.map import Map  # assuming this is correct
 
 logger = logging.getLogger(__name__)
 
 
-class MinimalGLWidget(QOpenGLWidget):
+class MapPage(QWidget):
     def __init__(self):
         super().__init__()
-        self.province_fill_renderer = ProvinceFillRenderer()
-    def initializeGL(self):
-        self.province_fill_renderer.initialize()
-        gl.glClearColor(0.1, 0.1, 0.1, 1.0)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
 
-    def paintGL(self):
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
-        self.province_fill_renderer.render()
+        # Configure OpenGL format BEFORE creating the Map widget
+        fmt = QSurfaceFormat()
+        fmt.setVersion(4, 1)
+        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        QSurfaceFormat.setDefaultFormat(fmt)
 
-    def resizeGL(self, w: int, h: int):
-        gl.glViewport(0, 0, w, h)
-        self.update()  # Force redraw on resize
+        self.map_widget = Map()
+        layout.addWidget(self.map_widget)
+        self.setLayout(layout)
+
+    def setup(self):
+        self.setup_keybindings()
+
+    def setup_keybindings(self):
+        movements = {
+            "w": (0, 10),
+            "s": (0, -10),
+            "a": (-10, 0),
+            "d": (10, 0),
+        }
+        for key, (dx, dy) in movements.items():
+            shortcut = QShortcut(QKeySequence(key), self)
+            shortcut.activated.connect(lambda dx=dx, dy=dy: self.map_widget.handle_camera_move(dx, dy))
+
+    def update(self):
+        pass
+
+    def clean_up(self):
+        pass
+
 
 if __name__ == '__main__':
-    from PyQt6.QtGui import QSurfaceFormat
-
     app = QApplication([])
 
-    fmt = QSurfaceFormat()
-    fmt.setVersion(4, 1)
-    fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
-    QSurfaceFormat.setDefaultFormat(fmt)
+    map_page = MapPage()
+    map_page.setup()
+    map_page.resize(800, 600)
+    map_page.show()
 
-    widget = MinimalGLWidget()
-    widget.resize(600, 600)
-    widget.show()
     app.exec()
