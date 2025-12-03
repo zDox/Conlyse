@@ -1,10 +1,8 @@
-from PyQt6.QtGui import QKeySequence
-from PyQt6.QtGui import QShortcut
-from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL import GL as gl
+from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 
 from conlyse.pages.map_page.camera import Camera
-from conlyse.pages.map_page.province_fill_renderer import ProvinceFillRenderer
+from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
 
 
 class Map(QOpenGLWidget):

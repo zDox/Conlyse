@@ -1,16 +1,17 @@
 import ctypes
+from pathlib import Path
 
 import OpenGL.GL as gl
 import numpy as np
 
 from conlyse.logger import get_logger
-from conlyse.pages.map_page.opengl_types import OpenGLTypes
-from conlyse.pages.map_page.shader import Shader
-from conlyse.pages.map_page.shader import ShaderType
-from conlyse.pages.map_page.shader_program import ShaderProgram
-from conlyse.pages.map_page.vertex_array_object import VertexArrayObject
-from conlyse.pages.map_page.vertex_buffer_object import BufferUsageType
-from conlyse.pages.map_page.vertex_buffer_object import VertexBufferObject
+from conlyse.pages.map_page.opengl_wrapper.opengl_types import OpenGLTypes
+from conlyse.pages.map_page.opengl_wrapper.shader import Shader
+from conlyse.pages.map_page.opengl_wrapper.shader import ShaderType
+from conlyse.pages.map_page.opengl_wrapper.shader_program import ShaderProgram
+from conlyse.pages.map_page.opengl_wrapper.vertex_array_object import VertexArrayObject
+from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import BufferUsageType
+from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import VertexBufferObject
 
 logger = get_logger()
 
@@ -50,8 +51,8 @@ class ProvinceFillRenderer:
     def initialize(self):
         # Compile shaders and link program
         self.program = ShaderProgram()
-        vertex_shader = Shader(ShaderType.VERTEX, "vertex_shader.glsl")
-        fragment_shader = Shader(ShaderType.FRAGMENT, "fragment_shader.glsl")
+        vertex_shader = Shader(ShaderType.VERTEX, Path("renderers/shaders/vertex_shader.glsl"))
+        fragment_shader = Shader(ShaderType.FRAGMENT, Path("renderers/shaders/fragment_shader.glsl"))
 
         vertex_shader.compile()
         fragment_shader.compile()
@@ -72,7 +73,7 @@ class ProvinceFillRenderer:
 
         self.province_color_index_vbo = VertexBufferObject(PROVINCE_COLOR_INDEX_DATA, BufferUsageType.STATIC_DRAW)
         province_color_index_loc = gl.glGetAttribLocation(self.program.program_id, b"province_color_index")
-        self.vao.add_vbo(self.province_color_index_vbo, province_color_index_loc, 2, 0, 0,
+        self.vao.add_vbo(self.province_color_index_vbo, province_color_index_loc, 1, 0, 0,
                          element_type=OpenGLTypes.INT)
         self.province_color_index_vbo.unbind()
 

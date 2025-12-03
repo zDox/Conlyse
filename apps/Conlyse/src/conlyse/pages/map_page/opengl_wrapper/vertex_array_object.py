@@ -2,8 +2,8 @@ import ctypes
 
 from OpenGL import GL as gl
 
-from conlyse.pages.map_page.opengl_types import OpenGLTypes
-from conlyse.pages.map_page.vertex_buffer_object import VertexBufferObject
+from conlyse.pages.map_page.opengl_wrapper.opengl_types import OpenGLTypes
+from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import VertexBufferObject
 
 
 class VertexArrayObject:

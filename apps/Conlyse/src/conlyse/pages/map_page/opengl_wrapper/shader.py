@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import OpenGL.GL as gl
 
 from conlyse.logger import get_logger
@@ -9,13 +11,16 @@ class ShaderType:
     FRAGMENT = gl.GL_FRAGMENT_SHADER
 
 class Shader:
-    def __init__(self, shader_type: ShaderType, shader_name: str):
+    def __init__(self, shader_type: ShaderType, shader_path: Path):
         self.shader_type: ShaderType = shader_type
         self.shader_id = None
         self.shader_code = None
-        self.shader_name: str = shader_name
+        self.shader_path: Path = shader_path
 
-        with open(shader_name, "r") as f:
+        if not shader_path.exists():
+            logger.error(f"Shader file not found: {shader_path}")
+            raise FileNotFoundError(f"Shader file not found: {shader_path}")
+        with open(shader_path, "r") as f:
             self.shader_code = f.read()
 
     def compile(self):
@@ -25,5 +30,5 @@ class Shader:
 
         if not gl.glGetShaderiv(self.shader_id, gl.GL_COMPILE_STATUS):
             error = gl.glGetShaderInfoLog(self.shader_id).decode()
-            logger.error(f"Shader({self.shader_name}) compilation error: {error}")
+            logger.error(f"Shader({self.shader_path}) compilation error: {error}")
             raise RuntimeError(f"Shader compilation error: {error}")
