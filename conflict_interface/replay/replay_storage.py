@@ -84,9 +84,11 @@ class ReplayStorage:
         length = reader.read_int32()
         self._metadata_b = reader.read_bytes(length)
 
+        # Skip initial game state
         length = reader.read_int32()
         reader.skip(length)
 
+        # Skip static map data
         length = reader.read_int32()
         reader.skip(length)
 
@@ -123,18 +125,24 @@ class ReplayStorage:
         assert self._last_game_state_b is not None, "Last Game state has not been set"
 
         data = BinaryWriter()
+
+        # Write Metadat uncompressed for constant size
         data.write_int32(Metadata.size)
         data.seek(Metadata.size + 4)# Space holder for metadata
+
         write_compressed(data, self._initial_game_state_b)
         write_compressed(data, self._static_map_data_b)
         write_compressed(data, self._path_tree_b)
 
+        # Write Patch Index uncompressed for constant size
         data.write_int32(len(self._patch_index_b))
-        patch_index_start = data.tell()
+        patch_index_start = data.tell() # Remember the start of the patch index
         data.write_bytes(self._patch_index_b)
 
+        # Write data pool uncompressed because of append mode which adds uncompressed patches to the end
         data.write_int32(len(self._d_pool_b))
         data.write_bytes(self._d_pool_b)
+
         write_compressed(data, self._last_game_state_b)
 
         with open(file_path, 'wb') as f:
@@ -145,33 +153,38 @@ class ReplayStorage:
 
     def write_last_game_state(self, file_path: Path):
         assert self._last_game_state_b is not None, "Last Game State is None cannot write"
+
         compressed = self.compressor(self._last_game_state_b)
         length = len(compressed)
 
         with open(file_path, 'r+b') as f:
+            # Calculate end position in file of patches
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
             current_size = struct.unpack_from('<i', f.read(4), 0)[0]
             new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
-            f.seek(new_data_start_pos)
+            f.seek(new_data_start_pos) # go there
 
-            f.write(struct.pack('<i', length))
-            f.write(compressed)
+            f.write(struct.pack('<i', length)) # write length
+            f.write(compressed) # write last game state
 
 
     def update_metadata(self, file_path: Path):
         with open(file_path, "r+b") as f:
             len_metadata = struct.unpack_from('<i', f.read(4), 0)[0]
             metadata_b = self.metadata.serialize()
-            assert(len_metadata == len(metadata_b)), "Metadat has changed length"
+            assert(len_metadata == len(metadata_b)), "Metadata has changed length"
             f.write(metadata_b)
 
     def append_patches_to_disk(self, nodes: list[PatchGraphNode], paths: list[list[tuple[int, int, str | int]]], file_path: Path):
-        # update patch index
+        # Get patch index
         patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
         patch_index = np.copy(patch_index)
-        data = BinaryWriter()
+
+        patch_bytes = BinaryWriter()
+
         index_offset = self.metadata.current_patches
         assert len(paths) == len(nodes), "Not a paths list for every node"
+
         for i,patch in enumerate(nodes):
             if index_offset+i == 0: offset = 0
             else: offset = patch_index[index_offset+i-1]['offset'] + patch_index[index_offset+i-1]['size']
@@ -180,31 +193,30 @@ class ReplayStorage:
             size = len(patch_s)
             patch_index[i+index_offset]['offset'] = offset
             patch_index[i+index_offset]['size'] = size
-            data.write_bytes(patch_s)
-            self.metadata.current_patches+=1
+            patch_bytes.write_bytes(patch_s)
+            self.metadata.current_patches += 1
 
         self._patch_index_b = patch_index.tobytes()
 
         with open(file_path, 'r+b') as f:
+            # Go to end of patch index
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
+
+            # Get size of patches in bytes
             current_size = struct.unpack_from('<i', f.read(4), 0)[0]
+
+            # Calculate the file position at the end of the patches
             new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
 
-            f.seek(new_data_start_pos)
+            f.seek(new_data_start_pos) # go there
+            f.write(patch_bytes.getbuffer()) # write patch_bytes
 
-            f.write(data.getbuffer())
-
-
-        with open(file_path, 'r+b') as f:
+            # update patch index in file
             f.seek(self.metadata.patch_index_start)
-
             f.write(self._patch_index_b)
 
-        with open(file_path, 'r+b') as f:
-            f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
-            current_size = struct.unpack_from('<i', f.read(4), 0)[0]
-
-            new_size = current_size + len(data.getbuffer())
+            # calculate and write new size of patches in bytes
+            new_size = current_size + len(patch_bytes.getbuffer())
 
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
             f.write(struct.pack('<i', new_size))
@@ -308,11 +320,15 @@ class ReplayStorage:
 
     def load_patches(self, game: ReplayInterface) -> PatchGraph:
         self.patch_graph = PatchGraph()
+
+        # Get the patch index
         patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
         data_pool = memoryview(self._d_pool_b)
+
         if len(data_pool) == 0:
             logger.warning("No patches found in replay.")
             return self.patch_graph
+
         for offset, size in patch_index:
             if size == 0: break
             patch_data = data_pool[offset:offset + size]
@@ -322,7 +338,7 @@ class ReplayStorage:
         return self.patch_graph
 
     def unload_metadata(self):
-        self._metadata_b = pickle.dumps(self.metadata)
+        self._metadata_b = self.metadata.serialize()
 
     def unload_initial_game_state(self, game_state: GameState):
         game = game_state.game
@@ -344,16 +360,18 @@ class ReplayStorage:
         self.static_map_data = static_map_data
 
     def unload_path_tree(self):
-        n = self.path_tree.idx_counter
-        path_elements = [None] * n
+        n = self.path_tree.idx_counter # n = Amount of Path Nodes
+        path_elements = [None] * n #
         parent_indices = array('i', [-1] * n)  # signed int array
         is_leaf_flags = array('B', [0] * n)  # byte array for booleans
 
+        # For each index / node safe the parent, path_element and if its a leave or not
         for idx, node in self.path_tree.idx_to_node.items():
             path_elements[idx] = node.path_element
             parent_indices[idx] = node.parent.index if node.parent else -1
             is_leaf_flags[idx] = 1 if node.is_leaf else 0
 
+        # Pack everything into binary using msgpack
         self._path_tree_b = msgpack.packb([
             n,
             path_elements,
@@ -363,11 +381,15 @@ class ReplayStorage:
 
     def unload_patches(self):
         patches = self.patch_graph.patches.items()
+
+        # Get the patch index
         patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
         patch_index = np.copy(patch_index)
+
         data_pool = BinaryWriter()
 
-        for i, ((_, _), patch) in enumerate(patches):
+        # For each patch we serialize the patch and update the patch_index
+        for i, (_, patch) in enumerate(patches):
             if i == 0: offset = 0
             else: offset = patch_index[i-1]['offset'] + patch_index[i-1]['size']
             patch_s: memoryview = patch.serialize([])

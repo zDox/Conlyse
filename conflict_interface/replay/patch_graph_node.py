@@ -125,6 +125,14 @@ class PatchGraphNode:
 
     @staticmethod
     def extract_tree_nodes(patch_b) -> list[tuple[int, int, int | str]]:
+        """
+
+        Args:
+            patch_b: patch data in bytes
+
+        Returns: List of Nodes added as tuples (node_idx, parent_idx, path_element)
+
+        """
         header_format = '<qqii'  # 2 int64s, 2 int32s
         offset = struct.calcsize(header_format)
 

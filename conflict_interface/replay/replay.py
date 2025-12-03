@@ -98,6 +98,8 @@ class Replay:
             self.storage.load_metadata()
             self.storage.load_last_game_state()
             self.storage.load_path_tree()
+
+            # TODO whyyy?
             self.storage.patch_graph = PatchGraph()
 
         elif self.mode == 'w':
@@ -131,12 +133,17 @@ class Replay:
 
     def close(self):
         if self.mode in ['w', 'rw']:
+            # When closing in write or read-write mode the replay gets defragmented. This improves read performance (maybe)
             self.storage.metadata.is_fragmented = False
+
+            # Serialize everything
             self.storage.unload_metadata()
             self.storage.unload_path_tree()
             self.storage.unload_patches()
             self.storage.unload_last_game_state()
+
             # Assumes that initial-game-state and static-map-data have been unloaded on initial record
+            # Write everything to file
             self.storage.write_full_to_disk(self.file_path)
         elif self.mode in ['a']:
             self.storage.update_metadata(self.file_path)
@@ -203,6 +210,7 @@ class Replay:
 
     def append_record_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
         self.validate_game(game_id, player_id)
+
         self.storage.metadata.is_fragmented = True
         from_timestamp = self.storage.metadata.last_time
         to_timestamp = int(time_stamp.timestamp())
@@ -214,6 +222,7 @@ class Replay:
             new_paths = []
             for node in new_nodes:
                 new_paths.append((node.index, node.parent.index, node.path_element))
+
             forward = self.ops_to_lists(patch.forward_patch.operations, None)
             backward = self.ops_to_lists(reversed(patch.backward_patch.operations), None)
 
