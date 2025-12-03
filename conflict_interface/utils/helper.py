@@ -65,7 +65,7 @@ def is_primitive(obj):
         return True
     return False
 
-def create_new_file(file_path: Path):
+def create_parent_dirs(file_path: Path):
     parent = os.path.dirname(file_path)
     if parent:
         os.makedirs(parent, exist_ok=True)

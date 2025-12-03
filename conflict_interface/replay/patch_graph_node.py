@@ -85,7 +85,7 @@ class PatchGraphNode:
         new_paths = msgpack.unpackb(reader.read_bytes_view(len_new_paths), raw=False)
 
         op_types = np.frombuffer(reader.read_bytes(num_operations), dtype=np.int8)
-        paths = np.frombuffer(reader.read_bytes_view(num_operations * 4), dtype=np.int32)
+        paths = np.frombuffer(reader.read_bytes_view(num_operations * 4), dtype=np.uint32)
 
         value_types = reader.read_bytes_view(num_operations)
 

@@ -27,7 +27,7 @@ from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay_storage import ReplayStorage
-from conflict_interface.utils.helper import create_new_file
+from conflict_interface.utils.helper import create_parent_dirs
 
 if TYPE_CHECKING:
     from conflict_interface.interface.game_interface import GameInterface
@@ -107,7 +107,7 @@ class Replay:
             if self._max_patches is None:
                 raise ValueError("Max Patches not set")
 
-            create_new_file(self.file_path)
+            create_parent_dirs(self.file_path)
             self.storage.initialize(self._max_patches)
 
         elif self.mode == 'rw':

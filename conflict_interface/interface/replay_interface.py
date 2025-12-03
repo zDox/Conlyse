@@ -122,7 +122,7 @@ class ReplayInterface(GameInterface):
         self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
 
         # DEBUG ----------------
-        return patches
+        #return patches
         # ----------------------
 
     def _apply_patches_and_update_state(self, patches, target_time: datetime) -> None:

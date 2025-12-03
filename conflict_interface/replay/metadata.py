@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Metadata:
-    size = 21
+    size = struct.calcsize("<iiiii?")
     start_time: int
     last_time: int
     max_patches: int
@@ -17,7 +17,7 @@ class Metadata:
         return struct.pack("<iiiii?",
                            self.start_time,
                            self.last_time,
-                           self. max_patches,
+                           self.max_patches,
                            self.current_patches,
                            self.patch_index_start,
                            self.is_fragmented)

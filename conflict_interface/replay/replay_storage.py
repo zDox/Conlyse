@@ -3,6 +3,7 @@ from __future__ import annotations
 import pickle
 import struct
 from array import array
+from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,6 +26,7 @@ from conflict_interface.utils.binary import BinaryWriter
 if TYPE_CHECKING:
     from conflict_interface.interface.replay_interface import ReplayInterface
 
+logger = getLogger()
 
 class ReplayStorage:
     path_tree: PathTree | None
@@ -122,7 +124,7 @@ class ReplayStorage:
 
         data = BinaryWriter()
         data.write_int32(Metadata.size)
-        data.seek(Metadata.size+4)# Space holder for metadata
+        data.seek(Metadata.size + 4)# Space holder for metadata
         write_compressed(data, self._initial_game_state_b)
         write_compressed(data, self._static_map_data_b)
         write_compressed(data, self._path_tree_b)
@@ -149,7 +151,7 @@ class ReplayStorage:
         with open(file_path, 'r+b') as f:
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
             current_size = struct.unpack_from('<i', f.read(4), 0)[0]
-            new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size+4
+            new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
             f.seek(new_data_start_pos)
 
             f.write(struct.pack('<i', length))
@@ -169,7 +171,7 @@ class ReplayStorage:
         patch_index = np.copy(patch_index)
         data = BinaryWriter()
         index_offset = self.metadata.current_patches
-
+        assert len(paths) == len(nodes), "Not a paths list for every node"
         for i,patch in enumerate(nodes):
             if index_offset+i == 0: offset = 0
             else: offset = patch_index[index_offset+i-1]['offset'] + patch_index[index_offset+i-1]['size']
@@ -186,7 +188,7 @@ class ReplayStorage:
         with open(file_path, 'r+b') as f:
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
             current_size = struct.unpack_from('<i', f.read(4), 0)[0]
-            new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size +4
+            new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
 
             f.seek(new_data_start_pos)
 
@@ -308,6 +310,9 @@ class ReplayStorage:
         self.patch_graph = PatchGraph()
         patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
         data_pool = memoryview(self._d_pool_b)
+        if len(data_pool) == 0:
+            logger.warning("No patches found in replay.")
+            return self.patch_graph
         for offset, size in patch_index:
             if size == 0: break
             patch_data = data_pool[offset:offset + size]
