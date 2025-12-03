@@ -13,11 +13,10 @@ import numpy as np
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
-from conflict_interface.replay.custom_data_types import PATCH_INDEX_DTYPE
+from conflict_interface.replay.constants import PATCH_INDEX_DTYPE
 from conflict_interface.replay.metadata import Metadata
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
-from conflict_interface.replay.path_tree import PathTree
 from conflict_interface.replay.path_tree import PathTree
 from conflict_interface.replay.path_tree_node import PathTreeNode
 from conflict_interface.utils.binary import BinaryReader
@@ -52,9 +51,8 @@ class ReplayStorage:
     def read_full_from_disk(self, file_path: Path):
         def read_compressed(r) -> bytes:
             l = r.read_int32()
-
-            compressed = r.read_bytes(l)
-            return self.decompressor(compressed)
+            c = r.read_bytes(l)
+            return self.decompressor(c)
 
         with open(file_path, 'rb') as f:
             data = f.read()
@@ -69,16 +67,11 @@ class ReplayStorage:
 
         length = reader.read_int32()
         self._patch_index_b = reader.read_bytes(length)
-        print(f"Data pool size according to patch_index {sum(x['size'] for x in np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE))}")
-        print(np.frombuffer(self._patch_index_b, dtype = PATCH_INDEX_DTYPE))
+
         length = reader.read_int32()
         self._d_pool_b = reader.read_bytes(length)
 
-        length = reader.read_int32()
-        print(f"Last gamestate length compressed {length}")
-        compressed = reader.read_bytes(length)
-        print(f"Actual length {len(compressed)}")
-        self._last_game_state_b = self.decompressor(compressed)
+        self._last_game_state_b = read_compressed(reader)
 
     def read_append_mode_from_disk(self, file_path: Path):
         with open(file_path, 'rb') as f:
@@ -120,7 +113,6 @@ class ReplayStorage:
             writer.write_int32(len(c))
             writer.write_bytes(c)
 
-        print("Saving")
         assert self._initial_game_state_b is not None, "Initial game state is not recorded in the replay."
         assert self._static_map_data_b is not None, "Static map data is not recorded in the replay."
         assert self._path_tree_b is not None, "No Path Tree to put into memory"
@@ -153,16 +145,16 @@ class ReplayStorage:
         assert self._last_game_state_b is not None, "Last Game State is None cannot write"
         compressed = self.compressor(self._last_game_state_b)
         length = len(compressed)
-        print(f"Last gamestate length: {length}")
+
         with open(file_path, 'r+b') as f:
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
             current_size = struct.unpack_from('<i', f.read(4), 0)[0]
             new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size+4
             f.seek(new_data_start_pos)
-            print(f"Before last gamestate write. {new_data_start_pos}")
+
             f.write(struct.pack('<i', length))
             f.write(compressed)
-            print(f"File pos after last_gs_write: {f.tell()}")
+
 
     def update_metadata(self, file_path: Path):
         with open(file_path, "r+b") as f:
@@ -195,24 +187,23 @@ class ReplayStorage:
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
             current_size = struct.unpack_from('<i', f.read(4), 0)[0]
             new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size +4
-            print(f"patch_index_start: {self.metadata.patch_index_start}")
-            print(f"new data start pos: {new_data_start_pos}")
+
             f.seek(new_data_start_pos)
-            print(f"Length of acatual data: {len(data.getbuffer())}")
+
             f.write(data.getbuffer())
-            print(f"Position after write: {f.tell()}")
+
 
         with open(file_path, 'r+b') as f:
             f.seek(self.metadata.patch_index_start)
-            print(f"Writing patch_index {str(patch_index)[:100]} of size: {len(self._patch_index_b)}")
+
             f.write(self._patch_index_b)
 
         with open(file_path, 'r+b') as f:
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
             current_size = struct.unpack_from('<i', f.read(4), 0)[0]
-            print(f"Current data pool size: {current_size}")
+
             new_size = current_size + len(data.getbuffer())
-            print(f"Writing new size: {new_size}")
+
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
             f.write(struct.pack('<i', new_size))
 
