@@ -25,7 +25,7 @@ if __name__ == "__main__":
     ritf.close()
     t4 = perf_counter()
     print(f"Opening took  {t2 - t1:.2f} seconds")
-    print(f"Opts tooks {t3 - t2:.2f} seconds")
+    print(f"Opts took {t3 - t2:.2f} seconds")
     print(f"Closing took  {t4 - t3:.2f} seconds")
     print(f"Together took  {t4 - t1:.2f} seconds")
     print(f"Opening and closing took {(t2-t1+t4-t3):.2f} seconds")

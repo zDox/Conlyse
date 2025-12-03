@@ -60,12 +60,21 @@ def safe_issubclass(obj, cls):
         return False
 
 def is_primitive(obj):
-    """Check if obj is a primitive or a list/dict containing only primitives."""
+    """Check if obj is a primitive type (int, float, bool, str, bytes)."""
     if isinstance(obj, (int, float, bool, str, bytes)):
         return True
     return False
 
 def create_new_file(file_path: Path):
+    """
+    Create parent directories for the given file path if they do not exist.
+
+    Args:
+        file_path (Path): The file path for which to create parent directories.
+
+    Raises:
+        OSError: If directory creation fails.
+    """
     parent = os.path.dirname(file_path)
     if parent:
         os.makedirs(parent, exist_ok=True)

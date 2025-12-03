@@ -90,7 +90,7 @@ class ReplayStorage:
 
         length = reader.read_int32()
         compressed = reader.read_bytes(length)
-        self._path_tree_b =  self.decompressor(compressed)
+        self._path_tree_b = self.decompressor(compressed)
 
         length = reader.read_int32()
         self._patch_index_b = reader.read_bytes(length)
@@ -108,7 +108,7 @@ class ReplayStorage:
             self._metadata_b = f.read(len_metadata)
 
     def write_full_to_disk(self, file_path: Path):
-        def write_compressed(writer ,b):
+        def write_compressed(writer, b):
             c = self.compressor(b)
             writer.write_int32(len(c))
             writer.write_bytes(c)
@@ -116,13 +116,13 @@ class ReplayStorage:
         assert self._initial_game_state_b is not None, "Initial game state is not recorded in the replay."
         assert self._static_map_data_b is not None, "Static map data is not recorded in the replay."
         assert self._path_tree_b is not None, "No Path Tree to put into memory"
-        assert self._patch_index_b is not None, "Patch graph metadat has not been read."
+        assert self._patch_index_b is not None, "Patch graph metadata has not been read."
         assert self._d_pool_b is not None, "Data pool has not been read"
         assert self._last_game_state_b is not None, "Last Game state has not been set"
 
         data = BinaryWriter()
         data.write_int32(Metadata.size)
-        data.seek(Metadata.size+4)# Space holder for metadata
+        data.seek(Metadata.size + 4)  # Space holder for metadata
         write_compressed(data, self._initial_game_state_b)
         write_compressed(data, self._static_map_data_b)
         write_compressed(data, self._path_tree_b)
@@ -160,7 +160,7 @@ class ReplayStorage:
         with open(file_path, "r+b") as f:
             len_metadata = struct.unpack_from('<i', f.read(4), 0)[0]
             metadata_b = self.metadata.serialize()
-            assert(len_metadata == len(metadata_b)), "Metadat has changed length"
+            assert(len_metadata == len(metadata_b)), "Metadata has changed length"
             f.write(metadata_b)
 
     def append_patches_to_disk(self, nodes: list[PatchGraphNode], paths: list[list[tuple[int, int, str | int]]], file_path: Path):
