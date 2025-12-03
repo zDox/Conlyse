@@ -28,8 +28,6 @@ class PathTree:
 
     def add_node(self, idx, parent: PathTreeNode, path_element: str | int) -> PathTreeNode:
         new_node = PathTreeNode(parent = parent, path_element=path_element, index=idx)
-        if path_element == 'action_results':
-            pass
         parent.add_child(new_node)
         self.idx_to_node[idx] = new_node
 

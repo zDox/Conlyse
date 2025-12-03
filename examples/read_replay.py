@@ -11,6 +11,9 @@ if __name__ == "__main__":
 
     ritf = ReplayInterface(TEST_DATA / "test_replay10k.bin", mode='a', player_id=1, game_id=12345)
     ritf.replay.set_max_patches(1000)
+
+    for i in range(10000000):
+        pass
     t1 = perf_counter()
     ritf.open()
     t2 = perf_counter()
