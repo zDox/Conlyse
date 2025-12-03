@@ -121,6 +121,10 @@ class ReplayInterface(GameInterface):
         # Update the current timestamp index for O(1) next/previous operations
         self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
 
+        # DEBUG ----------------
+        return patches
+        # ----------------------
+
     def _apply_patches_and_update_state(self, patches, target_time: datetime) -> None:
         """
         Helper method to apply patches and update game state.

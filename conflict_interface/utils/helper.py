@@ -59,24 +59,10 @@ def safe_issubclass(obj, cls):
     else:
         return False
 
-def is_primitive(v) -> bool:
-    """Return True if v is msgpack-serializable using only primitive types."""
-    # Base primitive types allowed by msgpack
-    if v is None or isinstance(v, (bool, int, float, str, bytes)):
+def is_primitive(obj):
+    """Check if obj is a primitive or a list/dict containing only primitives."""
+    if isinstance(obj, (int, float, bool, str, bytes)):
         return True
-
-    # Lists/tuples: every element must be primitive
-    if isinstance(v, (list, tuple)):
-        return all(is_primitive(item) for item in v)
-
-    # Dicts: keys and values must be primitive
-    if isinstance(v, dict):
-        return all(
-            is_primitive(key) and is_primitive(value)
-            for key, value in v.items()
-        )
-
-    # Anything else is not primitive
     return False
 
 def create_new_file(file_path: Path):

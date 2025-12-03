@@ -1,7 +1,9 @@
+import json
 from copy import deepcopy
 from logging import getLogger
 from pathlib import Path
 
+from deepdiff import DeepDiff
 from tqdm import tqdm
 
 from conflict_interface.data_types.game_object import dump_any
@@ -110,7 +112,14 @@ class ReplayRoundtrip:
             ritf.jump_to(self.current_time)
             replay_state_now = ritf.game_state
 
-            compare_dicts(dump_any(replay_state), dump_any(recorder_state))
+            dict_replay_state = dump_any(replay_state)
+            dict_recorder_state = dump_any(recorder_state)
+
+            diff = DeepDiff(dict_replay_state, dict_recorder_state)
+            print(diff)
+            print(dict_replay_state['actionResults'].get('@c'))
+
+
             ritf.replay.storage.path_tree.validate_tree_structure()
 
             # Analyze applied patches
@@ -149,6 +158,7 @@ class ReplayRoundtrip:
         # Debug: Working stats:
         dict_is = dump_any(game_is)
         dict_should = dump_any(game_should)
+
 
         return dict_is == dict_should
 
