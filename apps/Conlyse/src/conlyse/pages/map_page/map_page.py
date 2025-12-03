@@ -1,7 +1,9 @@
 import logging
 
 from PyQt6.QtCore import QEvent
+from PyQt6.QtCore import QTimer
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtGui import QKeySequence
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtGui import QShortcut
@@ -9,17 +11,21 @@ from PyQt6.QtGui import QSurfaceFormat
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QApplication, QVBoxLayout, QWidget
 from conflict_interface.data_types.point import Point
+from conflict_interface.interface.replay_interface import ReplayInterface
+from conflict_interface.logger_config import setup_library_logger
 
 from conlyse.logger import get_logger
 from conlyse.logger import setup_logger
 from conlyse.pages.map_page.map import Map  # assuming this is correct
+from conlyse.pages.map_page.province_mesh_builder import prepare_provinces
 
 logger = get_logger()
 
 
 class MapPage(QWidget):
-    def __init__(self):
+    def __init__(self, ritf: ReplayInterface):
         super().__init__()
+        self.ritf = ritf
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -29,26 +35,24 @@ class MapPage(QWidget):
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
         QSurfaceFormat.setDefaultFormat(fmt)
 
-        self.map_widget: Map = Map()
+        self.map_widget: Map = Map(ritf)
         layout.addWidget(self.map_widget)
         self.setLayout(layout)
 
+        # State for mouse dragging and keyboard input
         self.last_mouse_pos: Point | None = None
         self.dragging = False
+        self.pressed_keys: set[int] = set()
 
     def setup(self):
-        self.setup_keybindings()
+        pass
 
-    def setup_keybindings(self):
-        movements = {
-            "w": (0, 10),
-            "s": (0, -10),
-            "a": (-10, 0),
-            "d": (10, 0),
-        }
-        for key, (move_dx, move_dy) in movements.items():
-            shortcut = QShortcut(QKeySequence(key), self)
-            shortcut.activated.connect(lambda dx=move_dx, dy=move_dy: self.map_widget.handle_camera_move(dx, dy))
+    # ---- Input event handlers ----
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        self.pressed_keys.add(event.key())
+
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+        self.pressed_keys.discard(event.key())
 
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -72,14 +76,29 @@ class MapPage(QWidget):
         delta = event.angleDelta().y()
         zoom_factor = 1.1 if delta > 0 else 0.9
         new_zoom = self.map_widget.camera.zoom * zoom_factor
-        print("Wheel event:", delta, "New zoom:", new_zoom)
         x, y = event.position().x(), event.position().y()
-        print("Mouse position:", x, y)
         self.map_widget.camera.zoom_to(new_zoom, x, y)
         self.map_widget.update()
 
+    # ---- Update Camera ----
+    def update_camera(self):
+        step = 10
+        config = {
+            Qt.Key.Key_W: (0, step),
+            Qt.Key.Key_S: (0, -step),
+            Qt.Key.Key_A: (-step, 0),
+            Qt.Key.Key_D: (step, 0),
+        }
+        any_updated = False
+        for key, (dx, dy) in config.items():
+            if key in self.pressed_keys:
+                self.map_widget.handle_camera_move(dx, dy)
+                any_updated = True
+        if any_updated:
+            self.map_widget.update()
+
     def update(self):
-        pass
+        self.update_camera()
 
     def clean_up(self):
         pass
@@ -87,10 +106,17 @@ class MapPage(QWidget):
 
 if __name__ == '__main__':
     setup_logger(logging.DEBUG)
+    setup_library_logger(logging.DEBUG)
     app = QApplication([])
-    map_page = MapPage()
+    ritf = ReplayInterface("test_replay.bin")
+    ritf.open()
+    print(ritf.get_provinces_by_name("Wyoming").id)
+    map_page = MapPage(ritf)
     map_page.setup()
     map_page.resize(800, 600)
     map_page.show()
-
+    # Timer for smooth continuous key movement
+    timer = QTimer(map_page)
+    timer.timeout.connect(map_page.update_camera)
+    timer.start(16)  # ~60 FPS
     app.exec()

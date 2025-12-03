@@ -11,3 +11,4 @@ config.json
 /tests/test_data/
 /app_data/
 /src/conlyse.egg-info/
+/src/conlyse/pages/map_page/test_replay.bin
