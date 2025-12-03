@@ -97,7 +97,7 @@ class FromJsonResponsesUsingUpdateToReplay:
                 game_activation_count += 1
                 logger.debug(f"Skipping response {i} as it is an UltActivateGameAction")
                 if game_activation_count > 2:
-                    logger.error(f"More then 2 UltActivateGameActions!!!")
+                    logger.error(f"More than 2 UltActivateGameActions!!!")
                 continue
             new_state: GameState = parse_any(GameState, json_response["result"], mock_game)
             current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))

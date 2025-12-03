@@ -98,7 +98,7 @@ class PatchGraphNode:
         primitive_values = msgpack.unpackb(primitives, raw=False)
         complex_values = pickle.loads(complexes)
 
-        if not game is None:
+        if game is not None:
             for v in complex_values:
                 GameObject.set_game_recursive(v, game)
 
@@ -124,8 +124,9 @@ class PatchGraphNode:
         return patch_graph_node, new_paths
 
     @staticmethod
-    def extract_tree_nodes(patch_b) -> list[tuple[int,int,int | str]]:
-        offset = 24  # 8 + 8 + 4 + 4
+    def extract_tree_nodes(patch_b) -> list[tuple[int, int, int | str]]:
+        header_format = '<qqii'  # 2 int64s, 2 int32s
+        offset = struct.calcsize(header_format)
 
         # Read uint32 (use '<I' for little-endian unsigned int, '>I' for big-endian)
         new_paths_len = struct.unpack_from('<I', patch_b, offset)[0]

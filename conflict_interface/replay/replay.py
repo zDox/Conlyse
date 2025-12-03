@@ -186,7 +186,7 @@ class Replay:
             to_timestamp=to_timestamp,
             op_types=forward['op_types'],
             paths = forward['paths'],
-            values= forward['values']
+            values = forward['values']
         )
         backward_node = PatchGraphNode(
             from_timestamp=to_timestamp,
@@ -218,18 +218,18 @@ class Replay:
             backward = self.ops_to_lists(reversed(patch.backward_patch.operations), None)
 
             forward_node = PatchGraphNode(
-                from_timestamp = from_timestamp,
-                to_timestamp = to_timestamp,
-                op_types = forward['op_types'],
-                paths = forward['paths'],
-                values = forward['values']
+                from_timestamp=from_timestamp,
+                to_timestamp=to_timestamp,
+                op_types=forward['op_types'],
+                paths=forward['paths'],
+                values=forward['values']
             )
             backward_node = PatchGraphNode(
-                from_timestamp = to_timestamp,
-                to_timestamp = from_timestamp,
-                op_types = backward['op_types'],
-                paths = backward['paths'],
-                values = backward['values']
+                from_timestamp=to_timestamp,
+                to_timestamp=from_timestamp,
+                op_types=backward['op_types'],
+                paths=backward['paths'],
+                values=backward['values']
             )
 
             nodes.append(forward_node)
