@@ -50,11 +50,10 @@ def prepare_provinces(locations: list[StaticProvince]):
         province_colors.append(color)
 
 
-    vertex_data = np.array(vertex_data, dtype=np.float32)
+    vertex_data = np.array(vertex_data, dtype=np.float32).flatten()
     province_color_index_data = np.array(province_color_index_data, dtype=np.int32)
     color_data = np.array(province_colors, dtype=np.float32).flatten()
-    print(color_data[8: 8+3])
-    print(f"Prepared {len(vertex_data)//3} triangles for provinces.")
-    print(vertex_data)
-    print(province_color_index_data)
+    assert len(vertex_data) // 2 == len(province_color_index_data)
+    print(f"Prepared mesh for {len(locations)} provinces with {len(vertex_data)//2} vertices.")
+    print(f"Prepared {len(color_data)//3} province colors.")
     return vertex_data.flatten(), province_color_index_data, color_data, max_province_id
