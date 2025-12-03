@@ -13,12 +13,8 @@ def prepare_provinces(locations: list[StaticProvince]):
     province_colors = []
     max_province_id = 0
     for location in locations:
-        if location.id not in (305, 5412):
-            continue
-        print(location.borders)
-        print(location.id)
         # random color for province
-        color_index = location.id
+        color_index = location.id % 1000
         max_province_id = max(max_province_id, color_index)
         border_points = location.borders
         # Skip if less than 3 points
@@ -46,10 +42,9 @@ def prepare_provinces(locations: list[StaticProvince]):
                 (vertices[c][0], vertices[c][1])
             ]
             vertex_data.extend(triangle)
-            province_color_index_data.append(color_index % 1000)
-            # Print the triangle coordinates for inspection
-            print(f"Triangle {i // 3}: {triangle}")
-
+            province_color_index_data.append(color_index)
+            province_color_index_data.append(color_index)
+            province_color_index_data.append(color_index)
     for i in range(1000):
         color = (np.random.rand(), np.random.rand(), np.random.rand())
         province_colors.append(color)

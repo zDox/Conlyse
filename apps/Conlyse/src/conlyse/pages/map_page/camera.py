@@ -52,7 +52,7 @@ class Camera:
         dx = dx / self.zoom
         dy = dy / self.zoom
         self.x += dx
-        self.y += dy
+        self.y -= dy
         self._clamp_position()
 
     def zoom_to(self, new_zoom, mouse_x, mouse_y):
@@ -120,7 +120,7 @@ class Camera:
         # Orthographic projection from world space to NDC
         proj = np.array([
             [2 / (right - left), 0, -(right + left) / (right - left)],
-            [0, 2 / (top - bottom), -(top + bottom) / (top - bottom)],
+            [0, 2 / (bottom - top), -(bottom + top) / (bottom - top)],
             [0, 0, 1]
         ], dtype=np.float32)
 

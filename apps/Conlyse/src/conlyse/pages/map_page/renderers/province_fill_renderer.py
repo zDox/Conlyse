@@ -54,7 +54,6 @@ class ProvinceFillRenderer:
         loc = gl.glGetAttribLocation(self.program.program_id, b"position")
         self.vao.add_vbo(self.positions_vbo, loc, 2, 0, 0)
 
-        print(self.vertex_data)
         self.province_color_index_vbo = VertexBufferObject(province_color_index_data, BufferUsageType.STATIC_DRAW)
         province_color_index_loc = gl.glGetAttribLocation(self.program.program_id, b"province_color_index")
         self.vao.add_vbo(self.province_color_index_vbo, province_color_index_loc, 1, 0, 0,
