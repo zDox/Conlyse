@@ -14,7 +14,7 @@ class Metadata:
     is_fragmented: bool
 
     def serialize(self) -> bytes:
-        return struct.pack(">iiiii?",
+        return struct.pack("<iiiii?",
                            self.start_time,
                            self.last_time,
                            self. max_patches,
@@ -24,6 +24,6 @@ class Metadata:
 
     @staticmethod
     def deserialize(data: bytes) -> 'Metadata':
-        start_time, last_time, max_patches, current_patches, patch_index_start, is_fragmented = struct.unpack(">iiiii?", data)
+        start_time, last_time, max_patches, current_patches, patch_index_start, is_fragmented = struct.unpack("<iiiii?", data)
         return Metadata(start_time, last_time, max_patches, current_patches, patch_index_start, is_fragmented)
 

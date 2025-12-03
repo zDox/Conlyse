@@ -136,7 +136,6 @@ class Replay:
             self.storage.unload_path_tree()
             self.storage.unload_patches()
             self.storage.unload_last_game_state()
-            self.storage.write_last_game_state(self.file_path)
             # Assumes that initial-game-state and static-map-data have been unloaded on initial record
             self.storage.write_full_to_disk(self.file_path)
         elif self.mode in ['a']:
@@ -177,6 +176,8 @@ class Replay:
         forward_operations = replay_patch.forward_patch.operations
         backward_operations = reversed(replay_patch.backward_patch.operations)
 
+        self.storage.path_tree.fill(forward_operations)
+
         forward = self.ops_to_lists(forward_operations, game)
         backward = self.ops_to_lists(backward_operations, game)
 
@@ -207,8 +208,12 @@ class Replay:
         to_timestamp = int(time_stamp.timestamp())
 
         nodes = []
-        paths_added = []
+        all_new_paths = []
         for patch in replay_patches:
+            new_nodes = self.storage.path_tree.fill(patch.forward_patch.operations)
+            new_paths = []
+            for node in new_nodes:
+                new_paths.append((node.index, node.parent.index, node.path_element))
             forward = self.ops_to_lists(patch.forward_patch.operations, None)
             backward = self.ops_to_lists(reversed(patch.backward_patch.operations), None)
 
@@ -226,15 +231,17 @@ class Replay:
                 paths = backward['paths'],
                 values = backward['values']
             )
-            paths_added.append(forward['paths_added'])
-            paths_added.append(backward['paths_added'])
+
             nodes.append(forward_node)
             nodes.append(backward_node)
+
+            all_new_paths.append(new_paths)
+            all_new_paths.append([]) # Assume forward and backwards have the same paths
 
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
-        self.storage.append_patches_to_disk(nodes, paths_added, self.file_path)
+        self.storage.append_patches_to_disk(nodes, all_new_paths, self.file_path)
 
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
@@ -295,15 +302,10 @@ class Replay:
         op_types = []
         paths = []
         values = []
-        paths_added = []
 
         for op in operations:
-            existed = self.storage.path_tree.exists(op.path)
-            idx = self.storage.path_tree.get_or_add_path_node(op.path)
+            idx = self.storage.path_tree.old_path_to_idx(op.path)
             paths.append(idx)
-            if not existed:
-                node = self.storage.path_tree.idx_to_node[idx]
-                paths_added.append((idx, node.parent.index, node.path_element))
 
             if game is not None:
                 GameObject.set_game_recursive(op.new_value, None)
@@ -329,7 +331,6 @@ class Replay:
             'op_types': op_types,
             'paths': paths,
             'values': values,
-            'paths_added': paths_added,
         }
 
     def validate_game(self, game_id: int, player_id: int):

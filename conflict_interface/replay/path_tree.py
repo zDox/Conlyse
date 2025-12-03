@@ -26,27 +26,30 @@ class PathTree:
         self.parent = None
         self.first = None
 
-    def add_node(self, parent: PathTreeNode, path_element: str | int, idx = None) -> PathTreeNode:
-        new_node = PathTreeNode(parent = parent, path_element=path_element, index=self.idx_counter)
+    def add_node(self, idx, parent: PathTreeNode, path_element: str | int) -> PathTreeNode:
+        new_node = PathTreeNode(parent = parent, path_element=path_element, index=idx)
         if path_element == 'action_results':
             pass
         parent.add_child(new_node)
-        if idx is not None:
-            if idx != self.idx_counter:
-                raise ValueError("Wrong index probably")
-        self.idx_to_node[self.idx_counter] = new_node
+        self.idx_to_node[idx] = new_node
 
         self.idx_counter += 1
         return new_node
 
-    def get_or_add_path_node(self, path: list[str | int]) -> int:
-        current_node = self.root
-        for path_element in path:
-            if current_node.has_child(path_element):
-                current_node = current_node.get_child(path_element)
-            else:
-                current_node = self.add_node(current_node, path_element)
-        return current_node.index
+    def fill(self, operations) -> list[PathTreeNode]:
+        added_nodes = []
+        for op in operations:
+            path = op.path
+            current_node = self.root
+            for path_element in path:
+                if current_node.has_child(path_element):
+                    current_node = current_node.get_child(path_element)
+                else:
+                    current_node = self.add_node(self.idx_counter, current_node, path_element)
+                    added_nodes.append(current_node)
+
+        return added_nodes
+
 
     def precompute(self):
         self.precompute_euler_tour()
@@ -286,7 +289,7 @@ class PathTree:
             current = current.children[path_element]
         return current.index
 
-    def exists(self, path: list[str]) -> bool:
+    def exists(self, path: list[str | int]) -> bool:
         current = self.root
         for path_element in path:
             current = current.children.get(path_element, -1)
