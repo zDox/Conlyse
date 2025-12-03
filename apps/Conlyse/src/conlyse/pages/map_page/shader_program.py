@@ -1,0 +1,22 @@
+import OpenGL.GL as gl
+
+class ShaderProgram:
+    def __init__(self):
+        self.program_id = gl.glCreateProgram()
+        self.shaders = []
+
+    def attach_shader(self, shader):
+        gl.glAttachShader(self.program_id, shader.shader_id)
+        self.shaders.append(shader)
+
+    def use_program(self):
+        gl.glUseProgram(self.program_id)
+
+    def link_program(self):
+        gl.glLinkProgram(self.program_id)
+        if not gl.glGetProgramiv(self.program_id, gl.GL_LINK_STATUS):
+            error = gl.glGetProgramInfoLog(self.program_id).decode()
+            raise RuntimeError(f"Shader program linking error: {error}")
+
+        for shader in self.shaders:
+            gl.glDeleteShader(shader.shader_id)
