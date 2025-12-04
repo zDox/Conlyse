@@ -49,10 +49,10 @@ class Camera:
         """
         Pan the camera by (dx, dy) in screen coordinates.
         """
-        dx = dx / self.zoom
-        dy = dy / self.zoom
-        self.x += dx
-        self.y -= dy
+        screen_x, screen_y = self.world_to_screen(self.x, self.y)
+        screen_x += dx
+        screen_y += dy
+        self.x, self.y = self.screen_to_world(screen_x, screen_y)
         self._clamp_position()
 
     def zoom_to(self, new_zoom, mouse_x, mouse_y):
@@ -91,6 +91,21 @@ class Camera:
 
         wx, wy, _ = inv_vp @ np.array([x, y, 1])
         return np.array([wx, wy], dtype=np.float32)
+
+    def world_to_screen(self, wx, wy):
+        """Convert world coordinates to screen coordinates."""
+        width = self.map.width()
+        height = self.map.height()
+
+        # Apply view-projection
+        vp = self.get_view_projection_matrix()
+        sx, sy, _ = vp @ np.array([wx, wy, 1])
+
+        # Convert NDC → screen
+        sx = (sx + 1) / 2 * width
+        sy = (1 - sy) / 2 * height
+
+        return np.array([sx, sy], dtype=np.float32)
 
     def get_view_projection_matrix(self):
         """

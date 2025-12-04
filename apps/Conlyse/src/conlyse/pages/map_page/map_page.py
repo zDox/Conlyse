@@ -1,15 +1,14 @@
 import logging
 
-from PyQt6.QtCore import QEvent
 from PyQt6.QtCore import QTimer
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent
-from PyQt6.QtGui import QKeySequence
 from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtGui import QShortcut
 from PyQt6.QtGui import QSurfaceFormat
 from PyQt6.QtGui import QWheelEvent
-from PyQt6.QtWidgets import QApplication, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QVBoxLayout
+from PyQt6.QtWidgets import QWidget
 from conflict_interface.data_types.point import Point
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
@@ -17,7 +16,6 @@ from conflict_interface.logger_config import setup_library_logger
 from conlyse.logger import get_logger
 from conlyse.logger import setup_logger
 from conlyse.pages.map_page.map import Map  # assuming this is correct
-from conlyse.pages.map_page.province_mesh_builder import prepare_provinces
 
 logger = get_logger()
 
@@ -66,7 +64,7 @@ class MapPage(QWidget):
             delta = event_pos - self.last_mouse_pos
             self.last_mouse_pos = event_pos
 
-            self.map_widget.handle_camera_move(-delta.x, delta.y)
+            self.map_widget.handle_camera_move(-delta.x, -delta.y)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -84,8 +82,8 @@ class MapPage(QWidget):
     def update_camera(self):
         step = 10
         config = {
-            Qt.Key.Key_W: (0, step),
-            Qt.Key.Key_S: (0, -step),
+            Qt.Key.Key_W: (0, -step),
+            Qt.Key.Key_S: (0, step),
             Qt.Key.Key_A: (-step, 0),
             Qt.Key.Key_D: (step, 0),
         }
