@@ -14,7 +14,7 @@ def prepare_provinces(locations: list[StaticProvince]):
     max_province_id = 0
     for location in locations:
         # random color for province
-        color_index = location.id % 1000
+        color_index = location.id
         max_province_id = max(max_province_id, color_index)
         border_points = location.borders
         # Skip if less than 3 points
@@ -45,15 +45,27 @@ def prepare_provinces(locations: list[StaticProvince]):
             province_color_index_data.append(color_index)
             province_color_index_data.append(color_index)
             province_color_index_data.append(color_index)
-    for i in range(1000):
-        color = (np.random.rand(), np.random.rand(), np.random.rand())
-        province_colors.append(color)
 
+    def hash_color(i):
+        i = (i ^ 61) ^ (i >> 16)
+        i = i + (i << 3)
+        i = i ^ (i >> 4)
+        i = i * 0x27d4eb2d
+        i = i ^ (i >> 15)
+        return [
+            (i >> 16) & 0xFF,
+            (i >> 8) & 0xFF,
+            i & 0xFF,
+            255
+        ]
+
+    for i in range(max_province_id + 1):
+        province_colors.append(hash_color(i))
 
     vertex_data = np.array(vertex_data, dtype=np.float32).flatten()
     province_color_index_data = np.array(province_color_index_data, dtype=np.int32)
-    color_data = np.array(province_colors, dtype=np.float32).flatten()
+    color_data = np.array(province_colors, dtype=np.uint8).flatten()
     assert len(vertex_data) // 2 == len(province_color_index_data)
     print(f"Prepared mesh for {len(locations)} provinces with {len(vertex_data)//2} vertices.")
-    print(f"Prepared {len(color_data)//3} province colors.")
-    return vertex_data.flatten(), province_color_index_data, color_data, max_province_id
+    print(f"Prepared {len(color_data)//4} province colors.")
+    return vertex_data, province_color_index_data, color_data, max_province_id

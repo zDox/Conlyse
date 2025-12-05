@@ -6,7 +6,7 @@ import numpy as np
 if TYPE_CHECKING:
     from conlyse.pages.map_page.map import Map
 
-MIN_ZOOM = 0.01
+MIN_ZOOM = 1
 MAX_ZOOM = 20.0
 
 WORLD_MIN_X, WORLD_MIN_Y = 0, 0
@@ -21,10 +21,10 @@ class Camera:
         self.zoom = zoom
 
         # Camera movement bounds (None = no limit)
-        self.min_x = None
-        self.min_y = None
-        self.max_x = None
-        self.max_y = None
+        self.min_x = WORLD_MIN_X
+        self.min_y = WORLD_MIN_Y
+        self.max_x = WORLD_MAX_X
+        self.max_y = WORLD_MAX_Y
 
     def _clamp_position(self):
         """Clamp camera position to movement bounds."""
@@ -53,7 +53,9 @@ class Camera:
         screen_x += dx
         screen_y += dy
         self.x, self.y = self.screen_to_world(screen_x, screen_y)
+        print(f"Camera moved to world position: ({self.x}, {self.y})")
         self._clamp_position()
+        print(f"Camera clamped to world position: ({self.x}, {self.y})")
 
     def zoom_to(self, new_zoom, mouse_x, mouse_y):
         """Zoom toward the mouse cursor, like Google Maps."""

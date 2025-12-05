@@ -1,8 +1,6 @@
-import ctypes
 from pathlib import Path
-import mapbox_earcut as earcut
+
 import OpenGL.GL as gl
-import numpy as np
 from conflict_interface.data_types.map_state.static_province import StaticProvince
 
 from conlyse.logger import get_logger
@@ -14,6 +12,7 @@ from conlyse.pages.map_page.opengl_wrapper.vertex_array_object import VertexArra
 from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import BufferUsageType
 from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import VertexBufferObject
 from conlyse.pages.map_page.province_mesh_builder import prepare_provinces
+from conlyse.pages.map_page.province_color_texture import ProvinceColorTexture
 
 logger = get_logger()
 
@@ -26,8 +25,9 @@ class ProvinceFillRenderer:
 
         self.vao = None
         self.positions_vbo = None
-        self.u_province_colors = None
+        self.t_province_colors = None
         self.province_color_index_vbo = None
+        self.province_color_data = None
 
     def initialize(self, locations: list[StaticProvince]):
         # Compile shaders and link program
@@ -47,9 +47,7 @@ class ProvinceFillRenderer:
         self.vao = VertexArrayObject()
         self.vao.bind()
 
-        print("Preparing province mesh data...")
-        self.vertex_data, province_color_index_data, self.u_province_colors, max_province_id = prepare_provinces(locations)
-
+        self.vertex_data, province_color_index_data, self.province_color_data, max_province_id = prepare_provinces(locations)
         self.positions_vbo = VertexBufferObject(self.vertex_data, BufferUsageType.STATIC_DRAW)
         loc = gl.glGetAttribLocation(self.program.program_id, b"position")
         self.vao.add_vbo(self.positions_vbo, loc, 2, 0, 0)
@@ -59,6 +57,8 @@ class ProvinceFillRenderer:
         self.vao.add_vbo(self.province_color_index_vbo, province_color_index_loc, 1, 0, 0,
                          element_type=OpenGLTypes.INT)
         self.province_color_index_vbo.unbind()
+        self.t_province_colors = ProvinceColorTexture(self.province_color_data)
+
 
         self.vao.unbind()
 
@@ -69,9 +69,11 @@ class ProvinceFillRenderer:
         vp = self.camera.get_view_projection_matrix()
         gl.glUniformMatrix3fv(gl.glGetUniformLocation(self.program.program_id, b"uViewProjection"), 1, gl.GL_TRUE, vp)
 
-        gl.glUniform3fv(gl.glGetUniformLocation(self.program.program_id, b"uProvinceColors"),
-                        len(self.u_province_colors) // 3,
-                        self.u_province_colors)
+        gl.glUniform1i(gl.glGetUniformLocation(self.program.program_id, b"uProvinceColorsTex"), 0)
+        gl.glUniform1i(gl.glGetUniformLocation(self.program.program_id, b"uNumColors"), len(self.province_color_data) // 3)
+
+        gl.glActiveTexture(gl.GL_TEXTURE0)
+        self.t_province_colors.bind()
 
         self.vao.bind()
         gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.vertex_data))
