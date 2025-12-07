@@ -122,10 +122,11 @@ if __name__ == '__main__':
 
     map_page = MapPage(ritf)
     map_page.setup()
-    map_page.resize(800, 600)
+    map_page.resize(1200, 800)
     map_page.show()
     # Timer for smooth continuous key movement
-    timer = QTimer(map_page)
-    timer.timeout.connect(map_page.update_camera)
-    timer.start(16)  # ~60 FPS
+    frame_timer = QTimer(map_page)
+    frame_timer.timeout.connect(map_page.update_camera)
+    frame_timer.start(16)  # ~60 FPS
+
     app.exec()

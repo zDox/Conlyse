@@ -5,7 +5,10 @@ from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.map_views.map_view import MapView
+from conlyse.pages.map_page.map_views.map_view_type import MAPVIEWTYPE_TO_CLASS
+from conlyse.pages.map_page.map_views.map_view_type import MapViewType
 from conlyse.pages.map_page.map_views.political_view import PoliticalView
+from conlyse.pages.map_page.map_views.terrain_view import TerrainView
 from conlyse.pages.map_page.opengl_wrapper.opengl_types import OpenGLTypes
 from conlyse.pages.map_page.opengl_wrapper.shader import Shader
 from conlyse.pages.map_page.opengl_wrapper.shader import ShaderType
@@ -21,18 +24,13 @@ class ProvinceFillRenderer:
         self.ritf = ritf
         self.camera = camera
         self.province_mesh = None
-        self.map_views: dict[type(MapView), MapView | None] = {
-            PoliticalView: None,
+        self.map_views: dict[MapViewType, MapView | None] = {
+            MapViewType.POLITICAL: None,
+            MapViewType.TERRAIN: None
         }
-        self.active_map_view: MapView | None = None
         self.program = None
 
         self.vao = None
-
-    def switch_map_view(self, map_view_type: type(MapView)):
-        if map_view_type not in self.map_views:
-            raise ValueError(f"Map view type {map_view_type} not recognized.")
-        self.active_map_view = self.map_views[map_view_type]
 
 
     def initialize(self):
@@ -54,11 +52,11 @@ class ProvinceFillRenderer:
         self.province_mesh.initialize()
 
         for map_view_type in self.map_views.keys():
-            logger.debug(f"Initializing map view: {map_view_type.__name__}")
-            self.map_views[map_view_type] = map_view_type(self.ritf, self.province_mesh.max_province_id)
+            logger.debug(f"Initializing map view: {map_view_type}")
+            map_view_class = MAPVIEWTYPE_TO_CLASS[map_view_type]
+            self.map_views[map_view_type] = map_view_class(self.ritf, self.province_mesh.max_province_id)
             self.map_views[map_view_type].build_color_data()
             self.map_views[map_view_type].initialize()
-            self.active_map_view = self.map_views[map_view_type]  # Set the last initialized as active by default
 
 
         self.vao = VertexArrayObject()
@@ -72,10 +70,7 @@ class ProvinceFillRenderer:
 
         self.vao.unbind()
 
-    def render(self):
-        if self.active_map_view is None:
-            logger.warning("No active map view set for ProvinceFillRenderer. Skipping render.")
-            return
+    def render(self, map_view_type: MapViewType):
         # Render the filled provinces
         self.program.use_program()
 
@@ -86,7 +81,7 @@ class ProvinceFillRenderer:
         gl.glUniform1i(gl.glGetUniformLocation(self.program.program_id, b"uNumColors"), self.province_mesh.max_province_id + 1)
 
         gl.glActiveTexture(gl.GL_TEXTURE0)
-        self.active_map_view.texture.bind()
+        self.map_views[map_view_type].texture.bind()
 
         self.vao.bind()
         gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.province_mesh._vertex_data) // 2)

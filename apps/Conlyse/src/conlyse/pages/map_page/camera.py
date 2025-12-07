@@ -6,7 +6,8 @@ import numpy as np
 if TYPE_CHECKING:
     from conlyse.pages.map_page.map import Map
 
-MIN_ZOOM = 1
+MIN_ZOOM = 1.5
+INITIAL_ZOOM = 1.5
 MAX_ZOOM = 20.0
 
 WORLD_MIN_X, WORLD_MIN_Y = 0, 0
@@ -14,11 +15,12 @@ WORLD_MAX_X, WORLD_MAX_Y = 15393, 6566  # Example world
 
 
 class Camera:
-    def __init__(self, map: Map, x=0, y=0, zoom=1):
+    def __init__(self, map: Map):
         self.map = map
-        self.x = x  # Camera center in world coordinates
-        self.y = y  # Camera center in world coordinates
-        self.zoom = zoom
+        # Start centered in the world
+        self.x = (WORLD_MIN_X + WORLD_MAX_X) / 2
+        self.y = (WORLD_MIN_Y + WORLD_MAX_Y) / 2
+        self.zoom = INITIAL_ZOOM
 
         # Camera movement bounds (None = no limit)
         self.min_x = WORLD_MIN_X
@@ -26,16 +28,40 @@ class Camera:
         self.max_x = WORLD_MAX_X
         self.max_y = WORLD_MAX_Y
 
+    def _get_visible_rect(self):
+        """Calculate the visible world space dimensions based on zoom and aspect ratio."""
+        screen_width = self.map.width()
+        screen_height = self.map.height()
+        aspect_ratio = screen_width / screen_height
+
+        world_width = (WORLD_MAX_X - WORLD_MIN_X) / self.zoom
+        world_height = (WORLD_MAX_Y - WORLD_MIN_Y) / self.zoom
+
+        if aspect_ratio > 1:
+            world_width *= aspect_ratio
+        else:
+            world_height /= aspect_ratio
+
+        left = self.x - world_width / 2
+        right = self.x + world_width / 2
+        bottom = self.y - world_height / 2
+        top = self.y + world_height / 2
+        return left, right, bottom, top
+
     def _clamp_position(self):
-        """Clamp camera position to movement bounds."""
-        if self.min_x is not None and self.x < self.min_x:
-            self.x = self.min_x
-        if self.max_x is not None and self.x > self.max_x:
-            self.x = self.max_x
-        if self.min_y is not None and self.y < self.min_y:
-            self.y = self.min_y
-        if self.max_y is not None and self.y > self.max_y:
-            self.y = self.max_y
+        """Clamp camera viewport to world. Such that one cannot see beyond world edges."""
+        left, right, bottom, top = self._get_visible_rect()
+        world_width = right - left
+        world_height = top - bottom
+
+        half_width = world_width / 2
+        half_height = world_height / 2
+
+        self.x = max(self.x, self.min_x + half_width)
+        self.x = min(self.x, self.max_x - half_width)
+        self.y = max(self.y, self.min_y + half_height)
+        self.y = min(self.y, self.max_y - half_height)
+
 
     def set_bounds(self, min_x=None, min_y=None, max_x=None, max_y=None):
         """Set world coordinate bounds for camera movement."""
@@ -64,7 +90,6 @@ class Camera:
         before = self.screen_to_world(mouse_x, mouse_y)
 
         # Apply zoom
-        old = self.zoom
         self.zoom = new_zoom
 
         # World space under cursor after zoom
@@ -112,25 +137,7 @@ class Camera:
         Returns the view-projection matrix that maps from world coordinates to NDC.
         """
         # Calculate the visible world space based on zoom and screen aspect ratio
-        screen_width = self.map.width()
-        screen_height = self.map.height()
-        aspect_ratio = screen_width / screen_height
-
-        # World space dimensions visible at current zoom
-        world_width = (WORLD_MAX_X - WORLD_MIN_X) / self.zoom
-        world_height = (WORLD_MAX_Y - WORLD_MIN_Y) / self.zoom
-
-        # Adjust for aspect ratio to prevent distortion
-        if aspect_ratio > 1:
-            world_width *= aspect_ratio
-        else:
-            world_height /= aspect_ratio
-
-        # Calculate visible bounds centered on camera position
-        left = self.x - world_width / 2
-        right = self.x + world_width / 2
-        bottom = self.y - world_height / 2
-        top = self.y + world_height / 2
+        left, right, bottom, top = self._get_visible_rect()
 
         # Orthographic projection from world space to NDC
         proj = np.array([
