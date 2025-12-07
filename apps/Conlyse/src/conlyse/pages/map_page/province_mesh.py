@@ -2,6 +2,7 @@ import numpy as np
 from conflict_interface.data_types.map_state.static_province import StaticProvince
 import mapbox_earcut as earcut
 
+
 def prepare_provinces(locations: list[StaticProvince]):
     """
     Prepare VBO data for provinces
@@ -51,3 +52,7 @@ def prepare_provinces(locations: list[StaticProvince]):
     assert len(vertex_data) // 2 == len(province_color_index_data)
     print(f"Prepared mesh for {len(locations)} provinces with {len(vertex_data)//2} vertices.")
     return vertex_data, province_color_index_data, max_province_id
+
+class ProvinceMesh:
+    def __init__(self, locations: list[StaticProvince]):
+        self.vertex_data, self.province_color_index_data, self.max_province_id = prepare_provinces(locations)

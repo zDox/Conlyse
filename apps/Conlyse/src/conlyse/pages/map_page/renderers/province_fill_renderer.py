@@ -2,8 +2,12 @@ from pathlib import Path
 
 import OpenGL.GL as gl
 from conflict_interface.data_types.map_state.static_province import StaticProvince
+from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger
+from conlyse.pages.map_page.map_view import MapView
+
+from conlyse.pages.map_page.map_views.map_view import MapViewType
 from conlyse.pages.map_page.opengl_wrapper.opengl_types import OpenGLTypes
 from conlyse.pages.map_page.opengl_wrapper.shader import Shader
 from conlyse.pages.map_page.opengl_wrapper.shader import ShaderType
@@ -11,6 +15,7 @@ from conlyse.pages.map_page.opengl_wrapper.shader_program import ShaderProgram
 from conlyse.pages.map_page.opengl_wrapper.vertex_array_object import VertexArrayObject
 from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import BufferUsageType
 from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import VertexBufferObject
+from conlyse.pages.map_page.province_mesh import ProvinceMesh
 from conlyse.pages.map_page.province_mesh_builder import prepare_provinces
 from conlyse.pages.map_page.province_color_texture import ProvinceColorTexture
 
@@ -18,18 +23,24 @@ logger = get_logger()
 
 
 class ProvinceFillRenderer:
-    def __init__(self, camera):
+    def __init__(self, ritf: ReplayInterface, camera):
+        self.ritf = ritf
         self.camera = camera
+        self.province_mesh = None
+        self.map_views: dict[type(MapView), MapView] = {}
+        self.active_map_view_type: MapViewType = MapViewType.POLITICAL
         self.program = None
-        self.vertex_data = None
 
         self.vao = None
-        self.positions_vbo = None
-        self.t_province_colors = None
         self.province_color_index_vbo = None
-        self.province_color_data = None
 
-    def initialize(self, locations: list[StaticProvince]):
+    def switch_map_view(self, map_view_type: MapViewType):
+        if map_view_type not in self.map_views:
+            raise ValueError(f"Map view type {map_view_type} not recognized.")
+        self.active_map_view_type = map_view_type
+
+
+    def initialize(self):
         # Compile shaders and link program
         self.program = ShaderProgram()
         vertex_shader = Shader(ShaderType.VERTEX, Path("renderers/shaders/vertex_shader.glsl"))
@@ -43,6 +54,13 @@ class ProvinceFillRenderer:
         self.program.link_program()
 
         self.program.use_program()
+
+        self.province_mesh = ProvinceMesh(self.ritf.game_state.states.map_state.map.static_map_data.locations)
+
+        for map_view in MapView:
+            self.map_views[]
+
+
 
         self.vao = VertexArrayObject()
         self.vao.bind()
@@ -62,7 +80,7 @@ class ProvinceFillRenderer:
 
         self.vao.unbind()
 
-    def render(self):
+    def render(self, view: MapView):
         # Render the filled provinces
         self.program.use_program()
 
