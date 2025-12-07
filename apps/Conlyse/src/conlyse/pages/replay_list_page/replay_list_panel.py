@@ -126,7 +126,7 @@ class ReplayListPanel(QWidget):
         """Get the currently selected replay"""
         current = self.replay_list.currentItem()
         if current:
-            return current.vertex_data(Qt.ItemDataRole.UserRole)
+            return current._vertex_data(Qt.ItemDataRole.UserRole)
         return None
 
     def get_replay_count(self):
@@ -141,7 +141,7 @@ class ReplayListPanel(QWidget):
     def _on_selection_changed(self, current):
         """Handle selection change"""
         if self.on_selection_changed_callback and current:
-            replay = current.vertex_data(Qt.ItemDataRole.UserRole)
+            replay = current._vertex_data(Qt.ItemDataRole.UserRole)
             self.on_selection_changed_callback(replay)
 
     def cleanup(self):

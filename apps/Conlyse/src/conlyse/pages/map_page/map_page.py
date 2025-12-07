@@ -108,7 +108,18 @@ if __name__ == '__main__':
     app = QApplication([])
     ritf = ReplayInterface("test_replay.bin")
     ritf.open()
-    print(ritf.get_provinces_by_name("Wyoming").id)
+    logger.debug(f"Loaded replay: {ritf.replay.game_id}")
+    static_province_ids = [p.id for p in ritf.game_state.states.map_state.map.static_map_data.locations]
+    province_ids = [p.id for p in ritf.get_provinces().values()]
+
+    # Print differences in province IDs
+    missing_in_static = set(province_ids) - set(static_province_ids)
+    if missing_in_static:
+        logger.warning(f"Provinces missing in static map data: {missing_in_static}")
+    extra_in_static = set(static_province_ids) - set(province_ids)
+    if extra_in_static:
+        logger.warning(f"Extra provinces in static map data: {extra_in_static}")
+
     map_page = MapPage(ritf)
     map_page.setup()
     map_page.resize(800, 600)

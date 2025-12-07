@@ -1,25 +1,22 @@
-import logging
 import sys
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
-from conlyse.managers.config_manager.config_manager import ConfigManager
-from conlyse.managers.keybinding_manager.key_action import KeyAction
-from conlyse.managers.keybinding_manager.keybinding_manager import KeybindingManager
-from conlyse.managers.replay_manager import ReplayManager
-from conlyse.pages.player_list_page import PlayerListPage
-from conlyse.pages.replay_load_page import ReplayLoadPage
-from conlyse.pages.map_page import MapPage
-from conlyse.logger import setup_logger
-from conlyse.managers.event_manager import EventManager
-from conlyse.managers.style_manager import StyleManager
-from conlyse.managers.asset_manager import AssetManager
 from conlyse.logger import get_logger
 from conlyse.main_window import MainWindow
+from conlyse.managers.asset_manager import AssetManager
+from conlyse.managers.config_manager.config_manager import ConfigManager
+from conlyse.managers.event_manager import EventManager
+from conlyse.managers.keybinding_manager.key_action import KeyAction
+from conlyse.managers.keybinding_manager.keybinding_manager import KeybindingManager
 from conlyse.managers.page_manager import PageManager
-from conlyse.utils.enums import PageType
+from conlyse.managers.replay_manager import ReplayManager
+from conlyse.managers.style_manager import StyleManager
+from conlyse.pages.player_list_page import PlayerListPage
 from conlyse.pages.replay_list_page.replay_list_page import ReplayListPage
+from conlyse.pages.replay_load_page import ReplayLoadPage
+from conlyse.utils.enums import PageType
 
 logger = get_logger()
 

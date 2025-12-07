@@ -1,7 +1,9 @@
 import numpy as np
 from conflict_interface.data_types.map_state.province import Province
+from conflict_interface.data_types.map_state.sea_province import SeaProvince
 from conflict_interface.interface.replay_interface import ReplayInterface
 
+from conlyse.app import logger
 from conlyse.pages.map_page.province_color_texture import ProvinceColorTexture
 
 
@@ -49,12 +51,16 @@ class PoliticalView:
         self.color_data = np.zeros((self.max_id+1, 4), dtype=np.uint8)
 
         for province in self.ritf.get_provinces().values():
+            if isinstance(province, SeaProvince):
+                self.color_data[province.id] = (0, 0, 128, 255)  # Dark blue for sea provinces
+                print(f"Assigned sea color to province {province.name} (ID: {province.id})")
+                continue
             r, g, b = id_to_rgb(province.owner_id)
             rgba = (r, g, b, 255)
             if province.owner_id not in owner_color_data:
                 owner_color_data[province.owner_id] = rgba
             self.color_data[province.id] = rgba
-
+        logger.debug(f"Built political view color data for {len(owner_color_data)} owners.")
 
     def initialize(self):
         # Each MapView owns its own colors

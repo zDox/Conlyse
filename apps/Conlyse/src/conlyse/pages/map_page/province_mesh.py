@@ -1,6 +1,13 @@
 import numpy as np
+from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.map_state.static_province import StaticProvince
 import mapbox_earcut as earcut
+
+from conlyse.logger import get_logger
+from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import BufferUsageType
+from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import VertexBufferObject
+
+logger = get_logger()
 
 
 def prepare_provinces(locations: list[StaticProvince]):
@@ -9,6 +16,7 @@ def prepare_provinces(locations: list[StaticProvince]):
     Returns:
         [np.ndarray, np.ndarray]: Vertex data and province color index data
     """
+    logger.debug(f"Preparing mesh for {len(locations)} provinces.")
     vertex_data = []
     province_color_index_data = []
     max_province_id = 0
@@ -50,9 +58,16 @@ def prepare_provinces(locations: list[StaticProvince]):
     vertex_data = np.array(vertex_data, dtype=np.float32).flatten()
     province_color_index_data = np.array(province_color_index_data, dtype=np.int32)
     assert len(vertex_data) // 2 == len(province_color_index_data)
-    print(f"Prepared mesh for {len(locations)} provinces with {len(vertex_data)//2} vertices.")
+    logger.debug(f"Prepared mesh for {len(locations)} provinces with {len(vertex_data)//2} vertices.")
     return vertex_data, province_color_index_data, max_province_id
 
 class ProvinceMesh:
     def __init__(self, locations: list[StaticProvince]):
-        self.vertex_data, self.province_color_index_data, self.max_province_id = prepare_provinces(locations)
+        self._vertex_data, self._province_color_index_data, self.max_province_id = prepare_provinces(locations)
+        self.vertex_vbo = None
+        self.province_color_index_vbo = None
+
+    def initialize(self):
+        self.vertex_vbo = VertexBufferObject(self._vertex_data, BufferUsageType.STATIC_DRAW)
+        self.province_color_index_vbo = VertexBufferObject(self._province_color_index_data, BufferUsageType.STATIC_DRAW)
+        logger.debug("ProvinceMesh initialized.")

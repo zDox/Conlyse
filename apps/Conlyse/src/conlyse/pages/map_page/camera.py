@@ -53,9 +53,7 @@ class Camera:
         screen_x += dx
         screen_y += dy
         self.x, self.y = self.screen_to_world(screen_x, screen_y)
-        print(f"Camera moved to world position: ({self.x}, {self.y})")
         self._clamp_position()
-        print(f"Camera clamped to world position: ({self.x}, {self.y})")
 
     def zoom_to(self, new_zoom, mouse_x, mouse_y):
         """Zoom toward the mouse cursor, like Google Maps."""
