@@ -10,5 +10,5 @@ class MapViewType(Enum):
 
 MAPVIEWTYPE_TO_CLASS = {
     MapViewType.POLITICAL: PoliticalView,
-    MapViewType.TERRAIN: TerrainView,
+    MapViewType.TERRAIN: TerrainView
 }

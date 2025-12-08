@@ -20,6 +20,12 @@ logger = get_logger()
 
 
 class ProvinceFillRenderer:
+    """
+    Handles rendering of province polygons with color fills.
+
+    This renderer manages the OpenGL resources needed to draw provinces on the map,
+    including shaders, vertex buffers, and textures for different visualization modes.
+    """
     def __init__(self, ritf: ReplayInterface, camera):
         self.ritf = ritf
         self.camera = camera
@@ -71,6 +77,10 @@ class ProvinceFillRenderer:
         self.vao.unbind()
 
     def render(self, map_view_type: MapViewType):
+        map_view = self.map_views.get(map_view_type)
+        if map_view is None:
+            logger.error(f"Map view {map_view_type} not found")
+            return
         # Render the filled provinces
         self.program.use_program()
 
@@ -81,7 +91,7 @@ class ProvinceFillRenderer:
         gl.glUniform1i(gl.glGetUniformLocation(self.program.program_id, b"uNumColors"), self.province_mesh.max_province_id + 1)
 
         gl.glActiveTexture(gl.GL_TEXTURE0)
-        self.map_views[map_view_type].texture.bind()
+        map_view.texture.bind()
 
         self.vao.bind()
         gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.province_mesh._vertex_data) // 2)

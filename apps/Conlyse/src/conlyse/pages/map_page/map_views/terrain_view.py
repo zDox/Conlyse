@@ -23,6 +23,12 @@ TERRAIN_TYPE_TO_RGB = {
 
 
 class TerrainView(MapView):
+    """
+    Terrain map view that colors provinces based on their terrain type.
+
+    Each terrain type (plains, hills, mountains, etc.) is assigned a distinct
+    color to help visualize the geographic features of the game world.
+    """
     def build_color_data(self):
         self.color_data = self._init_color_array()
 

@@ -1,10 +1,14 @@
 # political_view.py
+from time import time
+
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.data_types.map_state.sea_province import SeaProvince
 
-from conlyse.app import logger
+
+from conlyse.logger import get_logger
 from conlyse.pages.map_page.map_views.map_view import MapView
 
+logger = get_logger()
 
 def id_to_rgb(n, max_n=160):
     """Convert ID to RGB color using HSV color space."""
@@ -37,6 +41,12 @@ def id_to_rgb(n, max_n=160):
 
 
 class PoliticalView(MapView):
+    """
+    Political map view that colors provinces based on their owner.
+
+    Each nation is assigned a distinct color, and all provinces owned by
+    that nation are shown in that color. Sea provinces are shown in blue.
+    """
     def build_color_data(self):
         owner_color_data = {}
         self.color_data = self._init_color_array()

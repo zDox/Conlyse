@@ -1,35 +1,58 @@
+"""Camera system for map navigation and viewport management."""
+
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
 
+from conlyse.pages.map_page.constants import INITIAL_ZOOM
+from conlyse.pages.map_page.constants import MAX_ZOOM
+from conlyse.pages.map_page.constants import MIN_ZOOM
+from conlyse.pages.map_page.constants import WORLD_MAX_X
+from conlyse.pages.map_page.constants import WORLD_MAX_Y
+from conlyse.pages.map_page.constants import WORLD_MIN_X
+from conlyse.pages.map_page.constants import WORLD_MIN_Y
+
 if TYPE_CHECKING:
     from conlyse.pages.map_page.map import Map
 
-MIN_ZOOM = 1.5
-INITIAL_ZOOM = 1.5
-MAX_ZOOM = 20.0
-
-WORLD_MIN_X, WORLD_MIN_Y = 0, 0
-WORLD_MAX_X, WORLD_MAX_Y = 15393, 6566  # Example world
-
 
 class Camera:
-    def __init__(self, map: Map):
-        self.map = map
+    """
+    Manages camera position, zoom, and viewport transformations for the map.
+
+    The camera provides orthographic projection with zoom and pan capabilities,
+    allowing users to navigate the game world. It handles coordinate transformations
+    between screen space and world space, and ensures the viewport stays within
+    world boundaries.
+    """
+
+    def __init__(self, map_widget: Map):
+        """
+        Initialize the camera.
+
+        Args:
+            map_widget: The Map widget this camera is attached to
+        """
+        self.map = map_widget
         # Start centered in the world
-        self.x = (WORLD_MIN_X + WORLD_MAX_X) / 2
-        self.y = (WORLD_MIN_Y + WORLD_MAX_Y) / 2
-        self.zoom = INITIAL_ZOOM
+        self.x: float = (WORLD_MIN_X + WORLD_MAX_X) / 2
+        self.y: float = (WORLD_MIN_Y + WORLD_MAX_Y) / 2
+        self.zoom: float = INITIAL_ZOOM
 
-        # Camera movement bounds (None = no limit)
-        self.min_x = WORLD_MIN_X
-        self.min_y = WORLD_MIN_Y
-        self.max_x = WORLD_MAX_X
-        self.max_y = WORLD_MAX_Y
+        # Camera movement bounds
+        self.min_x: float = WORLD_MIN_X
+        self.min_y: float = WORLD_MIN_Y
+        self.max_x: float = WORLD_MAX_X
+        self.max_y: float = WORLD_MAX_Y
 
-    def _get_visible_rect(self):
-        """Calculate the visible world space dimensions based on zoom and aspect ratio."""
+    def _get_visible_rect(self) -> tuple[float, float, float, float]:
+        """
+        Calculate the visible world space dimensions based on zoom and aspect ratio.
+
+        Returns:
+            Tuple of (left, right, bottom, top) world coordinates
+        """
         screen_width = self.map.width()
         screen_height = self.map.height()
         aspect_ratio = screen_width / screen_height
@@ -48,8 +71,13 @@ class Camera:
         top = self.y + world_height / 2
         return left, right, bottom, top
 
-    def _clamp_position(self):
-        """Clamp camera viewport to world. Such that one cannot see beyond world edges."""
+    def _clamp_position(self) -> None:
+        """
+        Clamp camera viewport to world boundaries.
+
+        Ensures that the camera cannot pan beyond the world edges,
+        preventing the user from seeing outside the valid game area.
+        """
         left, right, bottom, top = self._get_visible_rect()
         world_width = right - left
         world_height = top - bottom
@@ -62,18 +90,13 @@ class Camera:
         self.y = max(self.y, self.min_y + half_height)
         self.y = min(self.y, self.max_y - half_height)
 
-
-    def set_bounds(self, min_x=None, min_y=None, max_x=None, max_y=None):
-        """Set world coordinate bounds for camera movement."""
-        self.min_x = min_x
-        self.min_y = min_y
-        self.max_x = max_x
-        self.max_y = max_y
-        self._clamp_position()
-
-    def move(self, dx, dy):
+    def move(self, dx: float, dy: float) -> None:
         """
         Pan the camera by (dx, dy) in screen coordinates.
+
+        Args:
+            dx: Horizontal movement in screen pixels
+            dy: Vertical movement in screen pixels
         """
         screen_x, screen_y = self.world_to_screen(self.x, self.y)
         screen_x += dx
@@ -81,8 +104,18 @@ class Camera:
         self.x, self.y = self.screen_to_world(screen_x, screen_y)
         self._clamp_position()
 
-    def zoom_to(self, new_zoom, mouse_x, mouse_y):
-        """Zoom toward the mouse cursor, like Google Maps."""
+    def zoom_to(self, new_zoom: float, mouse_x: float, mouse_y: float) -> None:
+        """
+        Zoom toward the mouse cursor position.
+
+        This provides a Google Maps-like zoom experience where the point
+        under the cursor remains stationary during the zoom operation.
+
+        Args:
+            new_zoom: The target zoom level
+            mouse_x: Mouse X position in screen coordinates
+            mouse_y: Mouse Y position in screen coordinates
+        """
         # World space under cursor before zoom
         if new_zoom < MIN_ZOOM or new_zoom > MAX_ZOOM:
             return
@@ -101,8 +134,17 @@ class Camera:
         self.y -= diff[1]
         self._clamp_position()
 
-    def screen_to_world(self, sx, sy):
-        """Convert screen coordinates to world coordinates."""
+    def screen_to_world(self, sx: float, sy: float) -> np.ndarray:
+        """
+        Convert screen coordinates to world coordinates.
+
+        Args:
+            sx: Screen X coordinate
+            sy: Screen Y coordinate
+
+        Returns:
+            Array of [world_x, world_y] coordinates
+        """
         width = self.map.width()
         height = self.map.height()
 
@@ -117,8 +159,17 @@ class Camera:
         wx, wy, _ = inv_vp @ np.array([x, y, 1])
         return np.array([wx, wy], dtype=np.float32)
 
-    def world_to_screen(self, wx, wy):
-        """Convert world coordinates to screen coordinates."""
+    def world_to_screen(self, wx: float, wy: float) -> np.ndarray:
+        """
+        Convert world coordinates to screen coordinates.
+
+        Args:
+            wx: World X coordinate
+            wy: World Y coordinate
+
+        Returns:
+            Array of [screen_x, screen_y] coordinates
+        """
         width = self.map.width()
         height = self.map.height()
 
@@ -132,9 +183,15 @@ class Camera:
 
         return np.array([sx, sy], dtype=np.float32)
 
-    def get_view_projection_matrix(self):
+    def get_view_projection_matrix(self) -> np.ndarray:
         """
-        Returns the view-projection matrix that maps from world coordinates to NDC.
+        Calculate the view-projection matrix for rendering.
+
+        Returns the combined view-projection matrix that transforms world
+        coordinates to normalized device coordinates (NDC) for OpenGL rendering.
+
+        Returns:
+            3x3 transformation matrix
         """
         # Calculate the visible world space based on zoom and screen aspect ratio
         left, right, bottom, top = self._get_visible_rect()

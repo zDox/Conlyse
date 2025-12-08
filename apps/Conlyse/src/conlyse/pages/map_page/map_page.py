@@ -1,115 +1,112 @@
+from __future__ import annotations
 import logging
+from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QKeyEvent
-from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtGui import QSurfaceFormat
-from PyQt6.QtGui import QWheelEvent
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
 from PyQt6.QtWidgets import QVBoxLayout
-from PyQt6.QtWidgets import QWidget
-from conflict_interface.data_types.point import Point
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
 
-from conlyse.logger import get_logger
-from conlyse.logger import setup_logger
-from conlyse.pages.map_page.map import Map  # assuming this is correct
+from conlyse.logger import get_logger, setup_logger
+from conlyse.pages.map_page.constants import (
+    OPENGL_VERSION_MAJOR,
+    OPENGL_VERSION_MINOR,
+    UPDATE_FRAME_INTERVAL_MS,
+)
+from conlyse.pages.map_page.input_controller import InputController
+from conlyse.pages.map_page.map import Map
+from conlyse.pages.page import Page
+
+if TYPE_CHECKING:
+    from conlyse.app import App
 
 logger = get_logger()
 
 
-class MapPage(QWidget):
-    def __init__(self, ritf: ReplayInterface):
-        super().__init__()
+class MapPage(Page):
+    """
+    Page for displaying and interacting with the game map.
+    """
+
+    def __init__(self, app: App, ritf: ReplayInterface):
+        """
+        Initialize the MapPage.
+
+        Args:
+            app: The main application instance
+            ritf: The replay interface providing game state data
+        """
+        super().__init__(app)
         self.ritf = ritf
+        self.map_widget: Map | None = None
+        self.input_controller: InputController | None = None
+
+    def setup(self, context) -> None:
+        """Initialize the UI layout and OpenGL context."""
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Configure OpenGL format BEFORE creating the Map widget
         fmt = QSurfaceFormat()
-        fmt.setVersion(4, 1)
+        fmt.setVersion(OPENGL_VERSION_MAJOR, OPENGL_VERSION_MINOR)
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
         QSurfaceFormat.setDefaultFormat(fmt)
 
-        self.map_widget: Map = Map(ritf)
+        self.map_widget = Map(self.ritf)
         layout.addWidget(self.map_widget)
         self.setLayout(layout)
 
-        # State for mouse dragging and keyboard input
-        self.last_mouse_pos: Point | None = None
-        self.dragging = False
-        self.pressed_keys: set[int] = set()
+        self.input_controller = InputController(self.map_widget)
 
-    def setup(self):
-        pass
+    def _on_frame_update(self) -> None:
+        """Handle periodic frame updates for smooth keyboard input."""
+        self.input_controller.update_camera_from_keyboard()
 
     # ---- Input event handlers ----
+    # These methods forward events to the InputController
+
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        self.pressed_keys.add(event.key())
+        self.input_controller.handle_key_press(event)
 
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
-        self.pressed_keys.discard(event.key())
+        self.input_controller.handle_key_release(event)
 
-    def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.last_mouse_pos = Point(event.pos().x(), event.pos().y())
-            self.dragging = True
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        self.input_controller.handle_mouse_press(event)
 
-    def mouseMoveEvent(self, event: QMouseEvent):
-        if self.dragging:
-            event_pos = Point(event.pos().x(), event.pos().y())
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        self.input_controller.handle_mouse_move(event)
 
-            delta = event_pos - self.last_mouse_pos
-            self.last_mouse_pos = event_pos
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        self.input_controller.handle_mouse_release(event)
 
-            self.map_widget.handle_camera_move(-delta.x, -delta.y)
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        self.input_controller.handle_wheel(event)
 
-    def mouseReleaseEvent(self, event: QMouseEvent):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.dragging = False
-
-    def wheelEvent(self, event: QWheelEvent):
-        delta = event.angleDelta().y()
-        zoom_factor = 1.1 if delta > 0 else 0.9
-        new_zoom = self.map_widget.camera.zoom * zoom_factor
-        x, y = event.position().x(), event.position().y()
-        self.map_widget.camera.zoom_to(new_zoom, x, y)
-        self.map_widget.update()
-
-    # ---- Update Camera ----
-    def update_camera(self):
-        step = 10
-        config = {
-            Qt.Key.Key_W: (0, -step),
-            Qt.Key.Key_S: (0, step),
-            Qt.Key.Key_A: (-step, 0),
-            Qt.Key.Key_D: (step, 0),
-        }
-        any_updated = False
-        for key, (dx, dy) in config.items():
-            if key in self.pressed_keys:
-                self.map_widget.handle_camera_move(dx, dy)
-                any_updated = True
-        if any_updated:
-            self.map_widget.update()
-
-    def update(self):
-        self.update_camera()
-
-    def clean_up(self):
+    def update(self) -> None:
+        """Update method called by the page manager."""
         pass
+
+    def clean_up(self) -> None:
+        """Clean up resources when the page is closed."""
+        self.map_widget.deleteLater()
 
 
 if __name__ == '__main__':
+    from PyQt6.QtWidgets import QApplication
+
     setup_logger(logging.DEBUG)
     setup_library_logger(logging.DEBUG)
     app = QApplication([])
+
     ritf = ReplayInterface("test_replay.bin")
     ritf.open()
     logger.debug(f"Loaded replay: {ritf.replay.game_id}")
-    static_province_ids = [p.id for p in ritf.game_state.states.map_state.map.static_map_data.locations]
+
+    static_province_ids = [
+        p.id for p in ritf.game_state.states.map_state.map.static_map_data.locations
+    ]
     province_ids = [p.id for p in ritf.get_provinces().values()]
 
     # Print differences in province IDs
@@ -120,13 +117,21 @@ if __name__ == '__main__':
     if extra_in_static:
         logger.warning(f"Extra provinces in static map data: {extra_in_static}")
 
-    map_page = MapPage(ritf)
-    map_page.setup()
+
+    # Create a mock app object for standalone testing
+    class MockApp:
+        pass
+
+
+    map_page = MapPage(MockApp(), ritf)
+    map_page.setup({})
     map_page.resize(1200, 800)
     map_page.show()
+
+
     # Timer for smooth continuous key movement
     frame_timer = QTimer(map_page)
-    frame_timer.timeout.connect(map_page.update_camera)
-    frame_timer.start(16)  # ~60 FPS
+    frame_timer.timeout.connect(map_page._on_frame_update)
+    frame_timer.start(UPDATE_FRAME_INTERVAL_MS)
 
     app.exec()
