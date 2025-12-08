@@ -42,8 +42,8 @@ class ProvinceFillRenderer:
     def initialize(self):
         # Compile shaders and link program
         self.program = ShaderProgram()
-        vertex_shader = Shader(ShaderType.VERTEX, Path("renderers/shaders/vertex_shader.glsl"))
-        fragment_shader = Shader(ShaderType.FRAGMENT, Path("renderers/shaders/fragment_shader.glsl"))
+        vertex_shader = Shader(ShaderType.VERTEX, Path("renderers/shaders/province_fill_vertex_shader.glsl"))
+        fragment_shader = Shader(ShaderType.FRAGMENT, Path("renderers/shaders/province_fill_fragment_shader.glsl"))
 
         vertex_shader.compile()
         fragment_shader.compile()
@@ -83,9 +83,8 @@ class ProvinceFillRenderer:
             return
         # Render the filled provinces
         self.program.use_program()
+        self.camera.set_uniforms(self.program)
 
-        vp = self.camera.get_view_projection_matrix()
-        gl.glUniformMatrix3fv(gl.glGetUniformLocation(self.program.program_id, b"uViewProjection"), 1, gl.GL_TRUE, vp)
 
         gl.glUniform1i(gl.glGetUniformLocation(self.program.program_id, b"uProvinceColorsTex"), 0)
         gl.glUniform1i(gl.glGetUniformLocation(self.program.program_id, b"uNumColors"), self.province_mesh.max_province_id + 1)

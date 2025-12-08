@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+from OpenGL import GL as gl
 
 from conlyse.pages.map_page.constants import INITIAL_ZOOM
 from conlyse.pages.map_page.constants import MAX_ZOOM
@@ -12,6 +13,7 @@ from conlyse.pages.map_page.constants import WORLD_MAX_X
 from conlyse.pages.map_page.constants import WORLD_MAX_Y
 from conlyse.pages.map_page.constants import WORLD_MIN_X
 from conlyse.pages.map_page.constants import WORLD_MIN_Y
+from conlyse.pages.map_page.opengl_wrapper.shader_program import ShaderProgram
 
 if TYPE_CHECKING:
     from conlyse.pages.map_page.map import Map
@@ -204,3 +206,14 @@ class Camera:
         ], dtype=np.float32)
 
         return proj
+
+    def set_uniforms(self, program: ShaderProgram) -> None:
+        """
+        Set camera-related uniforms in the shader program.
+
+        Args:
+            program: The shader program to set uniforms for
+        """
+        program.set_uniform_matrix3fv(
+            "uViewProjection", self.get_view_projection_matrix().T
+        )
