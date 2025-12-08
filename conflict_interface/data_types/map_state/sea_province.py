@@ -3,6 +3,7 @@ from typing import Optional
 
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.map_state_enums import TerrainType
+from conflict_interface.data_types.map_state.static_province import StaticProvince
 from conflict_interface.data_types.point import Point
 
 
@@ -23,7 +24,7 @@ class SeaProvince(GameObject):
     legal_owner: Optional[int]
     resource_production: Optional[int]
 
-    static_data = None
+    _static_data: StaticProvince = None
 
     MAPPING = {
         "id": "id",
@@ -39,7 +40,11 @@ class SeaProvince(GameObject):
 
     }
 
-    def set_static_province(self, obj):
-        self.static_data = obj
+    @property
+    def static_data(self) -> StaticProvince:
+        if not self._static_data:
+            self._static_data = self.game.get_map().static_map_data.province_to_location(self.id)
+
+        return self.static_data
 
     __hash__ = GameObject.__hash__

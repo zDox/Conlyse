@@ -44,7 +44,7 @@ class ReplayHookSystem:
         for hook in removed_hooks:
             self._hooks[hook_path].remove(hook)
 
-    def _unregister_all_hooks(self):
+    def unregister_all_hooks(self):
         self._hooks.clear()
 
     def _que_hook_path(self, hook_path: int, child_ref: Any, data: dict):

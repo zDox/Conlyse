@@ -25,6 +25,8 @@ class StaticMapData(GameObject):
     _str_tree: STRtree = None
     _polygons: list[Polygon] = None
 
+    _province_to_location: dict[int, StaticProvince] = None
+
     MAPPING = {
         "locations": "locations",
         "connections_b64": "connections",
@@ -42,16 +44,22 @@ class StaticMapData(GameObject):
             self.init_graph()
         return self._graph
 
-    def init_graph(self):
-        if self._encoded_connections is None:
-            self._encoded_connections = decode_connections(self.connections_b64)
-        self._graph, self._province_to_points,self._point_to_province = graph(self._encoded_connections)
-
     @property
     def str_tree(self) -> tuple[STRtree, list[Polygon]]:
         if self._str_tree is None:
             self._str_tree, self._polygons = compute_str_tree(self.locations)
         return self._str_tree, self._polygons
+
+    @property
+    def province_to_location(self) -> dict[int, StaticProvince]:
+        if not self._province_to_location:
+            self.setup_locations_cache()
+        return self._province_to_location
+
+    def init_graph(self):
+        if self._encoded_connections is None:
+            self._encoded_connections = decode_connections(self.connections_b64)
+        self._graph, self._province_to_points,self._point_to_province = graph(self._encoded_connections)
 
     def get_province(self, point: Point) -> int:
         if self._encoded_connections is None:
@@ -62,6 +70,10 @@ class StaticMapData(GameObject):
         if self._encoded_connections is None:
             self.init_graph()
         return self._province_to_points.get(province)
+
+    def setup_locations_cache(self):
+        for province in self.locations:
+            self._point_to_province[province.id] = province
 
 
 def compute_str_tree(locations: ArrayList[StaticProvince]) -> tuple[STRtree, list[Polygon]]:

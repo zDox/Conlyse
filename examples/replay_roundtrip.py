@@ -60,14 +60,14 @@ class ReplayRoundtrip:
         reader = RecordingReader(self.recording_file_path)
         ritf = ReplayInterface(self.replay_file_path)
         ritf.open()
-        ritf.replay.storage.path_tree.validate_tree_structure()
+        ritf._replay.storage.path_tree.validate_tree_structure()
 
         mock_game = GameInterface()
 
         initial_game_state_written = False
 
         json_responses = reader.read_json_responses(self.limit)
-        self.current_time = ritf.replay.get_start_time()
+        self.current_time = ritf._replay.get_start_time()
 
         for i in tqdm(range(len(json_responses)), desc="Comparing Game States", unit="State", unit_scale=True):
             timestamp_ms, json_response = json_responses[i]
@@ -120,13 +120,13 @@ class ReplayRoundtrip:
             print(dict_replay_state['actionResults'].get('@c'))
 
 
-            ritf.replay.storage.path_tree.validate_tree_structure()
+            ritf._replay.storage.path_tree.validate_tree_structure()
 
             # Analyze applied patches
             if not applied_patches:
                 logger.error("No patches applied")
             else:
-                self._print_patches(applied_patches, ritf.replay.storage.path_tree)
+                self._print_patches(applied_patches, ritf._replay.storage.path_tree)
 
             logger.error("Error analysis concluded")
             return False

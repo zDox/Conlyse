@@ -33,7 +33,7 @@ def cmd_check_timestamps(cli):
 
     while current_timestamp:
         # Calculate patch delta and patch boundaries
-        patches = ritf.replay.storage.patch_graph.find_patch_path(previous_timestamp, current_timestamp)
+        patches = ritf._replay.storage.patch_graph.find_patch_path(previous_timestamp, current_timestamp)
         if not patches:
             print(f"No patches found between {previous_timestamp} and {current_timestamp}")
             previous_timestamp = current_timestamp

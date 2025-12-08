@@ -9,21 +9,16 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
-    ritf = ReplayInterface(TEST_DATA / "test_replay10k.bin", mode='a', player_id=1, game_id=12345)
-    ritf.replay.set_max_patches(1000)
+    ritf = ReplayInterface(TEST_DATA / "test_replay004.bin", game_id= 12345, player_id=1)
 
     for i in range(10000000):
         pass
     t1 = perf_counter()
-    ritf.open()
+    ritf.open(mode = 'r', max_patches=None)
     t2 = perf_counter()
-    # --------------------------------------------------
-    # Needed for rw mode:
-    #print(f"Player id 32 profile: {ritf.get_player(32).user_name}")
-    #ritf.jump_to(ritf.replay.get_last_time())
-    #ritf.replay.set_last_game_state(ritf.game_state)
-    #print(f"Player id 32 profile: {ritf.get_player(32).user_name}")
-    # --------------------------------------------------
+    ritf.open(mode = 'rw', max_patches=100000)
+    ritf.open(mode = 'a')
+    t3 = perf_counter()
     t3 = perf_counter()
     ritf.close()
     t4 = perf_counter()
