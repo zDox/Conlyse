@@ -29,8 +29,6 @@ class ReplayInterface(GameInterface):
         self._mode: Literal['w', 'r', 'a', 'rw'] | None = None
         self._is_open: bool = False
 
-
-
     def open(self, mode: Literal['w', 'r', 'a', 'rw'], max_patches: int | None = None) -> bool:
         # Auto close if already open
         if self._is_open:
@@ -69,7 +67,6 @@ class ReplayInterface(GameInterface):
         self._is_open = True
         logger.debug("Initialization Completed Successfully")
         return True
-
 
     def close(self):
         if not self._is_open:
@@ -202,6 +199,9 @@ class ReplayInterface(GameInterface):
         self.current_timestamp_index -= 1
 
         return True
+
+    def jump_to_end(self):
+        self.jump_to(self._replay.get_last_time())
 
     def get_timestamps(self) -> list[datetime]:
         """

@@ -1,4 +1,4 @@
-
+import logging
 from copy import deepcopy
 from logging import getLogger
 from pathlib import Path
@@ -11,12 +11,12 @@ from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
+from conflict_interface.logger_config import setup_library_logger
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from paths import TEST_DATA
-from tests.helper_functions import compare_dicts
 from tools.recording_converter.converter import RecordingConverter
 from tools.recording_converter.enums import OperatingMode
 from tools.recording_converter.recording_reader import RecordingReader
@@ -25,14 +25,14 @@ logger = getLogger()
 
 
 class ReplayRoundtrip:
-    def __init__(self, recording_file_path: Path = TEST_DATA / "test_recording",
-                 replay_file_path: Path = TEST_DATA / "test_replay.bin", preconverted=False):
+    def __init__(self, recording_file_path: Path = TEST_DATA / "test004",
+                 replay_file_path: Path = TEST_DATA / "test_replay004.bin", preconverted=False):
         self.recording_file_path: Path = recording_file_path
         self.replay_file_path: Path = replay_file_path
         self.player_id = 85
         self.current_time = None
         self.last_time = None
-        self.limit = 100
+        self.limit = 3
         self.compare_start_index = 0
 
         if not preconverted:
@@ -47,7 +47,7 @@ class ReplayRoundtrip:
 
         # Convert to replay
         success = converter.convert(
-            output=TEST_DATA / "test_replay.bin",
+            output=self.replay_file_path,
             overwrite=True,
             game_id=12345,  # optional
             player_id=self.player_id,  # optional
@@ -59,7 +59,7 @@ class ReplayRoundtrip:
     def run(self):
         reader = RecordingReader(self.recording_file_path)
         ritf = ReplayInterface(self.replay_file_path)
-        ritf.open()
+        ritf.open(mode = 'r')
         ritf._replay.storage.path_tree.validate_tree_structure()
 
         mock_game = GameInterface()
@@ -164,5 +164,7 @@ class ReplayRoundtrip:
 
 
 if __name__ == "__main__":
+    setup_library_logger(logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
     r = ReplayRoundtrip()
     r.run()

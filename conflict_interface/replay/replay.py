@@ -15,7 +15,6 @@ from typing import Union
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
-from conflict_interface.replay.patch_graph import PatchGraph
 
 from conflict_interface.replay.replay_patch import AddOperation
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
@@ -75,20 +74,7 @@ class Replay:
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
 
-            self.storage.read_full_from_disk(self.file_path)
-            self.storage.load_metadata()
-            self.storage.load_initial_game_state(self._game)
-            self.storage.load_static_map_data(self._game)
-            self.storage.load_path_tree()
-            self.storage.load_patches(self._game)
-            self.storage.path_tree.precompute()
-            self.storage.patch_graph.finalize()
-            # -----------
-            # Safety Precautions
-            #self.storage.patch_graph.validate_cached_time_stamps()
-            #self.storage.path_tree.validate_idx_to_node_mapping()
-            #self.storage.path_tree.validate_tree_structure()
-            # -----------
+            self._open_all()
 
         elif self.mode == 'a':
             if not os.path.exists(self.file_path):
@@ -98,9 +84,6 @@ class Replay:
             self.storage.load_metadata()
             self.storage.load_last_game_state()
             self.storage.load_path_tree()
-
-            # TODO whyyy?
-            self.storage.patch_graph = PatchGraph()
 
         elif self.mode == 'w':
             if self.game_id is None or self.player_id is None:
@@ -119,17 +102,20 @@ class Replay:
             if self._max_patches is None:
                 raise ValueError("Max Patches not set")
 
-            self.storage.read_full_from_disk(self.file_path)
-            self.storage.load_metadata()
-            self.storage.load_initial_game_state(self._game)
-            self.storage.load_static_map_data(self._game)
-            self.storage.load_path_tree()
-            self.storage.load_patches(self._game)
-            self.storage.path_tree.precompute()
-            self.storage.patch_graph.finalize()
+            self._open_all()
 
         self._is_open = True
         return self
+
+    def _open_all(self):
+        self.storage.read_full_from_disk(self.file_path)
+        self.storage.load_metadata()
+        self.storage.load_initial_game_state(self._game)
+        self.storage.load_static_map_data(self._game)
+        self.storage.load_path_tree()
+        self.storage.load_patches(self._game)
+        self.storage.path_tree.precompute()
+        self.storage.patch_graph.finalize()
 
     def close(self):
         if self.mode in ['w', 'rw']:
@@ -281,7 +267,7 @@ class Replay:
         hook_system = game_interface.get_hook_system()
         hook_data = {}
         if hook_system:
-            hook_data = self.storage.path_tree.get_old_values(patch.paths, hook_system._hooks)
+            hook_data = self.storage.path_tree.get_old_values(patch.paths, hook_system.get_hooks())
 
         # Apply resolved operations
         it = zip(patch.op_types, patch.paths, patch.values)
@@ -297,7 +283,7 @@ class Replay:
                     value[1] = getattr(reference_to_child, attribute, None)
             # Queuing the hooks
             for hook_path, reference_to_child, data in hook_data:
-                hook_system._que_hook_path(hook_path, reference_to_child, data)
+                hook_system.que_hook_path(hook_path, reference_to_child, data)
 
     def get_start_time(self) -> datetime:
         start_timestamp = self.storage.metadata.start_time
@@ -347,6 +333,11 @@ class Replay:
             raise ValueError("Game ID or Player ID does not match the initialized values.")
         if not self._is_open:
             raise ValueError("Replay file is not open.")
+
+    def validate_structure(self):
+        self.storage.patch_graph.validate_cached_time_stamps()
+        self.storage.path_tree.validate_idx_to_node_mapping()
+        self.storage.path_tree.validate_tree_structure()
 
 
 

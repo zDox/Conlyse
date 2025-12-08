@@ -47,7 +47,10 @@ class ReplayHookSystem:
     def unregister_all_hooks(self):
         self._hooks.clear()
 
-    def _que_hook_path(self, hook_path: int, child_ref: Any, data: dict):
+    def get_hooks(self):
+        return self._hooks
+
+    def que_hook_path(self, hook_path: int, child_ref: Any, data: dict):
         assert hook_path in self._hooks
         for hook in self._hooks[hook_path]:
             found = False

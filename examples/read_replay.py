@@ -16,9 +16,12 @@ if __name__ == "__main__":
     t1 = perf_counter()
     ritf.open(mode = 'r', max_patches=None)
     t2 = perf_counter()
+    # Test Operations --------------------------------
     ritf.open(mode = 'rw', max_patches=100000)
     ritf.open(mode = 'a')
-    t3 = perf_counter()
+    ritf.jump_to_next_patch()
+    ritf.open(mode = 'r')
+    # End --------------------------------------------
     t3 = perf_counter()
     ritf.close()
     t4 = perf_counter()
