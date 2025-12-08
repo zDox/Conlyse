@@ -136,6 +136,14 @@ class Camera:
         self.y -= diff[1]
         self._clamp_position()
 
+    def zoom_in(self):
+        """Zoom in the camera by a fixed factor."""
+        self.zoom_to(self.zoom * 1.1, self.map.width() / 2, self.map.height() / 2)
+
+    def zoom_out(self):
+        """Zoom out the camera by a fixed factor."""
+        self.zoom_to(self.zoom * 0.9, self.map.width() / 2, self.map.height() / 2)
+
     def screen_to_world(self, sx: float, sy: float) -> np.ndarray:
         """
         Convert screen coordinates to world coordinates.

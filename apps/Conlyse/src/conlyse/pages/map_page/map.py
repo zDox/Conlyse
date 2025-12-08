@@ -19,6 +19,16 @@ class Map(QOpenGLWidget):
         self.active_map_view = MapViewType.POLITICAL
         self.render_connections = True
 
+    def set_active_map_view(self, map_view: MapViewType):
+        """
+        Set the active map view type.
+
+        Args:
+            map_view: The MapViewType to set as active
+        """
+        self.active_map_view = map_view
+        self.update()
+
     def handle_camera_move(self, dx: int, dy: int):
         """
         Handle camera movement based on user input.
@@ -55,4 +65,3 @@ class Map(QOpenGLWidget):
             h: New height in pixels
         """
         gl.glViewport(0, 0, w, h)
-        self.update()  # Force redraw on resize

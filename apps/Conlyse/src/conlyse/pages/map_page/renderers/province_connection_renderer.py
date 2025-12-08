@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 
 logger = get_logger()
 
+script_dir = Path(__file__).parent
+
 class ProvinceConnectionRenderer:
     def __init__(self, ritf: ReplayInterface, camera: Camera):
         self.ritf = ritf
@@ -49,8 +51,8 @@ class ProvinceConnectionRenderer:
     def initialize(self):
         logger.debug("Initializing province connection")
         self.program = ShaderProgram()
-        vertex_shader = Shader(ShaderType.VERTEX, Path("renderers/shaders/province_connection_vertex_shader.glsl"))
-        fragment_shader = Shader(ShaderType.FRAGMENT, Path("renderers/shaders/province_connection_fragment_shader.glsl"))
+        vertex_shader = Shader(ShaderType.VERTEX, script_dir/"shaders/province_connection_vertex_shader.glsl")
+        fragment_shader = Shader(ShaderType.FRAGMENT, script_dir/"shaders/province_connection_fragment_shader.glsl")
         vertex_shader.compile()
         fragment_shader.compile()
 

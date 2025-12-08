@@ -8,14 +8,18 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from conflict_interface.data_types.point import Point
 
+from conlyse.logger import get_logger
+from conlyse.managers.keybinding_manager.key_action import KeyAction
+from conlyse.managers.keybinding_manager.keybinding_manager import KeybindingManager
 from conlyse.pages.map_page.constants import CAMERA_MOVEMENT_STEP
-from conlyse.pages.map_page.constants import KEYBOARD_MOVEMENT_CONFIG
 from conlyse.pages.map_page.constants import ZOOM_FACTOR_IN
 from conlyse.pages.map_page.constants import ZOOM_FACTOR_OUT
+from conlyse.pages.map_page.map_views.map_view_type import MapViewType
 
 if TYPE_CHECKING:
     from conlyse.pages.map_page.map import Map
 
+logger = get_logger()
 
 class InputController:
     """
@@ -24,7 +28,7 @@ class InputController:
     This class separates input handling logic from the main MapPage class.
     """
 
-    def __init__(self, map_widget: Map):
+    def __init__(self, map_widget: Map, keybindings_manager: KeybindingManager):
         """
         Initialize the input controller.
 
@@ -32,9 +36,29 @@ class InputController:
             map_widget: The Map widget to control
         """
         self.map_widget = map_widget
+        self.keybindings_manager = keybindings_manager
         self.last_mouse_pos: Point | None = None
         self.dragging = False
         self.pressed_keys: set[int] = set()
+
+        self.setup_keybindings()
+
+    def setup_keybindings(self):
+        self.keybindings_manager.register_action(
+            KeyAction.SWITCH_TO_POLITICAL_MAP_VIEW,
+            lambda _: self.map_widget.set_active_map_view(MapViewType.POLITICAL)
+        )
+        self.keybindings_manager.register_action(
+            KeyAction.SWITCH_TO_TERRAIN_MAP_VIEW,
+            lambda _: self.map_widget.set_active_map_view(MapViewType.TERRAIN)
+        )
+        self.keybindings_manager.register_action(
+            KeyAction.CAMERA_ZOOM_IN, self.map_widget.camera.zoom_in
+        )
+        self.keybindings_manager.register_action(
+            KeyAction.CAMERA_ZOOM_OUT, self.map_widget.camera.zoom_out
+        )
+
 
     def handle_key_press(self, event: QKeyEvent) -> None:
         """
@@ -115,6 +139,13 @@ class InputController:
         dx_total = 0
         dy_total = 0
 
+        KEYBOARD_MOVEMENT_CONFIG = {
+            self.keybindings_manager.get_key(KeyAction.CAMERA_MOVE_UP): (0, -1),
+            self.keybindings_manager.get_key(KeyAction.CAMERA_MOVE_DOWN): (0, 1),
+            self.keybindings_manager.get_key(KeyAction.CAMERA_MOVE_LEFT): (-1, 0),
+            self.keybindings_manager.get_key(KeyAction.CAMERA_MOVE_RIGHT): (1, 0),
+        }
+        print(f"Pressed keys: {self.pressed_keys}")
         for key, (dx_norm, dy_norm) in KEYBOARD_MOVEMENT_CONFIG.items():
             if key in self.pressed_keys:
                 dx_total += dx_norm * CAMERA_MOVEMENT_STEP

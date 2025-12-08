@@ -5,9 +5,8 @@ import numpy as np
 from abc import ABC, abstractmethod
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.interface.replay_interface import ReplayInterface
-from conlyse.pages.map_page.province_color_texture import ProvinceColorTexture
 
-
+from conlyse.pages.map_page.opengl_wrapper.color_palette_texture import ColorPaletteTexture
 
 
 class MapView(ABC):
@@ -28,7 +27,7 @@ class MapView(ABC):
         """Initialize the texture with the color data."""
         if self.color_data is None:
             raise RuntimeError("build_color_data must be called before initialize")
-        self.texture = ProvinceColorTexture(self.color_data.flatten())
+        self.texture = ColorPaletteTexture(self.color_data.flatten())
 
     def set_province_color(self, province_id: int, rgba: tuple[int, int, int, int]):
         """Update a single province's color."""

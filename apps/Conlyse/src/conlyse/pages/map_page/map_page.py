@@ -17,6 +17,7 @@ from conlyse.pages.map_page.constants import (
 from conlyse.pages.map_page.input_controller import InputController
 from conlyse.pages.map_page.map import Map
 from conlyse.pages.page import Page
+from conlyse.utils.enums import PageType
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -29,7 +30,7 @@ class MapPage(Page):
     Page for displaying and interacting with the game map.
     """
 
-    def __init__(self, app: App, ritf: ReplayInterface):
+    def __init__(self, app: App):
         """
         Initialize the MapPage.
 
@@ -38,7 +39,8 @@ class MapPage(Page):
             ritf: The replay interface providing game state data
         """
         super().__init__(app)
-        self.ritf = ritf
+        self.app: App = app
+        self.ritf = None
         self.map_widget: Map | None = None
         self.input_controller: InputController | None = None
 
@@ -53,11 +55,20 @@ class MapPage(Page):
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
         QSurfaceFormat.setDefaultFormat(fmt)
 
+
+        self.ritf = self.app.replay_manager.get_active_replay()
+
+        if not self.ritf:
+            logger.error(f"Replay not loaded for path: {self.app.replay_manager.active_replay_path}")
+            self.app.page_manager.switch_to(PageType.ReplayListPage,
+                                            error_message=f"Failed to load replay: {self.app.replay_manager.active_replay_path}")
+            return
+
         self.map_widget = Map(self.ritf)
         layout.addWidget(self.map_widget)
         self.setLayout(layout)
 
-        self.input_controller = InputController(self.map_widget)
+        self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
 
     def _on_frame_update(self) -> None:
         """Handle periodic frame updates for smooth keyboard input."""
@@ -86,7 +97,7 @@ class MapPage(Page):
 
     def update(self) -> None:
         """Update method called by the page manager."""
-        pass
+        self.input_controller.update_camera_from_keyboard()
 
     def clean_up(self) -> None:
         """Clean up resources when the page is closed."""

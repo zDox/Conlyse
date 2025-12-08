@@ -7,8 +7,6 @@ from conlyse.logger import get_logger
 from conlyse.pages.map_page.map_views.map_view import MapView
 from conlyse.pages.map_page.map_views.map_view_type import MAPVIEWTYPE_TO_CLASS
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
-from conlyse.pages.map_page.map_views.political_view import PoliticalView
-from conlyse.pages.map_page.map_views.terrain_view import TerrainView
 from conlyse.pages.map_page.opengl_wrapper.opengl_types import OpenGLTypes
 from conlyse.pages.map_page.opengl_wrapper.shader import Shader
 from conlyse.pages.map_page.opengl_wrapper.shader import ShaderType
@@ -18,6 +16,7 @@ from conlyse.pages.map_page.province_mesh import ProvinceMesh
 
 logger = get_logger()
 
+script_dir = Path(__file__).parent
 
 class ProvinceFillRenderer:
     """
@@ -42,8 +41,8 @@ class ProvinceFillRenderer:
     def initialize(self):
         # Compile shaders and link program
         self.program = ShaderProgram()
-        vertex_shader = Shader(ShaderType.VERTEX, Path("renderers/shaders/province_fill_vertex_shader.glsl"))
-        fragment_shader = Shader(ShaderType.FRAGMENT, Path("renderers/shaders/province_fill_fragment_shader.glsl"))
+        vertex_shader = Shader(ShaderType.VERTEX, script_dir/"shaders/province_fill_vertex_shader.glsl")
+        fragment_shader = Shader(ShaderType.FRAGMENT, script_dir/"shaders/province_fill_fragment_shader.glsl")
 
         vertex_shader.compile()
         fragment_shader.compile()

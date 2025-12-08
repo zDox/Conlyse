@@ -1,7 +1,6 @@
-import numpy as np
-from conflict_interface.data_types.map_state.map_state_enums import TerrainType
-from conflict_interface.data_types.map_state.static_province import StaticProvince
 import mapbox_earcut as earcut
+import numpy as np
+from conflict_interface.data_types.map_state.static_province import StaticProvince
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import BufferUsageType

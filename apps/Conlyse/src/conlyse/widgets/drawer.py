@@ -152,6 +152,15 @@ class Drawer(QWidget):
         self.layout().insertWidget(self.layout().count() - 1, btn)
 
     def clear_entries(self):
+        # Remove all entries except the stretch at the end
+        layout = self.layout()
+        while layout.count() > 1:
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    def clear_entries(self):
         # Remove all buttons except the stretch at the end
         while self.layout().count() > 1:
             item = self.layout().takeAt(0)

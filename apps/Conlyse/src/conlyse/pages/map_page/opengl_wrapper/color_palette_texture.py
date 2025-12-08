@@ -1,7 +1,7 @@
 import numpy as np
 from OpenGL import GL as gl
 
-class ProvinceColorTexture:
+class ColorPaletteTexture:
     def __init__(self, color_data: np.ndarray):
         self.texture_id = gl.glGenTextures(1)
         self.bind()
