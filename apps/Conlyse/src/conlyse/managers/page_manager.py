@@ -1,4 +1,6 @@
+from __future__ import annotations
 from copy import deepcopy
+from typing import TYPE_CHECKING
 
 from PyQt6.QtWidgets import QStackedWidget
 
@@ -6,6 +8,8 @@ from conlyse.logger import get_logger
 from conlyse.utils.enums import PageType
 from conlyse.pages.page import Page
 
+if TYPE_CHECKING:
+    from conlyse.app import App
 
 logger = get_logger()
 
@@ -18,7 +22,7 @@ class PageManager:
     forward navigation, and controls the instantiation and setup of pages dynamically.
     It integrates with a stacked widget to handle page transitions.
     """
-    def __init__(self, app):
+    def __init__(self, app: App):
         self.pages: dict[PageType, type] = {}
 
         self.current_page_type: PageType | None = None
@@ -94,6 +98,7 @@ class PageManager:
             self.stack.removeWidget(self.current_page)
 
         # Create and setup new page
+        previous_page_type = self.current_page_type
         self.current_page = self.pages[self.next_page_type](self.app)
         self.current_page_type = self.next_page_type
         self.next_page_type = None
@@ -103,10 +108,18 @@ class PageManager:
         else:
             self.app.main_window.header.hide()
 
-
         self.stack.addWidget(self.current_page)
         self.stack.setCurrentWidget(self.current_page)
         self.app.style_manager.update_style()
+
+        # Manage in->out Replay transition
+        if self.is_in_replay(previous_page_type) and self.out_replay:
+            self.app.replay_manager.close_active_replay()
+            self.setup_drawer(self.in_replay)
+        elif self.is_out_replay(previous_page_type) and self.in_replay:
+            self.setup_drawer(self.in_replay)
+
+
 
         context = deepcopy(self.context)
         self.context = {}
@@ -128,6 +141,22 @@ class PageManager:
         """Check if we are in Replay e.g. The user is visiting a Replay"""
         return self.current_page_type != PageType.ReplayListPage
 
+    @staticmethod
+    def is_in_replay(page_type: PageType) -> bool:
+        return page_type != PageType.ReplayListPage
+
     @property
     def out_replay(self) -> bool:
         return self.current_page_type == PageType.ReplayListPage
+
+    @staticmethod
+    def is_out_replay(page_type: PageType) -> bool:
+        return page_type == PageType.ReplayListPage
+
+    def setup_drawer(self, in_replay: bool):
+        """Setup the drawer entries based on whether we are in a replay or not."""
+        self.app.main_window.drawer.clear_entries()
+        self.app.main_window.drawer.register_entry("Replays", lambda: self.switch_to(PageType.ReplayListPage))
+        if in_replay:
+            self.app.main_window.drawer.register_entry("Map", lambda: self.switch_to(PageType.MapPage))
+            self.app.main_window.drawer.register_entry("Players", lambda: self.switch_to(PageType.PlayerListPage))

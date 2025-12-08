@@ -39,11 +39,11 @@ class StyleManager:
         self.app.keybinding_manager.register_action(KeyAction.TOGGLE_THEME, self.toggle_theme)
 
     def load_themes(self):
-        self.global_style = self.app.asset_manager.load_string("global_style", "styles/global_style.qss")
-        self.header_style = self.app.asset_manager.load_string("header_style", "styles/header.qss")
-        self.table_widget_style = self.app.asset_manager.load_string("table_widget_style", "styles/table_widget.qss")
-        self.app.asset_manager.load_json("theme_light", "styles/theme_light.json")
-        self.app.asset_manager.load_json("theme_dark", "styles/theme_dark.json")
+        self.global_style = self.app.asset_manager.load_string("global_style")
+        self.header_style = self.app.asset_manager.load_string("header_style")
+        self.table_widget_style = self.app.asset_manager.load_string("table_widget_style")
+        self.app.asset_manager.load_json("theme_light")
+        self.app.asset_manager.load_json("theme_dark")
         self.themes[Theme.LIGHT] = self.app.asset_manager.get_asset("theme_light")
         self.themes[Theme.DARK] = self.app.asset_manager.get_asset("theme_dark")
 
@@ -67,9 +67,11 @@ class StyleManager:
     def load_page_style(self, page_type: PageType):
         asset_name = camel_to_snake(page_type.name)
         style_raw = self.app.asset_manager.load_string(
-            asset_name,
-            f"styles/{asset_name}.qss"
+            asset_name + "_style"
         )
+        if style_raw is None:
+            logger.error(f"Could not load style for page {page_type.name}")
+            return
         try:
             page_style = DollarTemplate(style_raw).substitute(self.themes[self.current_theme])
             self.page_styles[(self.current_theme, page_type)] = page_style

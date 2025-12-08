@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,26 +16,56 @@ from conlyse.logger import get_logger
 if TYPE_CHECKING:
     from conlyse.app import App
 
-ASSETS_PATH = "assets/"
+ASSETS_PATH = Path("assets/")
+
+ASSET_NAME_TO_PATH = {
+    # Default Configs
+    "default_main_config": Path("default_main_config.json"),
+    "default_keybindings" : Path("default_keybindings.json"),
+    "default_replays_data": Path("default_replays_data.json"),
+
+    # Styles
+    "global_style": Path("styles/global_style.qss"),
+    "header_style": Path("styles/header.qss"),
+    "table_widget_style": Path("styles/table_widget.qss"),
+    "theme_light": Path("styles/theme_light.json"),
+    "theme_dark": Path("styles/theme_dark.json"),
+
+    # Page Styles
+    "replay_list_page_style": Path("styles/pages/replay_list_page.qss"),
+    "replay_load_page_style": Path("styles/pages/replay_load_page.qss"),
+    "player_list_page_style": Path("styles/pages/player_list_page.qss"),
+    "map_page_style": Path("styles/pages/map_page.qss"),
+}
 
 logger = get_logger()
+
+def asset_loading_function(func):
+    def wrapper(self, asset_name: str):
+        path = ASSETS_PATH/ASSET_NAME_TO_PATH.get(asset_name, None)
+        if path is None:
+            logger.error(f"Asset name '{asset_name}' not found in ASSET_NAME_TO_PATH mapping.")
+            return None
+        if not path.exists():
+            logger.error(f"Asset file not found: {path}")
+            return None
+        return func(self, asset_name, path)
+    return wrapper
 
 class AssetManager:
     def __init__(self, app: App):
         self.app = app
         self.assets = {}
 
-    def load_string(self, asset_name: str, file_path: str):
-        if not Path(ASSETS_PATH+file_path).exists():
-            logger.error(f"Asset file not found: {ASSETS_PATH+file_path}")
-            return ""
-        with open(ASSETS_PATH+file_path, 'r', encoding='utf-8') as f:
+    @asset_loading_function
+    def load_string(self, asset_name: str, path: Path):
+        with open(path, 'r', encoding='utf-8') as f:
             self.assets[asset_name] = f.read()
             return self.assets[asset_name]
 
-    def load_json(self, asset_name: str, file_path: str):
-        import json
-        with open(ASSETS_PATH+file_path, 'r', encoding='utf-8') as f:
+    @asset_loading_function
+    def load_json(self, asset_name: str, path: Path):
+        with open(path, 'r', encoding='utf-8') as f:
             self.assets[asset_name] = json.load(f)
             return self.assets[asset_name]
 

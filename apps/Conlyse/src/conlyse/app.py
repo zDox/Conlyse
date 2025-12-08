@@ -13,6 +13,7 @@ from conlyse.managers.keybinding_manager.keybinding_manager import KeybindingMan
 from conlyse.managers.page_manager import PageManager
 from conlyse.managers.replay_manager import ReplayManager
 from conlyse.managers.style_manager import StyleManager
+from conlyse.pages.map_page.map_page import MapPage
 from conlyse.pages.player_list_page import PlayerListPage
 from conlyse.pages.replay_list_page.replay_list_page import ReplayListPage
 from conlyse.pages.replay_load_page import ReplayLoadPage
@@ -32,7 +33,7 @@ class App:
         self.event_handler      = EventManager(self)
         self.style_manager      = StyleManager(self)
         self.page_manager       = PageManager(self)
-        self.replay_manager     = ReplayManager(self)
+        self.replay_manager: ReplayManager     = ReplayManager(self)
 
         self.frame_timer : QTimer = QTimer()
 

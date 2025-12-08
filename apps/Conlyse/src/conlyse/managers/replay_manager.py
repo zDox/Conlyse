@@ -99,6 +99,17 @@ class ReplayManager:
         replay.close()
         self.active_replay_path = None
 
+    def close_active_replay(self):
+        if not self.active_replay_path:
+            logger.warning(f"No active replay to close.")
+            return
+        self.close_replay(self.active_replay_path)
+
+    def get_active_replay(self) -> ReplayInterface | None:
+        if not self.active_replay_path:
+            return None
+        return self.replays.get(self.active_replay_path, None)
+
     def get_replays(self):
         return self.replays
 
