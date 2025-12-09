@@ -82,18 +82,18 @@ class PlayerListPage(Page):
         header_layout = QHBoxLayout()
 
         # Title and info
-        title_label = QLabel("Players")
+        title_label = QLabel("Players", self)
         title_label.setObjectName("player_list_title")
         header_layout.addWidget(title_label)
 
-        self.info_label = QLabel()
+        self.info_label = QLabel(self)
         self.info_label.setObjectName("player_list_info")
         header_layout.addWidget(self.info_label)
 
         header_layout.addStretch()
 
         # Add button to navigate to map
-        map_button = QPushButton("View Map")
+        map_button = QPushButton("View Map", self)
         map_button.setObjectName("view_map_button")
         map_button.clicked.connect(self._on_view_map_clicked)
         header_layout.addWidget(map_button)
@@ -101,7 +101,7 @@ class PlayerListPage(Page):
         main_layout.addLayout(header_layout)
 
         # ===== Data Grid =====
-        self.data_grid = MUIDataGrid()
+        self.data_grid = MUIDataGrid(self)
         self.data_grid.setObjectName("player_list_grid")
         main_layout.addWidget(self.data_grid, stretch=1)
 

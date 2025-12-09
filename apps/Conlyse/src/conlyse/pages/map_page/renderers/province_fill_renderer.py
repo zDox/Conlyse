@@ -37,6 +37,14 @@ class ProvinceFillRenderer:
 
         self.vao = None
 
+        self.province_mesh = ProvinceMesh(self.ritf.game_state.states.map_state.map.static_map_data.locations)
+
+        for map_view_type in self.map_views.keys():
+            logger.debug(f"Initializing map view: {map_view_type}")
+            map_view_class = MAPVIEWTYPE_TO_CLASS[map_view_type]
+            self.map_views[map_view_type] = map_view_class(self.ritf, self.province_mesh.max_province_id)
+            self.map_views[map_view_type].build_color_data()
+
 
     def initialize(self):
         # Compile shaders and link program
@@ -53,15 +61,10 @@ class ProvinceFillRenderer:
 
         self.program.use_program()
 
-        self.province_mesh = ProvinceMesh(self.ritf.game_state.states.map_state.map.static_map_data.locations)
         self.province_mesh.initialize()
 
-        for map_view_type in self.map_views.keys():
-            logger.debug(f"Initializing map view: {map_view_type}")
-            map_view_class = MAPVIEWTYPE_TO_CLASS[map_view_type]
-            self.map_views[map_view_type] = map_view_class(self.ritf, self.province_mesh.max_province_id)
-            self.map_views[map_view_type].build_color_data()
-            self.map_views[map_view_type].initialize()
+        for map_view in self.map_views.values():
+            map_view.initialize()
 
 
         self.vao = VertexArrayObject()

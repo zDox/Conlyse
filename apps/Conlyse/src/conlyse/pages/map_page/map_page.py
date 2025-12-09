@@ -1,9 +1,12 @@
 from __future__ import annotations
 import logging
+from time import sleep
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
+from PyQt6.QtWidgets import QSizePolicy
 from PyQt6.QtWidgets import QVBoxLayout
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
@@ -30,7 +33,7 @@ class MapPage(Page):
     Page for displaying and interacting with the game map.
     """
 
-    def __init__(self, app: App):
+    def __init__(self, app: App, parent=None):
         """
         Initialize the MapPage.
 
@@ -38,25 +41,29 @@ class MapPage(Page):
             app: The main application instance
             ritf: The replay interface providing game state data
         """
-        super().__init__(app)
+        super().__init__(app, parent)
+        print(app.main_window.size())
         self.app: App = app
-        self.ritf = None
+        self.ritf = self.app.replay_manager.get_active_replay()
         self.map_widget: Map | None = None
         self.input_controller: InputController | None = None
-
-    def setup(self, context) -> None:
-        """Initialize the UI layout and OpenGL context."""
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-
         # Configure OpenGL format BEFORE creating the Map widget
         fmt = QSurfaceFormat()
         fmt.setVersion(OPENGL_VERSION_MAJOR, OPENGL_VERSION_MINOR)
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
         QSurfaceFormat.setDefaultFormat(fmt)
 
+        # TODO: Fix resizing issue when creating the Map widget
+        #
+        old_size = app.main_window.size()
+        self.map_widget = Map(self.ritf, self)
+        app.main_window.resize(old_size.width(), old_size.height())
 
-        self.ritf = self.app.replay_manager.get_active_replay()
+    def setup(self, context) -> None:
+        """Initialize the UI layout and OpenGL context."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
 
         if not self.ritf:
             logger.error(f"Replay not loaded for path: {self.app.replay_manager.active_replay_path}")
@@ -64,11 +71,14 @@ class MapPage(Page):
                                             error_message=f"Failed to load replay: {self.app.replay_manager.active_replay_path}")
             return
 
-        self.map_widget = Map(self.ritf)
+
         layout.addWidget(self.map_widget)
         self.setLayout(layout)
 
         self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
+        self.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
+        print(self.app.main_window.size())
+
 
     def _on_frame_update(self) -> None:
         """Handle periodic frame updates for smooth keyboard input."""

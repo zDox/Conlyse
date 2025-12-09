@@ -1,5 +1,6 @@
 from __future__ import annotations
 from copy import deepcopy
+from time import sleep
 from typing import TYPE_CHECKING
 
 from PyQt6.QtWidgets import QStackedWidget
@@ -96,10 +97,9 @@ class PageManager:
         if self.current_page:
             self.current_page.clean_up()
             self.stack.removeWidget(self.current_page)
-
         # Create and setup new page
         previous_page_type = self.current_page_type
-        self.current_page = self.pages[self.next_page_type](self.app)
+        self.current_page = self.pages[self.next_page_type](self.app, parent=self.stack)
         self.current_page_type = self.next_page_type
         self.next_page_type = None
 
@@ -108,9 +108,13 @@ class PageManager:
         else:
             self.app.main_window.header.hide()
 
+        logger.debug(f"Adding page {self.current_page_type} to stack")
         self.stack.addWidget(self.current_page)
+        logger.debug(f"Setting current page to {self.current_page_type}")
         self.stack.setCurrentWidget(self.current_page)
+        logger.debug(f"Updating style for page {self.current_page_type}")
         self.app.style_manager.update_style()
+
 
         # Manage in->out Replay transition
         if self.is_in_replay(previous_page_type) and self.out_replay:
@@ -123,7 +127,9 @@ class PageManager:
 
         context = deepcopy(self.context)
         self.context = {}
+        logger.debug(f"Setting up page {self.current_page_type} with context {context}")
         self.current_page.setup(context)
+        logger.debug(f"Completed setup for page {self.current_page_type}")
 
     def update(self):
         # If scheduled, perform it before delegating update to the current page.
@@ -132,6 +138,7 @@ class PageManager:
 
         if self.current_page:
             self.current_page.update()
+            # logger.debug(f"Current focus widget: {self.app.q_app.focusWidget()}")
 
     def get_current_page_type(self) -> PageType | None:
         return self.current_page_type

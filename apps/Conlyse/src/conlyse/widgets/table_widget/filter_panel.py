@@ -105,7 +105,7 @@ class FilterPanel(QFrame):
         buttons_layout.setSpacing(8)
 
         # Add filter button
-        add_button = CButton("Add Filter", "contained", "primary", "mdi.plus")
+        add_button = CButton("Add Filter", "contained", "primary", "mdi.plus", parent=self)
         add_button.setObjectName("filter_add_button")
         add_button.clicked.connect(self._add_filter_row)
         buttons_layout.addWidget(add_button)
@@ -113,13 +113,13 @@ class FilterPanel(QFrame):
         buttons_layout.addStretch()
 
         # Clear all button
-        clear_button = CButton("Clear All", "contained", "secondary", "mdi.close-circle")
+        clear_button = CButton("Clear All", "contained", "secondary", "mdi.close-circle", parent=self)
         clear_button.setObjectName("filter_clear_button")
         clear_button.clicked.connect(self._clear_all_filters)
         buttons_layout.addWidget(clear_button)
 
         # Apply button
-        apply_button = CButton("Apply", "contained", "primary", "mdi.check")
+        apply_button = CButton("Apply", "contained", "primary", "mdi.check", parent=self)
         apply_button.setObjectName("filter_apply_button")
         apply_button.clicked.connect(self._apply_filters)
         buttons_layout.addWidget(apply_button)

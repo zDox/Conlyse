@@ -26,6 +26,18 @@ logger = get_logger()
 
 script_dir = Path(__file__).parent
 
+
+def build_vertex_data(graph: dict[Point, list[Point]]) -> np.ndarray:
+    logger.debug(f"Building vertex data for province connections")
+    vertices = []
+    for origin, points in graph.items():
+        for point in points:
+            # Add line segment (2 vertices per line)
+            vertices.extend([origin.x, origin.y])
+            vertices.extend([point.x, point.y])
+    logger.debug(f"Built {len(vertices) // 4} lines for province connections")
+    return np.array(vertices, dtype=np.float32)
+
 class ProvinceConnectionRenderer:
     def __init__(self, ritf: ReplayInterface, camera: Camera):
         self.ritf = ritf
@@ -33,20 +45,13 @@ class ProvinceConnectionRenderer:
         self.province_mesh = None
         self.program: ShaderProgram | None = None
 
+        self.vertices = build_vertex_data(self.ritf.game_state.states.map_state.map.static_map_data.graph)
+
         self.num_of_vertices = 0
         self.vao = None
         self.vbo = None
 
-    def _build_vertex_data(self, graph: dict[Point, list[Point]]) -> np.ndarray:
-        logger.debug(f"Building vertex data for province connections")
-        vertices = []
-        for origin, points in graph.items():
-            for point in points:
-                # Add line segment (2 vertices per line)
-                vertices.extend([origin.x, origin.y])
-                vertices.extend([point.x, point.y])
-        logger.debug(f"Built {len(vertices)//4} lines for province connections")
-        return np.array(vertices, dtype=np.float32)
+
 
     def initialize(self):
         logger.debug("Initializing province connection")
@@ -61,11 +66,10 @@ class ProvinceConnectionRenderer:
         self.program.link_program()
         self.program.use_program()
 
-        vertices = self._build_vertex_data(self.ritf.game_state.states.map_state.map.static_map_data.graph)
-        self.num_of_vertices = len(vertices)
+        self.num_of_vertices = len(self.vertices)
         self.vao = VertexArrayObject()
         self.vao.bind()
-        self.vbo = VertexBufferObject(vertices, BufferUsageType.STATIC_DRAW)
+        self.vbo = VertexBufferObject(self.vertices, BufferUsageType.STATIC_DRAW)
 
         loc = gl.glGetAttribLocation(self.program.program_id, b"position")
         self.vao.add_vbo(self.vbo, loc, 2, 0, 0)

@@ -1,4 +1,7 @@
+from time import sleep
+
 from OpenGL import GL as gl
+from PyQt6.QtCore import QSize
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from conflict_interface.interface.replay_interface import ReplayInterface
 
@@ -9,8 +12,8 @@ from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFill
 
 
 class Map(QOpenGLWidget):
-    def __init__(self, ritf: ReplayInterface):
-        super().__init__()
+    def __init__(self, ritf: ReplayInterface, parent=None):
+        super().__init__(parent=parent)
         self.ritf = ritf
         self.camera = Camera(self)
         self.province_fill_renderer = ProvinceFillRenderer(ritf, self.camera)
@@ -65,3 +68,6 @@ class Map(QOpenGLWidget):
             h: New height in pixels
         """
         gl.glViewport(0, 0, w, h)
+
+    def sizeHint(self):
+        return QSize(800, 600)

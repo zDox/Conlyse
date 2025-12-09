@@ -14,8 +14,8 @@ class QtABCMeta(ABCMeta, type(QWidget)):
 
 class Page(QWidget, metaclass=QtABCMeta):
     HEADER = True
-    def __init__(self, app):
-        super().__init__()
+    def __init__(self, app, parent=None):
+        super().__init__(parent)
 
     @abstractmethod
     def setup(self, context):

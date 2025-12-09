@@ -3,8 +3,8 @@
 from PyQt6.QtCore import Qt
 
 # Camera constants
-MIN_ZOOM = 1.5
-INITIAL_ZOOM = 1.5
+MIN_ZOOM = 3
+INITIAL_ZOOM = 3
 MAX_ZOOM = 20.0
 
 # World boundaries (example world dimensions)
