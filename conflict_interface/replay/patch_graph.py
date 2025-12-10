@@ -7,7 +7,6 @@ from conflict_interface.replay.patch_graph_node import PatchGraphNode
 
 class PatchGraph:
     def __init__(self):
-        self.nodes = {}
         self.time_stamps_cache: list[int] = []  # Sorted list of time stamps
         self.patches: dict[tuple[int, int], PatchGraphNode] = {}
         self._time_stamps: set[int] = set() # For precomputation and later sorting

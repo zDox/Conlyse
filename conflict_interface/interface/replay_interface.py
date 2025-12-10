@@ -42,6 +42,7 @@ class ReplayInterface(GameInterface):
             return False
 
         self._replay = Replay(file_path=self._file_path, mode = self._mode, player_id=self.player_id, game_id=self.game_id, max_patches=max_patches)
+        self._replay.set_game(self)
         self._replay.open()
 
         if self._mode == 'a':
@@ -53,6 +54,7 @@ class ReplayInterface(GameInterface):
 
         self.game_state = self._replay.storage.initial_game_state
         self.game_state.states.map_state.map.set_static_map_data(self._replay.storage.static_map_data)
+        self.game_state.set_game(self)
 
         logger.debug("Parsing TimeStamps for the Cache")
         _raw = self._replay.storage.patch_graph.time_stamps_cache
@@ -121,22 +123,20 @@ class ReplayInterface(GameInterface):
         """
         if self.current_time == time_stamp:
             return
-        if time_stamp < self._replay.get_start_time() == self.current_time:
-            return
 
         if time_stamp < self._replay.get_start_time():
             self.game_state = self._replay.storage.initial_game_state
             self.game_state.set_game(self)
             return
 
-        patches = self._replay.storage.patch_graph.find_patch_path(self._replay.get_last_time(), time_stamp)
+        patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, time_stamp)
         self._apply_patches_and_update_state(patches, time_stamp)
 
         # Update the current timestamp index for O(1) next/previous operations
         self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
 
         # DEBUG ----------------
-        #return patches
+        return patches
         # ----------------------
 
     def _apply_patches_and_update_state(self, patches, target_time: datetime) -> None:

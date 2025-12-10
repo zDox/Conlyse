@@ -32,7 +32,7 @@ class ReplayRoundtrip:
         self.player_id = 85
         self.current_time = None
         self.last_time = None
-        self.limit = 3
+        self.limit = 37
         self.compare_start_index = 0
 
         if not preconverted:
