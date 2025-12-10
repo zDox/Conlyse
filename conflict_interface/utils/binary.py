@@ -2,11 +2,6 @@ from __future__ import annotations
 
 import struct
 from io import BytesIO
-from typing import TypeVar
-
-T = TypeVar('T')
-
-
 class BinaryReader:
     """
     Binary reader using struct and memoryview for efficient I/O.
