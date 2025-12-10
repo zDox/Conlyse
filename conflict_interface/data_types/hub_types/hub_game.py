@@ -6,6 +6,35 @@ from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameS
 
 
 @dataclass
+class GameLogin:
+    achievement_title_id: int
+    alliance_id: int
+    faction: int
+    login: str
+    player_level: int
+    site_user_id: int
+    team_id: int
+
+    MAPPING = {
+        'achievement_title_id': 'achievementTitleItemID',
+        'alliance_id': 'allianceID',
+        'faction': 'faction',
+        'login': 'login',
+        'player_level': 'playerLevel',
+        'site_user_id': 'siteUserID',
+        'team_id': 'teamID',
+    }
+
+    _type_hints = None
+
+    @classmethod
+    def get_type_hints_cached(cls):
+        if cls._type_hints is None:
+            cls._type_hints = get_type_hints(cls)
+        return cls._type_hints
+
+
+@dataclass
 class HubGameProperties:
     game_id: int
     mod_id: int
@@ -125,8 +154,10 @@ class HubGame:
     entry point to model that retrieved data
     """
     properties: HubGameProperties
+    logins: list[GameLogin] = None
     MAPPING = {
-        "properties": "properties"
+        "properties": "properties",
+        "logins": "logins",
     }
     _type_hints = None
 
