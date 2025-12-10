@@ -25,11 +25,15 @@ class ReplayInterface(GameInterface):
         self._replay: Replay | None = None
         self._hook_system: ReplayHookSystem | None = None
 
-        self._mode: Literal['w', 'r', 'a', 'rw'] | None = None
+        self._mode: Literal['r', 'rw'] | None = None
         self._is_open: bool = False
 
-    def open(self, mode: Literal['w', 'r', 'a', 'rw'], max_patches: int | None = None) -> bool:
+    def open(self, mode: Literal['r', 'rw'], max_patches: int | None = None) -> bool:
         # Auto close if already open
+        if mode not in ['r', 'rw']:
+            logger.warning(f"Unsupported mode: {mode}")
+            return False
+
         if self._is_open:
             logger.warning("Replay is already open. Closing it for you ;)")
             self.close()
@@ -37,20 +41,13 @@ class ReplayInterface(GameInterface):
         self._mode = mode
 
         logger.debug("Creating Replay")
-        if self._mode in ['w', 'rw'] and max_patches is None:
+        if self._mode == 'rw' and max_patches is None:
             logger.warning("Max Patches was not set. Returning")
             return False
 
         self._replay = Replay(file_path=self._file_path, mode = self._mode, player_id=self.player_id, game_id=self.game_id, max_patches=max_patches)
         self._replay.set_game(self)
         self._replay.open()
-
-        if self._mode == 'a':
-            self.game_state = self._replay.storage.last_game_state
-            self._is_open = True
-            logger.warning("Opening a replay in append mode using a replay interface is not encouraged. Please open it directly!")
-            logger.debug("Initialization Completed Successfully")
-            return True
 
         self._hook_system = ReplayHookSystem(self._replay)
 
@@ -79,9 +76,9 @@ class ReplayInterface(GameInterface):
 
         assert self._replay is not None, "Replay is None"
 
-        if self._mode == 'w' or self._mode == 'rw':
+        if self._mode == 'rw':
             logger.debug("Jumping to Last state for proper closing")
-            self.jump_to(self._replay.get_last_time())
+            self.jump_to_last_time()
             self._replay.set_last_game_state(self.game_state)
 
         self._replay.close()
