@@ -607,7 +607,6 @@ class HubApi:
 
     @protected
     def get_game_details(self, game_id: int) -> dict:
-
         res = self.send_api_request({
             "gameID": game_id,
         }, "getGame")
