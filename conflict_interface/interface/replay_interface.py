@@ -147,7 +147,6 @@ class ReplayInterface(GameInterface):
             self._replay.apply_patch(patch, self.game_state, self)
 
         self.current_time = target_time
-        #self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
         self._update_player_id()
 
         if hasattr(self, '_hook_system'):
