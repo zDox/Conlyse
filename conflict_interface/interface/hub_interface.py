@@ -152,6 +152,10 @@ class HubInterface:
             if all(getattr(game.properties, key) == value for key, value in filters.items())
         ]
 
+    @protected
+    def get_game_details(self, game_id: int) -> HubGame:
+        return parse_any(HubGame, self.api.get_game_details(game_id), None)
+
     def first_join(self, game_id: int):
         self.api.request_first_join(game_id)
 

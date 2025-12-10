@@ -605,6 +605,14 @@ class HubApi:
                 games.append(game)
         return games
 
+    @protected
+    def get_game_details(self, game_id: int) -> dict:
+
+        res = self.send_api_request({
+            "gameID": game_id,
+        }, "getGame")
+        return res
+
     def request_first_join(self, game_id: int):
         """
         Sends a request to join a game for the first time.
