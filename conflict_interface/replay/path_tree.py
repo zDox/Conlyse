@@ -13,7 +13,7 @@ logger = getLogger()
 
 class PathTree:
     def __init__(self):
-        self.root: PathTreeNode = PathTreeNode(path_element="root", index=0)
+        self.root: PathTreeNode = PathTreeNode(parent = None, path_element="root", index=0)
         self.idx_counter: int = 1  # Start from 1 since root is 0
         self.idx_to_node: dict[int, PathTreeNode] = {0: self.root}
 
@@ -26,23 +26,28 @@ class PathTree:
         self.parent = None
         self.first = None
 
-    def add_node(self, parent: PathTreeNode, path_element: str | int) -> PathTreeNode:
-        new_node = PathTreeNode(path_element=path_element, index=self.idx_counter)
-        if path_element == 'action_results':
-            pass
+    def add_node(self, idx, parent: PathTreeNode, path_element: str | int) -> PathTreeNode:
+        new_node = PathTreeNode(parent = parent, path_element=path_element, index=idx)
         parent.add_child(new_node)
-        self.idx_to_node[self.idx_counter] = new_node
+        self.idx_to_node[idx] = new_node
+
         self.idx_counter += 1
         return new_node
 
-    def get_or_add_path_node(self, path: list[str | int]) -> int:
-        current_node = self.root
-        for path_element in path:
-            if current_node.has_child(path_element):
-                current_node = current_node.get_child(path_element)
-            else:
-                current_node = self.add_node(current_node, path_element)
-        return current_node.index
+    def fill_with_paths(self, operations) -> list[PathTreeNode]:
+        added_nodes = []
+        for op in operations:
+            path = op.path
+            current_node = self.root
+            for path_element in path:
+                if current_node.has_child(path_element):
+                    current_node = current_node.get_child(path_element)
+                else:
+                    current_node = self.add_node(self.idx_counter, current_node, path_element)
+                    added_nodes.append(current_node)
+
+        return added_nodes
+
 
     def precompute(self):
         self.precompute_euler_tour()
@@ -197,8 +202,19 @@ class PathTree:
                     node = self.idx_to_node[v]
                     node.set_reference(ref)
                     if len(sub_tree.get(v, [])) > 0:
-                        child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
+                        try:
+                            child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
+                        except Exception as e:
+                            raise Exception(e)
                         add((v, child_ref))
+
+    def reset_child_references(self, start_node_idx: int):
+        stack = [start_node_idx]
+        while len(stack) > 0:
+            node = self.idx_to_node[stack.pop()]
+            for c in node.children.values():
+                c.reference = None
+                stack.append(c.index)
 
     def validate_idx_to_node_mapping(self):
         for idx, node in self.idx_to_node.items():
@@ -225,21 +241,21 @@ class PathTree:
                 if v.index in visited: continue
 
                 if v.path_element != path_element:
-                    logger.warning(f"Node at path {self.get_old_path_for_debug(u.index)}, has child at path_elment {path_element} with wrong pathelement {v.path_element}")
+                    logger.warning(f"Node at path {self.idx_to_path_list(u.index)}, has child at path_elment {path_element} with wrong pathelement {v.path_element}")
                     return False
 
                 if v.index not in known_indexes:
                     known_indexes.append(v.index)
                 else:
-                    logger.warning(f"Node at path {self.get_old_path_for_debug(v.index)} has a duplicate index")
+                    logger.warning(f"Node at path {self.idx_to_path_list(v.index)} has a duplicate index")
                     return False
 
                 if len(v.children) == 0 and not v.is_leaf:
-                    logger.warning(f"Node at path {self.get_old_path_for_debug(v.index)} has no children but is not a leave")
+                    logger.warning(f"Node at path {self.idx_to_path_list(v.index)} has no children but is not a leave")
                     return False
 
                 elif len(v.children) != 0 and v.is_leaf:
-                    logger.warning(f"Node at path {self.get_old_path_for_debug(v.index)} has children but is leave")
+                    logger.warning(f"Node at path {self.idx_to_path_list(v.index)} has children but is leave")
                     return False
 
                 visited.add(v.index)
@@ -266,7 +282,7 @@ class PathTree:
             print(f"  k={k}: {list(row)}")
 
 
-    def get_old_path_for_debug(self, node_idx):
+    def idx_to_path_list(self, node_idx) -> list[int | str]:
         path_sub_tree = self.build_steiner_tree([node_idx])
         current = self.root.index
         old_path = []
@@ -275,14 +291,22 @@ class PathTree:
             old_path.append(self.idx_to_node[current].path_element)
         return old_path
 
-    def old_path_to_idx(self, path: list[str]) -> int:
+    def path_list_to_idx(self, path: list[str]) -> int:
         # Traverse the tree according to the path and return the index of the final node
         current = self.root
         for path_element in path:
             current = current.children[path_element]
         return current.index
 
-    def get_old_values(self, changed_paths: list[int], hooks: dict[int, ReplayHook]):
+    def exists(self, path: list[str | int]) -> bool:
+        current = self.root
+        for path_element in path:
+            current = current.children.get(path_element, -1)
+            if current == -1:
+                return False
+        return True
+
+    def get_old_values(self, changed_paths: list[int], hook_dict: dict[int, list[ReplayHook]]):
         # Here we use a trick.
         # By creating the smallest subtree that contains all paths from the root to each of the changed paths we get a list of nodes
         # that lie before / are parents to changed nodes. now if a hook points to any of these parents one of his children has been updated
@@ -292,41 +316,42 @@ class PathTree:
 
         # intersect hook_paths and relevant_nodes to get the hooks to keep
         out = []
-        for hook_path, hook in hooks.items():
-            if hook_path not in relevant_nodes: continue
+        for hook_path, hooks in hook_dict.items():
+            for hook in hooks:
+                if hook_path not in relevant_nodes: continue
 
-            for child in steiner_tree[hook_path]:  # for prov in locations
-                relevant_attribute_changed = False
-                attribute_paths = steiner_tree.get(child)  # attribute nodes of a prov
-                if not attribute_paths:  # no attributes found
-                    logger.warning(
-                        f"Skipping hook {hook_path} as no attributes were found (Maby full province changed)")
-                    continue
-
-                changed_attributes = {}
-                reference_to_child = None
-                for attribute in attribute_paths:  # for attribute node in attribute nodes of a prov
-                    attribute_node = self.idx_to_node[attribute]  # actual node
-                    reference_to_child = attribute_node.reference  # ref to holder of attribute of prov aka a province
-                    if not reference_to_child:  # Important warning
+                for child in steiner_tree[hook_path]:  # for prov in locations
+                    relevant_attribute_changed = False
+                    attribute_paths = steiner_tree.get(child)  # attribute nodes of a prov
+                    if not attribute_paths:  # no attributes found
                         logger.warning(
-                            f"Skipping Attribute {attribute_node.path_element} because the reference was not set")
+                            f"Skipping hook {hook_path} as no attributes were found (Maby full province changed)")
                         continue
 
-                    if attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
-                        old_ref = getattr(reference_to_child, attribute_node.path_element,
-                                          None)  # copy the attribute by acesssing the province
-                        old_value = deepcopy(old_ref)
-                        changed_attributes[attribute_node.path_element] = [old_value, None]
-                        relevant_attribute_changed = True
+                    changed_attributes = {}
+                    reference_to_child = None
+                    for attribute in attribute_paths:  # for attribute node in attribute nodes of a prov
+                        attribute_node = self.idx_to_node[attribute]  # actual node
+                        reference_to_child = attribute_node.reference  # ref to holder of attribute of prov aka a province
+                        if not reference_to_child:  # Important warning
+                            logger.warning(
+                                f"Skipping Attribute {attribute_node.path_element} because the reference was not set")
+                            continue
 
-                if not relevant_attribute_changed:
-                    continue
+                        if attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
+                            old_ref = getattr(reference_to_child, attribute_node.path_element,
+                                              None)  # copy the attribute by acesssing the province
+                            old_value = deepcopy(old_ref)
+                            changed_attributes[attribute_node.path_element] = [old_value, None]
+                            relevant_attribute_changed = True
 
-                assert reference_to_child
-                assert len(changed_attributes) > 0
-                assert hook_path
+                    if not relevant_attribute_changed:
+                        continue
 
-                out.append((hook_path, reference_to_child, changed_attributes))
+                    assert reference_to_child
+                    assert len(changed_attributes) > 0
+                    assert hook_path
+
+                    out.append((hook_path, reference_to_child, changed_attributes))
 
         return out

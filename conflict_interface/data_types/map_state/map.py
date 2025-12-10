@@ -104,8 +104,6 @@ class Map(GameObject):
 
     def set_static_map_data(self, static_map_data: StaticMapData):
         self.static_map_data = static_map_data
-        for province in static_map_data.locations:
-            self.provinces.get(province.id).set_static_province(province)
 
     def get_connections(self) -> list[dict[str, Union[int, Point]]]:
         return self.static_map_data.connections

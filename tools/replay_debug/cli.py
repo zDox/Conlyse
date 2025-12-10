@@ -43,7 +43,7 @@ class ReplayDebugCLI(PatchAnalysisMixin):
             self.navigator = ReplayNavigator(self.ritf)
             self.game_object_viewer = GameObjectViewer(self.ritf)
             # Set replay reference for patch analysis methods
-            self.replay = self.ritf.replay
+            self.replay = self.ritf._replay
             # Load all patches into memory for patch analysis
             self._load_all_patches()
             return True

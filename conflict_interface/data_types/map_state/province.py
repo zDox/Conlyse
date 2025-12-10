@@ -105,8 +105,8 @@ class Province(GameObject):
 
     _properties: ProvinceProperty = None  # If player owns the province
     _upgrades: dict[int, ModableUpgrade] = None
+    _static_data: StaticProvince = None
 
-    static_data: StaticProvince = None
 
     MAPPING = {
         "id": "id",
@@ -127,7 +127,7 @@ class Province(GameObject):
         "last_battle": "lb",
         "impacts": "ims",
         "costal": "co",
-        "constructions": "cos",  # TODO what the heck cos??
+        "constructions": "cos",
         "production": "pi",
         "productions": "prs",
         "terrain_type": "tt"
@@ -168,6 +168,13 @@ class Province(GameObject):
                 for upgrade in self.upgrades_set
             }
         return self._upgrades
+
+    @property
+    def static_data(self) -> StaticProvince:
+        if not self._static_data:
+            self._static_data = self.game.get_map().static_map_data.province_to_location[self.id]
+
+        return self._static_data
 
     @requires_ownership
     def get_possible_upgrade(self, **filters) -> ModableUpgrade | None:

@@ -1,6 +1,8 @@
 import inspect
+import os
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 MS_PER_SECOND = 1000
@@ -56,3 +58,14 @@ def safe_issubclass(obj, cls):
         return issubclass(obj, cls)
     else:
         return False
+
+def is_primitive(obj):
+    """Check if obj is a primitive or a list/dict containing only primitives."""
+    if isinstance(obj, (int, float, bool, str, bytes)):
+        return True
+    return False
+
+def create_parent_dirs(file_path: Path):
+    parent = os.path.dirname(file_path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)

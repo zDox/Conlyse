@@ -1,7 +1,9 @@
+import logging
+import pprint
 from copy import deepcopy
-from logging import getLogger
 from pathlib import Path
 
+from deepdiff import DeepDiff
 from tqdm import tqdm
 
 from conflict_interface.data_types.game_object import dump_any
@@ -9,22 +11,22 @@ from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface
+from conflict_interface.logger_config import setup_library_logger
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from paths import TEST_DATA
-from tests.helper_functions import compare_dicts
 from tools.recording_converter.converter import RecordingConverter
 from tools.recording_converter.enums import OperatingMode
 from tools.recording_converter.recording_reader import RecordingReader
 
-logger = getLogger()
+logger = logging.getLogger()
 
 
 class ReplayRoundtrip:
-    def __init__(self, recording_file_path: Path = TEST_DATA / "test_recording",
-                 replay_file_path: Path = TEST_DATA / "test_replay.bin", preconverted=False):
+    def __init__(self, recording_file_path: Path = TEST_DATA / "test004",
+                 replay_file_path: Path = TEST_DATA / "test_replay004.bin", preconverted=False):
         self.recording_file_path: Path = recording_file_path
         self.replay_file_path: Path = replay_file_path
         self.player_id = 85
@@ -45,7 +47,7 @@ class ReplayRoundtrip:
 
         # Convert to replay
         success = converter.convert(
-            output=TEST_DATA / "test_replay.bin",
+            output=self.replay_file_path,
             overwrite=True,
             game_id=12345,  # optional
             player_id=self.player_id,  # optional
@@ -57,15 +59,15 @@ class ReplayRoundtrip:
     def run(self):
         reader = RecordingReader(self.recording_file_path)
         ritf = ReplayInterface(self.replay_file_path)
-        ritf.open()
-        ritf.replay.storage.path_tree.validate_tree_structure()
+        ritf.open(mode = 'r')
+        ritf._replay.storage.path_tree.validate_tree_structure()
 
         mock_game = GameInterface()
 
         initial_game_state_written = False
 
         json_responses = reader.read_json_responses(self.limit)
-        self.current_time = ritf.replay.get_start_time()
+        self.current_time = ritf._replay.get_start_time()
 
         for i in tqdm(range(len(json_responses)), desc="Comparing Game States", unit="State", unit_scale=True):
             timestamp_ms, json_response = json_responses[i]
@@ -110,14 +112,20 @@ class ReplayRoundtrip:
             ritf.jump_to(self.current_time)
             replay_state_now = ritf.game_state
 
-            compare_dicts(dump_any(replay_state), dump_any(recorder_state))
-            ritf.replay.storage.path_tree.validate_tree_structure()
+            dict_replay_state = dump_any(replay_state)
+            dict_recorder_state = dump_any(recorder_state)
+
+            diff = DeepDiff(dict_replay_state, dict_recorder_state)
+            pprint.pprint(diff)
+
+
+            ritf._replay.storage.path_tree.validate_tree_structure()
 
             # Analyze applied patches
             if not applied_patches:
                 logger.error("No patches applied")
             else:
-                self._print_patches(applied_patches, ritf.replay.storage.path_tree)
+                self._print_patches(applied_patches, ritf._replay.storage.path_tree)
 
             logger.error("Error analysis concluded")
             return False
@@ -136,7 +144,7 @@ class ReplayRoundtrip:
     def _print_single_patch(self, patch, tree):
         """Print operations from a single patch."""
         for idx, (op_type, path, value) in enumerate(zip(patch.op_types, patch.paths, patch.values)):
-            debug_path = tree.get_old_path_for_debug(path)
+            debug_path = tree.idx_to_path_list(path)
 
             if op_type == ADD_OPERATION:
                 logger.error(f"{idx} ADD: {debug_path}, New Value: {str(value)[:100]}")
@@ -150,9 +158,12 @@ class ReplayRoundtrip:
         dict_is = dump_any(game_is)
         dict_should = dump_any(game_should)
 
+
         return dict_is == dict_should
 
 
 if __name__ == "__main__":
+    setup_library_logger(logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
     r = ReplayRoundtrip()
     r.run()

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import os
 import pickle
 import struct
+from array import array
+from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,366 +14,495 @@ import numpy as np
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
+from conflict_interface.replay.constants import PATCH_INDEX_DTYPE
 from conflict_interface.replay.metadata import Metadata
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.path_tree import PathTree
+from conflict_interface.replay.path_tree_node import PathTreeNode
+from conflict_interface.utils.binary import BinaryReader
+from conflict_interface.utils.binary import BinaryWriter
 
 if TYPE_CHECKING:
     from conflict_interface.interface.replay_interface import ReplayInterface
 
+logger = getLogger()
+
 
 class ReplayStorage:
+    """
+    Manages persistent storage of game replay data using a custom binary format.
+
+    The storage system uses a hybrid compression approach:
+    - Some data is compressed with LZ4 for space efficiency
+    - Some data remains uncompressed for random access (metadata, patch index)
+
+    Supports two modes:
+    1. Full mode: Complete replay with all data
+    2. Append mode: Allows adding new patches to existing replays
+    """
+
+    path_tree: PathTree | None
+
     def __init__(self):
+        # Binary representations of serialized data (compressed or raw)
         self._metadata_b: bytes | None = None
         self._initial_game_state_b: bytes | None = None
         self._static_map_data_b: bytes | None = None
         self._path_tree_b: bytes | None = None
-        self._patch_graph_b: bytes | None = None
+        self._patch_index_b: bytes | None = None
+        self._d_pool_b: bytes | None = None  # Data pool containing all patches
+        self._last_game_state_b: bytes | None = None
 
+        # Deserialized objects for in-memory use
         self.metadata: Metadata | None = None
         self.initial_game_state: GameState | None = None
         self.static_map_data: StaticMapData | None = None
         self.path_tree: PathTree | None = None
         self.patch_graph: PatchGraph | None = None
+        self.last_game_state: GameState | None = None
 
+        # Compression utilities using LZ4 for fast compression/decompression
         self.compressor = lz4.frame.compress
         self.decompressor = lz4.frame.decompress
 
     def read_full_from_disk(self, file_path: Path):
-        data = []
+        """
+        Reads the complete replay file from disk into memory.
+
+        File structure (in order):
+        1. Metadata (uncompressed, fixed size)
+        2. Initial game state (LZ4 compressed)
+        3. Static map data (LZ4 compressed)
+        4. Path tree (LZ4 compressed)
+        5. Patch index (uncompressed for random access)
+        6. Data pool (uncompressed patches)
+        7. Last game state (LZ4 compressed)
+        """
+
+        def read_compressed(r) -> bytes:
+            """Helper to read length-prefixed compressed data."""
+            l = r.read_int32()
+            c = r.read_bytes(l)
+            return self.decompressor(c)
+
+        # Load entire file into memory
         with open(file_path, 'rb') as f:
-            while True:
-                length_bytes = f.read(4)
-                if not length_bytes:
-                    break
+            data = f.read()
 
-                (length, ) = struct.unpack('>I', length_bytes)
-                compressed = f.read(length)
-                decompressed = self.decompressor(compressed)
-                data.append(decompressed)
+        reader = BinaryReader(data)
 
-        self._metadata_b = data[0]
-        self._initial_game_state_b = data[1]
-        self._static_map_data_b = data[2]
-        self._path_tree_b = data[3]
-        self._patch_graph_b = data[4]
+        # Read metadata (uncompressed)
+        length = reader.read_int32()
+        self._metadata_b = reader.read_bytes(length)
+
+        # Read compressed sections
+        self._initial_game_state_b = read_compressed(reader)
+        self._static_map_data_b = read_compressed(reader)
+        self._path_tree_b = read_compressed(reader)
+
+        # Read patch index (uncompressed for direct access)
+        length = reader.read_int32()
+        self._patch_index_b = reader.read_bytes(length)
+
+        # Read data pool containing all patch data
+        length = reader.read_int32()
+        self._d_pool_b = reader.read_bytes(length)
+
+        # Read last game state (compressed)
+        self._last_game_state_b = read_compressed(reader)
+
+    def read_append_mode_from_disk(self, file_path: Path):
+        """
+        Reads only the portions of the replay needed for append mode.
+        Skips initial game state and static map data since they won't change.
+
+        Used when continuing to record an ongoing game replay.
+        """
+        with open(file_path, 'rb') as f:
+            data = f.read()
+
+        reader = BinaryReader(data)
+
+        # Read metadata
+        length = reader.read_int32()
+        self._metadata_b = reader.read_bytes(length)
+
+        # Skip initial game state (not needed for appending)
+        length = reader.read_int32()
+        reader.skip(length)
+
+        # Skip static map data (not needed for appending)
+        length = reader.read_int32()
+        reader.skip(length)
+
+        # Read and decompress path tree
+        length = reader.read_int32()
+        compressed = reader.read_bytes(length)
+        self._path_tree_b = self.decompressor(compressed)
+
+        # Read patch index
+        length = reader.read_int32()
+        self._patch_index_b = reader.read_bytes(length)
+
+        # Read data pool
+        length = reader.read_int32()
+        self._d_pool_b = reader.read_bytes(length)
+
+        # Read and decompress last game state
+        length = reader.read_int32()
+        compressed = reader.read_bytes(length)
+        self._last_game_state_b = self.decompressor(compressed)
+
+    def read_metadata_from_disk(self, file_path):
+        """
+        Quickly reads just the metadata without loading the entire replay.
+        Useful for listing replays or checking replay properties.
+        """
+        with open(file_path, "rb") as f:
+            len_metadata = struct.unpack_from('<i', f.read(4), 0)[0]
+            self._metadata_b = f.read(len_metadata)
 
     def write_full_to_disk(self, file_path: Path):
-        print("Saving")
-        assert self._metadata_b is not None, "Metadata is not recorded in the replay."
+        """
+        Writes the complete replay to disk in the binary format.
+
+        Layout:
+        - Metadata at fixed position for quick updates
+        - Compressed game data
+        - Uncompressed patch index for random access
+        - Uncompressed data pool for append mode
+        """
+
+        def write_compressed(writer, b):
+            """Helper to write compressed data with length prefix."""
+            c = self.compressor(b)
+            writer.write_int32(len(c))
+            writer.write_bytes(c)
+
+        # Validate all required data is present
         assert self._initial_game_state_b is not None, "Initial game state is not recorded in the replay."
         assert self._static_map_data_b is not None, "Static map data is not recorded in the replay."
-        assert self._path_tree_b is not None, "Path tree is not recorded in the replay."
-        assert self._patch_graph_b is not None, "Patch graph is not recorded in the replay."
-        data_chunks = [
-            self._metadata_b,
-            self._initial_game_state_b,
-            self._static_map_data_b,
-            self._path_tree_b,
-            self._patch_graph_b
-        ]
+        assert self._path_tree_b is not None, "No Path Tree to put into memory"
+        assert self._patch_index_b is not None, "Patch graph metadata has not been read."
+        assert self._d_pool_b is not None, "Data pool has not been read"
+        assert self._last_game_state_b is not None, "Last Game state has not been set"
 
-        # Partial compression for partial (metadata) reads.
+        data = BinaryWriter()
+
+        # Reserve space for metadata at the beginning (fixed size for easy updates)
+        data.write_int32(Metadata.size)
+        data.seek(Metadata.size + 4)  # Skip ahead to leave placeholder
+
+        # Write compressed game data
+        write_compressed(data, self._initial_game_state_b)
+        write_compressed(data, self._static_map_data_b)
+        write_compressed(data, self._path_tree_b)
+
+        # Write patch index uncompressed (enables direct indexing)
+        data.write_int32(len(self._patch_index_b))
+        patch_index_start = data.tell()  # Store position for metadata
+        data.write_bytes(self._patch_index_b)
+
+        # Write data pool uncompressed (allows appending new patches)
+        data.write_int32(len(self._d_pool_b))
+        data.write_bytes(self._d_pool_b)
+
+        # Write compressed last game state
+        write_compressed(data, self._last_game_state_b)
+
+        # Write to file
         with open(file_path, 'wb') as f:
-            for chunk in data_chunks:
-                compressed = self.compressor(chunk)
-                length = len(compressed)
-                f.write(struct.pack('>I', length))
-                f.write(compressed)
+            f.write(data.getbuffer())
 
-    def create_new_file(self, file_path: Path):
-        parent = os.path.dirname(file_path)
-        if parent:
-            os.makedirs(parent, exist_ok=True)
+        # Update metadata with patch index location and write it
+        self.metadata.patch_index_start = patch_index_start
+        self.update_metadata(file_path)
 
-    def initialize(self):
+    def write_last_game_state(self, file_path: Path):
+        """
+        Updates only the last game state in an existing replay file.
+        Uses in-place update to avoid rewriting the entire file.
+        """
+        assert self._last_game_state_b is not None, "Last Game State is None cannot write"
+
+        compressed = self.compressor(self._last_game_state_b)
+        length = len(compressed)
+
+        with open(file_path, 'r+b') as f:
+            # Navigate to the end of the data pool
+            f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
+            current_size = struct.unpack_from('<i', f.read(4), 0)[0]
+            new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
+
+            # Write the compressed last game state
+            f.seek(new_data_start_pos)
+            f.write(struct.pack('<i', length))
+            f.write(compressed)
+
+    def update_metadata(self, file_path: Path):
+        """
+        Updates the metadata section at the beginning of the file.
+        Since metadata is fixed size, this is a simple overwrite.
+        """
+        with open(file_path, "r+b") as f:
+            len_metadata = struct.unpack_from('<i', f.read(4), 0)[0]
+            metadata_b = self.metadata.serialize()
+            assert (len_metadata == len(metadata_b)), "Metadata has changed length"
+            f.write(metadata_b)
+
+    def append_patches_to_disk(self, nodes: list[PatchGraphNode], paths: list[list[tuple[int, int, str | int]]],
+                               file_path: Path):
+        """
+        Appends new patch nodes to an existing replay file.
+
+        This allows recording additional game events without rewriting the entire file.
+        Updates both the patch index and data pool in place.
+
+        Args:
+            nodes: New patch nodes to append
+            paths: Path information for each node
+            file_path: Replay file to append to
+        """
+        # Load and copy the patch index
+        patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
+        patch_index = np.copy(patch_index)
+
+        patch_bytes = BinaryWriter()
+        index_offset = self.metadata.current_patches
+
+        assert len(paths) == len(nodes), "Not a paths list for every node"
+
+        # Serialize each patch and update the index
+        for i, patch in enumerate(nodes):
+            # Calculate offset based on previous patch
+            if index_offset + i == 0:
+                offset = 0
+            else:
+                offset = patch_index[index_offset + i - 1]['offset'] + patch_index[index_offset + i - 1]['size']
+
+            # Serialize patch and record its position
+            patch_s: memoryview = patch.serialize(paths[i])
+            size = len(patch_s)
+            patch_index[i + index_offset]['offset'] = offset
+            patch_index[i + index_offset]['size'] = size
+            patch_bytes.write_bytes(patch_s)
+            self.metadata.current_patches += 1
+
+        # Update cached patch index
+        self._patch_index_b = patch_index.tobytes()
+
+        with open(file_path, 'r+b') as f:
+            # Find where to append the new patches
+            f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
+            current_size = struct.unpack_from('<i', f.read(4), 0)[0]
+            new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
+
+            # Append patch data
+            f.seek(new_data_start_pos)
+            f.write(patch_bytes.getbuffer())
+
+            # Update patch index in file
+            f.seek(self.metadata.patch_index_start)
+            f.write(self._patch_index_b)
+
+            # Update data pool size
+            new_size = current_size + len(patch_bytes.getbuffer())
+            f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
+            f.write(struct.pack('<i', new_size))
+
+    def initialize(self, max_patches):
+        """
+        Initializes a new replay storage with empty data structures.
+
+        Args:
+            max_patches: Maximum number of patches the replay can hold
+        """
         self.metadata = Metadata(
-            start_time = 0,
-            last_time = 0
+            start_time=0,
+            last_time=0,
+            max_patches=max_patches,
+            current_patches=0,
+            patch_index_start=0,
+            is_fragmented=False
         )
         self.path_tree = PathTree()
         self.patch_graph = PatchGraph()
+        # Pre-allocate patch index array
+        self._patch_index_b = np.zeros(max_patches, dtype=PATCH_INDEX_DTYPE)
 
     def load_metadata(self) -> Metadata:
+        """Deserializes and returns the replay metadata."""
         if self._metadata_b is None:
             raise ValueError("Metadata is not recorded in the replay.")
-        self.metadata = pickle.loads(self._metadata_b)
+        self.metadata = Metadata.deserialize(self._metadata_b)
         return self.metadata
 
-    def load_initial_game_state(self, game: ReplayInterface) -> GameState:
+    def load_initial_game_state(self, game: ReplayInterface | None) -> GameState:
+        """
+        Deserializes the initial game state from the replay.
+
+        Args:
+            game: Optional replay interface to link game objects to
+        """
         if self._initial_game_state_b is None:
             raise ValueError("Initial game state is not recorded in the replay.")
 
-        self.initial_game_state =  pickle.loads(self._initial_game_state_b)
-        GameObject.set_game_recursive(self.initial_game_state, game)
+        self.initial_game_state = pickle.loads(self._initial_game_state_b)
+        if game is not None:
+            # Link game objects back to the replay interface
+            GameObject.set_game_recursive(self.initial_game_state, game)
         return self.initial_game_state
 
-    def load_static_map_data(self, game: ReplayInterface) -> StaticMapData:
+    def load_last_game_state(self) -> GameState:
+        """Deserializes the last recorded game state."""
+        if self._last_game_state_b is None:
+            raise ValueError("Last game state is not recorded in the replay.")
+
+        self.last_game_state = pickle.loads(self._last_game_state_b)
+        return self.last_game_state
+
+    def load_static_map_data(self, game: ReplayInterface | None) -> StaticMapData:
+        """
+        Deserializes static map data (terrain, objectives, etc.).
+
+        Args:
+            game: Optional replay interface to link game objects to
+        """
         if self._static_map_data_b is None:
             raise ValueError("Static map data is not recorded in the replay.")
         self.static_map_data = pickle.loads(self._static_map_data_b)
-        GameObject.set_game_recursive(self.static_map_data, game)
+        if game is not None:
+            GameObject.set_game_recursive(self.static_map_data, game)
         return self.static_map_data
 
     def load_path_tree(self) -> PathTree:
+        """
+        Deserializes the path tree structure used for tracking object paths.
+
+        The path tree is stored in a compact format with separate arrays for:
+        - Path elements (the actual path components)
+        - Parent indices (tree structure)
+        - Leaf flags (optimization for traversal)
+
+        For fragmented replays, also reconstructs paths from patches.
+        """
         if self._path_tree_b is None:
-            raise ValueError("Path tree is not recorded in the replay.")
-        self.path_tree = pickle.loads(self._path_tree_b)
+            raise ValueError("Path Tree is not recorded in the replay.")
+
+        # Unpack the compact representation
+        n, path_elements, parent_bytes, is_leaf_bytes = msgpack.unpackb(self._path_tree_b, raw=False)
+
+        # Reconstruct arrays from bytes
+        parent_indices = array('i')
+        parent_indices.frombytes(parent_bytes)
+
+        is_leaf_flags = array('B')
+        is_leaf_flags.frombytes(is_leaf_bytes)
+
+        self.path_tree = PathTree()
+        self.path_tree.idx_counter = n
+
+        # Create all nodes (O(n) time)
+        for idx in range(1, n):
+            node = PathTreeNode(
+                path_element=path_elements[idx],
+                index=idx,
+                parent=None
+            )
+            node.is_leaf = bool(is_leaf_flags[idx])
+            self.path_tree.idx_to_node[idx] = node
+
+        # Link parent-child relationships (O(n) time)
+        for idx in range(n):
+            parent_idx = parent_indices[idx]
+            if parent_idx != -1 and parent_idx != 0:
+                self.path_tree.idx_to_node[idx].parent = self.path_tree.idx_to_node[parent_idx]
+                self.path_tree.idx_to_node[parent_idx].children[path_elements[idx]] = self.path_tree.idx_to_node[idx]
+
+
+        if not self.metadata.is_fragmented:
+            return self.path_tree
+
+        # Handle fragmented replays by extracting paths from patches
+        patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
+        data_pool = memoryview(self._d_pool_b)
+
+        # Reconstruct missing paths from patch data
+        for offset, size in patch_index:
+            if size == 0:
+                break
+
+            patch_data = data_pool[offset:offset + size]
+            new_paths = PatchGraphNode.extract_tree_nodes(patch_data)
+
+            if len(new_paths) == 0:
+                continue
+
+            for p in new_paths:
+                self.path_tree.add_node(p[0], self.path_tree.idx_to_node[p[1]], p[2])
+
         return self.path_tree
 
     def load_patches(self, game: ReplayInterface) -> PatchGraph:
-        if self._patch_graph_b is None:
-            raise ValueError("Patch graph is not recorded in the replay.")
+        """
+        Loads all patches from the data pool and builds the patch graph.
 
-        data = self._patch_graph_b
-        MAGIC = b"PGF1"
+        The patch graph represents the timeline of game state changes.
+        Each patch contains deltas that can be applied to transition between states.
 
-        # Validate magic number
-        if data[:4] != MAGIC:
-            raise ValueError("Invalid file format: magic number mismatch")
+        Args:
+            game: Replay interface for linking game objects
+        """
+        self.patch_graph = PatchGraph()
 
-        # Read version
-        version = struct.unpack("<I", data[4:8])[0]
-        if version != 1:
-            raise ValueError(f"Unsupported version: {version}")
+        # Access the patch index and data pool
+        patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
+        data_pool = memoryview(self._d_pool_b)
 
-        offset = 8
-        layers = {}
+        if len(data_pool) == 0:
+            logger.warning("No patches found in replay.")
+            return self.patch_graph
 
-        # Read all blocks
-        while offset < len(data):
-            block_id = struct.unpack("<B", data[offset:offset + 1])[0]
-            block_size = struct.unpack("<Q", data[offset + 1:offset + 9])[0]
-            offset += 9
+        # Deserialize each patch and add to graph
+        for offset, size in patch_index:
+            if size == 0:
+                break  # Reached end of valid patches
+            patch_data = data_pool[offset:offset + size]
+            patch, _ = PatchGraphNode.deserialize(patch_data, game)
+            self.patch_graph.add_patch_node_fast(patch)
 
-            block_data = data[offset:offset + block_size]
-            layers[block_id] = block_data
-            offset += block_size
-
-        # ------------------------------------------------------------------
-        # LAYER 1 — skeleton (timestamps + edges)
-        # ------------------------------------------------------------------
-        layer1 = layers[1]
-        pos = 0
-
-        # Read timestamps
-        num_timestamps = struct.unpack("<I", layer1[pos:pos + 4])[0]
-        pos += 4
-        time_stamps_array = np.frombuffer(
-            layer1[pos:pos + num_timestamps * 8],
-            dtype=np.int64
-        )
-        pos += num_timestamps * 8
-
-        # Read edges
-        num_edges = struct.unpack("<I", layer1[pos:pos + 4])[0]
-        pos += 4
-        edges = np.frombuffer(
-            layer1[pos:pos + num_edges * 2 * 8],
-            dtype=np.int64
-        ).reshape((num_edges, 2))
-        pos += num_edges * 2 * 8
-
-        num_adj_concat = struct.unpack("<I", layer1[pos:pos + 4])[0]
-        pos += 4
-        adj_concat_arr = np.frombuffer(
-            layer1[pos:pos + num_adj_concat * 8],
-            dtype=np.int64
-        )
-        pos += num_adj_concat * 8
-
-        num_adj_offsets = struct.unpack("<I", layer1[pos:pos + 4])[0]
-        pos += 4
-        adj_offsets_arr = np.frombuffer(
-            layer1[pos:pos + num_adj_offsets * 4],
-            dtype=np.int32
-        )
-
-        # ------------------------------------------------------------------
-        # LAYER 2 — node meta (costs + op_types + paths + value_type_indicators)
-        # ------------------------------------------------------------------
-        layer2 = layers[2]
-        pos = 0
-
-        # Read costs
-        num_costs = struct.unpack("<I", layer2[pos:pos + 4])[0]
-        pos += 4
-        costs = np.frombuffer(layer2[pos:pos + num_costs * 4], dtype=np.int32)
-        pos += num_costs * 4
-
-        # Read op_types
-        num_op_types = struct.unpack("<I", layer2[pos:pos + 4])[0]
-        pos += 4
-        op_types_arr = np.frombuffer(layer2[pos:pos + num_op_types], dtype=np.int8)
-        pos += num_op_types
-
-        num_op_types_offsets = struct.unpack("<I", layer2[pos:pos + 4])[0]
-        pos += 4
-        op_types_offsets_arr = np.frombuffer(
-            layer2[pos:pos + num_op_types_offsets * 4],
-            dtype=np.int32
-        )
-        pos += num_op_types_offsets * 4
-
-        # Read paths
-        num_paths = struct.unpack("<I", layer2[pos:pos + 4])[0]
-        pos += 4
-        paths_arr = np.frombuffer(layer2[pos:pos + num_paths * 4], dtype=np.int32)
-        pos += num_paths * 4
-
-        num_paths_offsets = struct.unpack("<I", layer2[pos:pos + 4])[0]
-        pos += 4
-        paths_offsets_arr = np.frombuffer(
-            layer2[pos:pos + num_paths_offsets * 4],
-            dtype=np.int32
-        )
-        pos += num_paths_offsets * 4
-
-        # Read value type indicators
-        num_value_type_indicators = struct.unpack("<I", layer2[pos:pos + 4])[0]
-        pos += 4
-        value_type_indicators = np.frombuffer(
-            layer2[pos:pos + num_value_type_indicators],
-            dtype=np.int8
-        )
-
-        # ------------------------------------------------------------------
-        # LAYER 3 — primitive values
-        # ------------------------------------------------------------------
-        layer3 = layers[3]
-        pos = 0
-
-        # Read primitive bytes
-        num_primitive_bytes = struct.unpack("<I", layer3[pos:pos + 4])[0]
-        pos += 4
-        primitive_bytes = layer3[pos:pos + num_primitive_bytes]
-        pos += num_primitive_bytes
-
-        # Read primitive offsets
-        num_primitive_offsets = struct.unpack("<I", layer3[pos:pos + 4])[0]
-        pos += 4
-        primitive_offsets_arr = np.frombuffer(
-            layer3[pos:pos + num_primitive_offsets * 4],
-            dtype=np.int32
-        )
-        pos += num_primitive_offsets * 4
-
-        # Read primitive types
-        num_primitive_types = struct.unpack("<I", layer3[pos:pos + 4])[0]
-        pos += 4
-        primitive_types_arr = np.frombuffer(
-            layer3[pos:pos + num_primitive_types],
-            dtype=np.int8
-        )
-
-        # ------------------------------------------------------------------
-        # LAYER 4 — complex values
-        # ------------------------------------------------------------------
-        layer4 = layers[4]
-        pos = 0
-
-        # Read complex bytes
-        num_complex_bytes = struct.unpack("<I", layer4[pos:pos + 4])[0]
-        pos += 4
-        complex_bytes = layer4[pos:pos + num_complex_bytes]
-        pos += num_complex_bytes
-
-        # Read complex offsets
-        num_complex_offsets = struct.unpack("<I", layer4[pos:pos + 4])[0]
-        pos += 4
-        complex_offsets_arr = np.frombuffer(
-            layer4[pos:pos + num_complex_offsets * 4],
-            dtype=np.int32
-        )
-
-        # ------------------------------------------------------------------
-        # RECONSTRUCT PATCH GRAPH
-        # ------------------------------------------------------------------
-        patch_graph = PatchGraph()
-        patch_graph.time_stamps_cache = time_stamps_array.tolist()
-        # Restore adjacency list
-
-        for i, ts in enumerate(time_stamps_array):
-            adj_start = adj_offsets_arr[i]
-            adj_end = adj_offsets_arr[i + 1]
-            neighbors = adj_concat_arr[adj_start:adj_end].tolist()
-            patch_graph.adj[int(ts)] = neighbors
-
-
-        # Indices to track position in primitive and complex arrays
-        primitive_idx = 0
-        complex_idx = 0
-        value_indicator_idx = 0
-
-        for i in range(num_edges):
-            from_ts = int(edges[i, 0])
-            to_ts = int(edges[i, 1])
-            cost = int(costs[i])
-
-            # Extract op_types for this patch
-            op_types_start = op_types_offsets_arr[i]
-            op_types_end = op_types_offsets_arr[i + 1]
-            op_types = op_types_arr[op_types_start:op_types_end].tolist()
-
-            # Extract paths for this patch
-            paths_start = paths_offsets_arr[i]
-            paths_end = paths_offsets_arr[i + 1]
-            paths = paths_arr[paths_start:paths_end].tolist()
-
-            # Reconstruct values using type indicators
-            num_values = len(op_types)
-            values = []
-
-            for j in range(num_values):
-                # Use the indicator to determine if this value is primitive (0) or complex (1)
-                if value_type_indicators[value_indicator_idx] == 0:
-                    # Primitive value - decode from msgpack
-                    prim_start = primitive_offsets_arr[primitive_idx]
-                    prim_end = primitive_offsets_arr[primitive_idx + 1]
-                    prim_data = primitive_bytes[prim_start:prim_end]
-                    value = msgpack.unpackb(prim_data, raw=False)
-                    values.append(value)
-                    primitive_idx += 1
-                else:
-                    # Complex value - decode from pickle
-                    comp_start = complex_offsets_arr[complex_idx]
-                    comp_end = complex_offsets_arr[complex_idx + 1]
-                    comp_data = complex_bytes[comp_start:comp_end]
-                    value = pickle.loads(comp_data)
-                    GameObject.set_game_recursive(value, game)
-                    values.append(value)
-                    complex_idx += 1
-
-                value_indicator_idx += 1
-
-            # Create PatchGraphNode
-            patch_node = PatchGraphNode(
-                from_timestamp=from_ts,
-                to_timestamp=to_ts,
-                cost=cost,
-                op_types=op_types,
-                paths=paths,
-                values=values
-            )
-
-            # Add to patch graph
-            patch_graph.patches[(from_ts, to_ts)] = patch_node
-
-        self.patch_graph = patch_graph
-        return patch_graph
+        return self.patch_graph
 
     def unload_metadata(self):
-        self._metadata_b = pickle.dumps(self.metadata)
+        """Serializes metadata to bytes for storage."""
+        self._metadata_b = self.metadata.serialize()
 
     def unload_initial_game_state(self, game_state: GameState):
+        """
+        Serializes the initial game state using pickle.
+
+        Temporarily removes game references to avoid circular serialization,
+        then restores them after pickling.
+        """
         game = game_state.game
         GameObject.set_game_recursive(game_state, None)
         self._initial_game_state_b = pickle.dumps(game_state)
         GameObject.set_game_recursive(game_state, game)
         self.initial_game_state = game_state
 
+    def unload_last_game_state(self):
+        """Serializes the last game state using pickle."""
+        assert self.last_game_state is not None, "No GameState provided."
+        assert self.last_game_state.game is None, "Last game state has game set"
+        self._last_game_state_b = pickle.dumps(self.last_game_state)
+
     def unload_static_map_data(self, static_map_data: StaticMapData):
+        """
+        Serializes static map data using pickle.
+
+        Temporarily removes game references before serialization.
+        """
         game = static_map_data.game
         GameObject.set_game_recursive(static_map_data, None)
         self._static_map_data_b = pickle.dumps(static_map_data)
@@ -380,218 +510,66 @@ class ReplayStorage:
         self.static_map_data = static_map_data
 
     def unload_path_tree(self):
-        self._path_tree_b = pickle.dumps(self.path_tree)
+        """
+        Serializes the path tree into a compact binary representation.
+
+        Uses parallel arrays for efficient storage:
+        - Path elements: actual path data
+        - Parent indices: tree structure
+        - Leaf flags: boolean flags for optimization
+
+        Packed with msgpack for additional compression.
+        """
+        n = self.path_tree.idx_counter  # Total number of nodes
+        path_elements = [None] * n
+        parent_indices = array('i', [-1] * n)  # Signed integer array
+        is_leaf_flags = array('B', [0] * n)  # Byte array for booleans
+
+        # Extract data from each node
+        for idx, node in self.path_tree.idx_to_node.items():
+            path_elements[idx] = node.path_element
+            parent_indices[idx] = node.parent.index if node.parent else -1
+            is_leaf_flags[idx] = 1 if node.is_leaf else 0
+
+        # Pack into compact binary format
+        self._path_tree_b = msgpack.packb([
+            n,
+            path_elements,
+            parent_indices.tobytes(),
+            is_leaf_flags.tobytes()
+        ], use_bin_type=True)
 
     def unload_patches(self):
-        MAGIC = b"PGF1"  # 4-byte magic number
-        VERSION = 1  # file format version
+        """
+        Serializes all patches from the patch graph into the data pool.
 
-        def encode_primitive(value):
-            return msgpack.packb(value, use_bin_type=True)
+        Builds the patch index that maps each patch to its location in the pool,
+        enabling random access to any patch without deserializing everything.
+        """
+        patches = self.patch_graph.patches.items()
 
-        def encode_complex(value):
-            GameObject.set_game_recursive(value, None)
-            return pickle.dumps(value, protocol=5)
+        # Load and copy the patch index
+        patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
+        patch_index = np.copy(patch_index)
 
-        def is_primitive(value):
-            return isinstance(value, (int, float, bool, str, bytes))
+        data_pool = BinaryWriter()
 
-        def is_primitive_container(value):
-            if is_primitive(value):
-                return True
-            if isinstance(value, list):
-                return all(is_primitive_container(x) for x in value)
-            if isinstance(value, dict):
-                return all(isinstance(k, str) and is_primitive_container(v) for k, v in value.items())
-            return False
+        # Serialize each patch and record its position
+        for i, (_, patch) in enumerate(patches):
+            # Calculate offset based on previous patches
+            if i == 0:
+                offset = 0
+            else:
+                offset = patch_index[i - 1]['offset'] + patch_index[i - 1]['size']
 
-        patch_graph = self.patch_graph
-        patches = list(patch_graph.patches.items())
-        N = len(patches)
+            # Serialize and store patch
+            patch_s: memoryview = patch.serialize([])
+            size = len(patch_s)
+            patch_index[i]['offset'] = offset
+            patch_index[i]['size'] = size
+            data_pool.write_bytes(patch_s)
+            self.metadata.current_patches += 1
 
-        # ------------------------------------------------------------------
-        # LAYER 1 — skeleton (timestamps + edges)
-        # ------------------------------------------------------------------
-        time_stamps_array = np.array(sorted(patch_graph.time_stamps_cache), dtype=np.int64)
-
-        edges = np.zeros((N, 2), dtype=np.int64)
-        for i, ((f_ts, t_ts), _) in enumerate(patches):
-            edges[i, 0] = f_ts
-            edges[i, 1] = t_ts
-
-        # Build adjacency list in a flat format
-        # For each timestamp, store: [num_neighbors, neighbor1, neighbor2, ...]
-        adj_concat = []
-        adj_offsets = [0]
-
-        for ts in time_stamps_array:
-            neighbors = patch_graph.adj.get(int(ts), [])
-            adj_concat.extend(neighbors)
-            adj_offsets.append(len(adj_concat))
-
-        adj_concat_arr = np.array(adj_concat, dtype=np.int64)
-        adj_offsets_arr = np.array(adj_offsets, dtype=np.int32)
-
-        layer1_payload = b"".join([
-            struct.pack("<I", len(time_stamps_array)),
-            time_stamps_array.tobytes(),
-
-            struct.pack("<I", len(edges)),
-            edges.tobytes(),
-            # Adjacency list (flattened)
-            struct.pack("<I", len(adj_concat_arr)),
-            adj_concat_arr.tobytes(),
-            struct.pack("<I", len(adj_offsets_arr)),
-            adj_offsets_arr.tobytes(),
-        ])
-
-
-
-        # ------------------------------------------------------------------
-        # LAYER 2 — node meta (costs + op_types + paths + value_type_indicators)
-        # ------------------------------------------------------------------
-        costs = np.zeros(N, dtype=np.int32)
-
-        op_types_concat = []
-        op_types_offsets = [0]
-
-        paths_concat = []
-        paths_offsets = [0]
-
-        value_type_indicators = []  # 0=primitive, 1=complex (parallel to flattened values)
-
-        for i, (_, node) in enumerate(patches):
-            costs[i] = node.cost
-
-            op_types_concat.extend(node.op_types)
-            op_types_offsets.append(len(op_types_concat))
-
-            paths_concat.extend(node.paths)
-            paths_offsets.append(len(paths_concat))
-
-            # Record type of each value in this node
-            for v in node.values:
-                if is_primitive_container(v):
-                    value_type_indicators.append(0)
-                else:
-                    value_type_indicators.append(1)
-
-        op_types_arr = np.array(op_types_concat, dtype=np.int8)
-        op_types_offsets_arr = np.array(op_types_offsets, dtype=np.int32)
-
-        paths_arr = np.array(paths_concat, dtype=np.int32)
-        paths_offsets_arr = np.array(paths_offsets, dtype=np.int32)
-
-        value_type_indicators_arr = np.array(value_type_indicators, dtype=np.int8)
-
-        layer2_payload = b"".join([
-            # Costs
-            struct.pack("<I", len(costs)),
-            costs.tobytes(),
-
-            # Op types (variable length per node)
-            struct.pack("<I", len(op_types_arr)),
-            op_types_arr.tobytes(),
-            struct.pack("<I", len(op_types_offsets_arr)),
-            op_types_offsets_arr.tobytes(),
-
-            # Paths (variable length per node)
-            struct.pack("<I", len(paths_arr)),
-            paths_arr.tobytes(),
-            struct.pack("<I", len(paths_offsets_arr)),
-            paths_offsets_arr.tobytes(),
-
-            # Value type indicators (0=primitive, 1=complex)
-            # This array is parallel to the flattened list of ALL values across ALL nodes
-            struct.pack("<I", len(value_type_indicators_arr)),
-            value_type_indicators_arr.tobytes(),
-        ])
-
-        # ------------------------------------------------------------------
-        # LAYER 3 — primitive values
-        # Stores only values where is_primitive_container(v) == True
-        # Access pattern: use value_type_indicators to know when to read from here
-        # ------------------------------------------------------------------
-        primitive_bytes = bytearray()
-        primitive_offsets = [0]
-        primitive_types = []
-
-        def primitive_type_enum(v):
-            if isinstance(v, bool): return 2
-            if isinstance(v, int): return 0
-            if isinstance(v, float): return 1
-            if isinstance(v, str): return 3
-            if isinstance(v, bytes): return 4
-            if isinstance(v, list): return 5
-            return 6  # dict
-
-        for _, node in patches:
-            for v in node.values:
-                if is_primitive_container(v):
-                    enc = encode_primitive(v)
-                    primitive_bytes.extend(enc)
-                    primitive_offsets.append(len(primitive_bytes))
-                    primitive_types.append(primitive_type_enum(v))
-
-        primitive_offsets_arr = np.array(primitive_offsets, dtype=np.int32)
-        primitive_types_arr = np.array(primitive_types, dtype=np.int8)
-
-        layer3_payload = b"".join([
-            # Raw msgpack bytes (concatenated)
-            struct.pack("<I", len(primitive_bytes)),
-            primitive_bytes,
-
-            # Offsets to split the bytes (N+1 offsets for N values)
-            struct.pack("<I", len(primitive_offsets_arr)),
-            primitive_offsets_arr.tobytes(),
-
-            # Type enum for each primitive value
-            struct.pack("<I", len(primitive_types_arr)),
-            primitive_types_arr.tobytes(),
-        ])
-
-        # ------------------------------------------------------------------
-        # LAYER 4 — complex values
-        # Stores only values where is_primitive_container(v) == False
-        # Access pattern: use value_type_indicators to know when to read from here
-        # ------------------------------------------------------------------
-        complex_bytes = bytearray()
-        complex_offsets = [0]
-
-        for _, node in patches:
-            for v in node.values:
-                if not is_primitive_container(v):
-                    enc = encode_complex(v)
-                    complex_bytes.extend(enc)
-                    complex_offsets.append(len(complex_bytes))
-
-        complex_offsets_arr = np.array(complex_offsets, dtype=np.int32)
-
-        layer4_payload = b"".join([
-            # Raw pickle bytes (concatenated)
-            struct.pack("<I", len(complex_bytes)),
-            complex_bytes,
-
-            # Offsets to split the bytes (N+1 offsets for N values)
-            struct.pack("<I", len(complex_offsets_arr)),
-            complex_offsets_arr.tobytes(),
-        ])
-
-        # ------------------------------------------------------------------
-        # FINAL PACKING (header + 4 layers)
-        # ------------------------------------------------------------------
-        final = bytearray()
-        final.extend(MAGIC)
-        final.extend(struct.pack("<I", VERSION))
-
-        def write_block(block_id: int, payload: bytes):
-            final.extend(struct.pack("<BQ", block_id, len(payload)))
-            final.extend(payload)
-
-        write_block(1, layer1_payload)
-        write_block(2, layer2_payload)
-        write_block(3, layer3_payload)
-        write_block(4, layer4_payload)
-
-        # store uncompressed in memory – write_full_to_disk() will compress it
-        self._patch_graph_b = bytes(final)
+        # Store serialized data
+        self._patch_index_b = patch_index.tobytes()
+        self._d_pool_b = data_pool.getbuffer()

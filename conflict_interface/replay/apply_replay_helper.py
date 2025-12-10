@@ -33,6 +33,7 @@ def apply_operation(op_type: int, value: Any, reference: GameObject | list | dic
                 raise ValueError(f"Can only replace at str for gameObject but got {type(pos)}")
             if not hasattr(reference, pos):
                 raise ValueError(f"Object {str(reference)[:100]}has no attribute '{pos}'")
+
             setattr(reference, pos, value)
         elif isinstance(reference, list) or isinstance(reference, dict):
             reference[pos] = value

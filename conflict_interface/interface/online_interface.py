@@ -65,7 +65,7 @@ class OnlineInterface(GameInterface):
                     r.apply_patch(uptodate_patch, old_game_state, self)
 
                 rp = make_bireplay_patch(old_game_state, self.game_state)
-                r.record_patch(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp, game=self)
+                r.record_patch_in_rw_mode(self.client_time(), game_id=self.game_id, player_id=self.player_id, replay_patch=rp, game=self)
 
         self.replay = Replay(Path(self.replay_filepath), mode="a")
         self.replay.open()
@@ -182,11 +182,11 @@ class OnlineInterface(GameInterface):
     def record_patch(self, rp: BidirectionalReplayPatch, small_game_state: GameState):
         if self.is_recording():
             with self.replay as r:
-                r.record_patch(time_stamp=self.client_time(),
-                               game_id=self.game_id,
-                               player_id=self.player_id,
-                               replay_patch=rp,
-                               game = self)
+                r.record_patch_in_rw_mode(time_stamp=self.client_time(),
+                                          game_id=self.game_id,
+                                          player_id=self.player_id,
+                                          replay_patch=rp,
+                                          game = self)
                 current_time = int(self.client_time().timestamp() * 1000)
 
     """

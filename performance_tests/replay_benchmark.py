@@ -64,13 +64,13 @@ class BenchmarkResults:
 class ReplayBenchmark:
     def __init__(self):
         self.replay_interface: ReplayInterface | None = None
-        self.recording_file_path = TEST_DATA / "test_recording"
+        self.recording_file_path = TEST_DATA / "test004"
         self.results: List[BenchmarkResults] = []
 
     def set_up(self):
-        self.start_converter()
+        #self.start_converter()
         self.replay_interface = ReplayInterface(TEST_DATA / "test_replay.bin")
-        self.replay_interface.open()
+        self.replay_interface.open(mode = 'r')
 
     def start_converter(self):
         # Create converter for replay conversion (gmr mode)
@@ -109,7 +109,7 @@ class ReplayBenchmark:
 
         for i in range(iterations):
             self.replay_interface.jump_to(self.get_random_timestamp())
-            self.replay_interface.replay.reset_op_counter()
+            self.replay_interface._replay.reset_op_counter()
 
             patches_applied = 0
             start_time = time.perf_counter()
@@ -120,7 +120,7 @@ class ReplayBenchmark:
             end_time = time.perf_counter()
             duration_ms = (end_time - start_time) * 1000
 
-            operations_applied = self.replay_interface.replay.get_op_counter()
+            operations_applied = self.replay_interface._replay.get_op_counter()
 
             # Calculate metrics
             ops_per_second = (operations_applied / duration_ms * 1000) if duration_ms > 0 else 0
@@ -149,10 +149,10 @@ class ReplayBenchmark:
         metrics_list = []
 
         for i in range(iterations):
-            self.replay_interface.replay.reset_op_counter()
+            self.replay_interface._replay.reset_op_counter()
             random_ts = self.get_random_timestamp()
             patches_applied = len(
-                self.replay_interface.replay.storage.patch_graph.find_patch_path(
+                self.replay_interface._replay.storage.patch_graph.find_patch_path(
                     self.replay_interface.last_patch_time, random_ts
                 )
             )
@@ -162,7 +162,7 @@ class ReplayBenchmark:
             end_time = time.perf_counter()
 
             duration_ms = (end_time - start_time) * 1000
-            operations_applied = self.replay_interface.replay.get_op_counter()
+            operations_applied = self.replay_interface._replay.get_op_counter()
 
             # Calculate metrics
             ops_per_second = (operations_applied / duration_ms * 1000) if duration_ms > 0 else 0

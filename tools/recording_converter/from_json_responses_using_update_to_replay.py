@@ -2,6 +2,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
@@ -68,70 +69,83 @@ class FromJsonResponsesUsingUpdateToReplay:
             return False
 
         # Create replay in write mode
-        with Replay(file_path=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
-            # Record static map data if available
-            static_map_data = self.reader.read_static_map_data()
-            if not static_map_data:
-                logger.error("No static map data found in recording")
+        if limit:
+            max_patches = limit * 4
+        else:
+            max_patches = len(json_responses) * 4
+
+        replay = Replay(file_path=output_file, mode='w', game_id=game_id, player_id=player_id, max_patches=max_patches)
+        replay.open()
+        # Record static map data if available
+        static_map_data = self.reader.read_static_map_data()
+        if not static_map_data:
+            logger.error("No static map data found in recording")
+            return False
+        logger.info("Recording static map data")
+        replay.record_static_map_data(
+            static_map_data=static_map_data,
+            game_id=game_id,
+            player_id=player_id
+        )
+        game_activation_count = 0
+        # Process JSON responses and create patches using update method
+        for i in tqdm(range(len(json_responses)), desc="Writing Replay: ", unit="Patch", unit_scale=True):
+            _, json_response = json_responses[i] # timestamp_ms is the real timestamp of the response
+
+
+            if json_response.get("action") == "UltActivateGameAction":
+                game_activation_count += 1
+                logger.debug(f"Skipping response {i} as it is an UltActivateGameAction")
+                if game_activation_count > 2:
+                    logger.error(f"More than 2 UltActivateGameActions!!!")
+                continue
+            new_state: GameState = parse_any(GameState, json_response["result"], mock_game)
+            current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
+            # Parse JSON response into new state
+            if json_response["result"]["@c"] == "ultshared.UltGameState" and not initial_game_state_written:
+                # Record initial game state
+                logger.info(f"Recording initial state at {current_timestamp} game time")
+                replay.record_initial_game_state(
+                    time_stamp=current_timestamp,
+                    game_id=game_id,
+                    player_id=player_id,
+                    game_state=new_state
+                )
+                current_state = new_state
+                initial_game_state_written = True
+                GameObject.set_game_recursive(current_state, None)
+                replay.set_last_game_state(current_state)
+                replay.close()
+
+                replay = Replay(file_path=output_file, mode='a', game_id=game_id, player_id=player_id)
+                replay.open()
+                continue
+
+            elif json_response["result"]["@c"] == "ultshared.UltGameState" and initial_game_state_written:
+                # Entire new game state -> replace current state -> make_bireplay_patch
+                logger.info(f"Creating bireplay patch using make_bireplay_patch for response {i} at {current_timestamp} game time")
+                bipatch = make_bireplay_patch(current_state, new_state)
+                current_state = new_state
+            elif initial_game_state_written:
+                # Create a bidirectional replay patch object
+                bipatch = BidirectionalReplayPatch()
+
+                # Call update with the bipatch to record differences
+                current_state.update(new_state, path=[], rp=bipatch)
+            else:
+                logger.error("First JSON response is not a full game state")
                 return False
-            logger.info("Recording static map data")
-            replay.record_static_map_data(
-                static_map_data=static_map_data,
+
+            # Record the patch
+            replay.append_patches(
+                time_stamp=current_timestamp,
                 game_id=game_id,
-                player_id=player_id
+                player_id=player_id,
+                replay_patches=[bipatch],
             )
-            game_activation_count = 0
-            # Process JSON responses and create patches using update method
-            for i in tqdm(range(len(json_responses)), desc="Writing Replay: ", unit="Patch", unit_scale=True):
-                _, json_response = json_responses[i] # timestamp_ms is the real timestamp of the response
 
-                try:
-                    if json_response.get("action") == "UltActivateGameAction":
-                        game_activation_count += 1
-                        logger.debug(f"Skipping response {i} as it is an UltActivateGameAction")
-                        if game_activation_count > 2:
-                            logger.error(f"More then 2 UltActivateGameActions!!!")
-                        continue
-                    new_state: GameState = parse_any(GameState, json_response["result"], mock_game)
-                    current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
-                    # Parse JSON response into new state
-                    if json_response["result"]["@c"] == "ultshared.UltGameState" and not initial_game_state_written:
-                        # Record initial game state
-                        logger.info(f"Recording initial state at {current_timestamp} game time")
-                        replay.record_initial_game_state(
-                            time_stamp=current_timestamp,
-                            game_id=game_id,
-                            player_id=player_id,
-                            game_state=new_state
-                        )
-                        current_state = new_state
-                        initial_game_state_written = True
-                        continue
-                    elif json_response["result"]["@c"] == "ultshared.UltGameState" and initial_game_state_written:
-                        # Entire new game state -> replace current state -> make_bireplay_patch
-                        logger.info(f"Creating bireplay patch using make_bireplay_patch for response {i} at {current_timestamp} game time")
-                        bipatch = make_bireplay_patch(current_state, new_state)
-                        current_state = new_state
-                    elif initial_game_state_written:
-                        # Create a bidirectional replay patch object
-                        bipatch = BidirectionalReplayPatch()
 
-                        # Call update with the bipatch to record differences
-                        current_state.update(new_state, path=[], rp=bipatch)
-                    else:
-                        logger.error("First JSON response is not a full game state")
-                        return False
-
-                    # Record the patch
-                    replay.record_patch(
-                        time_stamp=current_timestamp,
-                        game_id=game_id,
-                        player_id=player_id,
-                        replay_patch=bipatch,
-                        game=mock_game
-                    )
-                except Exception as e:
-                    logger.error(f"Error processing JSON response at {current_timestamp} game time: {e}")
-                    # Continue with next response
-                    continue
+        GameObject.set_game_recursive(current_state, None)
+        replay.set_last_game_state(current_state)
+        replay.close()
         return True

@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from logging import getLogger
 from typing import Any
 from typing import Callable
+from typing import TYPE_CHECKING
 
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.hook_system.replay_hook import ReplayHook
@@ -9,7 +12,9 @@ from conflict_interface.hook_system.replay_hook_queue_element import ReplayHookQ
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
-from conflict_interface.replay.replay import Replay
+
+if TYPE_CHECKING:
+    from conflict_interface.replay.replay import Replay
 
 logger = getLogger()
 
@@ -39,10 +44,13 @@ class ReplayHookSystem:
         for hook in removed_hooks:
             self._hooks[hook_path].remove(hook)
 
-    def _unregister_all_hooks(self):
+    def unregister_all_hooks(self):
         self._hooks.clear()
 
-    def _que_hook_path(self, hook_path: int, child_ref: Any, data: dict):
+    def get_hooks(self):
+        return self._hooks
+
+    def que_hook_path(self, hook_path: int, child_ref: Any, data: dict):
         assert hook_path in self._hooks
         for hook in self._hooks[hook_path]:
             found = False
@@ -105,7 +113,7 @@ class ReplayHookSystem:
 
         Args:
         """
-        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
 
         hook = ReplayHook(
             change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
@@ -119,7 +127,7 @@ class ReplayHookSystem:
     def _unregister_event_trigger(self, path: list[str]) -> None:
         """Remove a previously registered event trigger."""
 
-        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
         self._unregister_hook(path_idx, None)
 
     def set_province_event_trigger(self, attributes: list[str]) -> None:
@@ -165,7 +173,7 @@ class ReplayHookSystem:
             attributes: The name of the attributes to watch (e.g., "[owner_id", "resource_production"]).
         """
         path = ["states", "map_state", "map", "locations"]
-        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
 
         hook = ReplayHook(
             callback=callback,
@@ -179,5 +187,5 @@ class ReplayHookSystem:
         """Remove a previously registered province attribute change hook."""
 
         path = ["states", "map_state", "map", "locations"]
-        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
         self._unregister_hook(path_idx, callback)
