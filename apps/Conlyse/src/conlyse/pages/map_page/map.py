@@ -13,12 +13,24 @@ from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFill
 logger = get_logger()
 
 class Map(QOpenGLWidget):
-    def __init__(self, ritf: ReplayInterface, parent=None):
+    def __init__(self, ritf: ReplayInterface, main_config, parent=None):
         super().__init__(parent=parent)
         self.ritf = ritf
+
+        # Determine if the map is wraps around
+        self.enable_wrapping = ritf.game_state.states.map_state.map.overlap_x != 0
+        self.world_min_x = 0
+        self.world_max_x = ritf.game_state.states.map_state.map.width
+        self.world_min_y = 0
+        self.world_max_y = ritf.game_state.states.map_state.map.height
+        self.world_width = self.world_max_x - self.world_min_x
+        self.world_height = self.world_max_y - self.world_min_y
+
+        self.enable_anti_aliasing: bool = main_config.get("graphics.anti_aliasing")
+
         self.camera = Camera(self)
-        self.province_fill_renderer = ProvinceFillRenderer(ritf, self.camera)
-        self.province_connection_renderer = ProvinceConnectionRenderer(ritf, self.camera)
+        self.province_fill_renderer = ProvinceFillRenderer(self)
+        self.province_connection_renderer = ProvinceConnectionRenderer(self)
 
         self.active_map_view = MapViewType.POLITICAL
         self.render_connections = True
@@ -53,6 +65,9 @@ class Map(QOpenGLWidget):
         # Enable blending
         gl.glEnable(gl.GL_BLEND)
         gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+
+        if self.enable_anti_aliasing:
+            gl.glEnable(gl.GL_MULTISAMPLE)
 
     def paintGL(self):
         """Render the map. Called whenever the widget needs to be redrawn."""

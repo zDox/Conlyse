@@ -45,8 +45,11 @@ class MapPage(Page):
         self.ritf = self.app.replay_manager.get_active_replay()
         self.map_widget: Map | None = None
         self.input_controller: InputController | None = None
+        samples = self.app.config_manager.main.get("graphics.msaa_samples")
+
         # Configure OpenGL format BEFORE creating the Map widget
         fmt = QSurfaceFormat()
+        fmt.setSamples(samples)
         fmt.setVersion(OPENGL_VERSION_MAJOR, OPENGL_VERSION_MINOR)
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
         QSurfaceFormat.setDefaultFormat(fmt)
@@ -54,7 +57,7 @@ class MapPage(Page):
         # TODO: Fix resizing issue when creating the Map widget
         #
         old_size = app.main_window.size()
-        self.map_widget = Map(self.ritf, self)
+        self.map_widget = Map(self.ritf, self.app.config_manager.main, self)
         app.main_window.resize(old_size.width(), old_size.height())
 
     def setup(self, context) -> None:

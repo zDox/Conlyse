@@ -8,6 +8,7 @@ logger = get_logger()
 
 class ShaderType:
     VERTEX = gl.GL_VERTEX_SHADER
+    GEOMETRY = gl.GL_GEOMETRY_SHADER
     FRAGMENT = gl.GL_FRAGMENT_SHADER
 
 class Shader:
