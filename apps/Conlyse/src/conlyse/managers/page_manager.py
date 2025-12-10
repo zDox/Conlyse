@@ -1,6 +1,5 @@
 from __future__ import annotations
 from copy import deepcopy
-from time import sleep
 from typing import TYPE_CHECKING
 
 from PyQt6.QtWidgets import QStackedWidget

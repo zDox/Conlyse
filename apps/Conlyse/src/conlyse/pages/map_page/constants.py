@@ -24,14 +24,6 @@ UPDATE_FRAME_INTERVAL_MS = 16  # ~60 FPS
 ZOOM_FACTOR_IN = 1.1
 ZOOM_FACTOR_OUT = 0.9
 
-# Keyboard movement configuration
-KEYBOARD_MOVEMENT_CONFIG = {
-    Qt.Key.Key_W: (0, -1),
-    Qt.Key.Key_S: (0, 1),
-    Qt.Key.Key_A: (-1, 0),
-    Qt.Key.Key_D: (1, 0),
-}
-
 # OpenGL configuration
 OPENGL_VERSION_MAJOR = 4
 OPENGL_VERSION_MINOR = 1

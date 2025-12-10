@@ -1,5 +1,4 @@
 # political_view.py
-from time import time
 
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.data_types.map_state.sea_province import SeaProvince

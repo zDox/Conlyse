@@ -54,7 +54,7 @@ class KeybindingManager:
 
     def set_keybinding(self, action: KeyAction, key_combination: str):
         """Sets a keybinding for the given action."""
-        key_sequence =  sequence_str_to_combination(key_combination)
+        key_sequence = sequence_str_to_combination(key_combination)
         self.keybindings[action] = key_sequence
         if action in self.callbacks:
             if action in self.shortcuts:

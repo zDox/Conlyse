@@ -146,7 +146,7 @@ class InputController:
             self.keybindings_manager.get_key(KeyAction.CAMERA_MOVE_RIGHT): (1, 0),
         }
         for key, (dx_norm, dy_norm) in KEYBOARD_MOVEMENT_CONFIG.items():
-            if key in self.pressed_keys:
+            if key is not None and key in self.pressed_keys:
                 dx_total += dx_norm * CAMERA_MOVEMENT_STEP
                 dy_total += dy_norm * CAMERA_MOVEMENT_STEP
 

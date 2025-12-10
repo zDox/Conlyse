@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from OpenGL import GL as gl
 
 from conlyse.pages.map_page.constants import INITIAL_ZOOM
 from conlyse.pages.map_page.constants import MAX_ZOOM

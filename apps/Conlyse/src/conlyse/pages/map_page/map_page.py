@@ -1,12 +1,10 @@
 from __future__ import annotations
 import logging
-from time import sleep
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
-from PyQt6.QtWidgets import QSizePolicy
 from PyQt6.QtWidgets import QVBoxLayout
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
@@ -39,7 +37,8 @@ class MapPage(Page):
 
         Args:
             app: The main application instance
-            ritf: The replay interface providing game state data
+
+        The replay interface (`ritf`) is obtained from `self.app.replay_manager.get_active_replay()`.
         """
         super().__init__(app, parent)
         print(app.main_window.size())

@@ -1,5 +1,4 @@
 # map_view_base.py
-from enum import Enum
 
 import numpy as np
 from abc import ABC, abstractmethod

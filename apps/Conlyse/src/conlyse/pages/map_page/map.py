@@ -1,4 +1,3 @@
-from time import sleep
 
 from OpenGL import GL as gl
 from PyQt6.QtCore import QSize

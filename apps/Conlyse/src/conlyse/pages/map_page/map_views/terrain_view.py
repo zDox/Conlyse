@@ -1,5 +1,4 @@
 # terrain_view.py
-import numpy as np
 from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.map_state.province import Province
 
