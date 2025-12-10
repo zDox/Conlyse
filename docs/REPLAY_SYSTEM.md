@@ -332,7 +332,7 @@ with Replay(replay_path, mode='w', game_id=game_id, player_id=player_id) as repl
     previous_state = initial_state
     for new_state, timestamp in state_changes:
         bi_patch = make_bireplay_patch(previous_state, new_state)
-        replay.read_write_record_patch(
+        replay.record_patch_in_rw_mode(
             time_stamp=timestamp,
             game_id=game_id,
             player_id=player_id,
@@ -380,7 +380,7 @@ replay_interface.close()
 with Replay(replay_path, mode='a') as replay:
     # Record additional patches
     bi_patch = make_bireplay_patch(current_state, new_state)
-    replay.read_write_record_patch(
+    replay.record_patch_in_rw_mode(
         time_stamp=datetime.now(UTC),
         game_id=replay.game_id,
         player_id=replay.player_id,

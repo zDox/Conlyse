@@ -96,7 +96,7 @@ class FromGameStateUsingMakeBiPatchToReplay:
                 bipatch = make_bireplay_patch(prev_state, current_state)
 
                 # Record the patch
-                replay.read_write_record_patch(
+                replay.record_patch_in_rw_mode(
                     time_stamp=current_datetime,
                     game_id=game_id,
                     player_id=player_id,

@@ -31,6 +31,7 @@ class ReplayInterface(GameInterface):
     def open(self, mode: Literal['w', 'r', 'a', 'rw'], max_patches: int | None = None) -> bool:
         # Auto close if already open
         if self._is_open:
+            logger.warning("Replay is already open. Closing it for you ;)")
             self.close()
 
         self._mode = mode
@@ -45,7 +46,9 @@ class ReplayInterface(GameInterface):
         self._replay.open()
 
         if self._mode == 'a':
+            self.game_state = self._replay.storage.last_game_state
             self._is_open = True
+            logger.warning("Opening a replay in append mode using a replay interface is not encouraged. Please open it directly!")
             logger.debug("Initialization Completed Successfully")
             return True
 
@@ -198,7 +201,7 @@ class ReplayInterface(GameInterface):
 
 
 
-    def jump_to_end(self):
+    def jump_to_last_time(self):
         self.jump_to(self._replay.get_last_time())
 
     def get_timestamps(self) -> list[datetime]:
@@ -245,8 +248,6 @@ class ReplayInterface(GameInterface):
     """
     Hook System
     """
-
-
     def get_hook_system(self) -> ReplayHookSystem:
         return self._hook_system
 

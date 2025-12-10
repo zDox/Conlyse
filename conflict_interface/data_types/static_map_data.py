@@ -72,8 +72,9 @@ class StaticMapData(GameObject):
         return self._province_to_points.get(province)
 
     def setup_locations_cache(self):
+        self._province_to_location = {}
         for province in self.locations:
-            self._point_to_province[province.id] = province
+            self._province_to_location[province.id] = province
 
 
 def compute_str_tree(locations: ArrayList[StaticProvince]) -> tuple[STRtree, list[Polygon]]:

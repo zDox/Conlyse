@@ -420,10 +420,11 @@ class ReplayStorage:
                 self.path_tree.idx_to_node[idx].parent = self.path_tree.idx_to_node[parent_idx]
                 self.path_tree.idx_to_node[parent_idx].children[path_elements[idx]] = self.path_tree.idx_to_node[idx]
 
-        # Handle fragmented replays by extracting paths from patches
+
         if not self.metadata.is_fragmented:
             return self.path_tree
 
+        # Handle fragmented replays by extracting paths from patches
         patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
         data_pool = memoryview(self._d_pool_b)
 

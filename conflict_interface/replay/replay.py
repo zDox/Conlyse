@@ -4,6 +4,7 @@ import os
 from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
+from logging import getLogger
 from pathlib import Path
 from typing import Any
 from typing import Iterator
@@ -31,6 +32,8 @@ from conflict_interface.utils.helper import create_parent_dirs
 if TYPE_CHECKING:
     from conflict_interface.interface.game_interface import GameInterface
     from conflict_interface.interface.replay_interface import ReplayInterface
+
+logger = getLogger()
 
 
 class Replay:
@@ -74,7 +77,7 @@ class Replay:
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
 
-            self._open_all()
+            self.load_everything_into_memory()
 
         elif self.mode == 'a':
             if not os.path.exists(self.file_path):
@@ -102,12 +105,12 @@ class Replay:
             if self._max_patches is None:
                 raise ValueError("Max Patches not set")
 
-            self._open_all()
+            self.load_everything_into_memory()
 
         self._is_open = True
         return self
 
-    def _open_all(self):
+    def load_everything_into_memory(self):
         self.storage.read_full_from_disk(self.file_path)
         self.storage.load_metadata()
         self.storage.load_initial_game_state(self._game)
@@ -153,7 +156,7 @@ class Replay:
 
         self.storage.unload_static_map_data(static_map_data)
 
-    def read_write_record_patch(
+    def record_patch_in_rw_mode(
             self,
             time_stamp: datetime,
             game_id: int,
@@ -169,7 +172,7 @@ class Replay:
         forward_operations = replay_patch.forward_patch.operations
         backward_operations = reversed(replay_patch.backward_patch.operations)
 
-        self.storage.path_tree.fill(forward_operations)
+        self.storage.path_tree.fill_with_paths(forward_operations)
 
         forward = self.ops_to_lists(forward_operations, game)
         backward = self.ops_to_lists(backward_operations, game)
@@ -194,8 +197,14 @@ class Replay:
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
-    def append_record_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
+    def append_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
         self.validate_game(game_id, player_id)
+        if not self._is_open:
+            logger.warning("Can not append to an closed replay")
+            return
+        if not self.mode == 'a':
+            logger.warning(f"Can only append in Append mode, current mode is {self.mode}")
+            return
 
         self.storage.metadata.is_fragmented = True
         from_timestamp = self.storage.metadata.last_time
@@ -204,7 +213,7 @@ class Replay:
         nodes = []
         all_new_paths = []
         for patch in replay_patches:
-            new_nodes = self.storage.path_tree.fill(patch.forward_patch.operations)
+            new_nodes = self.storage.path_tree.fill_with_paths(patch.forward_patch.operations)
             new_paths = []
             for node in new_nodes:
                 new_paths.append((node.index, node.parent.index if node.parent else 0, node.path_element))
@@ -303,7 +312,7 @@ class Replay:
         values = []
 
         for op in operations:
-            idx = self.storage.path_tree.old_path_to_idx(op.path)
+            idx = self.storage.path_tree.path_list_to_idx(op.path)
             paths.append(idx)
 
             if game is not None:

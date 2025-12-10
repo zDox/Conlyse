@@ -137,7 +137,7 @@ class FromJsonResponsesUsingUpdateToReplay:
                 return False
 
             # Record the patch
-            replay.append_record_patches(
+            replay.append_patches(
                 time_stamp=current_timestamp,
                 game_id=game_id,
                 player_id=player_id,

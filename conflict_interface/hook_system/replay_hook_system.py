@@ -113,7 +113,7 @@ class ReplayHookSystem:
 
         Args:
         """
-        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
 
         hook = ReplayHook(
             change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
@@ -127,7 +127,7 @@ class ReplayHookSystem:
     def _unregister_event_trigger(self, path: list[str]) -> None:
         """Remove a previously registered event trigger."""
 
-        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
         self._unregister_hook(path_idx, None)
 
     def set_province_event_trigger(self, attributes: list[str]) -> None:
@@ -173,7 +173,7 @@ class ReplayHookSystem:
             attributes: The name of the attributes to watch (e.g., "[owner_id", "resource_production"]).
         """
         path = ["states", "map_state", "map", "locations"]
-        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
 
         hook = ReplayHook(
             callback=callback,
@@ -187,5 +187,5 @@ class ReplayHookSystem:
         """Remove a previously registered province attribute change hook."""
 
         path = ["states", "map_state", "map", "locations"]
-        path_idx = self.replay.storage.path_tree.old_path_to_idx(path)
+        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
         self._unregister_hook(path_idx, callback)
