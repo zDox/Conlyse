@@ -135,7 +135,7 @@ class ReplayInterface(GameInterface):
         self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
 
         # DEBUG ----------------
-        return patches
+        #return patches
         # ----------------------
 
     def _apply_patches_and_update_state(self, patches, target_time: datetime) -> None:
@@ -183,21 +183,18 @@ class ReplayInterface(GameInterface):
         Returns:
             True if successfully jumped to previous patch, False if at start of replay.
         """
-        # TODO
-        previous_timestamp = self.get_previous_timestamp()
+        prev_idx = self.current_timestamp_index-1
+        prev_ts = self._time_stamps_cache[prev_idx] if prev_idx >= 0 else None
 
-        if previous_timestamp is None or previous_timestamp < self._replay.get_start_time():
-            return False
+        patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, prev_ts)
 
-        # Need to reload and replay from start since patches can't be unapplied
-        self.game_state = self._replay.storage.initial_game_state
-        self.game_state.set_game(self)
-
-        patches, _ = self._replay.storage.patch_graph.find_patch_path(self._replay.get_start_time(), previous_timestamp)
-        self._apply_patches_and_update_state(patches, previous_timestamp)
-        self.current_timestamp_index -= 1
+        if patches:
+            self._apply_patches_and_update_state(patches, prev_ts)
+            self.current_timestamp_index -= 1
 
         return True
+
+
 
     def jump_to_end(self):
         self.jump_to(self._replay.get_last_time())
