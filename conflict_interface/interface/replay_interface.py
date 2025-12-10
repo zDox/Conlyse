@@ -183,8 +183,10 @@ class ReplayInterface(GameInterface):
         Returns:
             True if successfully jumped to previous patch, False if at start of replay.
         """
-        prev_idx = self.current_timestamp_index-1
-        prev_ts = self._time_stamps_cache[prev_idx] if prev_idx >= 0 else None
+        prev_ts = self.get_previous_timestamp()
+
+        if prev_ts is None:
+            return False
 
         patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, prev_ts)
 
