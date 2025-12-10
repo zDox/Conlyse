@@ -1,7 +1,6 @@
 import bisect
 from datetime import UTC
 from datetime import datetime
-from datetime import timedelta
 from pathlib import Path
 from typing import Literal
 from typing import override
@@ -112,7 +111,7 @@ class ReplayInterface(GameInterface):
         return self._replay.get_start_time()
 
     @property
-    def end_time(self) -> datetime:
+    def last_time(self) -> datetime:
         return self._replay.get_last_time()
 
     def jump_to(self, time_stamp: datetime) -> None:
@@ -243,20 +242,6 @@ class ReplayInterface(GameInterface):
         # Fallback for custom timestamp (O(log n))
         i = bisect.bisect_left(ts, timestamp)
         return ts[i - 1] if i > 0 else None
-
-    def average_update_frequency(self) -> timedelta:
-        """
-        Computes the average update frequency as a timedelta.
-        """
-        timestamps = self.get_timestamps()
-        if len(timestamps) < 2:  # Need at least 2 timestamps to calculate frequency
-            return timedelta(0)
-
-        total_time = (self.end_time - self.end_time).total_seconds()
-        num_intervals = len(timestamps) - 1
-
-        return timedelta(seconds=num_intervals / total_time if total_time > 0 else 0.0)
-
 
     """
     Hook System

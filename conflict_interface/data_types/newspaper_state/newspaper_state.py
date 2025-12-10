@@ -10,6 +10,8 @@ from conflict_interface.data_types.state import State
 from conflict_interface.data_types.state import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
+
+
 def list_update(original: list, other: list, path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
     min_length = min(len(original), len(other))
     for i in range(min_length):

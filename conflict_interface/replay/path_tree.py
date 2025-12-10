@@ -208,6 +208,14 @@ class PathTree:
                             raise Exception(e)
                         add((v, child_ref))
 
+    def reset_child_references(self, start_node_idx: int):
+        stack = [start_node_idx]
+        while len(stack) > 0:
+            node = self.idx_to_node[stack.pop()]
+            for c in node.children.values():
+                c.reference = None
+                stack.append(c.index)
+
     def validate_idx_to_node_mapping(self):
         for idx, node in self.idx_to_node.items():
             if node.index != idx:

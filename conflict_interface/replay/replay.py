@@ -207,7 +207,7 @@ class Replay:
             new_nodes = self.storage.path_tree.fill(patch.forward_patch.operations)
             new_paths = []
             for node in new_nodes:
-                new_paths.append((node.index, node.parent.index, node.path_element))
+                new_paths.append((node.index, node.parent.index if node.parent else 0, node.path_element))
 
             forward = self.ops_to_lists(patch.forward_patch.operations, None)
             backward = self.ops_to_lists(reversed(patch.backward_patch.operations), None)
@@ -241,11 +241,11 @@ class Replay:
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
 
-        def apply_op(_op_type, _value, _target, _pos, _node=None):
+        def apply_op(_op_type, _value, _target, _pos, _node):
             apply_operation(_op_type, _value, _target, _pos)
             self._op_counter += 1
             if _node and _op_type == REMOVE_OPERATION:
-                _node.reference = None
+                self.storage.path_tree.reset_child_references(_node.index)
 
         # Find operations that have unknown references
         unknown_ops, unknown_paths = [], []
@@ -256,8 +256,12 @@ class Replay:
                 unknown_ops.append((op_type, path_idx, value))
                 unknown_paths.append(path_idx)
 
+        """ Note this code has an issue: When in a list a object is removed the references of all trailing elements is not made invalid"""
+        # TODO fix this or note that its not allowed to delete from anywhere but the end of a list
+
+
         # Resolve unknown references using Steiner tree + BFS
-        steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_paths)
+        steiner_tree_adj = self.storage.path_tree.build_steiner_tree(patch.paths)
         self.storage.path_tree.bfs_set_references(
             steiner_tree_adj,
             game_state

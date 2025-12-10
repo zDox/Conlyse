@@ -1,4 +1,5 @@
 import logging
+import pprint
 from copy import deepcopy
 from logging import getLogger
 from pathlib import Path
@@ -32,7 +33,7 @@ class ReplayRoundtrip:
         self.player_id = 85
         self.current_time = None
         self.last_time = None
-        self.limit = 37
+        self.limit = 100
         self.compare_start_index = 0
 
         if not preconverted:
@@ -116,8 +117,7 @@ class ReplayRoundtrip:
             dict_recorder_state = dump_any(recorder_state)
 
             diff = DeepDiff(dict_replay_state, dict_recorder_state)
-            print(diff)
-            print(dict_replay_state['actionResults'].get('@c'))
+            pprint.pprint(diff)
 
 
             ritf._replay.storage.path_tree.validate_tree_structure()

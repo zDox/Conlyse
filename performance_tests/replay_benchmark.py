@@ -64,13 +64,13 @@ class BenchmarkResults:
 class ReplayBenchmark:
     def __init__(self):
         self.replay_interface: ReplayInterface | None = None
-        self.recording_file_path = TEST_DATA / "test_recording"
+        self.recording_file_path = TEST_DATA / "test004"
         self.results: List[BenchmarkResults] = []
 
     def set_up(self):
-        self.start_converter()
+        #self.start_converter()
         self.replay_interface = ReplayInterface(TEST_DATA / "test_replay.bin")
-        self.replay_interface.open()
+        self.replay_interface.open(mode = 'r')
 
     def start_converter(self):
         # Create converter for replay conversion (gmr mode)
