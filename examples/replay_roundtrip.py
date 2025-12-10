@@ -1,7 +1,6 @@
 import logging
 import pprint
 from copy import deepcopy
-from logging import getLogger
 from pathlib import Path
 
 from deepdiff import DeepDiff
@@ -22,7 +21,7 @@ from tools.recording_converter.converter import RecordingConverter
 from tools.recording_converter.enums import OperatingMode
 from tools.recording_converter.recording_reader import RecordingReader
 
-logger = getLogger()
+logger = logging.getLogger()
 
 
 class ReplayRoundtrip:

@@ -172,9 +172,9 @@ class Province(GameObject):
     @property
     def static_data(self) -> StaticProvince:
         if not self._static_data:
-            self._static_data = self.game.get_map().static_map_data.province_to_location(self.id)
+            self._static_data = self.game.get_map().static_map_data.province_to_location[self.id]
 
-        return self.static_data
+        return self._static_data
 
     @requires_ownership
     def get_possible_upgrade(self, **filters) -> ModableUpgrade | None:

@@ -52,7 +52,7 @@ class StaticMapData(GameObject):
 
     @property
     def province_to_location(self) -> dict[int, StaticProvince]:
-        if not self._province_to_location:
+        if self._province_to_location is None:
             self.setup_locations_cache()
         return self._province_to_location
 

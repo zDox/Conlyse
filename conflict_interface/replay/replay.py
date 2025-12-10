@@ -270,7 +270,7 @@ class Replay:
 
 
         # Resolve unknown references using Steiner tree + BFS
-        steiner_tree_adj = self.storage.path_tree.build_steiner_tree(patch.paths)
+        steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_paths)
         self.storage.path_tree.bfs_set_references(
             steiner_tree_adj,
             game_state
