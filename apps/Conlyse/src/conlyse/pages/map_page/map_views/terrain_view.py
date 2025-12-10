@@ -10,7 +10,7 @@ TERRAIN_TYPE_TO_RGB = {
     TerrainType.HILLS: (139, 69, 19),
     TerrainType.MOUNTAIN: (139, 137, 137),
     TerrainType.FOREST: (34, 100, 34),
-    TerrainType.URBAN: (169, 169, 169),
+    TerrainType.URBAN: (205, 133, 63) ,
     TerrainType.JUNGLE: (0, 100, 0),
     TerrainType.TUNDRA: (176, 196, 222),
     TerrainType.DESERT: (210, 180, 140),

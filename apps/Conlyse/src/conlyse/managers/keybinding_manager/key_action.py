@@ -27,3 +27,6 @@ class KeyAction(StrEnum):
     # Map View Switches
     SWITCH_TO_POLITICAL_MAP_VIEW = "switch_to_political_map_view"
     SWITCH_TO_TERRAIN_MAP_VIEW = "switch_to_terrain_map_view"
+
+    # Toggle Connections Overlay
+    TOGGLE_CONNECTIONS_OVERLAY = "toggle_connections_overlay"

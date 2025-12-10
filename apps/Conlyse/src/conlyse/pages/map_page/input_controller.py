@@ -45,18 +45,24 @@ class InputController:
 
     def setup_keybindings(self):
         self.keybindings_manager.register_action(
-            KeyAction.SWITCH_TO_POLITICAL_MAP_VIEW,
-            lambda _: self.map_widget.set_active_map_view(MapViewType.POLITICAL)
-        )
-        self.keybindings_manager.register_action(
-            KeyAction.SWITCH_TO_TERRAIN_MAP_VIEW,
-            lambda _: self.map_widget.set_active_map_view(MapViewType.TERRAIN)
-        )
-        self.keybindings_manager.register_action(
             KeyAction.CAMERA_ZOOM_IN, self.map_widget.camera.zoom_in
         )
         self.keybindings_manager.register_action(
             KeyAction.CAMERA_ZOOM_OUT, self.map_widget.camera.zoom_out
+        )
+
+        self.keybindings_manager.register_action(
+            KeyAction.SWITCH_TO_POLITICAL_MAP_VIEW,
+            lambda: self.map_widget.set_active_map_view(MapViewType.POLITICAL)
+        )
+        self.keybindings_manager.register_action(
+            KeyAction.SWITCH_TO_TERRAIN_MAP_VIEW,
+            lambda: self.map_widget.set_active_map_view(MapViewType.TERRAIN)
+        )
+
+        self.keybindings_manager.register_action(
+            KeyAction.TOGGLE_CONNECTIONS_OVERLAY,
+            self.map_widget.toggle_render_connections
         )
 
 
@@ -127,7 +133,6 @@ class InputController:
         new_zoom = self.map_widget.camera.zoom * zoom_factor
         x, y = event.position().x(), event.position().y()
         self.map_widget.camera.zoom_to(new_zoom, x, y)
-        self.map_widget.update()
 
     def update_camera_from_keyboard(self) -> None:
         """
@@ -139,13 +144,13 @@ class InputController:
         dx_total = 0
         dy_total = 0
 
-        KEYBOARD_MOVEMENT_CONFIG = {
+        keyboard_movement_config = {
             self.keybindings_manager.get_key(KeyAction.CAMERA_MOVE_UP): (0, -1),
             self.keybindings_manager.get_key(KeyAction.CAMERA_MOVE_DOWN): (0, 1),
             self.keybindings_manager.get_key(KeyAction.CAMERA_MOVE_LEFT): (-1, 0),
             self.keybindings_manager.get_key(KeyAction.CAMERA_MOVE_RIGHT): (1, 0),
         }
-        for key, (dx_norm, dy_norm) in KEYBOARD_MOVEMENT_CONFIG.items():
+        for key, (dx_norm, dy_norm) in keyboard_movement_config.items():
             if key is not None and key in self.pressed_keys:
                 dx_total += dx_norm * CAMERA_MOVEMENT_STEP
                 dy_total += dy_norm * CAMERA_MOVEMENT_STEP

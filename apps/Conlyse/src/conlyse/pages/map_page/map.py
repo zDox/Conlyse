@@ -4,11 +4,13 @@ from PyQt6.QtCore import QSize
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from conflict_interface.interface.replay_interface import ReplayInterface
 
+from conlyse.logger import get_logger
 from conlyse.pages.map_page.camera import Camera
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
 from conlyse.pages.map_page.renderers.province_connection_renderer import ProvinceConnectionRenderer
 from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
 
+logger = get_logger()
 
 class Map(QOpenGLWidget):
     def __init__(self, ritf: ReplayInterface, parent=None):
@@ -29,7 +31,10 @@ class Map(QOpenGLWidget):
             map_view: The MapViewType to set as active
         """
         self.active_map_view = map_view
-        self.update()
+
+    def toggle_render_connections(self):
+        """Toggle the rendering of province connections."""
+        self.render_connections = not self.render_connections
 
     def handle_camera_move(self, dx: int, dy: int):
         """
@@ -39,7 +44,6 @@ class Map(QOpenGLWidget):
             dy: Vertical movement in screen pixels
         """
         self.camera.move(dx, dy)
-        self.update()
 
     def initializeGL(self):
         """Initialize OpenGL resources. Called once when the widget is first shown."""

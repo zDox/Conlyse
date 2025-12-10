@@ -83,7 +83,7 @@ class ProvinceConnectionRenderer:
         # Enable line smoothing for better quality
         gl.glEnable(gl.GL_LINE_SMOOTH)
         gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
-        gl.glLineWidth(self.camera.zoom * 0.25)
+        gl.glLineWidth(1.0)
 
         self.vao.bind()
         gl.glDrawArrays(gl.GL_LINES, 0, self.num_of_vertices // 2)

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from conlyse.logger import get_logger
 from conlyse.pages.map_page.constants import INITIAL_ZOOM
 from conlyse.pages.map_page.constants import MAX_ZOOM
 from conlyse.pages.map_page.constants import MIN_ZOOM
@@ -17,7 +18,8 @@ from conlyse.pages.map_page.opengl_wrapper.shader_program import ShaderProgram
 if TYPE_CHECKING:
     from conlyse.pages.map_page.map import Map
 
-
+logger = get_logger()
+VERTICAL_SCALE = 0.6
 class Camera:
     """
     Manages camera position, zoom, and viewport transformations for the map.
@@ -66,19 +68,19 @@ class Camera:
         else:
             world_height /= aspect_ratio
 
+        world_height/=VERTICAL_SCALE
+
         left = self.x - world_width / 2
         right = self.x + world_width / 2
         bottom = self.y - world_height / 2
         top = self.y + world_height / 2
         return left, right, bottom, top
 
-    def _clamp_position(self) -> None:
+    def _clamp_position(self):
         """
-        Clamp camera viewport to world boundaries.
+        Clamp vertically, wrap horizontally.
+        """
 
-        Ensures that the camera cannot pan beyond the world edges,
-        preventing the user from seeing outside the valid game area.
-        """
         left, right, bottom, top = self._get_visible_rect()
         world_width = right - left
         world_height = top - bottom
@@ -86,8 +88,11 @@ class Camera:
         half_width = world_width / 2
         half_height = world_height / 2
 
-        self.x = max(self.x, self.min_x + half_width)
-        self.x = min(self.x, self.max_x - half_width)
+        # ----- Horizontal wrapping -----
+        total_width = self.max_x - self.min_x
+        self.x = ((self.x - self.min_x) % total_width) + self.min_x
+
+        # ----- Vertical clamping (no wrap) -----
         self.y = max(self.y, self.min_y + half_height)
         self.y = min(self.y, self.max_y - half_height)
 
@@ -202,13 +207,14 @@ class Camera:
         Returns:
             3x3 transformation matrix
         """
-        # Calculate the visible world space based on zoom and screen aspect ratio
+
         left, right, bottom, top = self._get_visible_rect()
 
-        # Orthographic projection from world space to NDC
+        # Now apply vertical scale in projection
         proj = np.array([
             [2 / (right - left), 0, -(right + left) / (right - left)],
-            [0, 2 / (bottom - top), -(bottom + top) / (bottom - top)],
+            [0, (2 * VERTICAL_SCALE) / (bottom - top),
+             -(bottom + top) / (bottom - top) * VERTICAL_SCALE],
             [0, 0, 1]
         ], dtype=np.float32)
 

@@ -168,7 +168,7 @@ class ReplayListPage(Page):
 
         self.app.page_manager.switch_to(
             PageType.ReplayLoadPage,
-            next_page=PageType.PlayerListPage,
+            next_page=PageType.MapPage,
             replay_path=self.selected_filepath
         )
 

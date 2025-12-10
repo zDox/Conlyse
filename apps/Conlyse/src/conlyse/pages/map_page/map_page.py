@@ -41,7 +41,6 @@ class MapPage(Page):
         The replay interface (`ritf`) is obtained from `self.app.replay_manager.get_active_replay()`.
         """
         super().__init__(app, parent)
-        print(app.main_window.size())
         self.app: App = app
         self.ritf = self.app.replay_manager.get_active_replay()
         self.map_widget: Map | None = None
@@ -76,12 +75,6 @@ class MapPage(Page):
 
         self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
         self.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
-        print(self.app.main_window.size())
-
-
-    def _on_frame_update(self) -> None:
-        """Handle periodic frame updates for smooth keyboard input."""
-        self.input_controller.update_camera_from_keyboard()
 
     # ---- Input event handlers ----
     # These methods forward events to the InputController
@@ -107,51 +100,8 @@ class MapPage(Page):
     def update(self) -> None:
         """Update method called by the page manager."""
         self.input_controller.update_camera_from_keyboard()
+        self.map_widget.update()
 
     def clean_up(self) -> None:
         """Clean up resources when the page is closed."""
         self.map_widget.deleteLater()
-
-
-if __name__ == '__main__':
-    from PyQt6.QtWidgets import QApplication
-
-    setup_logger(logging.DEBUG)
-    setup_library_logger(logging.DEBUG)
-    app = QApplication([])
-
-    ritf = ReplayInterface("test_replay.bin")
-    ritf.open()
-    logger.debug(f"Loaded replay: {ritf.replay.game_id}")
-
-    static_province_ids = [
-        p.id for p in ritf.game_state.states.map_state.map.static_map_data.locations
-    ]
-    province_ids = [p.id for p in ritf.get_provinces().values()]
-
-    # Print differences in province IDs
-    missing_in_static = set(province_ids) - set(static_province_ids)
-    if missing_in_static:
-        logger.warning(f"Provinces missing in static map data: {missing_in_static}")
-    extra_in_static = set(static_province_ids) - set(province_ids)
-    if extra_in_static:
-        logger.warning(f"Extra provinces in static map data: {extra_in_static}")
-
-
-    # Create a mock app object for standalone testing
-    class MockApp:
-        pass
-
-
-    map_page = MapPage(MockApp(), ritf)
-    map_page.setup({})
-    map_page.resize(1200, 800)
-    map_page.show()
-
-
-    # Timer for smooth continuous key movement
-    frame_timer = QTimer(map_page)
-    frame_timer.timeout.connect(map_page._on_frame_update)
-    frame_timer.start(UPDATE_FRAME_INTERVAL_MS)
-
-    app.exec()
