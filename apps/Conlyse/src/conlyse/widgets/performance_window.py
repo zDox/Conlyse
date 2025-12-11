@@ -113,6 +113,8 @@ class PerformanceWindow(QWidget):
         """
         if name in self.metric_labels:
             self.metric_labels[name].setText(f"{name}: {value:.2f} {unit}")
+        else:
+            logger.warning(f"Attempted to update non-existent metric '{name}'. Call add_metric() first.")
     
     def update_frame_time(self, time_ms: float) -> None:
         """

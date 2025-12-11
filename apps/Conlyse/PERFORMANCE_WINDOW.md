@@ -15,7 +15,7 @@ The Performance Window is a global floating widget that displays performance met
 
 ### For Users
 
-1. Press `F3` to toggle the performance window visibility
+1. Press `F3` (default keybinding, configurable in keybindings.json) to toggle the performance window visibility
 2. The window will display:
    - Current page name
    - FPS (Frames Per Second)

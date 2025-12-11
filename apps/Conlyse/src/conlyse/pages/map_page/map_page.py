@@ -66,6 +66,8 @@ class MapPage(Page):
         self.frame_count = 0
         self.fps_update_interval = 0.5  # Update FPS every 0.5 seconds
         self.fps_timer = 0.0
+        self.perf_update_counter = 0
+        self.perf_update_interval = 10  # Update performance metrics every 10 frames
 
     def setup(self, context) -> None:
         """Initialize the UI layout and OpenGL context."""
@@ -120,10 +122,14 @@ class MapPage(Page):
         
         # Update performance window if visible
         if self.app.performance_window.isVisible():
-            metrics = self.map_widget.get_performance_metrics()
-            self.app.performance_window.update_metric("Province Fill", metrics["province_fill"])
-            self.app.performance_window.update_metric("Province Connections", metrics["province_connections"])
-            self.app.performance_window.update_frame_time(metrics["total_frame"])
+            # Throttle performance metric updates to reduce CPU overhead
+            self.perf_update_counter += 1
+            if self.perf_update_counter >= self.perf_update_interval:
+                metrics = self.map_widget.get_performance_metrics()
+                self.app.performance_window.update_metric("Province Fill", metrics["province_fill"])
+                self.app.performance_window.update_metric("Province Connections", metrics["province_connections"])
+                self.app.performance_window.update_frame_time(metrics["total_frame"])
+                self.perf_update_counter = 0
             
             # Calculate FPS
             current_time = time.perf_counter()
