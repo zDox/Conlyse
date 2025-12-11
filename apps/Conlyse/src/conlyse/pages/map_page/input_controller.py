@@ -34,6 +34,7 @@ class InputController:
 
         Args:
             map_widget: The Map widget to control
+            keybindings_manager: The keybindings manager
         """
         self.map_widget = map_widget
         self.keybindings_manager = keybindings_manager

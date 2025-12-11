@@ -18,6 +18,7 @@ from conlyse.pages.player_list_page import PlayerListPage
 from conlyse.pages.replay_list_page.replay_list_page import ReplayListPage
 from conlyse.pages.replay_load_page import ReplayLoadPage
 from conlyse.utils.enums import PageType
+from conlyse.widgets.performance_window import PerformanceWindow
 
 logger = get_logger()
 
@@ -36,6 +37,9 @@ class App:
         self.replay_manager: ReplayManager     = ReplayManager(self)
 
         self.frame_timer : QTimer = QTimer()
+        
+        # Global performance window
+        self.performance_window : PerformanceWindow = PerformanceWindow(self, parent=self.main_window)
 
 
 
@@ -52,6 +56,7 @@ class App:
         # Setting up drawer
         self.main_window.drawer.register_entry("Replays", lambda: self.page_manager.switch_to(PageType.ReplayListPage))
         self.keybinding_manager.register_action(KeyAction.TOGGLE_DRAWER, self.main_window.toggle_drawer)
+        self.keybinding_manager.register_action(KeyAction.TOGGLE_PERFORMANCE_WINDOW, self.performance_window.toggle_visibility)
         # Connect buttons
 
         # Start with home

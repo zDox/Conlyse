@@ -1,3 +1,4 @@
+import time
 
 from OpenGL import GL as gl
 from PyQt6.QtCore import QSize
@@ -34,6 +35,13 @@ class Map(QOpenGLWidget):
 
         self.active_map_view = MapViewType.POLITICAL
         self.render_connections = True
+        
+        # Performance tracking
+        self.performance_metrics = {
+            "province_fill": 0.0,
+            "province_connections": 0.0,
+            "total_frame": 0.0
+        }
 
     def set_active_map_view(self, map_view: MapViewType):
         """
@@ -71,11 +79,24 @@ class Map(QOpenGLWidget):
 
     def paintGL(self):
         """Render the map. Called whenever the widget needs to be redrawn."""
+        frame_start = time.perf_counter()
+        
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+        
+        # Track province fill renderer time
+        render_start = time.perf_counter()
         self.province_fill_renderer.render(self.active_map_view)
+        self.performance_metrics["province_fill"] = (time.perf_counter() - render_start) * 1000
 
         if self.render_connections:
+            # Track province connections renderer time
+            render_start = time.perf_counter()
             self.province_connection_renderer.render()
+            self.performance_metrics["province_connections"] = (time.perf_counter() - render_start) * 1000
+        else:
+            self.performance_metrics["province_connections"] = 0.0
+        
+        self.performance_metrics["total_frame"] = (time.perf_counter() - frame_start) * 1000
 
     def resizeGL(self, w: int, h: int):
         """
@@ -89,3 +110,12 @@ class Map(QOpenGLWidget):
 
     def sizeHint(self):
         return QSize(800, 600)
+    
+    def get_performance_metrics(self):
+        """
+        Get the current performance metrics.
+        
+        Returns:
+            dict: Dictionary containing performance metrics in milliseconds
+        """
+        return self.performance_metrics.copy()
