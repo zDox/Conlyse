@@ -64,7 +64,7 @@ class MapPage(Page):
         # Performance tracking
         self.last_frame_time = time.perf_counter()
         self.frame_count = 0
-        self.fps_update_interval = 0.5  # Update FPS every 0.5 seconds
+        self.fps_update_interval = 1  # Update FPS every 0.5 seconds
         self.fps_timer = 0.0
 
     def setup(self, context) -> None:

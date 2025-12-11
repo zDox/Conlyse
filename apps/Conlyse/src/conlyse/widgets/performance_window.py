@@ -30,6 +30,18 @@ class PerformanceWindow(QWidget):
         self.app = app
         self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        # Set background color and border via stylesheet
+        self.setStyleSheet("""
+            QWidget#performance_window { 
+                background-color: #2b2b2b;
+                border: 1px solid #555555;
+                border-radius: 5px;
+            }
+            QLabel#performance_label {
+                color: #ffffff; 
+                font-size: 12px;
+            }
+        """)
         self.setObjectName("performance_window")
         self.setWindowTitle("Performance Metrics")
         

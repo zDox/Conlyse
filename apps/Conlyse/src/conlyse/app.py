@@ -64,7 +64,7 @@ class App:
         self.page_manager.update()
 
         # Frame update timer (~60 FPS)
-        self.frame_timer.setInterval(int(1/self.config_manager.main.get("graphics.frame_rate_limit") * 1000))  # ms
+        self.frame_timer.setInterval(int(1000/self.config_manager.main.get("graphics.frame_rate_limit")))  # ms
         self.frame_timer.timeout.connect(self.update_frame)
         self.frame_timer.start()
 
@@ -76,5 +76,3 @@ class App:
     def update_frame(self):
         # Per-frame logic
         self.page_manager.update()
-        # Trigger repaint if needed
-        self.main_window.update()
