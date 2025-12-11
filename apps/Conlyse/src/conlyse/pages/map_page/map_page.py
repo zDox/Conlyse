@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import time
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QTimer
@@ -59,6 +60,14 @@ class MapPage(Page):
         old_size = app.main_window.size()
         self.map_widget = Map(self.ritf, self.app.config_manager.main, self)
         app.main_window.resize(old_size.width(), old_size.height())
+        
+        # Performance tracking
+        self.last_frame_time = time.perf_counter()
+        self.frame_count = 0
+        self.fps_update_interval = 1  # Update FPS every 0.5 seconds
+        self.fps_timer = 0.0
+        self.perf_update_counter = 0
+        self.perf_update_interval = 10  # Update performance metrics every 10 frames
 
     def setup(self, context) -> None:
         """Initialize the UI layout and OpenGL context."""
@@ -76,6 +85,12 @@ class MapPage(Page):
         layout.addWidget(self.map_widget)
         self.setLayout(layout)
 
+        # Set up performance metrics for this page
+        self.app.performance_window.clear_metrics()
+        self.app.performance_window.set_page("Map Page")
+        self.app.performance_window.add_metric("Province Fill")
+        self.app.performance_window.add_metric("Province Connections")
+        
         self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
         self.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
 
@@ -104,6 +119,29 @@ class MapPage(Page):
         """Update method called by the page manager."""
         self.input_controller.update_camera_from_keyboard()
         self.map_widget.update()
+        
+        # Update performance window if visible
+        if self.app.performance_window.isVisible():
+            # Throttle performance metric updates to reduce CPU overhead
+            self.perf_update_counter += 1
+            if self.perf_update_counter >= self.perf_update_interval:
+                metrics = self.map_widget.get_performance_metrics()
+                self.app.performance_window.update_metric("Province Fill", metrics["province_fill"])
+                self.app.performance_window.update_metric("Province Connections", metrics["province_connections"])
+                self.app.performance_window.update_frame_time(metrics["total_frame"])
+                self.perf_update_counter = 0
+            
+            # Calculate FPS
+            current_time = time.perf_counter()
+            self.frame_count += 1
+            self.fps_timer += current_time - self.last_frame_time
+            self.last_frame_time = current_time
+            
+            if self.fps_timer >= self.fps_update_interval:
+                fps = self.frame_count / self.fps_timer
+                self.app.performance_window.update_fps(fps)
+                self.frame_count = 0
+                self.fps_timer = 0.0
 
     def clean_up(self) -> None:
         """Clean up resources when the page is closed."""

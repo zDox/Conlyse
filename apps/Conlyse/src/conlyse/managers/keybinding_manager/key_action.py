@@ -30,3 +30,6 @@ class KeyAction(StrEnum):
 
     # Toggle Connections Overlay
     TOGGLE_CONNECTIONS_OVERLAY = "toggle_connections_overlay"
+    
+    # Performance monitoring
+    TOGGLE_PERFORMANCE_WINDOW = "toggle_performance_window"

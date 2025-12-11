@@ -3,7 +3,6 @@ import sys
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
-from conlyse.constants import APPLICATION_NAME
 from conlyse.logger import get_logger
 from conlyse.main_window import MainWindow
 from conlyse.managers.asset_manager import AssetManager
@@ -19,6 +18,7 @@ from conlyse.pages.player_list_page import PlayerListPage
 from conlyse.pages.replay_list_page.replay_list_page import ReplayListPage
 from conlyse.pages.replay_load_page import ReplayLoadPage
 from conlyse.utils.enums import PageType
+from conlyse.widgets.performance_window import PerformanceWindow
 
 logger = get_logger()
 
@@ -37,6 +37,9 @@ class App:
         self.replay_manager: ReplayManager     = ReplayManager(self)
 
         self.frame_timer : QTimer = QTimer()
+        
+        # Global performance window
+        self.performance_window : PerformanceWindow = PerformanceWindow(self, parent=self.main_window)
 
 
 
@@ -44,7 +47,6 @@ class App:
 
     def start(self):
         logger.debug("Loading application...")
-        self.q_app.setApplicationName(APPLICATION_NAME)
         # Register pages
         self.page_manager.register_page(PageType.ReplayListPage, ReplayListPage)
         self.page_manager.register_page(PageType.ReplayLoadPage, ReplayLoadPage)
@@ -54,20 +56,19 @@ class App:
         # Setting up drawer
         self.main_window.drawer.register_entry("Replays", lambda: self.page_manager.switch_to(PageType.ReplayListPage))
         self.keybinding_manager.register_action(KeyAction.TOGGLE_DRAWER, self.main_window.toggle_drawer)
+        self.keybinding_manager.register_action(KeyAction.TOGGLE_PERFORMANCE_WINDOW, self.performance_window.toggle_visibility)
         # Connect buttons
 
         # Start with home
         self.page_manager.switch_to(PageType.ReplayListPage)
         self.page_manager.update()
 
-        # Frame update timer
-        self.frame_timer.setInterval(int(1/self.config_manager.main.get("graphics.frame_rate_limit") * 1000))  # ms
+        # Frame update timer (~60 FPS)
+        self.frame_timer.setInterval(int(1000/self.config_manager.main.get("graphics.frame_rate_limit")))  # ms
         self.frame_timer.timeout.connect(self.update_frame)
         self.frame_timer.start()
 
         # Start the application by showing the main window
-        self.main_window.resize(self.config_manager.main.get("graphics.resolution.width"),
-                                self.config_manager.main.get("graphics.resolution.height"))
         self.main_window.show()
 
         sys.exit(self.q_app.exec())
