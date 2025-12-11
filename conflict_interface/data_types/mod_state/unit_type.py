@@ -38,6 +38,7 @@ from conflict_interface.data_types.mod_state.configuration import TokenConsumerC
 from conflict_interface.data_types.mod_state.configuration import TokenProducerConfig
 from conflict_interface.data_types.mod_state.configuration import TokenSensitivityConfig
 from conflict_interface.data_types.mod_state.configuration import UnitTypeFrontEndConfig
+from conflict_interface.data_types.mod_state.configuration import VariantConfig
 from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
 from conflict_interface.data_types.player_state.faction import Faction
 from conflict_interface.data_types.research_state.research_type import ResearchType
@@ -120,6 +121,7 @@ class UnitType(GameObject):
     terrain_restriction_config: TerrainRestrictedConfig
     render_config: RenderConfig
     faction_specific_config: FactionSpecificConfig
+    variant_config: VariantConfig
     limited_commands: dict[str, Union[IncludeExcludeConfig, bool]]
 
 
@@ -198,6 +200,7 @@ class UnitType(GameObject):
         "render_config": "renderConfig",
         "terrain_restriction_config": "terrainRestrictionConfig",
         "faction_specific_config": "factionSpecificConfig",
+        "variant_config": "variantConfig",
         "limited_commands": "limitedCommands"
     }
     def get_name_with_tier(self):

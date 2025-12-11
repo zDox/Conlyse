@@ -16,13 +16,20 @@ from conflict_interface.data_types.player_state.player_state import PlayerState
 from conflict_interface.data_types.research_state.research_state import ResearchState
 from conflict_interface.data_types.resource_state.resource_state import ResourceState
 from conflict_interface.interface.game_interface import GameInterface
+from paths import TEST_DATA
 from tests.helper_functions import compare_dicts
 
 
 class ParseDumpTests(unittest.TestCase):
-    test_states = [ModState, ResourceState, MapState, NewspaperState, PlayerState, ArmyState, ForeignAffairsState, ResearchState, GameInfoState, GameEventState]
-
-    test_files = ["full_test_data_1_v206.json"]
+    test_states = [ModState,
+                   ResourceState,
+                   MapState,
+                   NewspaperState,
+                   PlayerState,
+                   ArmyState,
+                   ForeignAffairsState,
+                   ResearchState, GameInfoState, GameEventState]
+    test_files = [TEST_DATA/"full_test_data_1_v207.json"]
 
     def test_load_json(self):
         for file in ParseDumpTests.test_files:
