@@ -130,11 +130,13 @@ class TokenProducerConfigProduction(GameObject):
     C = "ultshared.modding.configuration.UltTokenProducerConfig$TokenProduction"
     type_id: int
     amount: int
+    range: int
     duration: TimeDeltaMillisecondsInt = TimeDeltaMillisecondsInt(0)
     MAPPING = {
-            "type_id": "typeID",
-            "amount": "amount",
-            "duration": "duration",
+        "type_id": "typeID",
+        "amount": "amount",
+        "duration": "duration",
+        "range": "range",
     }
 
 @dataclass
@@ -371,7 +373,7 @@ class ModStateFrontendConfig(GameObject):
     ticket_item_ids: list[int]
     show_veteran_separation_text: bool
     solsten_survey_details: dict[str, Union[str, int]]
-    officer_promo_banner: dict[str, Union[str, int]]
+    officer_promo_banner: dict[str, Union[str, int, bool]]
     feature_promo_popup: dict[str, Union[str, int, bool]]
 
 
@@ -841,6 +843,16 @@ class FactionSpecificConfig(GameObject):
 
     MAPPING = {
         "factions": "factions",
+    }
+
+@dataclass
+class VariantConfig(GameObject):
+    C = "ultshared.modding.configuration.UltVariantConfig"
+
+    variant_class: int
+
+    MAPPING = {
+        "variant_class": "class",
     }
 
 @dataclass
