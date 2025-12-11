@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QMainWindow, QStackedWidget, QVBoxLayout, QWidget
 from PyQt6.QtCore import QPoint
 from PyQt6.QtWidgets import QSizePolicy
 
+from conlyse.constants import APPLICATION_NAME
 from conlyse.widgets.drawer import Drawer
 from conlyse.widgets.header import Header
 
@@ -20,7 +21,7 @@ class MainWindow(QMainWindow):
         self.main_layout = QVBoxLayout(self.container)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.header = Header(app, "Conlyse", parent=self.container)
+        self.header = Header(app, APPLICATION_NAME, parent=self.container)
         self.stacked_widget = QStackedWidget(self.container)  # Holds the Pages but only shows one at a time
         self.stacked_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         # Create the drawer as a child of the container so its 'pos' is container-relative
