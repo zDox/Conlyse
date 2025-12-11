@@ -7,6 +7,7 @@ logging.getLogger(LIBRARY_LOGGER_NAME).addHandler(logging.NullHandler())
 def setup_library_logger(level=logging.WARNING):
     logger = logging.getLogger(LIBRARY_LOGGER_NAME)
     logger.setLevel(level)
+    logger.propagate = False
 
     # Set up a console handler
     console_handler = logging.StreamHandler()
@@ -20,8 +21,7 @@ def setup_library_logger(level=logging.WARNING):
 
     # Avoid duplicate handlers
     logger.handlers.clear()
-    if not logger.handlers:
-        logger.addHandler(console_handler)
+    logger.addHandler(console_handler)
 
 def get_logger() -> logging.Logger:
     return logging.getLogger(LIBRARY_LOGGER_NAME)
