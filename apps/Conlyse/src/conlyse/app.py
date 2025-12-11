@@ -3,6 +3,7 @@ import sys
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
+from conlyse.constants import APPLICATION_NAME
 from conlyse.logger import get_logger
 from conlyse.main_window import MainWindow
 from conlyse.managers.asset_manager import AssetManager
@@ -43,6 +44,7 @@ class App:
 
     def start(self):
         logger.debug("Loading application...")
+        self.q_app.setApplicationName(APPLICATION_NAME)
         # Register pages
         self.page_manager.register_page(PageType.ReplayListPage, ReplayListPage)
         self.page_manager.register_page(PageType.ReplayLoadPage, ReplayLoadPage)
@@ -58,12 +60,14 @@ class App:
         self.page_manager.switch_to(PageType.ReplayListPage)
         self.page_manager.update()
 
-        # Frame update timer (~60 FPS)
+        # Frame update timer
         self.frame_timer.setInterval(int(1/self.config_manager.main.get("graphics.frame_rate_limit") * 1000))  # ms
         self.frame_timer.timeout.connect(self.update_frame)
         self.frame_timer.start()
 
         # Start the application by showing the main window
+        self.main_window.resize(self.config_manager.main.get("graphics.resolution.width"),
+                                self.config_manager.main.get("graphics.resolution.height"))
         self.main_window.show()
 
         sys.exit(self.q_app.exec())
@@ -71,5 +75,3 @@ class App:
     def update_frame(self):
         # Per-frame logic
         self.page_manager.update()
-        # Trigger repaint if needed
-        self.main_window.update()
