@@ -27,7 +27,8 @@ jobs:
 
       - name: get test data
         run: |
-          wget -O full_test_data_1_v206.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_1_v206.json
+          mkdir -p tests/test_data
+          wget -O tests/test_data/full_test_data_1_v207.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_1_v207.json
 
 
       - name: Run tests with unittest
