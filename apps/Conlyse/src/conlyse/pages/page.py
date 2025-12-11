@@ -23,7 +23,7 @@ class Page(QWidget, metaclass=QtABCMeta):
 
 
     @abstractmethod
-    def update(self):
+    def page_update(self):
         pass
 
     @abstractmethod

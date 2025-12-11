@@ -15,7 +15,7 @@ class ProvinceListPage(Page):
     def setup(self, context):
         pass
 
-    def update(self):
+    def page_update(self):
         pass
 
     def clean_up(self):

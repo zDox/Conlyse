@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from PyQt6.QtCore import QTimer
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
+from PyQt6.QtWidgets import QSizePolicy
 from PyQt6.QtWidgets import QVBoxLayout
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
@@ -59,6 +60,7 @@ class MapPage(Page):
         #
         old_size = app.main_window.size()
         self.map_widget = Map(self.ritf, self.app.config_manager.main, self)
+        self.map_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         app.main_window.resize(old_size.width(), old_size.height())
         
         # Performance tracking
@@ -115,10 +117,10 @@ class MapPage(Page):
     def wheelEvent(self, event: QWheelEvent) -> None:
         self.input_controller.handle_wheel(event)
 
-    def update(self) -> None:
+    def page_update(self) -> None:
         """Update method called by the page manager."""
         self.input_controller.update_camera_from_keyboard()
-        self.map_widget.update()
+        self.map_widget.render_frame()
         
         # Update performance window if visible
         if self.app.performance_window.isVisible():

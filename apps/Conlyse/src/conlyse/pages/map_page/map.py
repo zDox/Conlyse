@@ -2,6 +2,7 @@ import time
 
 from OpenGL import GL as gl
 from PyQt6.QtCore import QSize
+from PyQt6.QtCore import Qt
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from conflict_interface.interface.replay_interface import ReplayInterface
 
@@ -29,6 +30,8 @@ class Map(QOpenGLWidget):
 
         self.enable_anti_aliasing: bool = main_config.get("graphics.anti_aliasing")
 
+        self.disable_pyqt_redraws()
+
         self.camera = Camera(self)
         self.province_fill_renderer = ProvinceFillRenderer(self)
         self.province_connection_renderer = ProvinceConnectionRenderer(self)
@@ -42,6 +45,18 @@ class Map(QOpenGLWidget):
             "province_connections": 0.0,
             "total_frame": 0.0
         }
+
+    def disable_pyqt_redraws(self):
+        # Prevent Qt automatic redraws
+        self.setUpdateBehavior(QOpenGLWidget.UpdateBehavior.NoPartialUpdate)
+        self.setAutoFillBackground(False)
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_PaintOnScreen, False)
+
+    # Ignore Qt paint events
+    def paintEvent(self, event):
+        pass
 
     def set_active_map_view(self, map_view: MapViewType):
         """
@@ -107,6 +122,15 @@ class Map(QOpenGLWidget):
             h: New height in pixels
         """
         gl.glViewport(0, 0, w, h)
+
+    def render_frame(self):
+        # Render manually
+        self.makeCurrent()
+        self.paintGL()
+        self.doneCurrent()
+
+        # Blit to widget once
+        self.update()
 
     def sizeHint(self):
         return QSize(800, 600)

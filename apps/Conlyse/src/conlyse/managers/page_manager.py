@@ -136,8 +136,7 @@ class PageManager:
             self._transition_page()
 
         if self.current_page:
-            self.current_page.update()
-            # logger.debug(f"Current focus widget: {self.app.q_app.focusWidget()}")
+            self.current_page.page_update()
 
     def get_current_page_type(self) -> PageType | None:
         return self.current_page_type
