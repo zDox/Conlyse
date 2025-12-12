@@ -359,7 +359,7 @@ class Replay:
         self.storage.path_tree.validate_tree_structure()
 
     def validate_max_patches(self, add = 0):
-        if self.storage.metadata.current_patches+add >= self.storage.metadata.max_patches:
+        if self.storage.metadata.current_patches + add >= self.storage.metadata.max_patches:
             raise IndexError(
                 f"Cannot add {add} patches: would exceed maximum of {self.storage.metadata.max_patches} "
                 f"(currently at {self.storage.metadata.current_patches})"
