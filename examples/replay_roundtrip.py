@@ -58,7 +58,7 @@ class ReplayRoundtrip:
 
         Args:
             recording_file_path: Path to the source recording directory
-            replay_file_path: Path to the replay database file
+            replay_file_path: Path to the replay file
             player_id: Player ID for the recording
             limit: Maximum number of JSON responses to process
             compare_start_index: Index to start comparing states (skip initial states)

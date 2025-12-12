@@ -20,7 +20,7 @@ logger = get_logger()
 
 class FromJsonResponsesUsingUpdateToReplay:
     """
-    Converts game recordings from JSON responses to replay database format.
+    Converts game recordings from JSON responses to replay format.
 
     This converter processes JSON responses containing game state updates and creates
     bidirectional replay patches that can be used to reconstruct game states at any point.
@@ -49,13 +49,14 @@ class FromJsonResponsesUsingUpdateToReplay:
             player_id: Optional[int] = None
     ) -> bool:
         """
-        Convert recording to replay database using JSON-based approach.
+        Convert recording to replay using JSON-based approach.
 
         This method parses JSON responses and applies state updates using GameState.update(),
         which provides accurate tracking of state changes compared to simple state comparisons.
 
         Args:
-            output_file: Path to the output replay database file
+            output_file: Path to the output replay file
+            
             overwrite: Whether to overwrite existing output file
             limit: Maximum number of JSON responses to process (None for all)
             game_id: Game ID (must be provided or extraction will fail)
@@ -82,7 +83,7 @@ class FromJsonResponsesUsingUpdateToReplay:
         if static_map_data is None:
             return False
 
-        # Calculate maximum patches for replay database
+        # Calculate maximum patches for replay
         max_patches = self._calculate_max_patches(json_responses, limit)
 
         # Find the initial game state index
@@ -90,7 +91,7 @@ class FromJsonResponsesUsingUpdateToReplay:
         if initial_idx is None:
             return False
 
-        # Initialize replay database and record initial state
+        # Initialize replay and record initial state
         replay = self._initialize_replay(
             output_file, game_id, player_id, max_patches, static_map_data
         )
@@ -115,7 +116,7 @@ class FromJsonResponsesUsingUpdateToReplay:
         )
 
         if success:
-            # Finalize replay database
+            # Finalize replay
             self._finalize_replay(replay, current_state)
             logger.info(f"Successfully converted recording to replay: {output_file}")
 
@@ -173,7 +174,7 @@ class FromJsonResponsesUsingUpdateToReplay:
         return static_map_data
 
     def _calculate_max_patches(self, json_responses: list, limit: Optional[int]) -> int:
-        """Calculate maximum number of patches needed for replay database."""
+        """Calculate maximum number of patches needed for replay"""
         if limit:
             max_patches = limit * self.PATCH_BUFFER_MULTIPLIER
         else:
@@ -217,8 +218,8 @@ class FromJsonResponsesUsingUpdateToReplay:
             max_patches: int,
             static_map_data: StaticMapData
     ) -> Optional[Replay]:
-        """Initialize replay database and record static map data."""
-        logger.info("Initializing replay database...")
+        """Initialize replay and record static map data."""
+        logger.info("Initializing replay...")
 
         try:
             replay = Replay(
@@ -230,7 +231,7 @@ class FromJsonResponsesUsingUpdateToReplay:
             )
             replay.open()
 
-            logger.info("Recording static map data to replay database")
+            logger.info("Recording static map data to replay")
             replay.record_static_map_data(
                 static_map_data=static_map_data,
                 game_id=game_id,
@@ -265,7 +266,7 @@ class FromJsonResponsesUsingUpdateToReplay:
 
             logger.info(f"Recording initial game state at {current_timestamp} (game time)")
 
-            # Record to replay database
+            # Record to replay
             replay.record_initial_game_state(
                 time_stamp=current_timestamp,
                 game_id=game_id,
@@ -290,8 +291,8 @@ class FromJsonResponsesUsingUpdateToReplay:
             game_id: int,
             player_id: int
     ) -> Optional[Replay]:
-        """Reopen replay database in append mode."""
-        logger.info("Reopening replay database in append mode...")
+        """Reopen replay in append mode."""
+        logger.info("Reopening replay in append mode...")
 
         try:
             replay = Replay(
@@ -358,7 +359,7 @@ class FromJsonResponsesUsingUpdateToReplay:
                 if json_response["result"]["@c"] == self.FULL_STATE_TYPE:
                     current_state = new_state
 
-                # Record patch to replay database
+                # Record patch to replay
                 replay.append_patches(
                     time_stamp=current_timestamp,
                     game_id=game_id,
@@ -399,9 +400,9 @@ class FromJsonResponsesUsingUpdateToReplay:
             return bipatch
 
     def _finalize_replay(self, replay: Replay, final_state: GameState) -> None:
-        """Finalize replay database by recording final state and closing."""
-        logger.info("Finalizing replay database...")
+        """Finalize replay by recording final state and closing."""
+        logger.info("Finalizing replay...")
         GameObject.set_game_recursive(final_state, None)
         replay.set_last_game_state(final_state)
         replay.close()
-        logger.info("Replay database finalized and closed")
+        logger.info("replay finalized and closed")
