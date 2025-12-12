@@ -121,6 +121,8 @@ class Replay:
         self.storage.patch_graph.finalize()
 
     def close(self):
+        self.validate_max_patches()
+
         if self.mode in ['w', 'rw']:
             # When closing in write or read-write mode the replay gets defragmented. This improves read performance (maybe)
             self.storage.metadata.is_fragmented = False
@@ -165,6 +167,7 @@ class Replay:
             game: GameInterface
     ):
         self.validate_game(game_id, player_id)
+        self.validate_max_patches(2)
 
         from_timestamp = self.storage.metadata.last_time
         to_timestamp = int(time_stamp.timestamp())
@@ -194,11 +197,14 @@ class Replay:
 
         self.storage.patch_graph.add_patch_node(forward_node)
         self.storage.patch_graph.add_patch_node(backward_node)
+        self.storage.metadata.current_patches += 2
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
     def append_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
         self.validate_game(game_id, player_id)
+        self.validate_max_patches(len(replay_patches)*2)
+
         if not self._is_open:
             logger.warning("Can not append to an closed replay")
             return
@@ -351,6 +357,14 @@ class Replay:
         self.storage.patch_graph.validate_cached_time_stamps()
         self.storage.path_tree.validate_idx_to_node_mapping()
         self.storage.path_tree.validate_tree_structure()
+
+    def validate_max_patches(self, add = 0):
+        if self.storage.metadata.current_patches + add >= self.storage.metadata.max_patches:
+            raise IndexError(
+                f"Cannot add {add} patches: would exceed maximum of {self.storage.metadata.max_patches} "
+                f"(currently at {self.storage.metadata.current_patches})"
+            )
+
 
 
 
