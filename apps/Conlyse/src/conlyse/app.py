@@ -64,7 +64,7 @@ class App:
         self.page_manager.update()
 
         # Frame update timer (~60 FPS)
-        self.frame_timer.setInterval(int(1000/self.config_manager.main.get("graphics.frame_rate_limit")))  # ms
+        self.frame_timer.setInterval(int(1000/self.config_manager.main.get("graphics.frame_rate_limit")))  # Calculate interval from FPS limit (e.g., 60 FPS -> 16ms)
         self.frame_timer.timeout.connect(self.update_frame)
         self.frame_timer.start()
 

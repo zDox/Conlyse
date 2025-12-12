@@ -1,21 +1,21 @@
 from __future__ import annotations
-import logging
+
 import time
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QTimer
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
 from PyQt6.QtWidgets import QSizePolicy
 from PyQt6.QtWidgets import QVBoxLayout
-from conflict_interface.interface.replay_interface import ReplayInterface
-from conflict_interface.logger_config import setup_library_logger
 
-from conlyse.logger import get_logger, setup_logger
+
+
+from conlyse.logger import get_logger
 from conlyse.pages.map_page.constants import (
     OPENGL_VERSION_MAJOR,
     OPENGL_VERSION_MINOR,
-    UPDATE_FRAME_INTERVAL_MS,
+
 )
 from conlyse.pages.map_page.input_controller import InputController
 from conlyse.pages.map_page.map import Map
@@ -66,7 +66,7 @@ class MapPage(Page):
         # Performance tracking
         self.last_frame_time = time.perf_counter()
         self.frame_count = 0
-        self.fps_update_interval = 1  # Update FPS every 0.5 seconds
+        self.fps_update_interval = 0.5  # Update FPS every 0.5 seconds
         self.fps_timer = 0.0
         self.perf_update_counter = 0
         self.perf_update_interval = 10  # Update performance metrics every 10 frames

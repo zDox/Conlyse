@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
     def eventFilter(self, obj, event):
         # ATTENTION: This event filter is installed on the entire application,
         # so it will see all events for all widgets.
-        # This function gets called single/multiple time/times per click!
+        # This function may be called multiple times per click event, as it receives events for all widgets that don't consume the event.
         # It gets called for every widget that does not consume the event.
         if event.type() == QEvent.Type.MouseButtonPress:
             if self.drawer.visible:

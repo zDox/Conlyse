@@ -1,6 +1,6 @@
 """Constants for the map page module."""
 
-from PyQt6.QtCore import Qt
+
 
 # Camera constants
 MIN_ZOOM = 3
