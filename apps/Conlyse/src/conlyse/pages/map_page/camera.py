@@ -19,7 +19,8 @@ if TYPE_CHECKING:
     from conlyse.pages.map_page.map import Map
 
 logger = get_logger()
-VERTICAL_SCALE = 0.6
+VERTICAL_SCALE = 0.4
+
 class Camera:
     """
     Manages camera position, zoom, and viewport transformations for the map.
@@ -28,6 +29,8 @@ class Camera:
     allowing users to navigate the game world. It handles coordinate transformations
     between screen space and world space, and ensures the viewport stays within
     world boundaries.
+
+    The VERTICAL_SCALE compresses the vertical axis for a more cinematic aspect ratio.
     """
 
     def __init__(self, map_widget: Map):
@@ -38,16 +41,18 @@ class Camera:
             map_widget: The Map widget this camera is attached to
         """
         self.map = map_widget
-        # Start centered in the world
-        self.x: float = (WORLD_MIN_X + WORLD_MAX_X) / 2
-        self.y: float = (WORLD_MIN_Y + WORLD_MAX_Y) / 2
-        self.zoom: float = INITIAL_ZOOM
+        self.min_x = self.map.world_min_x
+        self.max_x = self.map.world_max_x
+        self.min_y = self.map.world_min_y
+        self.max_y = self.map.world_max_y
 
-        # Camera movement bounds
-        self.min_x: float = WORLD_MIN_X
-        self.min_y: float = WORLD_MIN_Y
-        self.max_x: float = WORLD_MAX_X
-        self.max_y: float = WORLD_MAX_Y
+        self.world_width = self.map.world_width
+        self.world_height = self.map.world_height
+
+        # Start centered in the world
+        self.x: float = self.world_width / 2
+        self.y: float = self.world_height / 2
+        self.zoom: float = INITIAL_ZOOM
 
     def _get_visible_rect(self) -> tuple[float, float, float, float]:
         """
@@ -68,24 +73,23 @@ class Camera:
         else:
             world_height /= aspect_ratio
 
-        world_height/=VERTICAL_SCALE
+        world_height /= VERTICAL_SCALE
 
         left = self.x - world_width / 2
         right = self.x + world_width / 2
         bottom = self.y - world_height / 2
         top = self.y + world_height / 2
+
         return left, right, bottom, top
 
     def _clamp_position(self):
         """
         Clamp vertically, wrap horizontally.
         """
-
         left, right, bottom, top = self._get_visible_rect()
-        world_width = right - left
+        print(left, right, bottom, top)
         world_height = top - bottom
 
-        half_width = world_width / 2
         half_height = world_height / 2
 
         # ----- Horizontal wrapping -----
@@ -95,6 +99,7 @@ class Camera:
         # ----- Vertical clamping (no wrap) -----
         self.y = max(self.y, self.min_y + half_height)
         self.y = min(self.y, self.max_y - half_height)
+
 
     def move(self, dx: float, dy: float) -> None:
         """
@@ -122,10 +127,10 @@ class Camera:
             mouse_x: Mouse X position in screen coordinates
             mouse_y: Mouse Y position in screen coordinates
         """
-        # World space under cursor before zoom
         if new_zoom < MIN_ZOOM or new_zoom > MAX_ZOOM:
             return
 
+        # World space under cursor before zoom
         before = self.screen_to_world(mouse_x, mouse_y)
 
         # Apply zoom
@@ -204,17 +209,19 @@ class Camera:
         Returns the combined view-projection matrix that transforms world
         coordinates to normalized device coordinates (NDC) for OpenGL rendering.
 
+        The VERTICAL_SCALE is applied here to compress the vertical axis,
+        creating a wider, more cinematic view.
+
         Returns:
             3x3 transformation matrix
         """
-
         left, right, bottom, top = self._get_visible_rect()
 
-        # Now apply vertical scale in projection
+        # Standard orthographic projection with vertical scale applied
         proj = np.array([
             [2 / (right - left), 0, -(right + left) / (right - left)],
-            [0, (2 * VERTICAL_SCALE) / (bottom - top),
-             -(bottom + top) / (bottom - top) * VERTICAL_SCALE],
+            [0, 2 / (bottom - top),
+             -(bottom + top) / (bottom - top)],
             [0, 0, 1]
         ], dtype=np.float32)
 

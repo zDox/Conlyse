@@ -26,40 +26,15 @@ logger = get_logger()
 
 script_dir = Path(__file__).parent
 
-def normalize_vec2(v):
-    """Normalize a 2D vector"""
-    length = np.sqrt(v[0] ** 2 + v[1] ** 2)
-    if length < 1e-6:
-        return np.array([0.0, 0.0])
-    return v / length
 
-
-def build_line_segment_triangles(p1, p2, width):
-    """Build quad triangles for a line segment from p1 to p2"""
-    direction = np.array([p2[0] - p1[0], p2[1] - p1[1]])
-    direction = normalize_vec2(direction)
-
-    perpendicular = np.array([-direction[1], direction[0]]) * (width / 2.0)
-
-    v1 = [p1[0] + perpendicular[0], p1[1] + perpendicular[1]]
-    v2 = [p1[0] - perpendicular[0], p1[1] - perpendicular[1]]
-    v3 = [p2[0] + perpendicular[0], p2[1] + perpendicular[1]]
-    v4 = [p2[0] - perpendicular[0], p2[1] - perpendicular[1]]
-
-    return [
-        *v1, *v2, *v3,
-        *v2, *v4, *v3
-    ]
-
-
-def build_vertex_data(graph: dict[Point, list[Point]], width=3.0):
-    """Build triangle vertex data for connections"""
+def build_vertex_data(graph: dict[Point, list[Point]]):
+    """Build line segment vertex data for connections (width handled in shader)"""
     logger.debug(f"Building vertex data for province connections")
 
     vertices = []
     processed_segments = set()
 
-    # Build line segments only - geometry shader will handle wrapping
+    # Build simple line segments - geometry shader will handle width in screen space
     for origin, points in graph.items():
         for point in points:
             segment = tuple(sorted([(origin.x, origin.y), (point.x, point.y)]))
@@ -67,13 +42,10 @@ def build_vertex_data(graph: dict[Point, list[Point]], width=3.0):
                 continue
             processed_segments.add(segment)
 
-            p1 = np.array([origin.x, origin.y])
-            p2 = np.array([point.x, point.y])
+            # Store as simple line segments (2 vertices per line)
+            vertices.extend([origin.x, origin.y, point.x, point.y])
 
-            # Build line segment as-is, no wrapping logic here
-            vertices.extend(build_line_segment_triangles(p1, p2, width))
-
-    logger.debug(f"Built {len(vertices) // 6} triangles for province connections")
+    logger.debug(f"Built {len(vertices) // 4} line segments for province connections")
     return np.array(vertices, dtype=np.float32)
 
 
@@ -85,15 +57,15 @@ class ProvinceConnectionRenderer:
         self.province_mesh = None
         self.program: ShaderProgram | None = None
 
-        # Build with base width (will be scaled by zoom in shader)
+        # Build simple line segments (no width - handled in shader)
         self.vertices = build_vertex_data(
-            self.ritf.game_state.states.map_state.map.static_map_data.graph,
-            width=5.0
+            self.ritf.game_state.states.map_state.map.static_map_data.graph
         )
 
         self.num_of_vertices = 0
         self.vao = None
         self.vbo = None
+        self.line_width_pixels = 0.5  # Width in screen pixels
 
     def initialize(self):
         logger.debug("Initializing province connection")
@@ -129,6 +101,13 @@ class ProvinceConnectionRenderer:
         self.program.set_uniform_1f("uWorldWidth", self.map_widget.world_width)
         self.program.set_uniform_1b("uEnableWrapping", self.map_widget.enable_wrapping)
 
+        # Pass screen dimensions for pixel-width calculation
+        viewport = gl.glGetIntegerv(gl.GL_VIEWPORT)
+        screen_width = viewport[2]
+        screen_height = viewport[3]
+        self.program.set_uniform_2f("uScreenSize", screen_width, screen_height)
+        self.program.set_uniform_1f("uLineWidthPixels", self.line_width_pixels)
+
         self.vao.bind()
-        gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.num_of_vertices // 2)
+        gl.glDrawArrays(gl.GL_LINES, 0, self.num_of_vertices // 2)
         self.vao.unbind()

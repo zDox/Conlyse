@@ -33,3 +33,6 @@ class KeyAction(StrEnum):
     
     # Performance monitoring
     TOGGLE_PERFORMANCE_WINDOW = "toggle_performance_window"
+
+    # Debug
+    DEBUG_TOGGLE_MOUSE_CLICK_LOGGING = "debug_toggle_mouse_click_logging"

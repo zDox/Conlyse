@@ -41,6 +41,7 @@ class InputController:
         self.last_mouse_pos: Point | None = None
         self.dragging = False
         self.pressed_keys: set[int] = set()
+        self.enable_mouse_click_logging = False
 
         self.setup_keybindings()
 
@@ -66,6 +67,15 @@ class InputController:
             self.map_widget.toggle_render_connections
         )
 
+        self.keybindings_manager.register_action(
+            KeyAction.DEBUG_TOGGLE_MOUSE_CLICK_LOGGING,
+            self.toggle_mouse_click_logging
+        )
+
+    def toggle_mouse_click_logging(self) -> None:
+        """Toggle logging of mouse click positions."""
+        self.enable_mouse_click_logging = not self.enable_mouse_click_logging
+        logger.info(f"Mouse click logging {'enabled' if self.enable_mouse_click_logging else 'disabled'}.")
 
     def handle_key_press(self, event: QKeyEvent) -> None:
         """
@@ -95,6 +105,11 @@ class InputController:
         if event.button() == Qt.MouseButton.LeftButton:
             self.last_mouse_pos = Point(event.pos().x(), event.pos().y())
             self.dragging = True
+
+            if self.enable_mouse_click_logging:
+                world_pos = self.map_widget.camera.screen_to_world(event.pos().x(), event.pos().y())
+                logger.debug(f"Mouse click at screen ({event.pos().x()}, {event.pos().y()}) "
+                             f"-> world ({world_pos[0]:.2f}, {world_pos[1]:.2f})")
 
     def handle_mouse_move(self, event: QMouseEvent) -> None:
         """
