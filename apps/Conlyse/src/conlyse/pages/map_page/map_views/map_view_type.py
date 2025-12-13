@@ -5,10 +5,5 @@ from conlyse.pages.map_page.map_views.terrain_view import TerrainView
 
 
 class MapViewType(Enum):
-    POLITICAL = 1
-    TERRAIN = 2
-
-MAPVIEWTYPE_TO_CLASS = {
-    MapViewType.POLITICAL: PoliticalView,
-    MapViewType.TERRAIN: TerrainView
-}
+    POLITICAL = PoliticalView
+    TERRAIN = TerrainView

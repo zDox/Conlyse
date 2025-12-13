@@ -74,13 +74,10 @@ class ProvinceConnectionRenderer:
         geometry_shader = Shader(ShaderType.GEOMETRY, script_dir / "shaders/province_connection_geometry.glsl")
         fragment_shader = Shader(ShaderType.FRAGMENT, script_dir / "shaders/province_connection_fragment.glsl")
 
-        vertex_shader.compile()
-        geometry_shader.compile()
-        fragment_shader.compile()
+        for shader in (vertex_shader, geometry_shader, fragment_shader):
+            shader.compile()
+            self.program.attach_shader(shader)
 
-        self.program.attach_shader(vertex_shader)
-        self.program.attach_shader(geometry_shader)
-        self.program.attach_shader(fragment_shader)
         self.program.link_program()
         self.program.use_program()
 

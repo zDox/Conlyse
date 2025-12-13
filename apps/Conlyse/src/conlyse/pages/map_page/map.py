@@ -71,15 +71,6 @@ class Map(QOpenGLWidget):
         """Toggle the rendering of province connections."""
         self.render_connections = not self.render_connections
 
-    def handle_camera_move(self, dx: int, dy: int):
-        """
-        Handle camera movement based on user input.
-        Args:
-            dx: Horizontal movement in screen pixels
-            dy: Vertical movement in screen pixels
-        """
-        self.camera.move(dx, dy)
-
     def initializeGL(self):
         """Initialize OpenGL resources. Called once when the widget is first shown."""
         self.province_fill_renderer.initialize()
@@ -103,13 +94,12 @@ class Map(QOpenGLWidget):
         self.province_fill_renderer.render(self.active_map_view)
         self.performance_metrics["province_fill"] = (time.perf_counter() - render_start) * 1000
 
+        # Track province connection renderer time
+        render_start = time.perf_counter()
         if self.render_connections:
-            # Track province connections renderer time
-            render_start = time.perf_counter()
             self.province_connection_renderer.render()
-            self.performance_metrics["province_connections"] = (time.perf_counter() - render_start) * 1000
-        else:
-            self.performance_metrics["province_connections"] = 0.0
+        self.performance_metrics["province_connections"] = (time.perf_counter() - render_start) * 1000
+
         
         self.performance_metrics["total_frame"] = (time.perf_counter() - frame_start) * 1000
 

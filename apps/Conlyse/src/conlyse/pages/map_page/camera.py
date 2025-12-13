@@ -87,7 +87,6 @@ class Camera:
         Clamp vertically, wrap horizontally.
         """
         left, right, bottom, top = self._get_visible_rect()
-        logger.debug("Camera visible rect: left=%s, right=%s, bottom=%s, top=%s", left, right, bottom, top)
         world_height = top - bottom
 
         half_height = world_height / 2

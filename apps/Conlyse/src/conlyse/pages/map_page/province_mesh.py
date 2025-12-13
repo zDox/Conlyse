@@ -30,7 +30,7 @@ def prepare_provinces(locations: list[StaticProvince]):
 
         # Flatten coordinates for earcut
 
-        vertices = np.array([[p.x, p.y] for p in border_points], dtype=np.float32)
+        vertices = np.array([(p.x, p.y) for p in border_points], dtype=np.float32)
 
         # ring_end_indices specifies where each ring ends (for holes)
         # For a single polygon with no holes, it's just [len(border_points)]

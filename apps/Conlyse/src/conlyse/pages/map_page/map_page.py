@@ -117,11 +117,7 @@ class MapPage(Page):
     def wheelEvent(self, event: QWheelEvent) -> None:
         self.input_controller.handle_wheel(event)
 
-    def page_update(self) -> None:
-        """Update method called by the page manager."""
-        self.input_controller.update_camera_from_keyboard()
-        self.map_widget.render_frame()
-        
+    def update_performance_window(self) -> None:
         # Update performance window if visible
         if self.app.performance_window.isVisible():
             # Throttle performance metric updates to reduce CPU overhead
@@ -132,18 +128,28 @@ class MapPage(Page):
                 self.app.performance_window.update_metric("Province Connections", metrics["province_connections"])
                 self.app.performance_window.update_frame_time(metrics["total_frame"])
                 self.perf_update_counter = 0
-            
+
             # Calculate FPS
             current_time = time.perf_counter()
             self.frame_count += 1
             self.fps_timer += current_time - self.last_frame_time
             self.last_frame_time = current_time
-            
+
             if self.fps_timer >= self.fps_update_interval:
                 fps = self.frame_count / self.fps_timer
                 self.app.performance_window.update_fps(fps)
                 self.frame_count = 0
                 self.fps_timer = 0.0
+
+
+    def page_update(self) -> None:
+        """Update method called by the page manager."""
+        self.input_controller.update_camera_from_keyboard()
+        self.map_widget.render_frame()
+
+        self.update_performance_window()
+        
+
 
     def clean_up(self) -> None:
         """Clean up resources when the page is closed."""

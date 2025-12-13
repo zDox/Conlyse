@@ -1,16 +1,12 @@
 from __future__ import annotations
+
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import OpenGL.GL as gl
 
 from conlyse.logger import get_logger
-from conlyse.pages.map_page.constants import WORLD_MAX_X
-from conlyse.pages.map_page.constants import WORLD_MAX_Y
-from conlyse.pages.map_page.constants import WORLD_MIN_X
-from conlyse.pages.map_page.constants import WORLD_MIN_Y
 from conlyse.pages.map_page.map_views.map_view import MapView
-from conlyse.pages.map_page.map_views.map_view_type import MAPVIEWTYPE_TO_CLASS
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
 from conlyse.pages.map_page.opengl_wrapper.opengl_types import OpenGLTypes
 from conlyse.pages.map_page.opengl_wrapper.shader import Shader
@@ -50,7 +46,7 @@ class ProvinceFillRenderer:
 
         for map_view_type in self.map_views.keys():
             logger.debug(f"Initializing map view: {map_view_type}")
-            map_view_class = MAPVIEWTYPE_TO_CLASS[map_view_type]
+            map_view_class = map_view_type.value
             self.map_views[map_view_type] = map_view_class(self.ritf, self.province_mesh.max_province_id)
             self.map_views[map_view_type].build_color_data()
 

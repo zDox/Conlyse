@@ -125,7 +125,7 @@ class InputController:
         delta = event_pos - self.last_mouse_pos
         self.last_mouse_pos = event_pos
 
-        self.map_widget.handle_camera_move(-delta.x, -delta.y)
+        self.map_widget.camera.move(-delta.x, -delta.y)
 
     def handle_mouse_release(self, event: QMouseEvent) -> None:
         """
@@ -172,7 +172,7 @@ class InputController:
                 dy_total += dy_norm * CAMERA_MOVEMENT_STEP
 
         if dx_total != 0 or dy_total != 0:
-            self.map_widget.handle_camera_move(dx_total, dy_total)
+            self.map_widget.camera.move(dx_total, dy_total)
 
     def reset(self) -> None:
         """Reset the input controller state."""
