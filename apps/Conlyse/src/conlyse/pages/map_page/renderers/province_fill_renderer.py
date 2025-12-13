@@ -36,7 +36,8 @@ class ProvinceFillRenderer:
         self.province_mesh = None
         self.map_views: dict[MapViewType, MapView | None] = {
             MapViewType.POLITICAL: None,
-            MapViewType.TERRAIN: None
+            MapViewType.TERRAIN: None,
+            MapViewType.RESOURCE: None,
         }
         self.program: ShaderProgram | None = None
 
