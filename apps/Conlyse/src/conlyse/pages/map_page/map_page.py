@@ -126,6 +126,7 @@ class MapPage(Page):
                 metrics = self.map_widget.get_performance_metrics()
                 self.app.performance_window.update_metric("Province Fill", metrics["province_fill"])
                 self.app.performance_window.update_metric("Province Connections", metrics["province_connections"])
+                self.app.performance_window.update_metric("Province Borders", metrics["province_borders"])
                 self.app.performance_window.update_frame_time(metrics["total_frame"])
                 self.perf_update_counter = 0
 

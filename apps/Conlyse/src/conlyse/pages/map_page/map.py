@@ -9,6 +9,7 @@ from conflict_interface.interface.replay_interface import ReplayInterface
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.camera import Camera
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
+from conlyse.pages.map_page.renderers.province_border_renderer import ProvinceBorderRenderer
 from conlyse.pages.map_page.renderers.province_connection_renderer import ProvinceConnectionRenderer
 from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
 
@@ -35,6 +36,7 @@ class Map(QOpenGLWidget):
         self.camera = Camera(self)
         self.province_fill_renderer = ProvinceFillRenderer(self)
         self.province_connection_renderer = ProvinceConnectionRenderer(self)
+        self.province_border_renderer = ProvinceBorderRenderer(self)
 
         self.active_map_view = MapViewType.POLITICAL
         self.render_connections = True
@@ -43,6 +45,7 @@ class Map(QOpenGLWidget):
         self.performance_metrics = {
             "province_fill": 0.0,
             "province_connections": 0.0,
+            "province_borders": 0.0,
             "total_frame": 0.0
         }
 
@@ -75,6 +78,7 @@ class Map(QOpenGLWidget):
         """Initialize OpenGL resources. Called once when the widget is first shown."""
         self.province_fill_renderer.initialize()
         self.province_connection_renderer.initialize()
+        self.province_border_renderer.initialize()
         gl.glClearColor(0.1, 0.1, 0.1, 1.0)
         # Enable blending
         gl.glEnable(gl.GL_BLEND)
@@ -100,6 +104,10 @@ class Map(QOpenGLWidget):
             self.province_connection_renderer.render()
         self.performance_metrics["province_connections"] = (time.perf_counter() - render_start) * 1000
 
+        # Track province border renderer time
+        render_start = time.perf_counter()
+        self.province_border_renderer.render()
+        self.performance_metrics["province_borders"] = (time.perf_counter() - render_start) * 1000
         
         self.performance_metrics["total_frame"] = (time.perf_counter() - frame_start) * 1000
 

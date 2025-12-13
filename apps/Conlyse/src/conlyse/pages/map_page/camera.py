@@ -9,10 +9,6 @@ from conlyse.logger import get_logger
 from conlyse.pages.map_page.constants import INITIAL_ZOOM
 from conlyse.pages.map_page.constants import MAX_ZOOM
 from conlyse.pages.map_page.constants import MIN_ZOOM
-from conlyse.pages.map_page.constants import WORLD_MAX_X
-from conlyse.pages.map_page.constants import WORLD_MAX_Y
-from conlyse.pages.map_page.constants import WORLD_MIN_X
-from conlyse.pages.map_page.constants import WORLD_MIN_Y
 from conlyse.pages.map_page.opengl_wrapper.shader_program import ShaderProgram
 
 if TYPE_CHECKING:
@@ -65,8 +61,8 @@ class Camera:
         screen_height = self.map.height()
         aspect_ratio = screen_width / screen_height
 
-        world_width = (WORLD_MAX_X - WORLD_MIN_X) / self.zoom
-        world_height = (WORLD_MAX_Y - WORLD_MIN_Y) / self.zoom
+        world_width = (self.max_x - self.min_x) / self.zoom
+        world_height = (self.max_y - self.min_y) / self.zoom
 
         if aspect_ratio > 1:
             world_width *= aspect_ratio
