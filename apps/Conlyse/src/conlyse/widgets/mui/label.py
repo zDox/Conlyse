@@ -79,3 +79,7 @@ class CLabel(QWidget):
             return
         icon = qta.icon(self.icon_name, color=self._icon_color_value)
         self.icon_label.setPixmap(icon.pixmap(16, 16))
+
+    def set_text(self, text: str):
+        """Set the label text"""
+        self.text_label.setText(text)

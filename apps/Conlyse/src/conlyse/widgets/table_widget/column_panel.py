@@ -138,13 +138,13 @@ class ColumnPanel(QFrame):
         buttons_layout.setSpacing(8)
 
         # Select all button
-        select_all_button = CButton("Select All", "contained", "primary")
+        select_all_button = CButton("Select All", "contained", "primary", parent=self)
         select_all_button.setObjectName("column_select_all_button")
         select_all_button.clicked.connect(self._select_all)
         buttons_layout.addWidget(select_all_button)
 
         # Deselect all button
-        deselect_all_button = CButton("Deselect All", "contained", "secondary")
+        deselect_all_button = CButton("Deselect All", "contained", "secondary", parent=self)
         deselect_all_button.setObjectName("column_deselect_all_button")
         deselect_all_button.clicked.connect(self._deselect_all)
         buttons_layout.addWidget(deselect_all_button)
@@ -152,7 +152,7 @@ class ColumnPanel(QFrame):
         buttons_layout.addStretch()
 
         # Apply button
-        apply_button = CButton("Apply", "contained", "success")
+        apply_button = CButton("Apply", "contained", "success", parent=self)
         apply_button.setObjectName("column_apply_button")
         apply_button.clicked.connect(self._apply_columns)
         buttons_layout.addWidget(apply_button)

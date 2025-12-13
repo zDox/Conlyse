@@ -19,7 +19,7 @@ class Drawer(QWidget):
         self.app = app
         self.anim = None
 
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         # Buttons will be inserted before this stretch; the stretch keeps them at the top
         layout.addStretch()
@@ -134,7 +134,7 @@ class Drawer(QWidget):
             self.show_drawer()
 
     def register_entry(self, name: str, callback):
-        btn = QPushButton(name)
+        btn = QPushButton(name, self)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setFixedHeight(50)
         btn.setObjectName("drawer_entry_button")
@@ -150,6 +150,15 @@ class Drawer(QWidget):
 
         btn.clicked.connect(_on_clicked)
         self.layout().insertWidget(self.layout().count() - 1, btn)
+
+    def clear_entries(self):
+        # Remove all entries except the stretch at the end
+        layout = self.layout()
+        while layout.count() > 1:
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
 
     def clear_entries(self):
         # Remove all buttons except the stretch at the end

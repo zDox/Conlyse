@@ -84,7 +84,7 @@ class ReplayListPanel(QWidget):
         header_layout.addStretch()
 
         # Open button (primary style)
-        self.open_replay_btn = CButton("Open", "contained", "primary", icon_name="mdi.folder-open")
+        self.open_replay_btn = CButton("Open", "contained", "primary", icon_name="mdi.folder-open", parent=self)
         self.open_replay_btn.setMinimumWidth(90)
         self.open_replay_btn.clicked.connect(self._on_open_clicked)
         header_layout.addWidget(self.open_replay_btn)

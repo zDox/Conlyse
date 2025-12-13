@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 class Header(QWidget):
     """A reusable header bar with a burger menu button."""
 
-    def __init__(self, app: App, title: str = "My Application"):
-        super().__init__()
+    def __init__(self, app: App, title: str = "My Application", parent=None):
+        super().__init__(parent)
         self.app = app
 
         # --- Layout setup ---
@@ -25,13 +25,13 @@ class Header(QWidget):
         layout.setSpacing(10)
 
         # --- Burger menu button ---
-        self.menu_button = CIconButton("mdi.menu", "primary",size=40)
+        self.menu_button = CIconButton("mdi.menu", "primary",size=40, parent=self)
         self.menu_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.menu_button.setToolTip("Open menu")
 
 
         # --- Title label ---
-        self.title_label = QLabel(title)
+        self.title_label = QLabel(title, self)
         self.title_label.setObjectName("headerTitle")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)

@@ -115,21 +115,21 @@ class MUIDataGrid(QWidget):
         toolbar_layout.addStretch()
 
         # Columns Button
-        self.columns_button = CIconButton("fa6s.table-columns", "primary", 30)
+        self.columns_button = CIconButton("fa6s.table-columns", "primary", 30, parent=self)
         self.columns_button.setObjectName("toolbar_columns_button")
         self.columns_button.setToolTip("Show/Hide Columns")
         self.columns_button.clicked.connect(self._toggle_column_panel)
         toolbar_layout.addWidget(self.columns_button)
 
         # Filter Button
-        self.filter_button = CIconButton("fa6s.filter", "primary", 30)
+        self.filter_button = CIconButton("fa6s.filter", "primary", 30, parent=self)
         self.filter_button.setObjectName("toolbar_filter_button")
         self.filter_button.setToolTip("Add Filters")
         self.filter_button.clicked.connect(self._toggle_filter_panel)
         toolbar_layout.addWidget(self.filter_button)
 
         # Search Button
-        self.search_button = CIconButton("fa5s.search", "primary", 30)
+        self.search_button = CIconButton("fa5s.search", "primary", 30, parent=self)
         self.search_button.setObjectName("toolbar_search_button")
         self.search_button.setToolTip("Search")
         self.search_button.clicked.connect(self._toggle_search)
@@ -172,12 +172,12 @@ class MUIDataGrid(QWidget):
         self._update_page_info()
         pagination_layout.addWidget(self.page_info_label)
 
-        self.prev_button = CIconButton("ei.caret-left", "primary", 30)
+        self.prev_button = CIconButton("ei.caret-left", "primary", 30, parent=self)
         self.prev_button.setToolTip("Previous Page")
         self.prev_button.clicked.connect(self._prev_page)
         pagination_layout.addWidget(self.prev_button)
 
-        self.next_button = CIconButton("ei.caret-right", "primary", 30)
+        self.next_button = CIconButton("ei.caret-right", "primary", 30, parent=self)
         self.next_button.setToolTip("Next Page")
         self.next_button.clicked.connect(self._next_page)
         pagination_layout.addWidget(self.next_button)

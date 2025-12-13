@@ -40,9 +40,12 @@ class ReplayLoadPage(Page):
         self._ui_initialized = False
         self.replay_path = None
 
+        self.next_page_type = None
+
     def setup(self, context):
         """Called when page is opened - initialize UI and start animation"""
         self.replay_path = context.get("replay_path", None)
+        self.next_page_type = context.get("next_page")
 
         if not self.replay_path or not self.app.replay_manager.is_valid_replay(self.replay_path):
             logger.error(f"Invalid replay path provided to ReplayLoadPage: {self.replay_path}")
@@ -84,7 +87,7 @@ class ReplayLoadPage(Page):
         self.animation_timer.timeout.connect(self.animate_loading)
         self.animation_timer.setInterval(80)  # 80ms per frame
 
-    def update(self):
+    def page_update(self):
         """Called every frame - animation is handled by QTimer"""
         if not self._ui_initialized:
             return
@@ -108,7 +111,7 @@ class ReplayLoadPage(Page):
         if event.replay_file_path != self.replay_path:
             return
 
-        self.app.page_manager.switch_to(PageType.PlayerListPage)
+        self.app.page_manager.switch_to(self.next_page_type)
 
     def on_replay_load_failed(self, event: Event):
         assert(isinstance(event, ReplayOpenFailedEvent))

@@ -1,25 +1,44 @@
 from __future__ import annotations
-from typing import Callable, TYPE_CHECKING
 
+from typing import Any
+from typing import Callable
+from typing import TYPE_CHECKING
 
+from PyQt6.QtCore import QKeyCombination
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence
 from PyQt6.QtGui import QShortcut
 from PyQt6.QtWidgets import QWidget
 
-
 from conlyse.logger import get_logger
 from conlyse.managers.keybinding_manager.key_action import KeyAction
+
 if TYPE_CHECKING:
     from conlyse.app import App
 
 logger = get_logger()
 
+
+def sequence_str_to_combination(seq_str: str) -> QKeyCombination:
+    """
+    Safely converts a QKeySequence to a single QKeyCombination.
+    Returns an empty QKeyCombination if the sequence has no keys.
+    """
+    seq = QKeySequence(seq_str)
+    if seq.isEmpty():
+        return QKeyCombination()  # null/empty
+
+    # Take the first key in the sequence
+    first_int = seq[0]  # QKeySequence behaves like a list of int key codes
+    kc = QKeyCombination(first_int)
+    return kc
+
 class KeybindingManager:
     def __init__(self, app: App):
         self.app = app
-        self.keybindings = {}
-        self.callbacks = {}
-        self.shortcuts = {}
+        self.keybindings: dict[KeyAction, QKeyCombination] = {}
+        self.callbacks: dict[KeyAction, Callable[[], Any]] = {}
+        self.shortcuts: dict[KeyAction, QShortcut] = {}
 
         self.load_keybindings()
 
@@ -35,11 +54,12 @@ class KeybindingManager:
 
     def set_keybinding(self, action: KeyAction, key_combination: str):
         """Sets a keybinding for the given action."""
-        self.keybindings[action] = key_combination
+        key_sequence = sequence_str_to_combination(key_combination)
+        self.keybindings[action] = key_sequence
         if action in self.callbacks:
             if action in self.shortcuts:
                 self.shortcuts[action].deleteLater()
-            shortcut = QShortcut(QKeySequence(key_combination), self.app.main_window)
+            shortcut = QShortcut(key_sequence, self.app.main_window)
             shortcut.activated.connect(self.callbacks[action])
             self.shortcuts[action] = shortcut
 
@@ -55,9 +75,16 @@ class KeybindingManager:
         """Checks if a keybinding exists for the given action."""
         return action in self.keybindings
 
-    def get_keybinding(self, action: KeyAction):
+    def get_keybinding(self, action: KeyAction) -> QKeyCombination | None:
         """Gets the keybinding for the given action."""
         return self.keybindings.get(action, None)
+
+    def get_key(self, action: KeyAction) -> Qt.Key | None:
+        """Gets the Qt.Key for the given action's keybinding."""
+        key_combination = self.get_keybinding(action)
+        if key_combination:
+            return key_combination.key()
+        return None
 
     def register_action(self, action: KeyAction, function: Callable, widget: QWidget=None):
         """Registers a callback function for the given action."""

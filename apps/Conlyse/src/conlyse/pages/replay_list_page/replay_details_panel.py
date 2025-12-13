@@ -192,12 +192,12 @@ class ReplayDetailsPanel(QWidget):
         actions_layout.setSpacing(12)
 
         # Analyze button (primary)
-        analyze_btn = CButton("Analyze", "contained", "primary", "mdi.google-analytics")
+        analyze_btn = CButton("Analyze", "contained", "primary", "mdi.google-analytics", parent=self)
         analyze_btn.clicked.connect(self._on_analyze_clicked)
         actions_layout.addWidget(analyze_btn)
 
         # Delete button (error/red)
-        delete_btn = CButton("Delete", "contained", "error", "mdi.delete-forever")
+        delete_btn = CButton("Delete", "contained", "error", "mdi.delete-forever", parent=self)
         delete_btn.clicked.connect(self._on_delete_clicked)
         actions_layout.addWidget(delete_btn)
 

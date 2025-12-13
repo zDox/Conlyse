@@ -113,7 +113,7 @@ class ReplayListPage(Page):
 
         parent_layout.addLayout(header_layout)
 
-    def update(self):
+    def page_update(self):
         """Called every frame - check for changes and update if needed"""
         # Check if replay count has changed
         current_replay_count = len(self.app.replay_manager.get_replays())
@@ -168,7 +168,7 @@ class ReplayListPage(Page):
 
         self.app.page_manager.switch_to(
             PageType.ReplayLoadPage,
-            next_page=PageType.PlayerListPage,
+            next_page=PageType.MapPage,
             replay_path=self.selected_filepath
         )
 

@@ -1,8 +1,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+
+from PyQt6.QtCore import QEvent
 from PyQt6.QtWidgets import QMainWindow, QStackedWidget, QVBoxLayout, QWidget
 from PyQt6.QtCore import QPoint
+from PyQt6.QtWidgets import QSizePolicy
 
+from conlyse.constants import APPLICATION_NAME
 from conlyse.widgets.drawer import Drawer
 from conlyse.widgets.header import Header
 
@@ -17,9 +21,9 @@ class MainWindow(QMainWindow):
         self.main_layout = QVBoxLayout(self.container)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.header = Header(app, "Conlyse")
-        self.stacked_widget = QStackedWidget()  # Holds the Pages but only shows one at a time
-
+        self.header = Header(app, APPLICATION_NAME, parent=self.container)
+        self.stacked_widget = QStackedWidget(self.container)  # Holds the Pages but only shows one at a time
+        self.stacked_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         # Create the drawer as a child of the container so its 'pos' is container-relative
         self.drawer = Drawer(app, parent=self.container, width=240)
         self.drawer.hide()  # start hidden
@@ -30,6 +34,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.container)
 
         self.header.set_drawer_toggle_function(self.toggle_drawer)
+        app.q_app.installEventFilter(self)
 
     def toggle_drawer(self):
         self.drawer.toggle_drawer()
@@ -45,12 +50,17 @@ class MainWindow(QMainWindow):
             # keep it just off the left edge
             self.drawer.setGeometry(-w, 0, w, h)
 
-    def mousePressEvent(self, event):
-        # If the drawer is visible and the click is outside its rect, hide it.
-        if self.drawer.visible:
-            # map the global mouse position into container coordinates
-            global_pt = event.globalPosition().toPoint()
-            pt_in_container = self.container.mapFromGlobal(global_pt)
-            if not self.drawer.geometry().contains(pt_in_container):
-                self.drawer.hide_drawer()
-        super().mousePressEvent(event)
+    def eventFilter(self, obj, event):
+        # ATTENTION: This event filter is installed on the entire application,
+        # so it will see all events for all widgets.
+        # This function may be called multiple times per click event, as it receives events for all widgets that don't consume the event.
+        # It gets called for every widget that does not consume the event.
+        if event.type() == QEvent.Type.MouseButtonPress:
+            if self.drawer.visible:
+                # map the global mouse position into container coordinates
+                global_pt = event.globalPosition().toPoint()
+                pt_in_container = self.container.mapFromGlobal(global_pt)
+                if not self.drawer.geometry().contains(pt_in_container):
+                    self.drawer.hide_drawer()
+        # Pass the event on to the parent class
+        return super().eventFilter(obj, event)
