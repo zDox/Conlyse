@@ -215,9 +215,7 @@ class TimelineControls(QWidget):
 
     def advance_time(self, delta_seconds: float):
         """Advance the timeline based on elapsed seconds (called externally)."""
-        if delta_seconds <= 0:
-            return
-        if not self.is_playing:
+        if delta_seconds <= 0 or not self.is_playing:
             return
         direction = 1 if self.playback_direction == "forward" else -1
         new_time = self.current_time + direction * self.playback_speed * delta_seconds
