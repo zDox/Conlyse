@@ -91,7 +91,7 @@ class ResourceView(MapView):
 
         for province in self.ritf.get_provinces().values():
             if isinstance(province, SeaProvince):
-                self.color_data[province.id] = (0, 0, 128, 255)
+                self.color_data[province.id] = (70, 130, 180, 255)
                 continue
 
             if province.resource_production_type == ResourceProductionType.NONE:

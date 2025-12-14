@@ -7,7 +7,6 @@ MIN_ZOOM = 3
 INITIAL_ZOOM = 3
 MAX_ZOOM = 20.0
 
-#
 
 # Connection Line Color
 CONNECTION_LINE_COLOR = (100/255, 100/255, 100/255, 0.8)
