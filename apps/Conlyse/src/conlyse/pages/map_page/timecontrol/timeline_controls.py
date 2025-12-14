@@ -11,6 +11,9 @@ from .overview_bar import OverviewBar
 from .simple_position_slider import SimplePositionSlider
 
 
+MIN_TIMELINE_DURATION_SECONDS = 1.0
+
+
 class TimelineControls(QWidget):
     """Main timeline control panel."""
 
@@ -23,7 +26,7 @@ class TimelineControls(QWidget):
         fallback_start = datetime.now()
         self.start_time: datetime = replay_interface.start_time if replay_interface else fallback_start
         self.last_time: datetime = replay_interface.last_time if replay_interface else self.start_time + timedelta(days=90)
-        self.total_seconds = max((self.last_time - self.start_time).total_seconds(), 1.0)
+        self.total_seconds = max((self.last_time - self.start_time).total_seconds(), MIN_TIMELINE_DURATION_SECONDS)
         self.total_days = int(self.total_seconds // (24 * 60 * 60))
         self.current_time = 0.0
         if replay_interface:
@@ -118,7 +121,7 @@ class TimelineControls(QWidget):
         jump_label = QLabel("Jump to day:", parent=self)
 
         self.day_spinner = QSpinBox(parent=self)
-        self.day_spinner.setRange(0, max(self.total_days, 0))
+        self.day_spinner.setRange(0, self.total_days)
         self.day_spinner.setValue(int(self.current_time // (24 * 60 * 60)))
         self.day_spinner.valueChanged.connect(self.jump_to_day)
 
