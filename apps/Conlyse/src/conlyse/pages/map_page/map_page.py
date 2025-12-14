@@ -19,8 +19,10 @@ from conlyse.pages.map_page.constants import (
 )
 from conlyse.pages.map_page.input_controller import InputController
 from conlyse.pages.map_page.map import Map
+from conlyse.pages.map_page.timecontrol import TimelineControls
 from conlyse.pages.page import Page
 from conlyse.utils.enums import PageType
+from conlyse.widgets.mui.button import CButton
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -47,6 +49,8 @@ class MapPage(Page):
         self.ritf = self.app.replay_manager.get_active_replay()
         self.map_widget: Map | None = None
         self.input_controller: InputController | None = None
+        self.timeline_controls: TimelineControls | None = None
+        self.timeline_button: CButton | None = None
         samples = self.app.config_manager.main.get("graphics.msaa_samples")
 
         # Configure OpenGL format BEFORE creating the Map widget
@@ -84,8 +88,14 @@ class MapPage(Page):
             return
 
 
+        self.timeline_controls = TimelineControls(parent=self)
+        self.timeline_controls.setVisible(False)
+
         layout.addWidget(self.map_widget)
+        layout.addWidget(self.timeline_controls)
         self.setLayout(layout)
+
+        self._setup_timeline_button()
 
         # Set up performance metrics for this page
         self.app.performance_window.clear_metrics()
@@ -155,3 +165,26 @@ class MapPage(Page):
     def clean_up(self) -> None:
         """Clean up resources when the page is closed."""
         self.map_widget.deleteLater()
+        if self.timeline_controls:
+            self.timeline_controls.timer.stop()
+            self.timeline_controls.deleteLater()
+            self.timeline_controls = None
+        if self.timeline_button:
+            self.timeline_button.deleteLater()
+            self.timeline_button = None
+        self.app.main_window.header.set_actions([])
+
+    def _setup_timeline_button(self) -> None:
+        """Create and attach the header button that toggles the timeline panel."""
+        self.timeline_button = CButton("Open Timeline", parent=self.app.main_window.header)
+        self.timeline_button.clicked.connect(self.toggle_timeline_visibility)
+        self.app.main_window.header.set_actions([self.timeline_button])
+
+    def toggle_timeline_visibility(self) -> None:
+        """Toggle visibility of the timeline controls panel."""
+        if not self.timeline_controls:
+            return
+        is_visible = self.timeline_controls.isVisible()
+        self.timeline_controls.setVisible(not is_visible)
+        if self.timeline_button:
+            self.timeline_button.setText("Close Timeline" if not is_visible else "Open Timeline")

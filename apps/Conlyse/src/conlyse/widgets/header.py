@@ -23,6 +23,9 @@ class Header(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 6, 12, 6)
         layout.setSpacing(10)
+        self.actions_layout = QHBoxLayout()
+        self.actions_layout.setContentsMargins(0, 0, 0, 0)
+        self.actions_layout.setSpacing(6)
 
         # --- Burger menu button ---
         self.menu_button = CIconButton("mdi.menu", "primary",size=40, parent=self)
@@ -42,7 +45,22 @@ class Header(QWidget):
 
         # Placeholder stretch for right side (optional icons later)
         layout.addStretch()
+        layout.addLayout(self.actions_layout)
 
     def set_drawer_toggle_function(self, toggle_function):
         """Set the function to be called when the menu button is clicked."""
         self.menu_button.clicked.connect(toggle_function)
+
+    def set_actions(self, widgets: list[QWidget] | None):
+        """Replace the right-side actions with the provided widgets."""
+        while self.actions_layout.count():
+            item = self.actions_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
+
+        if not widgets:
+            return
+
+        for widget in widgets:
+            self.actions_layout.addWidget(widget)
