@@ -23,25 +23,11 @@ class TimelineControls(QWidget):
     def __init__(self, replay_interface: Optional[ReplayInterface], parent=None):
         super().__init__(parent)
         self.replay_interface: Optional[ReplayInterface] = replay_interface
-        fallback_start = datetime.now()
-        if replay_interface:
-            try:
-                self.start_time = replay_interface.start_time
-                self.last_time = replay_interface.last_time
-            except AttributeError:
-                self.start_time = fallback_start
-                self.last_time = self.start_time + timedelta(days=90)
-        else:
-            self.start_time = fallback_start
-            self.last_time = self.start_time + timedelta(days=90)
+        self.start_time = replay_interface.start_time
+        self.last_time = replay_interface.last_time
         self.total_seconds = max((self.last_time - self.start_time).total_seconds(), MIN_TIMELINE_DURATION_SECONDS)
         self.total_days = int(self.total_seconds // (24 * 60 * 60))
-        self.current_time = 0.0
-        if replay_interface:
-            try:
-                self.current_time = (replay_interface.client_time() - self.start_time).total_seconds()
-            except (AttributeError, ValueError):
-                self.current_time = 0.0
+        self.current_time = (replay_interface.client_time() - self.start_time).total_seconds()
         self.current_time = max(0.0, min(self.total_seconds, self.current_time))
         self.is_playing = False
         self.playback_speed = 1

@@ -188,7 +188,7 @@ class MapPage(Page):
 
     def _setup_timeline_button(self) -> None:
         """Create and attach the header button that toggles the timeline panel."""
-        self.timeline_button = CButton("Open Timeline", parent=self.app.main_window.header)
+        self.timeline_button = CButton("Open Timeline", "contained", parent=self.app.main_window.header)
         self.timeline_button.clicked.connect(self.toggle_timeline_visibility)
         self.app.main_window.header.set_actions([self.timeline_button])
 
