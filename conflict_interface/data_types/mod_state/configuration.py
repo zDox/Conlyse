@@ -408,6 +408,7 @@ class UnitTypeFrontEndConfig(GameObject):
 @dataclass
 class FreeformConfig(GameObject):
     C = ""
+    MAPPING = {}
 
 
 
