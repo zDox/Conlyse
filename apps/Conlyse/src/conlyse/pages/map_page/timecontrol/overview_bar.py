@@ -66,7 +66,7 @@ class OverviewBar(QWidget):
 
         if event.button() == Qt.MouseButton.RightButton:
             # Right click drags the entire viewport without selecting handles
-            self.dragging = "range"
+            self.dragging = "range_right"
             self.drag_offset = (self.visible_start + self.visible_end) / 2 - normalized_x
             return
 
@@ -107,7 +107,7 @@ class OverviewBar(QWidget):
                 self.visible_end = max(self.visible_start + 0.01, min(1.0, new_end))
                 self.range_changed.emit(self.visible_start, self.visible_end)
 
-            elif self.dragging == "range":
+            elif self.dragging in ("range", "range_right"):
                 center = normalized_x + self.drag_offset
                 range_width = self.visible_end - self.visible_start
                 new_start = center - range_width / 2
