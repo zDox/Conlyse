@@ -10,8 +10,8 @@ from typing import Any
 from typing import get_args
 
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object import get_inner_type
-from conflict_interface.data_types.game_object import parse_any
+from conflict_interface.data_types.game_object_json import get_inner_type
+from conflict_interface.data_types.game_object_json import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface

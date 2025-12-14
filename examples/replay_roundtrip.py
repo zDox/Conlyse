@@ -17,7 +17,8 @@ from typing import List, Optional
 from deepdiff import DeepDiff
 from tqdm import tqdm
 
-from conflict_interface.data_types.game_object import dump_any, parse_any
+from conflict_interface.data_types.game_object_json import dump_any
+from conflict_interface.data_types.game_object_json import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.interface.replay_interface import ReplayInterface

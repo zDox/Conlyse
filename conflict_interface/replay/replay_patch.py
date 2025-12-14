@@ -11,7 +11,7 @@ from typing import Union
 
 import lz4.frame
 
-from conflict_interface.data_types.game_object import dump_any
+from conflict_interface.data_types.game_object_json import dump_any
 from conflict_interface.logger_config import get_logger
 import msgpack
 from array import array
