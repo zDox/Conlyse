@@ -175,6 +175,7 @@ class MapPage(Page):
 
     def clean_up(self) -> None:
         """Clean up resources when the page is closed."""
+        self.input_controller.reset()
         self.map_widget.deleteLater()
         if self.timeline_controls:
             self.timeline_controls.clean_up()

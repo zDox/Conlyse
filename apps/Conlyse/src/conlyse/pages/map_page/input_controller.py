@@ -184,3 +184,11 @@ class InputController:
         self.last_mouse_pos = None
         self.dragging = False
         self.pressed_keys.clear()
+
+        self.keybindings_manager.unregister_action(KeyAction.CAMERA_ZOOM_IN)
+        self.keybindings_manager.unregister_action(KeyAction.CAMERA_ZOOM_OUT)
+        self.keybindings_manager.unregister_action(KeyAction.SWITCH_TO_POLITICAL_MAP_VIEW)
+        self.keybindings_manager.unregister_action(KeyAction.SWITCH_TO_TERRAIN_MAP_VIEW)
+        self.keybindings_manager.unregister_action(KeyAction.SWITCH_TO_RESOURCE_MAP_VIEW)
+        self.keybindings_manager.unregister_action(KeyAction.TOGGLE_CONNECTIONS_OVERLAY)
+        self.keybindings_manager.unregister_action(KeyAction.DEBUG_TOGGLE_MOUSE_CLICK_LOGGING)
