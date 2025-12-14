@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from .overview_bar import OverviewBar
@@ -12,6 +12,7 @@ class TimelineControls(QWidget):
     """Main timeline control panel."""
 
     close_requested = pyqtSignal()
+    time_changed = pyqtSignal(float)
 
     def __init__(self, total_days=90, parent=None):
         super().__init__(parent)
@@ -23,9 +24,9 @@ class TimelineControls(QWidget):
         self.playback_direction = "forward"
         self.visible_start = 0
         self.visible_end = self.total_seconds
+        self._last_emitted_time = self.current_time
 
         self.setup_ui()
-        self.setup_timer()
 
     def setup_ui(self):
         main_layout = QVBoxLayout()
@@ -176,13 +177,9 @@ class TimelineControls(QWidget):
                 return True
         return super().eventFilter(obj, event)
 
-    def setup_timer(self):
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_playback)
-    
     def clean_up(self):
         """Cleanup resources when the controls are removed."""
-        self.timer.stop()
+        pass
 
     def format_time(self, seconds):
         days = int(seconds // (24 * 60 * 60))
@@ -198,17 +195,15 @@ class TimelineControls(QWidget):
 
     def toggle_play_pause(self):
         self.is_playing = not self.is_playing
-        if self.is_playing:
-            self.play_pause_btn.setText("⏸")
-            self.timer.start(1000)
-        else:
-            self.play_pause_btn.setText("▶")
-            self.timer.stop()
+        self.play_pause_btn.setText("⏸" if self.is_playing else "▶")
 
-    def update_playback(self):
+    def advance_time(self, delta_seconds: float):
+        """Advance the timeline based on elapsed seconds (called externally)."""
+        if not self.is_playing or delta_seconds <= 0:
+            return
         direction = 1 if self.playback_direction == "forward" else -1
-        new_time = self.current_time + direction * self.playback_speed
-        new_time = max(0, min(self.total_seconds, new_time))
+        new_time = self.current_time + direction * self.playback_speed * delta_seconds
+        new_time = max(0.0, min(self.total_seconds, new_time))
 
         range_size = self.visible_end - self.visible_start
         needs_shift = False
@@ -242,6 +237,10 @@ class TimelineControls(QWidget):
         self.update_ui()
 
     def update_ui(self):
+        if self.current_time != self._last_emitted_time:
+            self.time_changed.emit(self.current_time)
+            self._last_emitted_time = self.current_time
+
         self.time_label.setText(self.format_time(self.current_time))
         self.date_label.setText(self.format_date(self.current_time))
 

@@ -52,6 +52,7 @@ class MapPage(Page):
         self.input_controller: InputController | None = None
         self.timeline_controls: TimelineControls | None = None
         self.timeline_button: CButton | None = None
+        self._timeline_last_time = time.perf_counter()
         samples = self.app.config_manager.main.get("graphics.msaa_samples")
 
         # Configure OpenGL format BEFORE creating the Map widget
@@ -161,7 +162,12 @@ class MapPage(Page):
 
     def page_update(self) -> None:
         """Update method called by the page manager."""
+        now = time.perf_counter()
+        delta = now - self._timeline_last_time
+        self._timeline_last_time = now
         self.input_controller.update_camera_from_keyboard()
+        if self.timeline_controls:
+            self.timeline_controls.advance_time(delta)
         self.map_widget.render_frame()
 
         self.update_performance_window()
