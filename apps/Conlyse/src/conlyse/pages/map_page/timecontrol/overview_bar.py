@@ -70,7 +70,7 @@ class OverviewBar(QWidget):
             self.drag_offset = (self.visible_start + self.visible_end) / 2 - normalized_x
             return
 
-        if event.button() == Qt.MouseButton.LeftButton:
+        elif event.button() == Qt.MouseButton.LeftButton:
 
             start_x = int(self.visible_start * self.width())
             if abs(x - start_x) < 12:
@@ -112,6 +112,7 @@ class OverviewBar(QWidget):
                 range_width = self.visible_end - self.visible_start
                 new_start = center - range_width / 2
                 new_end = center + range_width / 2
+                # 'range' comes from left-click drag; 'range_right' from right-click drag
 
                 if new_start < 0:
                     new_start = 0

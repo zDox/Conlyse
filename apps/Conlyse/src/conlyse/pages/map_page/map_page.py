@@ -166,7 +166,7 @@ class MapPage(Page):
         """Clean up resources when the page is closed."""
         self.map_widget.deleteLater()
         if self.timeline_controls:
-            self.timeline_controls.timer.stop()
+            self.timeline_controls.clean_up()
             self.timeline_controls.deleteLater()
             self.timeline_controls = None
         if self.timeline_button:

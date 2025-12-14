@@ -179,6 +179,10 @@ class TimelineControls(QWidget):
     def setup_timer(self):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_playback)
+    
+    def clean_up(self):
+        """Cleanup resources when the controls are removed."""
+        self.timer.stop()
 
     def format_time(self, seconds):
         days = int(seconds // (24 * 60 * 60))
