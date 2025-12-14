@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
+from datetime import timedelta
+
 from PyQt6.QtWidgets import QSizePolicy
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
@@ -52,7 +54,6 @@ class MapPage(Page):
         self.input_controller: InputController | None = None
         self.timeline_controls: TimelineControls | None = None
         self.timeline_button: CButton | None = None
-        self._timeline_last_time = time.perf_counter()
         samples = self.app.config_manager.main.get("graphics.msaa_samples")
 
         # Configure OpenGL format BEFORE creating the Map widget
@@ -96,8 +97,9 @@ class MapPage(Page):
         container_layout.setSpacing(0)
         container_layout.addWidget(self.map_widget)
 
-        self.timeline_controls = TimelineControls(parent=self.map_container)
+        self.timeline_controls = TimelineControls(self.ritf, parent=self.map_container)
         self.timeline_controls.setVisible(False)
+        self.timeline_controls.time_changed.connect(self._on_timeline_time_changed)
 
         layout.addWidget(self.map_container)
         self.setLayout(layout)
@@ -160,14 +162,11 @@ class MapPage(Page):
                 self.fps_timer = 0.0
 
 
-    def page_update(self) -> None:
+    def page_update(self, delta_time: float) -> None:
         """Update method called by the page manager."""
-        now = time.perf_counter()
-        delta = now - self._timeline_last_time
-        self._timeline_last_time = now
         self.input_controller.update_camera_from_keyboard()
         if self.timeline_controls:
-            self.timeline_controls.advance_time(delta)
+            self.timeline_controls.advance_time(delta_time)
         self.map_widget.render_frame()
 
         self.update_performance_window()
@@ -204,6 +203,13 @@ class MapPage(Page):
             self.timeline_controls.raise_()
         if self.timeline_button:
             self.timeline_button.setText("Close Timeline" if new_visible_state else "Open Timeline")
+
+    def _on_timeline_time_changed(self, seconds: float) -> None:
+        """Jump the replay interface to the requested timestamp."""
+        if not self.ritf:
+            return
+        target_time = self.ritf.start_time + timedelta(seconds=seconds)
+        self.ritf.jump_to(target_time)
 
     def _position_timeline_overlay(self) -> None:
         """Position timeline overlay at the bottom of the map container."""

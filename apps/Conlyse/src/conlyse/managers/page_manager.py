@@ -1,6 +1,7 @@
 from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING
+import time
 
 from PyQt6.QtWidgets import QStackedWidget
 
@@ -39,6 +40,7 @@ class PageManager:
         # History tracking: list of (PageType, context) tuples
         self.history: list[tuple[PageType, dict]] = [(self.current_page_type, {})]
         self.history_index: int = 0
+        self._last_update_time: float = time.perf_counter()
 
     def register_page(self, page_type: PageType, page_class: type):
         self.pages[page_type] = page_class
@@ -113,6 +115,7 @@ class PageManager:
         self.stack.setCurrentWidget(self.current_page)
         logger.debug(f"Updating style for page {self.current_page_type}")
         self.app.style_manager.update_style()
+        self._last_update_time = time.perf_counter()
 
 
         # Manage in->out Replay transition
@@ -131,12 +134,15 @@ class PageManager:
         logger.debug(f"Completed setup for page {self.current_page_type}")
 
     def update(self):
+        now = time.perf_counter()
+        delta_time = now - self._last_update_time
+        self._last_update_time = now
         # If scheduled, perform it before delegating update to the current page.
         if self.next_page_type is not None:
             self._transition_page()
 
         if self.current_page:
-            self.current_page.page_update()
+            self.current_page.page_update(delta_time)
 
     def get_current_page_type(self) -> PageType | None:
         return self.current_page_type

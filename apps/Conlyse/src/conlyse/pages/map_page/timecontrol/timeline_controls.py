@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta
+from typing import Optional
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
+
+from conflict_interface.interface.replay_interface import ReplayInterface
 
 from .overview_bar import OverviewBar
 from .simple_position_slider import SimplePositionSlider
@@ -14,11 +17,20 @@ class TimelineControls(QWidget):
     close_requested = pyqtSignal()
     time_changed = pyqtSignal(float)
 
-    def __init__(self, total_days=90, parent=None):
+    def __init__(self, replay_interface: Optional[ReplayInterface], parent=None):
         super().__init__(parent)
-        self.total_days = total_days
-        self.total_seconds = total_days * 24 * 60 * 60
-        self.current_time = 0
+        self.replay_interface: Optional[ReplayInterface] = replay_interface
+        self.start_time: datetime = replay_interface.start_time if replay_interface else datetime(2024, 1, 1)
+        self.last_time: datetime = replay_interface.last_time if replay_interface else self.start_time + timedelta(days=90)
+        self.total_seconds = max((self.last_time - self.start_time).total_seconds(), 1.0)
+        self.total_days = int(self.total_seconds // (24 * 60 * 60))
+        self.current_time = 0.0
+        if replay_interface:
+            try:
+                self.current_time = (replay_interface.client_time() - self.start_time).total_seconds()
+            except Exception:
+                self.current_time = 0.0
+        self.current_time = max(0.0, min(self.total_seconds, self.current_time))
         self.is_playing = False
         self.playback_speed = 1
         self.playback_direction = "forward"
@@ -105,8 +117,8 @@ class TimelineControls(QWidget):
         jump_label = QLabel("Jump to day:", parent=self)
 
         self.day_spinner = QSpinBox(parent=self)
-        self.day_spinner.setRange(0, self.total_days)
-        self.day_spinner.setValue(0)
+        self.day_spinner.setRange(0, max(self.total_days, 0))
+        self.day_spinner.setValue(int(self.current_time // (24 * 60 * 60)))
         self.day_spinner.valueChanged.connect(self.jump_to_day)
 
         zoom_layout.addStretch()
@@ -189,7 +201,7 @@ class TimelineControls(QWidget):
         return f"Day {days} {hours:02d}:{mins:02d}:{secs:02d}"
 
     def format_date(self, seconds):
-        start_date = datetime(2024, 1, 1)
+        start_date = self.start_time
         current_date = start_date + timedelta(seconds=seconds)
         return current_date.strftime("%b %d, %Y")
 
@@ -199,7 +211,9 @@ class TimelineControls(QWidget):
 
     def advance_time(self, delta_seconds: float):
         """Advance the timeline based on elapsed seconds (called externally)."""
-        if not self.is_playing or delta_seconds <= 0:
+        if delta_seconds <= 0:
+            return
+        if not self.is_playing:
             return
         direction = 1 if self.playback_direction == "forward" else -1
         new_time = self.current_time + direction * self.playback_speed * delta_seconds

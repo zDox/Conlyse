@@ -87,7 +87,7 @@ class ReplayLoadPage(Page):
         self.animation_timer.timeout.connect(self.animate_loading)
         self.animation_timer.setInterval(80)  # 80ms per frame
 
-    def page_update(self):
+    def page_update(self, delta_time: float):
         """Called every frame - animation is handled by QTimer"""
         if not self._ui_initialized:
             return

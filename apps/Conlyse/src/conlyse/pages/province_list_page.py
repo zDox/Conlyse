@@ -15,11 +15,10 @@ class ProvinceListPage(Page):
     def setup(self, context):
         pass
 
-    def page_update(self):
+    def page_update(self, delta_time: float):
         pass
 
     def clean_up(self):
         pass
-
 
 
