@@ -185,6 +185,7 @@ class MapPage(Page):
         if not self.timeline_controls:
             return
         is_visible = self.timeline_controls.isVisible()
-        self.timeline_controls.setVisible(not is_visible)
+        new_visible_state = not is_visible
+        self.timeline_controls.setVisible(new_visible_state)
         if self.timeline_button:
-            self.timeline_button.setText("Close Timeline" if not is_visible else "Open Timeline")
+            self.timeline_button.setText("Close Timeline" if new_visible_state else "Open Timeline")
