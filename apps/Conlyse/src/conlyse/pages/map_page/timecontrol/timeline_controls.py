@@ -24,8 +24,16 @@ class TimelineControls(QWidget):
         super().__init__(parent)
         self.replay_interface: Optional[ReplayInterface] = replay_interface
         fallback_start = datetime.now()
-        self.start_time: datetime = replay_interface.start_time if replay_interface else fallback_start
-        self.last_time: datetime = replay_interface.last_time if replay_interface else self.start_time + timedelta(days=90)
+        if replay_interface:
+            try:
+                self.start_time = replay_interface.start_time
+                self.last_time = replay_interface.last_time
+            except AttributeError:
+                self.start_time = fallback_start
+                self.last_time = self.start_time + timedelta(days=90)
+        else:
+            self.start_time = fallback_start
+            self.last_time = self.start_time + timedelta(days=90)
         self.total_seconds = max((self.last_time - self.start_time).total_seconds(), MIN_TIMELINE_DURATION_SECONDS)
         self.total_days = int(self.total_seconds // (24 * 60 * 60))
         self.current_time = 0.0
@@ -215,7 +223,7 @@ class TimelineControls(QWidget):
 
     def advance_time(self, delta_seconds: float):
         """Advance the timeline based on elapsed seconds (called externally)."""
-        if delta_seconds <= 0 or not self.is_playing:
+        if not self.is_playing or delta_seconds <= 0:
             return
         direction = 1 if self.playback_direction == "forward" else -1
         new_time = self.current_time + direction * self.playback_speed * delta_seconds
