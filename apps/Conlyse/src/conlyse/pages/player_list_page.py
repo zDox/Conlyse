@@ -439,5 +439,3 @@ class PlayerListPage(Page):
         msg.setInformativeText("CSV export functionality will be implemented here.")
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
-
-    # page_update handled above; no additional periodic logic required
