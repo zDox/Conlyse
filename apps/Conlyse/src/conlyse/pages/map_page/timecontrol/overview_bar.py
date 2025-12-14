@@ -61,9 +61,16 @@ class OverviewBar(QWidget):
         painter.drawEllipse(playhead_x - 6, self.height() - 6, 12, 12)
 
     def mousePressEvent(self, event):
+        x = event.position().x()
+        normalized_x = x / self.width()
+
+        if event.button() == Qt.MouseButton.RightButton:
+            # Right click drags the entire viewport without selecting handles
+            self.dragging = "range"
+            self.drag_offset = (self.visible_start + self.visible_end) / 2 - normalized_x
+            return
+
         if event.button() == Qt.MouseButton.LeftButton:
-            x = event.position().x()
-            normalized_x = x / self.width()
 
             start_x = int(self.visible_start * self.width())
             if abs(x - start_x) < 12:
@@ -120,7 +127,7 @@ class OverviewBar(QWidget):
             self.update()
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
+        if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
             self.dragging = None
 
     def wheelEvent(self, event: QWheelEvent):
