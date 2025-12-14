@@ -63,22 +63,23 @@ class OverviewBar(QWidget):
     def mousePressEvent(self, event):
         x = event.position().x()
         normalized_x = x / self.width()
+        start_x = int(self.visible_start * self.width())
+        end_x = int(self.visible_end * self.width())
 
         if event.button() == Qt.MouseButton.RightButton:
             # Right click drags the entire viewport without selecting handles
-            self.dragging = "range_right"
-            self.drag_offset = (self.visible_start + self.visible_end) / 2 - normalized_x
-            return
+            if start_x <= x <= end_x:
+                self.dragging = "range"
+                self.drag_offset = (self.visible_start + self.visible_end) / 2 - normalized_x
+                return
 
         elif event.button() == Qt.MouseButton.LeftButton:
 
-            start_x = int(self.visible_start * self.width())
             if abs(x - start_x) < 12:
                 self.dragging = "start"
                 self.drag_offset = self.visible_start - normalized_x
                 return
 
-            end_x = int(self.visible_end * self.width())
             if abs(x - end_x) < 12:
                 self.dragging = "end"
                 self.drag_offset = self.visible_end - normalized_x
@@ -88,9 +89,6 @@ class OverviewBar(QWidget):
                 self.dragging = "range"
                 self.drag_offset = (self.visible_start + self.visible_end) / 2 - normalized_x
                 return
-
-            percent = max(0.0, min(1.0, normalized_x))
-            self.position_clicked.emit(percent)
 
     def mouseMoveEvent(self, event):
         if self.dragging:

@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton,
 
 from conflict_interface.interface.replay_interface import ReplayInterface
 
+from conlyse.widgets.mui.icon_button import CIconButton
 from .overview_bar import OverviewBar
 from .simple_position_slider import SimplePositionSlider
 
@@ -22,7 +23,7 @@ class TimelineControls(QWidget):
 
     def __init__(self, replay_interface: Optional[ReplayInterface], parent=None):
         super().__init__(parent)
-        self.replay_interface: Optional[ReplayInterface] = replay_interface
+        self.ritf: Optional[ReplayInterface] = replay_interface
         self.start_time = replay_interface.start_time
         self.last_time = replay_interface.last_time
         self.total_seconds = max((self.last_time - self.start_time).total_seconds(), MIN_TIMELINE_DURATION_SECONDS)
@@ -36,9 +37,27 @@ class TimelineControls(QWidget):
         self.visible_end = self.total_seconds
         self._last_emitted_time = self.current_time
 
+        self.play_forward_btn = None
+        self.skip_back_btn = None
+        self.skip_forward_btn = None
+        self.play_backward_btn: CIconButton | None = None
+        self.play_pause_btn: CIconButton | None = None
+        self.speed_combo = None
+        self.time_label = None
+        self.date_label = None
+        self.position_start_label = None
+        self.position_end_label = None
+        self.position_slider = None
+        self.overview_bar = None
+        self.zoom_label = None
+        self.zoom_in_btn = None
+        self.zoom_out_btn = None
+        self.day_spinner = None
+
         self.setup_ui()
 
     def setup_ui(self):
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -50,25 +69,25 @@ class TimelineControls(QWidget):
         # Left - Playback controls
         playback_layout = QHBoxLayout()
 
-        self.rewind_btn = QPushButton("⏪", parent=self)
-        self.rewind_btn.setToolTip("Toggle reverse playback")
-        self.rewind_btn.clicked.connect(self.toggle_reverse)
+        self.play_backward_btn = CIconButton("fa6s.backward", "primary", parent=self)
+        self.play_backward_btn.setToolTip("Toggle backward playback")
+        self.play_backward_btn.clicked.connect(self.toggle_reverse)
 
-        self.skip_back_btn = QPushButton("⏮", parent=self)
+        self.skip_back_btn = CIconButton("fa5s.step-backward", parent=self)
         self.skip_back_btn.setToolTip("Skip back 1 hour")
         self.skip_back_btn.clicked.connect(self.skip_backward)
 
-        self.play_pause_btn = QPushButton("▶", parent=self)
+        self.play_pause_btn = CIconButton("fa6s.play", parent=self)
         self.play_pause_btn.setToolTip("Play/Pause")
         self.play_pause_btn.clicked.connect(self.toggle_play_pause)
 
-        self.skip_forward_btn = QPushButton("⏭", parent=self)
+        self.skip_forward_btn = CIconButton("fa5s.step-forward", parent=self)
         self.skip_forward_btn.setToolTip("Skip forward 1 hour")
         self.skip_forward_btn.clicked.connect(self.skip_forward)
 
-        self.fast_forward_btn = QPushButton("⏩", parent=self)
-        self.fast_forward_btn.setToolTip("Toggle forward playback")
-        self.fast_forward_btn.clicked.connect(self.toggle_forward)
+        self.play_forward_btn = CIconButton("fa6s.forward", "success",  parent=self)
+        self.play_forward_btn.setToolTip("Toggle forward playback")
+        self.play_forward_btn.clicked.connect(self.toggle_forward)
 
         speed_label = QLabel("Speed:", parent=self)
 
@@ -77,11 +96,11 @@ class TimelineControls(QWidget):
         self.speed_combo.setCurrentIndex(2)
         self.speed_combo.currentTextChanged.connect(self.change_speed)
 
-        playback_layout.addWidget(self.rewind_btn)
+        playback_layout.addWidget(self.play_backward_btn)
         playback_layout.addWidget(self.skip_back_btn)
         playback_layout.addWidget(self.play_pause_btn)
         playback_layout.addWidget(self.skip_forward_btn)
-        playback_layout.addWidget(self.fast_forward_btn)
+        playback_layout.addWidget(self.play_forward_btn)
         playback_layout.addSpacing(8)
         playback_layout.addWidget(speed_label)
         playback_layout.addWidget(self.speed_combo)
@@ -101,14 +120,14 @@ class TimelineControls(QWidget):
         # Right - Zoom controls
         zoom_layout = QHBoxLayout()
 
-        self.zoom_out_btn = QPushButton("🔍-", parent=self)
+        self.zoom_out_btn = CIconButton("ei.zoom-out", parent=self)
         self.zoom_out_btn.setToolTip("Zoom out")
         self.zoom_out_btn.clicked.connect(self.zoom_out)
 
         self.zoom_label = QLabel("1.0x", parent=self)
         self.zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.zoom_in_btn = QPushButton("🔍+", parent=self)
+        self.zoom_in_btn = CIconButton("ei.zoom-in", parent=self)
         self.zoom_in_btn.setToolTip("Zoom in")
         self.zoom_in_btn.clicked.connect(self.zoom_in)
 
@@ -205,7 +224,7 @@ class TimelineControls(QWidget):
 
     def toggle_play_pause(self):
         self.is_playing = not self.is_playing
-        self.play_pause_btn.setText("⏸" if self.is_playing else "▶")
+        self.play_pause_btn.set_icon("fa6s.pause" if self.is_playing else "fa6s.play")
 
     def advance_time(self, delta_seconds: float):
         """Advance the timeline based on elapsed seconds (called externally)."""
@@ -216,7 +235,6 @@ class TimelineControls(QWidget):
         new_time = max(0.0, min(self.total_seconds, new_time))
 
         range_size = self.visible_end - self.visible_start
-        needs_shift = False
 
         if self.playback_direction == "forward":
             if new_time > self.visible_end:
@@ -227,7 +245,6 @@ class TimelineControls(QWidget):
 
                 self.visible_start = new_visible_start
                 self.visible_end = new_visible_end
-                needs_shift = True
         else:
             if new_time < self.visible_start:
                 shift = self.visible_start - new_time
@@ -237,12 +254,9 @@ class TimelineControls(QWidget):
 
                 self.visible_start = new_visible_start
                 self.visible_end = new_visible_end
-                needs_shift = True
 
-        if not needs_shift:
-            self.current_time = max(self.visible_start, min(self.visible_end, new_time))
-        else:
-            self.current_time = new_time
+        self.current_time = max(self.visible_start, min(self.visible_end, new_time))
+
 
         self.update_ui()
 
@@ -274,11 +288,11 @@ class TimelineControls(QWidget):
         self.zoom_label.setText(f"{zoom:.1f}x")
 
         if self.playback_direction == "backward":
-            self.rewind_btn.setStyleSheet("color: #fbbf24;")
-            self.fast_forward_btn.setStyleSheet("")
+            self.play_backward_btn.set_icon_color("warning")
+            self.play_forward_btn.set_icon_color("primary")
         else:
-            self.rewind_btn.setStyleSheet("")
-            self.fast_forward_btn.setStyleSheet("color: #4ade80;")
+            self.play_backward_btn.set_icon_color("primary")
+            self.play_forward_btn.set_icon_color("success")
 
     def position_slider_changed(self, normalized_pos):
         self.current_time = self.visible_start + (normalized_pos * (self.visible_end - self.visible_start))
@@ -290,14 +304,17 @@ class TimelineControls(QWidget):
         self.current_time = max(self.visible_start, min(self.visible_end, self.current_time))
         self.update_ui()
 
-    def skip_backward(self):
-        self.current_time = max(self.visible_start, self.current_time - 3600)
+    def skip(self, seconds: float):
+        self.current_time = self.current_time + seconds
+        self.visible_start = self.visible_start + seconds
+        self.visible_end = self.visible_end + seconds
         self.update_ui()
+
+    def skip_backward(self):
+        self.skip(-3600)
 
     def skip_forward(self):
-        self.current_time = min(self.visible_end, self.current_time + 3600)
-        self.update_ui()
-
+        self.skip(3600)
     def toggle_reverse(self):
         self.playback_direction = "backward"
         self.update_ui()
@@ -347,7 +364,6 @@ class TimelineControls(QWidget):
 
     def jump_to_day(self, day):
         self.current_time = day * 24 * 60 * 60
-        self.current_time = max(self.visible_start, min(self.visible_end, self.current_time))
         self.update_ui()
 
     def overview_clicked(self, percent):

@@ -21,10 +21,10 @@ from conlyse.pages.map_page.constants import (
 )
 from conlyse.pages.map_page.input_controller import InputController
 from conlyse.pages.map_page.map import Map
-from conlyse.pages.map_page.timecontrol import TimelineControls
 from conlyse.pages.page import Page
 from conlyse.utils.enums import PageType
 from conlyse.widgets.mui.button import CButton
+from conlyse.widgets.timecontrol import TimelineControls
 
 if TYPE_CHECKING:
     from conlyse.app import App
