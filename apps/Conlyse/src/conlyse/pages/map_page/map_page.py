@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
 from PyQt6.QtWidgets import QSizePolicy
-from PyQt6.QtWidgets import QVBoxLayout
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 
 
@@ -48,6 +48,7 @@ class MapPage(Page):
         self.app: App = app
         self.ritf = self.app.replay_manager.get_active_replay()
         self.map_widget: Map | None = None
+        self.map_container: QWidget | None = None
         self.input_controller: InputController | None = None
         self.timeline_controls: TimelineControls | None = None
         self.timeline_button: CButton | None = None
@@ -88,11 +89,16 @@ class MapPage(Page):
             return
 
 
-        self.timeline_controls = TimelineControls(parent=self)
+        self.map_container = QWidget(self)
+        container_layout = QVBoxLayout(self.map_container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+        container_layout.addWidget(self.map_widget)
+
+        self.timeline_controls = TimelineControls(parent=self.map_container)
         self.timeline_controls.setVisible(False)
 
-        layout.addWidget(self.map_widget)
-        layout.addWidget(self.timeline_controls)
+        layout.addWidget(self.map_container)
         self.setLayout(layout)
 
         self._setup_timeline_button()
@@ -187,5 +193,25 @@ class MapPage(Page):
         is_visible = self.timeline_controls.isVisible()
         new_visible_state = not is_visible
         self.timeline_controls.setVisible(new_visible_state)
+        if new_visible_state:
+            self._position_timeline_overlay()
+            self.timeline_controls.raise_()
         if self.timeline_button:
             self.timeline_button.setText("Close Timeline" if new_visible_state else "Open Timeline")
+
+    def _position_timeline_overlay(self) -> None:
+        """Position timeline overlay at the bottom of the map container."""
+        if not self.timeline_controls or not self.map_container:
+            return
+        container_rect = self.map_container.rect()
+        overlay_height = self.timeline_controls.sizeHint().height()
+        self.timeline_controls.setGeometry(
+            0,
+            container_rect.height() - overlay_height,
+            container_rect.width(),
+            overlay_height,
+        )
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._position_timeline_overlay()
