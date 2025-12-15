@@ -110,9 +110,13 @@ class MapPage(Page):
         # Set up performance metrics for this page
         self.app.performance_window.clear_metrics()
         self.app.performance_window.set_page("Map Page")
+        self.app.performance_window.add_metric("Last Jump Time")
         self.app.performance_window.add_metric("Province Fill")
         self.app.performance_window.add_metric("Province Connections")
-        
+        self.app.performance_window.add_metric("Province Borders")
+        self.app.performance_window.add_metric("Terrain Map View Update")
+        self.app.performance_window.add_metric("Resource Map View Update")
+        self.app.performance_window.add_metric("Political Map View Update")
         self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
         self.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
 
@@ -144,9 +148,13 @@ class MapPage(Page):
             self.perf_update_counter += 1
             if self.perf_update_counter >= self.perf_update_interval:
                 metrics = self.map_widget.get_performance_metrics()
+                self.app.performance_window.update_metric("Last Jump Time", metrics["last_jump_time"])
                 self.app.performance_window.update_metric("Province Fill", metrics["province_fill"])
                 self.app.performance_window.update_metric("Province Connections", metrics["province_connections"])
                 self.app.performance_window.update_metric("Province Borders", metrics["province_borders"])
+                self.app.performance_window.update_metric("Terrain Map View Update", metrics["terrainview_update"])
+                self.app.performance_window.update_metric("Resource Map View Update", metrics["resourceview_update"])
+                self.app.performance_window.update_metric("Political Map View Update", metrics["politicalview_update"])
                 self.app.performance_window.update_frame_time(metrics["total_frame"])
                 self.perf_update_counter = 0
 
@@ -211,7 +219,10 @@ class MapPage(Page):
         if not self.ritf:
             return
         target_time = self.ritf.start_time + timedelta(seconds=seconds)
+        t1 = time.perf_counter()
         self.ritf.jump_to(target_time)
+        t2 = time.perf_counter()
+        self.map_widget.performance_metrics["last_jump_time"] = t2 - t1
         hook_events = self.ritf.poll_events()
 
         self.map_widget.apply_hook_events(hook_events)

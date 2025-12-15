@@ -44,9 +44,13 @@ class Map(QOpenGLWidget):
         
         # Performance tracking
         self.performance_metrics = {
+            "last_jump_time": 0.0,
             "province_fill": 0.0,
             "province_connections": 0.0,
             "province_borders": 0.0,
+            "terrainview_update": 0.0,
+            "resourceview_update": 0.0,
+            "politicalview_update": 0.0,
             "total_frame": 0.0
         }
 
