@@ -1,16 +1,19 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
-
+from PyQt6.QtWidgets import QComboBox
+from PyQt6.QtWidgets import QFrame
+from PyQt6.QtWidgets import QHBoxLayout
+from PyQt6.QtWidgets import QLabel
+from PyQt6.QtWidgets import QVBoxLayout
+from PyQt6.QtWidgets import QWidget
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.widgets.mui.icon_button import CIconButton
 from .overview_bar import OverviewBar
 from .simple_position_slider import SimplePositionSlider
-
 
 MIN_TIMELINE_DURATION_SECONDS = 1.0
 
@@ -131,20 +134,13 @@ class TimelineControls(QWidget):
         self.zoom_in_btn.setToolTip("Zoom in")
         self.zoom_in_btn.clicked.connect(self.zoom_in)
 
-        jump_label = QLabel("Jump to day:", parent=self)
 
-        self.day_spinner = QSpinBox(parent=self)
-        self.day_spinner.setRange(0, self.total_days)
-        self.day_spinner.setValue(int(self.current_time // (24 * 60 * 60)))
-        self.day_spinner.valueChanged.connect(self.jump_to_day)
 
         zoom_layout.addStretch()
         zoom_layout.addWidget(self.zoom_out_btn)
         zoom_layout.addWidget(self.zoom_label)
         zoom_layout.addWidget(self.zoom_in_btn)
         zoom_layout.addSpacing(8)
-        zoom_layout.addWidget(jump_label)
-        zoom_layout.addWidget(self.day_spinner)
 
         controls_layout.addLayout(playback_layout)
         controls_layout.addLayout(time_layout)
