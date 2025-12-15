@@ -21,6 +21,7 @@ logger = getLogger()
 
 class ReplayHookSystem:
     def __init__(self, replay):
+        self._tags = set()  # Set of all registered hook tags
         self._hooks: dict[int, list[ReplayHook]] = {}  # Listening to Path -> list of Hooks
         self._hook_queue: dict[int, list[ReplayHookQueueElement]] = {}
         self._hook_events: list[ReplayHookEvent] = []
@@ -67,9 +68,9 @@ class ReplayHookSystem:
 
             if hook.callback is None:
                 self._hook_events.append(ReplayHookEvent(
+                    tag=hook.tag,
                     reference=child_ref,
-                    attributes=data,
-                    path = hook_path
+                    attributes=data
                 ))
             else:
                 new_queue_element = ReplayHookQueueElement(
@@ -105,7 +106,7 @@ class ReplayHookSystem:
     A single event trigger can be registered per path. 
     """
 
-    def _register_event_trigger(self, path: list[str], attributes: list[str]):
+    def register_event_trigger(self, tag: str, path: list[str], attributes: list[str]):
         """
         Register an event trigger for a specific path and attributes.
 
@@ -114,9 +115,13 @@ class ReplayHookSystem:
 
         Args:
         """
+        if tag in self._tags:
+            raise ValueError(f"Event trigger with tag '{tag}' is already registered.")
+        self._tags.add(tag)
         path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
 
         hook = ReplayHook(
+            tag=tag,
             change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
             attributes=attributes,
             path=path_idx
@@ -125,29 +130,11 @@ class ReplayHookSystem:
         self._unregister_hook(path_idx, None)
         self._register_hook(hook)
 
-    def _unregister_event_trigger(self, path: list[str]) -> None:
+    def unregister_event_trigger(self, path: list[str]) -> None:
         """Remove a previously registered event trigger."""
 
         path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
         self._unregister_hook(path_idx, None)
-
-    def set_province_event_trigger(self, attributes: list[str]) -> None:
-        """
-        Register an event trigger for when an attribute of a province changes.
-
-        Args:
-            attributes: The name of the attributes to watch (e.g., "[owner_id", "resource_production"]).
-        """
-        path = ["states", "map_state", "map", "locations"]
-        if not attributes:
-            self._unregister_event_trigger(path)
-        else:
-            self._register_event_trigger(path, attributes)
-
-    def remove_province_event_trigger(self) -> None:
-        """Remove a previously registered province event trigger."""
-        path = ["states", "map_state", "map", "locations"]
-        self._unregister_event_trigger(path)
 
     def poll_events(self) -> list[ReplayHookEvent]:
         """Retrieve and clear the queued events."""
@@ -177,6 +164,7 @@ class ReplayHookSystem:
         path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
 
         hook = ReplayHook(
+            tag="province_attribute_change",
             callback=callback,
             change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
             attributes=attributes,

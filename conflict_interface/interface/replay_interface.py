@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Literal
 from typing import override
 
+
+from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_system import ReplayHookSystem
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
@@ -243,8 +245,25 @@ class ReplayInterface(GameInterface):
     """
     Hook System
     """
-    def get_hook_system(self) -> ReplayHookSystem:
-        return self._hook_system
+    def poll_events(self) -> dict[str, list[ReplayHookEvent]]:
+        events = self._hook_system.poll_events()
+        grouped_events = {}
+        for event in events:
+            if event.tag not in grouped_events:
+                grouped_events[event.tag] = []
+            grouped_events[event.tag].append(event)
+        return grouped_events
+
+    def register_province_trigger(self, attributes: list[str]):
+        path = ["states", "map_state", "map", "locations"]
+        self._hook_system.register_event_trigger(
+            tag="province_change",
+            path=path,
+            attributes=attributes
+        )
+    def unregister_province_trigger(self):
+        path = ["states", "map_state", "map", "locations"]
+        self._hook_system.unregister_event_trigger(path)
 
     def unregister_all_hooks(self):
-        self.get_hook_system().unregister_all_hooks()
+        self._hook_system.unregister_all_hooks()

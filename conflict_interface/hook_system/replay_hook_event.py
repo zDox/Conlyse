@@ -6,4 +6,4 @@ from typing import Any
 class ReplayHookEvent:
     reference: Any
     attributes: dict[str, Any]
-    path: int
+    tag: str
