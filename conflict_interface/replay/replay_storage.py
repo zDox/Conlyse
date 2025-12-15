@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pickle
 import struct
 from array import array
 from logging import getLogger

@@ -103,12 +103,18 @@ class GameObjectSerializer:
             except ImportError as e:
                 logger.debug(f"Failed to load {module_name} because of ImportError: \n{e}")
 
-        cls._preloaded = True
+        cls._PRELOADED = True
 
     def serialize(self, obj: Any) -> bytes:
-        if not self._preloaded:
+        if not self._PRELOADED:
             raise RuntimeError("Call preload() before serializing")
-        return self._encoder.encode(self._to_raw(obj))
+
+        raw = self._to_raw(obj)
+
+        obj =  self._encoder.encode(raw)
+
+
+        return obj
 
     def _to_raw(self, obj: Any):
         if obj is None:
@@ -125,7 +131,6 @@ class GameObjectSerializer:
 
         if t is dict:
             to_raw = self._to_raw
-            # FIX: Convert dict to list of [key, value] pairs to handle non-hashable keys
             return {"__dict__": [[to_raw(k), to_raw(v)] for k, v in obj.items()]}
 
         type_id = self._ID_FROM_CLASS[t]
@@ -161,9 +166,11 @@ class GameObjectSerializer:
 
     def deserialize(self, data: bytes) -> object:
         """Deserialize bytes back to a game object."""
-        if not self._preloaded:
+        if not self._PRELOADED:
             raise RuntimeError("Call preload() before deserializing")
-        return self._from_raw(self._decoder.decode(data))
+        raw = self._decoder.decode(data)
+        obj =  self._from_raw(raw)
+        return obj
 
     def _from_raw(self, data):
         if data is None:
@@ -175,14 +182,9 @@ class GameObjectSerializer:
             return data
 
         if t is dict:
-            # FIX: Check if this is our special dict format
-            if "__dict__" in data:
-                from_raw = self._from_raw
-                return {from_raw(k): from_raw(v) for k, v in data["__dict__"]}
-            else:
-                # Regular dict (shouldn't happen with new format, but keep for safety)
-                from_raw = self._from_raw
-                return {from_raw(k): from_raw(v) for k, v in data. items()}
+            from_raw = self._from_raw
+            return {from_raw(k): from_raw(v) for k, v in data["__dict__"]}
+
 
         if t is list:
             # Check if it's a registered type:  [MARKER, type_id, ...]
@@ -205,7 +207,9 @@ class GameObjectSerializer:
         if cat == 'dataclass':
             field_names = self._FIELDS_CACHE[cls]
             kwargs = {name: from_raw(data[i + 2]) for i, name in enumerate(field_names)}
-            return cls(**kwargs)
+            instance = cls(**kwargs)
+            instance.game = None
+            return instance
 
         elif cat == 'list':
             return cls([from_raw(v) for v in data[2]])
@@ -215,7 +219,7 @@ class GameObjectSerializer:
             return cls({from_raw(pair[0]): from_raw(pair[1]) for pair in data[2]})
 
         elif cat == 'datetime':
-            return cls. fromtimestamp(data[2], UTC)
+            return cls.fromtimestamp(data[2], UTC)
 
         elif cat == 'timedelta':
             return cls(seconds=data[2])
@@ -236,5 +240,5 @@ class GameObjectSerializer:
             'enums': sum(1 for c in self._CATEGORY. values() if c == 'enum'),
             'list_wrappers': sum(1 for c in self._CATEGORY.values() if c == 'list'),
             'dict_wrappers': sum(1 for c in self._CATEGORY.values() if c == 'dict'),
-            'preloaded': self._preloaded,
+            'preloaded': self._PRELOADED,
         }
