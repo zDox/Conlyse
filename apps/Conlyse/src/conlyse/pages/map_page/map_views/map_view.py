@@ -14,7 +14,7 @@ class MapView(ABC):
     def __init__(self, ritf: ReplayInterface, max_province_id: int):
         self.ritf = ritf
         self.max_id = max_province_id
-        self.color_data = None
+        self.color_data = np.zeros((self.max_id + 1, 4), dtype=np.uint8)
         self.texture = None
 
     @abstractmethod
@@ -28,16 +28,18 @@ class MapView(ABC):
             raise RuntimeError("build_color_data must be called before initialize")
         self.texture = ColorPaletteTexture(self.color_data.flatten())
 
+    def update_texture(self):
+        """Update the texture with the current color data."""
+        if self.texture is None:
+            raise RuntimeError("Texture not initialized. Call initialize() first.")
+        self.texture.update_data(self.color_data.flatten())
+
     def set_province_color(self, province_id: int, rgba: tuple[int, int, int, int]):
         """Update a single province's color."""
         self.color_data[province_id] = rgba
-        self.texture.update_data(self.color_data.flatten())
+
 
     @abstractmethod
     def update_province(self, province: Province, changed_attributes: dict):
         """Handle province updates. Must be implemented by subclasses."""
         pass
-
-    def _init_color_array(self):
-        """Helper to create the base color data array."""
-        return np.zeros((self.max_id + 1, 4), dtype=np.uint8)

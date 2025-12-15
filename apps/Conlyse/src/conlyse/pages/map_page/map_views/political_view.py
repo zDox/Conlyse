@@ -48,7 +48,6 @@ class PoliticalView(MapView):
     """
     def build_color_data(self):
         owner_color_data = {}
-        self.color_data = self._init_color_array()
 
         for province in self.ritf.get_provinces().values():
             if isinstance(province, SeaProvince):
@@ -67,5 +66,6 @@ class PoliticalView(MapView):
         if 'owner_id' in changed_attributes:
             if isinstance(province, SeaProvince):
                 return  # Sea provinces don't change color
+            logger.debug(f"Updating province {province.id} color for new owner {province.owner_id}")
             r, g, b = id_to_rgb(province.owner_id)
             self.set_province_color(province.id, (r, g, b, 255))

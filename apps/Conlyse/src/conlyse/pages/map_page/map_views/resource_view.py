@@ -69,11 +69,11 @@ class ResourceView(MapView):
     """
     Resource map view that colors provinces based on their resource production.
     """
-    def build_color_data(self):
-        self.color_data = self._init_color_array()
-        min_max_resource_production = {
-        }
+    def __init__(self, ritf, max_province_id: int):
+        super().__init__(ritf, max_province_id)
+        self.min_max_resource_production = {}
 
+    def build_min_max_resource_production(self):
         for province in self.ritf.get_provinces().values():
             if isinstance(province, SeaProvince):
                 continue
@@ -81,14 +81,14 @@ class ResourceView(MapView):
             production_amount = province.resource_production
             if resource_type == ResourceProductionType.NONE:
                 continue
-            if resource_type not in min_max_resource_production:
-                min_max_resource_production[resource_type] = [production_amount, production_amount]
+            if resource_type not in self.min_max_resource_production:
+                self.min_max_resource_production[resource_type] = [production_amount, production_amount]
             else:
-                current_min, current_max = min_max_resource_production[resource_type]
-                min_max_resource_production[resource_type][0] = min(current_min, production_amount)
-                min_max_resource_production[resource_type][1] = max(current_max, production_amount)
+                current_min, current_max = self.min_max_resource_production[resource_type]
+                self.min_max_resource_production[resource_type][0] = min(current_min, production_amount)
+                self.min_max_resource_production[resource_type][1] = max(current_max, production_amount)
 
-
+    def _build_color_data(self):
         for province in self.ritf.get_provinces().values():
             if isinstance(province, SeaProvince):
                 self.color_data[province.id] = (70, 130, 180, 255)
@@ -100,7 +100,7 @@ class ResourceView(MapView):
 
             min_color, max_color = RESOURCE_PRODUCTION_COLOR_RANGE.get(province.resource_production_type,
                                                                       RESOURCE_PRODUCTION_COLOR_RANGE[ResourceProductionType.NONE])
-            min_prod, max_prod = min_max_resource_production.get(province.resource_production_type, (0, 0))
+            min_prod, max_prod = self.min_max_resource_production.get(province.resource_production_type, (0, 0))
             if max_prod == min_prod:
                 factor = 1.0
             else:
@@ -108,8 +108,35 @@ class ResourceView(MapView):
             r, g, b = interpolate_color(min_color, max_color, factor)
             self.color_data[province.id] = (r, g, b, 255)
 
+    def build_color_data(self):
+        self.build_min_max_resource_production()
+        self._build_color_data()
+
         logger.debug(f"ResourceView color data built with {len(self.color_data)} provinces.")
 
 
     def update_province(self, province: Province, changed_attributes: dict):
-        pass
+        if "resource_production" not in changed_attributes:
+            return
+
+        if province.resource_production_type == ResourceProductionType.NONE:
+            return
+        logger.debug(f"Updating province {province.id} in due to resource production change.")
+
+        min_prod, max_prod = self.min_max_resource_production.get(province.resource_production_type, (0, 0))
+        # If the changed production is outside the current min/max, rebuild everything
+        if not (min_prod <= province.resource_production <= max_prod):
+            self.build_min_max_resource_production()
+            self._build_color_data()
+            return
+
+        min_color, max_color = RESOURCE_PRODUCTION_COLOR_RANGE.get(province.resource_production_type,
+                                                                   RESOURCE_PRODUCTION_COLOR_RANGE[
+                                                                       ResourceProductionType.NONE])
+
+        if max_prod == min_prod:
+            factor = 1.0
+        else:
+            factor = (province.resource_production - min_prod) / (max_prod - min_prod)
+        r, g, b = interpolate_color(min_color, max_color, factor)
+        self.color_data[province.id] = (r, g, b, 255)

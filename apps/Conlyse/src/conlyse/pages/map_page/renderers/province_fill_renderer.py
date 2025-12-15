@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import OpenGL.GL as gl
+from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.map_views.map_view import MapView
@@ -107,4 +108,13 @@ class ProvinceFillRenderer:
 
         self.vao.bind()
         gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.province_mesh._vertex_data) // 2)
+        map_view.texture.unbind()
         self.vao.unbind()
+
+    def handle_province_change_events(self, events: list[ReplayHookEvent]):
+        logger.debug(f"Handling {len(events)} province change events for ProvinceFillRenderer.")
+        for event in events:
+            for map_view in self.map_views.values():
+                map_view.update_province(event.reference, event.attributes)
+        for map_view in self.map_views.values():
+            map_view.update_texture()

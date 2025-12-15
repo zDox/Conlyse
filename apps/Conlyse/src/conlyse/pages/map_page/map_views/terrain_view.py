@@ -29,8 +29,6 @@ class TerrainView(MapView):
     color to help visualize the geographic features of the game world.
     """
     def build_color_data(self):
-        self.color_data = self._init_color_array()
-
         for province in self.ritf.get_provinces().values():
             r, g, b = TERRAIN_TYPE_TO_RGB.get(province.terrain_type, (255, 0, 255))
             self.color_data[province.id] = (r, g, b, 255)

@@ -131,8 +131,10 @@ class Map(QOpenGLWidget):
         # Blit to widget once
         self.update()
 
-    def apply_hook_events(self, events: list[ReplayHookEvent]):
-        for event in events:
+    def apply_hook_events(self, events: dict[str, list[ReplayHookEvent]]):
+        if "province_change" in events:
+            self.province_fill_renderer.handle_province_change_events(events["province_change"])
+
 
     def sizeHint(self):
         return QSize(800, 600)
