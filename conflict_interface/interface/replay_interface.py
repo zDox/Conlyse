@@ -245,6 +245,9 @@ class ReplayInterface(GameInterface):
     """
     Hook System
     """
+    def get_hook_system(self) -> ReplayHookSystem:
+        return self._hook_system
+
     def poll_events(self) -> dict[str, list[ReplayHookEvent]]:
         events = self._hook_system.poll_events()
         grouped_events = {}
