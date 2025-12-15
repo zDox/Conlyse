@@ -68,7 +68,8 @@ class ReplayHookSystem:
             if hook.callback is None:
                 self._hook_events.append(ReplayHookEvent(
                     reference=child_ref,
-                    attributes=data
+                    attributes=data,
+                    path = hook_path
                 ))
             else:
                 new_queue_element = ReplayHookQueueElement(

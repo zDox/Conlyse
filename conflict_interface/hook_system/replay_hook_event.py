@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
 class ReplayHookEvent:
-    reference: any
-    attributes: dict[str, any]
+    reference: Any
+    attributes: dict[str, Any]
+    path: int
