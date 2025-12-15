@@ -211,6 +211,15 @@ class MapPage(Page):
             return
         target_time = self.ritf.start_time + timedelta(seconds=seconds)
         self.ritf.jump_to(target_time)
+        hook_events = self.ritf.get_hook_system().poll_events()
+        # Group hook events by path
+        grouped_events = {}
+        for event in hook_events:
+            path = self.ritf.(event.idx)
+            if path not in grouped_events:
+                grouped_events[path] = []
+            grouped_events[path].append(event)
+        self.map_widget.apply_hook_events(grouped_events["states.map_state."])
 
     def _position_timeline_overlay(self) -> None:
         """Position timeline overlay at the bottom of the map container."""

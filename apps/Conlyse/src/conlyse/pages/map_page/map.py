@@ -4,6 +4,7 @@ from OpenGL import GL as gl
 from PyQt6.QtCore import QSize
 from PyQt6.QtCore import Qt
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger
@@ -129,6 +130,9 @@ class Map(QOpenGLWidget):
 
         # Blit to widget once
         self.update()
+
+    def apply_hook_events(self, events: list[ReplayHookEvent]):
+        for event in events:
 
     def sizeHint(self):
         return QSize(800, 600)
