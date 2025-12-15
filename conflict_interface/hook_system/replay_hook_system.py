@@ -27,13 +27,13 @@ class ReplayHookSystem:
         self._hook_events: list[ReplayHookEvent] = []
         self.replay: Replay = replay
 
-    def _register_hook(self, replay_hook: ReplayHook):
+    def register_hook(self, replay_hook: ReplayHook):
         if replay_hook.path in self._hooks:
             self._hooks[replay_hook.path].append(replay_hook)
         else:
             self._hooks[replay_hook.path] = [replay_hook]
 
-    def _unregister_hook(self, hook_path: int, callback: Callable | None):
+    def unregister_hook(self, hook_path: int, callback: Callable | None):
         if hook_path not in self._hooks:
             return
         # Remove all hooks if callback equal to hook.callback
@@ -127,14 +127,14 @@ class ReplayHookSystem:
             path=path_idx
         )
         # Remove any existing event trigger at this path
-        self._unregister_hook(path_idx, None)
-        self._register_hook(hook)
+        self.unregister_hook(path_idx, None)
+        self.register_hook(hook)
 
     def unregister_event_trigger(self, path: list[str]) -> None:
         """Remove a previously registered event trigger."""
 
         path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
-        self._unregister_hook(path_idx, None)
+        self.unregister_hook(path_idx, None)
 
     def poll_events(self) -> list[ReplayHookEvent]:
         """Retrieve and clear the queued events."""
@@ -142,39 +142,3 @@ class ReplayHookSystem:
         self._hook_events = []
         return events
 
-    """
-    Callback Registration/Unregistration Methods
-    """
-
-    def on_province_attribute_change(self, callback: Callable[[Province, dict], None], attributes: list[str]) -> None:
-        """
-        Register a callback for when an attribute of a province changes.
-
-        The callback will be called with the province object:
-        callback(province, changed_attributes)
-        where province is the Province object of which at least one of
-        the specified attributes has changed, and changed_attributes is a dict
-        mapping attribute names to a tuple of (old_value, new_value).
-
-        Args:
-            callback: Function to call when the province attribute changes
-            attributes: The name of the attributes to watch (e.g., "[owner_id", "resource_production"]).
-        """
-        path = ["states", "map_state", "map", "locations"]
-        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
-
-        hook = ReplayHook(
-            tag="province_attribute_change",
-            callback=callback,
-            change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
-            attributes=attributes,
-            path=path_idx
-        )
-        self._register_hook(hook)
-
-    def remove_province_attribute_change_hook(self, callback: Callable[[Province, dict], None]) -> None:
-        """Remove a previously registered province attribute change hook."""
-
-        path = ["states", "map_state", "map", "locations"]
-        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
-        self._unregister_hook(path_idx, callback)

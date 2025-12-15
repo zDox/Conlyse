@@ -2,14 +2,19 @@ import bisect
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 from typing import Literal
 from typing import override
 
-
+from conflict_interface.data_types.map_state.province import Province
+from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_system import ReplayHookSystem
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
+from conflict_interface.replay.constants import ADD_OPERATION
+from conflict_interface.replay.constants import REMOVE_OPERATION
+from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.replay import Replay
 
 logger = get_logger()
@@ -270,3 +275,36 @@ class ReplayInterface(GameInterface):
 
     def unregister_all_hooks(self):
         self._hook_system.unregister_all_hooks()
+
+    def on_province_attribute_change(self, callback: Callable[[Province, dict], None], attributes: list[str]) -> None:
+        """
+        Register a callback for when an attribute of a province changes.
+
+        The callback will be called with the province object:
+        callback(province, changed_attributes)
+        where province is the Province object of which at least one of
+        the specified attributes has changed, and changed_attributes is a dict
+        mapping attribute names to a tuple of (old_value, new_value).
+
+        Args:
+            callback: Function to call when the province attribute changes
+            attributes: The name of the attributes to watch (e.g., "[owner_id", "resource_production"]).
+        """
+        path = ["states", "map_state", "map", "locations"]
+        path_idx = self._replay.storage.path_tree.path_list_to_idx(path)
+
+        hook = ReplayHook(
+            tag="province_attribute_change",
+            callback=callback,
+            change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
+            attributes=attributes,
+            path=path_idx
+        )
+        self._hook_system.register_hook(hook)
+
+    def remove_province_attribute_change_hook(self, callback: Callable[[Province, dict], None]) -> None:
+        """Remove a previously registered province attribute change hook."""
+
+        path = ["states", "map_state", "map", "locations"]
+        path_idx = self._replay.storage.path_tree.path_list_to_idx(path)
+        self._hook_system.unregister_hook(path_idx, callback)
