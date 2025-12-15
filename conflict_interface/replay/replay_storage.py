@@ -6,12 +6,14 @@ from array import array
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 import lz4.frame
 import msgpack
 import numpy as np
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object_binary import GameObjectSerializer
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.replay.constants import PATCH_INDEX_DTYPE
@@ -65,6 +67,7 @@ class ReplayStorage:
         # Compression utilities using LZ4 for fast compression/decompression
         self.compressor = lz4.frame.compress
         self.decompressor = lz4.frame.decompress
+        self.serializer = GameObjectSerializer()
 
     def read_full_from_disk(self, file_path: Path):
         """
@@ -348,10 +351,11 @@ class ReplayStorage:
         if self._initial_game_state_b is None:
             raise ValueError("Initial game state is not recorded in the replay.")
 
-        self.initial_game_state = pickle.loads(self._initial_game_state_b)
+        self.initial_game_state = self.serializer.deserialize(self._initial_game_state_b)
         if game is not None:
             # Link game objects back to the replay interface
             GameObject.set_game_recursive(self.initial_game_state, game)
+        self.initial_game_state = cast(GameState, self.initial_game_state)
         return self.initial_game_state
 
     def load_last_game_state(self) -> GameState:
@@ -359,7 +363,8 @@ class ReplayStorage:
         if self._last_game_state_b is None:
             raise ValueError("Last game state is not recorded in the replay.")
 
-        self.last_game_state = pickle.loads(self._last_game_state_b)
+        self.last_game_state = self.serializer.deserialize(self._last_game_state_b)
+        self.last_game_state = cast(GameState, self.last_game_state)
         return self.last_game_state
 
     def load_static_map_data(self, game: ReplayInterface | None) -> StaticMapData:
@@ -486,16 +491,18 @@ class ReplayStorage:
         then restores them after pickling.
         """
         game = game_state.game
-        GameObject.set_game_recursive(game_state, None)
-        self._initial_game_state_b = pickle.dumps(game_state)
-        GameObject.set_game_recursive(game_state, game)
+        if game is not None:
+            GameObject.set_game_recursive(game_state, None)
+        self._initial_game_state_b = self.serializer.serialize(game_state)
+        if game is not None:
+            GameObject.set_game_recursive(game_state, game)
         self.initial_game_state = game_state
 
     def unload_last_game_state(self):
         """Serializes the last game state using pickle."""
         assert self.last_game_state is not None, "No GameState provided."
         assert self.last_game_state.game is None, "Last game state has game set"
-        self._last_game_state_b = pickle.dumps(self.last_game_state)
+        self._last_game_state_b = self.serializer.serialize(self.last_game_state)
 
     def unload_static_map_data(self, static_map_data: StaticMapData):
         """

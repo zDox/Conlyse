@@ -12,9 +12,8 @@ from typing import Any
 
 import msgspec
 
-from conflict_interface. data_types.custom_types import HashSet
-from conflict_interface.data_types. game_state. game_state import States
-from conflict_interface.data_types. point import Point
+from conflict_interface.data_types.custom_types import HashSet
+from conflict_interface.data_types.point import Point
 
 logger = getLogger()
 
@@ -31,6 +30,14 @@ def get_mapping(cls):
 class GameObjectSerializer:
     _PRIMITIVES = frozenset({int, float, str, bool, type(None)})
 
+    _CLASS_FROM_ID: dict[int, type] = {}
+    _ID_FROM_CLASS: dict[type, int] = {}
+    _CATEGORY: dict[type, str] = {}
+
+    _FIELDS_CACHE: dict[type, tuple[str, ...]] = {}
+
+    _PRELOADED = False
+
     # Marker to distinguish [type_id, ... ] from plain lists
     _TYPE_MARKER = -1
 
@@ -38,31 +45,26 @@ class GameObjectSerializer:
         self._encoder = msgspec.msgpack.Encoder()
         self._decoder = msgspec.msgpack.Decoder()
 
-        self._class_from_id:  dict[int, type] = {}
-        self._id_from_class:  dict[type, int] = {}
-        self._category: dict[type, str] = {}
-
-        self._fields_cache: dict[type, tuple[str, ...]] = {}
-
-        self._preloaded = False
-
-    def _register(self, cls: type, category: str):
+        
+    @classmethod
+    def _register(cls, obj: type, category: str):
         """Register a type with its category."""
-        type_id = len(self._id_from_class)
+        type_id = len(cls._ID_FROM_CLASS)
 
-        self._class_from_id[type_id] = cls
-        self._id_from_class[cls] = type_id
-        self._category[cls] = category
+        cls._CLASS_FROM_ID[type_id] = obj
+        cls._ID_FROM_CLASS[obj] = type_id
+        cls._CATEGORY[obj] = category
 
-        if is_dataclass(cls):
-            mapping = get_mapping(cls)
+        if is_dataclass(obj):
+            mapping = get_mapping(obj)
             if isinstance(mapping, dict):
-                self._fields_cache[cls] = tuple(mapping.keys())
+                cls._FIELDS_CACHE[obj] = tuple(mapping.keys())
             else:
-                self._fields_cache[cls] = tuple(mapping)
+                cls._FIELDS_CACHE[obj] = tuple(mapping)
 
-    def preload(self):
-        if self._preloaded:
+    @classmethod
+    def preload(cls):
+        if cls._PRELOADED:
             return
 
         package = importlib.import_module('conflict_interface.data_types')
@@ -77,31 +79,31 @@ class GameObjectSerializer:
                     if obj.__module__ != module_name:
                         continue
 
-                    if obj in self._category:
+                    if obj in cls._CATEGORY:
                         continue
 
                     if obj is HashSet:
                         pass
 
                     if is_dataclass(obj):
-                        self._register(obj, 'dataclass')
+                        cls._register(obj, 'dataclass')
                     elif isinstance(obj, type) and issubclass(obj, Enum) and obj is not Enum:
-                        self._register(obj, 'enum')
+                        cls._register(obj, 'enum')
                     elif isinstance(obj, type) and issubclass(obj, list) and obj is not list:
-                        self._register(obj, 'list')
+                        cls._register(obj, 'list')
                     elif isinstance(obj, type) and issubclass(obj, dict) and obj is not dict:
-                        self._register(obj, 'dict')
+                        cls._register(obj, 'dict')
                     elif isinstance(obj, type) and issubclass(obj, datetime):
-                        self._register(obj, 'datetime')
+                        cls._register(obj, 'datetime')
                     elif isinstance(obj, type) and issubclass(obj, timedelta):
-                        self._register(obj, 'timedelta')
+                        cls._register(obj, 'timedelta')
                     elif obj is Point:
-                        self._register(obj, 'point')
+                        cls._register(obj, 'point')
 
             except ImportError as e:
                 logger.debug(f"Failed to load {module_name} because of ImportError: \n{e}")
 
-        self._preloaded = True
+        cls._preloaded = True
 
     def serialize(self, obj: Any) -> bytes:
         if not self._preloaded:
@@ -126,14 +128,14 @@ class GameObjectSerializer:
             # FIX: Convert dict to list of [key, value] pairs to handle non-hashable keys
             return {"__dict__": [[to_raw(k), to_raw(v)] for k, v in obj.items()]}
 
-        type_id = self._id_from_class[t]
-        cat = self._category[t]
+        type_id = self._ID_FROM_CLASS[t]
+        cat = self._CATEGORY[t]
 
         marker = self._TYPE_MARKER
         to_raw = self._to_raw
 
         if cat == 'dataclass':
-            field_names = self._fields_cache[t]
+            field_names = self._FIELDS_CACHE[t]
             return [marker, type_id, *[to_raw(getattr(obj, name)) for name in field_names]]
 
         elif cat == 'list':
@@ -196,12 +198,12 @@ class GameObjectSerializer:
     def _from_raw_registered(self, data):
         """Handle deserialization of registered types."""
         type_id = data[1]
-        cls = self._class_from_id[type_id]
-        cat = self._category[cls]
+        cls = self._CLASS_FROM_ID[type_id]
+        cat = self._CATEGORY[cls]
         from_raw = self._from_raw
 
         if cat == 'dataclass':
-            field_names = self._fields_cache[cls]
+            field_names = self._FIELDS_CACHE[cls]
             kwargs = {name: from_raw(data[i + 2]) for i, name in enumerate(field_names)}
             return cls(**kwargs)
 
@@ -224,23 +226,15 @@ class GameObjectSerializer:
         elif cat == 'point':
             return cls(data[2], data[3])
 
-        elif cat == 'states':
-            field_names = self._fields_cache[cls]
-            if isinstance(data[2], dict):
-                kwargs = {name: from_raw(data[2][name]) for name in field_names if name in data[2]}
-            else:
-                kwargs = {name: from_raw(data[i + 2]) for i, name in enumerate(field_names)}
-            return cls(**kwargs)
-
         raise TypeError(f"Unknown category:  {cat}")
 
     def get_stats(self) -> dict:
         """Return statistics about registered types."""
         return {
-            'total_types':  len(self._class_from_id),
-            'dataclasses': sum(1 for c in self._category.values() if c == 'dataclass'),
-            'enums': sum(1 for c in self._category. values() if c == 'enum'),
-            'list_wrappers': sum(1 for c in self._category.values() if c == 'list'),
-            'dict_wrappers': sum(1 for c in self._category.values() if c == 'dict'),
+            'total_types':  len(self._CLASS_FROM_ID),
+            'dataclasses': sum(1 for c in self._CATEGORY.values() if c == 'dataclass'),
+            'enums': sum(1 for c in self._CATEGORY. values() if c == 'enum'),
+            'list_wrappers': sum(1 for c in self._CATEGORY.values() if c == 'list'),
+            'dict_wrappers': sum(1 for c in self._CATEGORY.values() if c == 'dict'),
             'preloaded': self._preloaded,
         }
