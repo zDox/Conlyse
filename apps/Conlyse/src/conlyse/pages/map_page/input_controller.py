@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from conflict_interface.data_types.point import Point
 
 from conlyse.logger import get_logger

@@ -5,11 +5,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import qtawesome as qta
-from PyQt6.QtGui import QAction
-from PyQt6.QtGui import QIcon
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QLabel
-from PyQt6.QtWidgets import QPushButton
+from PySide6.QtGui import QAction
+from PySide6.QtGui import QIcon
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QPushButton
 
 from conlyse.logger import get_logger
 

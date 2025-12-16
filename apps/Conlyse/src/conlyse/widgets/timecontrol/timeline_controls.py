@@ -1,14 +1,14 @@
 from datetime import timedelta
 from typing import Optional
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QComboBox
-from PyQt6.QtWidgets import QFrame
-from PyQt6.QtWidgets import QHBoxLayout
-from PyQt6.QtWidgets import QLabel
-from PyQt6.QtWidgets import QVBoxLayout
-from PyQt6.QtWidgets import QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtCore import Signal as pyqtSignal
+from PySide6.QtWidgets import QComboBox
+from PySide6.QtWidgets import QFrame
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.widgets.mui.icon_button import CIconButton

@@ -4,12 +4,12 @@ import time
 from typing import TYPE_CHECKING
 
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
 from datetime import timedelta
 
-from PyQt6.QtWidgets import QSizePolicy
-from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtWidgets import QSizePolicy
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 
 

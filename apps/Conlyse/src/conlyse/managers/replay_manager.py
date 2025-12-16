@@ -5,10 +5,10 @@ from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QMetaObject
-from PyQt6.QtCore import QTimer
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QMetaObject
+from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger

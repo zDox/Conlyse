@@ -1,17 +1,17 @@
 from typing import Dict
 from typing import List
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QComboBox
-from PyQt6.QtWidgets import QFrame
-from PyQt6.QtWidgets import QHBoxLayout
-from PyQt6.QtWidgets import QLabel
-from PyQt6.QtWidgets import QLineEdit
-from PyQt6.QtWidgets import QPushButton
-from PyQt6.QtWidgets import QScrollArea
-from PyQt6.QtWidgets import QVBoxLayout
-from PyQt6.QtWidgets import QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtCore import Signal as pyqtSignal
+from PySide6.QtWidgets import QComboBox
+from PySide6.QtWidgets import QFrame
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QLineEdit
+from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QScrollArea
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
 
 from conlyse.widgets.mui.button import CButton
 
@@ -282,4 +282,3 @@ class FilterPanel(QFrame):
             if f['column'] and (f['value'] or f['operator'] in ['is empty', 'is not empty'])
         ]
         self.filtersApplied.emit(filters)
-

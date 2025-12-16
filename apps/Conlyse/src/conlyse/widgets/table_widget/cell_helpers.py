@@ -9,10 +9,10 @@ Date: 2025-11-18
 
 from typing import Dict, List, Optional
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon, QPixmap
-from PyQt6.QtWidgets import QHBoxLayout
-from PyQt6.QtWidgets import QLabel, QPushButton, QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QLabel, QPushButton, QWidget
 
 # ==============================================================================
 # CELL WIDGET CONTAINER

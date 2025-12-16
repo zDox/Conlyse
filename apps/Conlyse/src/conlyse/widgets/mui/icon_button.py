@@ -1,6 +1,6 @@
-from PyQt6.QtCore import QSize
-from PyQt6.QtCore import Qt, pyqtProperty
-from PyQt6.QtWidgets import QPushButton, QLabel, QHBoxLayout, QWidget
+from PySide6.QtCore import QSize
+from PySide6.QtCore import Qt, Property as pyqtProperty
+from PySide6.QtWidgets import QPushButton, QLabel, QHBoxLayout, QWidget
 import qtawesome as qta
 
 

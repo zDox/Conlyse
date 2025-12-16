@@ -1,9 +1,9 @@
 import time
 
 from OpenGL import GL as gl
-from PyQt6.QtCore import QSize
-from PyQt6.QtCore import Qt
-from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+from PySide6.QtCore import QSize
+from PySide6.QtCore import Qt
+from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.interface.replay_interface import ReplayInterface
 
