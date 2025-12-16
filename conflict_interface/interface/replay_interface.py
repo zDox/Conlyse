@@ -288,7 +288,7 @@ class ReplayInterface(GameInterface):
 
         Args:
             callback: Function to call when the province attribute changes
-            attributes: The name of the attributes to watch (e.g., "[owner_id", "resource_production"]).
+            attributes: The name of the attributes to watch (e.g., ["owner_id", "resource_production"]).
         """
         path = ["states", "map_state", "map", "locations"]
         path_idx = self._replay.storage.path_tree.path_list_to_idx(path)
