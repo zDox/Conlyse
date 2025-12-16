@@ -1,5 +1,5 @@
-# political_view.py
-import time
+# resource_view.py
+
 from collections import defaultdict
 
 from conflict_interface.data_types.map_state.map_state_enums import ResourceProductionType
@@ -95,13 +95,16 @@ class ResourceView(MapView):
         min_p = float("inf")
         max_p = float("-inf")
         provinces = self.ritf.get_provinces()
-        for pid in self.provinces_by_resource.get(resource_type, []):
+        province_ids = self.provinces_by_resource.get(resource_type, [])
+        for pid in province_ids:
             p = provinces[pid]
             prod = p.resource_production
             min_p = min(min_p, prod)
             max_p = max(max_p, prod)
-        self.min_max_resource_production[resource_type] = {"min": min_p, "max": max_p}
-
+        if province_ids:
+            self.min_max_resource_production[resource_type] = {"min": min_p, "max": max_p}
+        elif resource_type in self.min_max_resource_production:
+            del self.min_max_resource_production[resource_type]
     def _recolor_resource(self, resource_type):
         min_color, max_color = RESOURCE_PRODUCTION_COLOR_RANGE.get(resource_type,
             RESOURCE_PRODUCTION_COLOR_RANGE[ResourceProductionType.NONE])
@@ -132,12 +135,12 @@ class ResourceView(MapView):
             changed_attributes: dict = event.attributes
 
             if "resource_production" not in changed_attributes:
-                return
+                continue
 
             old, new = changed_attributes["resource_production"]
             rt = province.resource_production_type
             if rt == ResourceProductionType.NONE:
-                return
+                continue
 
 
             min_prod, max_prod = self.min_max_resource_production.get(rt, {"min": new, "max": new}).values()

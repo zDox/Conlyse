@@ -20,7 +20,12 @@ class ColorPaletteTexture:
         gl.glBindTexture(gl.GL_TEXTURE_1D, self.texture_id)
 
     def update_data(self, color_data: np.ndarray):
-        assert len(color_data) // 4 == self.size
+        if len(color_data) // 4 != self.size:
+            raise ValueError(
+                f"color_data size mismatch: expected {self.size * 4} elements "
+                f"({self.size} colors), got {len(color_data)} elements "
+                f"({len(color_data) // 4} colors)"
+            )
         self.color_data = color_data
         self.dirty = True
 

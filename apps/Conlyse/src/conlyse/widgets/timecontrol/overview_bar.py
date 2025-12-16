@@ -1,6 +1,6 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtGui import QColor, QMouseEvent, QPainter, QWheelEvent
+from PyQt6.QtGui import QColor, QPainter, QWheelEvent
 from PyQt6.QtWidgets import QWidget
 
 
@@ -105,12 +105,12 @@ class OverviewBar(QWidget):
                 self.visible_end = max(self.visible_start + 0.01, min(1.0, new_end))
                 self.range_changed.emit(self.visible_start, self.visible_end)
 
-            elif self.dragging in ("range", "range_right"):
+            elif self.dragging == "range":
                 center = normalized_x + self.drag_offset
                 range_width = self.visible_end - self.visible_start
                 new_start = center - range_width / 2
                 new_end = center + range_width / 2
-                # 'range' comes from left-click drag; 'range_right' from right-click drag
+                # 'range' is used for both left-click and right-click drags of the viewport
 
                 if new_start < 0:
                     new_start = 0

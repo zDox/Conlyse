@@ -24,9 +24,9 @@ class TimelineControls(QWidget):
     close_requested = pyqtSignal()
     time_changed = pyqtSignal(float)
 
-    def __init__(self, replay_interface: Optional[ReplayInterface], parent=None):
+    def __init__(self, replay_interface: ReplayInterface, parent=None):
         super().__init__(parent)
-        self.ritf: Optional[ReplayInterface] = replay_interface
+        self.ritf: ReplayInterface = replay_interface
         self.start_time = replay_interface.start_time
         self.last_time = replay_interface.last_time
         self.total_seconds = max((self.last_time - self.start_time).total_seconds(), MIN_TIMELINE_DURATION_SECONDS)
@@ -301,9 +301,9 @@ class TimelineControls(QWidget):
         self.update_ui()
 
     def skip(self, seconds: float):
-        self.current_time = self.current_time + seconds
-        self.visible_start = self.visible_start + seconds
-        self.visible_end = self.visible_end + seconds
+        self.current_time = max(0, min(self.total_seconds, self.current_time + seconds))
+        self.visible_start = max(0, min(self.total_seconds, self.visible_start + seconds))
+        self.visible_end = max(0, min(self.total_seconds, self.visible_end + seconds))
         self.update_ui()
 
     def skip_backward(self):
