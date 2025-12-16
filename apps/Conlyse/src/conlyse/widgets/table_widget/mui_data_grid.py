@@ -209,6 +209,39 @@ class MUIDataGrid(QWidget):
         """Get all data after filters and search are applied."""
         return self.data_manager.filtered_data.copy()
 
+    def update_row_by_index(self, row_index: int, new_data: Dict[str, Any]):
+        """
+        Update a single row in the data grid by its index in all_data.
+        This is efficient for updating individual rows without full re-render.
+        
+        Args:
+            row_index: The index of the row in all_data to update
+            new_data: Dictionary containing the new data for the row
+        """
+        if 0 <= row_index < len(self.data_manager.all_data):
+            # Update the data in all_data
+            self.data_manager.all_data[row_index].update(new_data)
+            
+            # Re-apply filters to update filtered_data
+            # This is more efficient than a full reload
+            self._apply_filters()
+
+    def update_rows_batch(self, updates: List[tuple[int, Dict[str, Any]]]):
+        """
+        Update multiple rows in a batch operation.
+        More efficient than calling update_row_by_index multiple times.
+        
+        Args:
+            updates: List of tuples (row_index, new_data)
+        """
+        # Apply all updates to all_data
+        for row_index, new_data in updates:
+            if 0 <= row_index < len(self.data_manager.all_data):
+                self.data_manager.all_data[row_index].update(new_data)
+        
+        # Re-apply filters once after all updates
+        self._apply_filters()
+
     # ==========================================================================
     # PUBLIC API - Custom Cell Renderers
     # ==========================================================================

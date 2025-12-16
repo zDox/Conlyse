@@ -49,8 +49,10 @@ class PlayerListPage(ReplayPage):
         # Track if UI has been set up
         self._ui_initialized = False
 
-        # Player data cache
+        # Player data cache and mapping
         self._players_data = []
+        # Map player_id to index in _players_data for O(1) lookups
+        self._player_id_to_index = {}
 
     def setup(self, context):
         """
@@ -297,8 +299,9 @@ class PlayerListPage(ReplayPage):
 
             # Convert PlayerProfile objects to dictionaries
             self._players_data = []
+            self._player_id_to_index = {}
 
-            for player in players:
+            for idx, player in enumerate(players):
                 team = self.ritf.get_team(player.team_id)
                 capital = self.ritf.get_province(player.capital_id)
                 team_name = team.name if team else "N/A"
@@ -328,6 +331,8 @@ class PlayerListPage(ReplayPage):
                 }
 
                 self._players_data.append(player_dict)
+                # Build mapping for efficient updates
+                self._player_id_to_index[player.player_id] = idx
 
             # Define all visible columns (one for each attribute)
             visible_columns = [
@@ -388,7 +393,84 @@ class PlayerListPage(ReplayPage):
         super().page_update(delta_time)
 
     def _on_replay_jump(self):
-        pass
+        """
+        Efficiently update player data when replay jumps to a different time.
+        Only updates players that have changed, avoiding full data reload.
+        """
+        if not self.ritf or not self._players_data:
+            return
+
+        try:
+            # Get current player states from replay interface
+            players = self.ritf.get_players().values()
+            
+            # Collect updates in batch for efficiency
+            updates = []
+            
+            for player in players:
+                # Get the row index for this player
+                row_idx = self._player_id_to_index.get(player.player_id)
+                if row_idx is None:
+                    # Player not in our data (shouldn't happen, but handle gracefully)
+                    continue
+                
+                # Get current data
+                current_data = self._players_data[row_idx]
+                
+                # Create updated data dict - only include fields that can change
+                team = self.ritf.get_team(player.team_id)
+                capital = self.ritf.get_province(player.capital_id)
+                team_name = team.name if team else "N/A"
+                capital_name = capital.name if capital else "N/A"
+                
+                updated_data = {
+                    "TeamName": team_name,
+                    "CapitalName": capital_name,
+                    "Defeated": player.defeated,
+                    "Retired": player.retired,
+                    "Playing": player.playing,
+                    "Taken": player.taken,
+                    "Available": player.available,
+                    "AccumulatedVictoryPoints": player.accumulated_victory_points,
+                    "DailyVictoryPoints": player.daily_victory_points,
+                    "VictoryPoints": player.victory_points,
+                }
+                
+                # Check if any data has actually changed
+                has_changed = any(
+                    current_data.get(key) != value 
+                    for key, value in updated_data.items()
+                )
+                
+                if has_changed:
+                    # Add to batch updates
+                    updates.append((row_idx, updated_data))
+                    # Update our cache
+                    current_data.update(updated_data)
+            
+            # Apply all updates in a single batch operation
+            if updates:
+                self.data_grid.update_rows_batch(updates)
+                
+                # Update info label with current stats
+                human_count = sum(1 for p in players if not p.computer_player)
+                ai_count = sum(1 for p in players if p.computer_player)
+                native_ai_count = sum(1 for p in players if p.computer_player and p.native_computer)
+                playing_count = sum(1 for p in players if p.playing)
+                defeated_count = sum(1 for p in players if p.defeated)
+                
+                self.info_label.setText(
+                    f"Total: {len(players)} | "
+                    f"Human: {human_count} | "
+                    f"AI: {ai_count} (Native: {native_ai_count}) | "
+                    f"Playing: {playing_count} | "
+                    f"Defeated: {defeated_count}"
+                )
+                
+                logger.debug(f"Updated {len(updates)} players after replay jump")
+        
+        except Exception as e:
+            logger.error(f"Error updating player data on replay jump: {e}", exc_info=True)
 
 
 
@@ -397,6 +479,7 @@ class PlayerListPage(ReplayPage):
         super().clean_up()
         # Clear data
         self._players_data = []
+        self._player_id_to_index = {}
 
         # No need to destroy widgets, they will be handled by Qt parent-child relationship
 
