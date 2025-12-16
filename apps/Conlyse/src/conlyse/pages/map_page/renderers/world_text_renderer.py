@@ -6,7 +6,6 @@ maintaining constant pixel size when zooming while text anchors move with world 
 """
 from __future__ import annotations
 
-import struct
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -463,16 +462,11 @@ class WorldTextRenderer:
         # Upload to GPU using orphaning for efficiency
         if self.instance_vbo:
             self.instance_vbo.bind()
-            # Orphan old buffer
+            # Orphan old buffer by allocating with NULL data
             gl.glBufferData(gl.GL_ARRAY_BUFFER, self.instance_data.nbytes, None, gl.GL_DYNAMIC_DRAW)
             # Upload new data
             if self.instance_data.size > 0:
-                gl.glBufferData(
-                    gl.GL_ARRAY_BUFFER,
-                    self.instance_data.nbytes,
-                    self.instance_data,
-                    gl.GL_DYNAMIC_DRAW,
-                )
+                gl.glBufferSubData(gl.GL_ARRAY_BUFFER, 0, self.instance_data.nbytes, self.instance_data)
             self.instance_vbo.unbind()
 
         self.dirty = False
