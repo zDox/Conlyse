@@ -160,6 +160,12 @@ class Map(QOpenGLWidget):
         if "province_change" in events:
             self.province_fill_renderer.handle_province_change_events(events["province_change"])
 
+    def cleanup(self):
+        """Clean up OpenGL resources."""
+        self.makeCurrent()
+        if hasattr(self, 'world_text_renderer'):
+            self.world_text_renderer.cleanup()
+        self.doneCurrent()
     
     def get_performance_metrics(self):
         """
