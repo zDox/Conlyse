@@ -7,7 +7,7 @@ Author: NikNam3
 Date: 2025-11-18
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import Qt, Signal as pyqtSignal
 from PySide6.QtWidgets import (
@@ -209,6 +209,121 @@ class MUIDataGrid(QWidget):
         """Get all data after filters and search are applied."""
         return self.data_manager.filtered_data.copy()
 
+    def update_row_by_index(self, row_index: int, new_data: Dict[str, Any]):
+        """
+        Update a single row in the data grid by its index in all_data.
+        This is efficient for updating individual rows without full re-render.
+        
+        Args:
+            row_index: The index of the row in all_data to update
+            new_data: Dictionary containing the new data for the row
+        
+        Note:
+            - Silently ignores invalid row_index values (out of bounds)
+            - Re-applies all filters after update, which may affect performance
+            - The updated row may be filtered out if it no longer matches active filters
+        """
+        if 0 <= row_index < len(self.data_manager.all_data):
+            # Update the data in all_data
+            self.data_manager.all_data[row_index].update(new_data)
+            
+            # Re-apply filters to update filtered_data
+            # This is more efficient than a full reload
+            self._apply_filters()
+
+    def update_rows_batch(self, updates: List[Tuple[int, Dict[str, Any]]]):
+        """
+        Update multiple rows in a batch operation.
+        More efficient than calling update_row_by_index multiple times.
+        
+        Args:
+            updates: List of tuples (row_index, new_data)
+        
+        Note:
+            - Invalid row indices are silently ignored
+            - Filters are re-applied once after all updates for efficiency
+            - Updated rows may be filtered out if they no longer match active filters
+            - Only updates visible table rows that changed, avoiding full refresh
+        """
+        # Track which rows in all_data were updated
+        updated_indices = set()
+
+        # Apply all updates to all_data
+        for row_index, new_data in updates:
+            if 0 <= row_index < len(self.data_manager.all_data):
+                self.data_manager.all_data[row_index].update(new_data)
+                updated_indices.add(row_index)
+
+        if not updated_indices:
+            return  # No valid updates, nothing to do
+
+        # Store old filtered_data to track what changed
+        old_filtered_data = self.data_manager.filtered_data.copy()
+
+        # Re-apply filters to update filtered_data
+        self.data_manager.apply_filters(self.search_input.text())
+
+        # Check if filtering/sorting changed the data structure significantly
+        if len(old_filtered_data) != len(self.data_manager.filtered_data):
+            # Row count changed, need full refresh
+            self.current_page = 0
+            self._refresh_table()
+            return
+
+        # Optimize: Only update visible rows on current page
+        start_idx = self.current_page * self.rows_per_page
+        end_idx = min(start_idx + self.rows_per_page, len(self.data_manager.filtered_data))
+
+        # Find which visible table rows need updating
+        rows_to_update = []
+        for table_row_idx in range(end_idx - start_idx):
+            filtered_idx = start_idx + table_row_idx
+            if filtered_idx < len(self.data_manager.filtered_data):
+                row_data = self.data_manager.filtered_data[filtered_idx]
+
+                # Find the original index in all_data by object identity
+                try:
+                    original_idx = self.data_manager.all_data.index(row_data)
+                    if original_idx in updated_indices:
+                        rows_to_update.append((table_row_idx, filtered_idx, row_data))
+                except ValueError:
+                    # Row not found, shouldn't happen but handle gracefully
+                    pass
+
+        # Update only the affected rows
+        if rows_to_update:
+            for table_row_idx, filtered_idx, row_data in rows_to_update:
+                for col_idx, column in enumerate(self.data_manager.visible_columns):
+                    value = row_data.get(column, '')
+
+                    # Clean up old widget if exists
+                    old_widget = self.table.cellWidget(table_row_idx, col_idx)
+                    if old_widget:
+                        old_widget.deleteLater()
+                        self.table.setCellWidget(table_row_idx, col_idx, None)
+
+                    # Clean up old item if exists
+                    old_item = self.table.item(table_row_idx, col_idx)
+                    if old_item:
+                        self.table.setItem(table_row_idx, col_idx, None)
+
+                    # Set new cell content
+                    if column in self.data_manager.cell_renderers:
+                        widget = self.data_manager.cell_renderers[column](value, row_data, filtered_idx)
+                        self.table.setCellWidget(table_row_idx, col_idx, widget)
+                    else:
+                        item = QTableWidgetItem(str(value))
+                        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        self.table.setItem(table_row_idx, col_idx, item)
+
+            # Resize only the updated rows
+            for table_row_idx, _, _ in rows_to_update:
+                self.table.resizeRowToContents(table_row_idx)
+
+        # Update pagination info (row counts may have changed)
+        self._update_page_info()
+        self._update_navigation_buttons()
+
     # ==========================================================================
     # PUBLIC API - Custom Cell Renderers
     # ==========================================================================
@@ -338,34 +453,6 @@ class MUIDataGrid(QWidget):
         self.current_page = 0
         self._refresh_table()
 
-    def _refresh_row(self, row_index: int):
-        """Refresh a specific row in the table."""
-        start_idx = self.current_page * self.rows_per_page
-        end_idx = start_idx + self.rows_per_page
-        page_data = self.data_manager.filtered_data[start_idx:end_idx]
-
-        if row_index < 0 or row_index >= len(page_data):
-            return  # Row index out of current page bounds
-
-        row_data = page_data[row_index]
-        actual_row_index = start_idx + row_index
-
-        for col_idx, column in enumerate(self.data_manager.visible_columns):
-            value = row_data.get(column, '')
-
-            old_widget = self.table.cellWidget(row_index, col_idx)
-            if old_widget:
-                old_widget.deleteLater()
-                self.table.setCellWidget(row_index, col_idx, None)
-
-            if column in self.data_manager.cell_renderers:
-                widget = self.data_manager.cell_renderers[column](value, row_data, actual_row_index)
-                self.table.setCellWidget(row_index, col_idx, widget)
-            else:
-                item = QTableWidgetItem(str(value))
-                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                self.table.setItem(row_index, col_idx, item)
-
     def _refresh_table(self):
         """Refresh the table display with current page data."""
         start_idx = self.current_page * self.rows_per_page
@@ -383,10 +470,16 @@ class MUIDataGrid(QWidget):
                 for col_idx, column in enumerate(self.data_manager.visible_columns):
                     value = row_data.get(column, '')
 
+                    # Clean up old widget if exists
                     old_widget = self.table.cellWidget(row_idx, col_idx)
                     if old_widget:
                         old_widget.deleteLater()
                         self.table.setCellWidget(row_idx, col_idx, None)
+
+                    # Clean up old item if exists
+                    old_item = self.table.item(row_idx, col_idx)
+                    if old_item:
+                        self.table.setItem(row_idx, col_idx, None)
 
                     if column in self.data_manager.cell_renderers:
                         widget = self.data_manager.cell_renderers[column](value, row_data, actual_row_index)
