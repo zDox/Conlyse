@@ -22,6 +22,10 @@ def main() -> None:
     output_dir_value = os.environ.get("NUITKA_OUTPUT_DIR") or (repo_root / DEFAULT_OUTPUT_DIR)
     output_dir = Path(output_dir_value).resolve()
 
+    shader_dir = repo_root / "src" / "conlyse" / "pages" / "map_page" / "renderers"/ "shaders"
+    if not shader_dir.exists():
+        raise SystemExit(f"Shader directory not found: {shader_dir}")
+
     if ui_plugin not in SUPPORTED_UI_PLUGINS:
         raise SystemExit(
             f"Unsupported UI plugin '{ui_plugin}'. Supported plugins: "
@@ -36,11 +40,14 @@ def main() -> None:
         f"--enable-plugin={ui_plugin}",
         "--follow-imports",
         f"--output-dir={output_dir}",
+        "--msvc=latest",
         str(entrypoint),
     ]
 
     if assets_dir.exists():
         command.append(f"--include-data-dir={assets_dir}=assets")
+    if shader_dir.exists():
+        command.append(f"--include-data-dir={shader_dir}=conlyse/pages/map_page/renderers/shaders")
 
     try:
         subprocess.run(command, check=True)
