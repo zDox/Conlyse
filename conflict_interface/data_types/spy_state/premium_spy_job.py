@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class PremiumSpyJob(GameObject):
     """
@@ -41,7 +44,7 @@ class PremiumSpyJob(GameObject):
     }
 
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class RevealProvinceArmiesJob(PremiumSpyJob):
     """
@@ -49,6 +52,7 @@ class RevealProvinceArmiesJob(PremiumSpyJob):
     """
     C = "ultshared.spyjobs.UltRevealProvinceArmiesJob"
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class CountryInfoJob(PremiumSpyJob):
     """
@@ -56,6 +60,7 @@ class CountryInfoJob(PremiumSpyJob):
     """
     C = "ultshared.spyjobs.UltCountryInfoJob"
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class DecreaseMoralJob(PremiumSpyJob):
     """
@@ -70,6 +75,7 @@ class DecreaseMoralJob(PremiumSpyJob):
         "start_moral": "startMorale",
     }
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class DestroyResouceJob(PremiumSpyJob):
     """
@@ -77,6 +83,7 @@ class DestroyResouceJob(PremiumSpyJob):
     """
     C = "ultshared.spyjobs.UltDestroyResourceJob"
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class DamageUpgradeJob(PremiumSpyJob):
     """
@@ -91,6 +98,7 @@ class DamageUpgradeJob(PremiumSpyJob):
         "damaged_upgrade": "damagedUpgrade",
     }
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class RevealAllArmiesJob(PremiumSpyJob):
     """

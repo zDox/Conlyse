@@ -7,6 +7,8 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import Vector
 from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state_enums import ForeignAffairRelationTypes
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.newspaper_state.article import Article
 from conflict_interface.data_types.state import State
 from conflict_interface.data_types.state import state_update
@@ -31,7 +33,7 @@ def dict_update(original: dict, other: dict, path: list[PathNode] = None, rp: Bi
                 rp.remove(path + [key], original[key])
             del original[key]
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ForeignAffairRelations(GameObject):
     """
@@ -93,7 +95,7 @@ class ForeignAffairRelations(GameObject):
             return None
         return relations.get(receiver_id-1, ForeignAffairRelationTypes.PEACE)
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ForeignAffairsState(State):
     """

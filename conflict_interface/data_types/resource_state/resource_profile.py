@@ -5,12 +5,14 @@ from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import LinkedList
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.resource_state.order import Order
 from conflict_interface.data_types.resource_state.premium_order import PremiumOrder
 from conflict_interface.data_types.resource_state.resource_category import ResourceCategory
 from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ResourceProfile(GameObject):
     C = "ultshared.UltResourceProfile"

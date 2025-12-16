@@ -1,6 +1,10 @@
 from enum import Enum
 
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 
+
+@binary_serializable(SerializationCategory.ENUM)
 class ForeignAffairRelationTypes(Enum):
     """
     Enumeration representing in which Relation two countries are.

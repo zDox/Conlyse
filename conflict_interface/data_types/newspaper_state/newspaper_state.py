@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import Union
 
 from conflict_interface.data_types.custom_types import Vector
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.newspaper_state.article import Article
 from conflict_interface.data_types.newspaper_state.ranking import Ranking
 from conflict_interface.data_types.newspaper_state.report_article import ReportArticle
@@ -33,6 +35,7 @@ def list_update(original: list, other: list, path: list[PathNode] = None, rp: Bi
                 rp.remove(path + [i], original[i])
             original.pop(i)
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class NewspaperState(State):
     C = "ultshared.UltNewspaperState"

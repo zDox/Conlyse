@@ -4,8 +4,11 @@ from typing import Union
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.point import Point
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class TemporaryAirfield(GameObject):
     C = "ultshared.warfare.UltTemporaryAirfield"
@@ -16,7 +19,7 @@ class TemporaryAirfield(GameObject):
         "air_field_position": "airfieldPosition",
     }
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class AirParameters(GameObject):
     C = "ap"

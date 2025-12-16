@@ -1,22 +1,30 @@
-import importlib
-import inspect
-import pkgutil
 from dataclasses import fields
 from dataclasses import is_dataclass
 from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
 from enum import Enum
 from logging import getLogger
 from typing import Any
 
 import msgspec
 
-from conflict_interface.data_types.custom_types import HashSet
-from conflict_interface.data_types.point import Point
-
 logger = getLogger()
 
+class SerializationCategory(Enum):
+    DATACLASS = 1
+    ENUM = 2
+    LIST = 3
+    DICT = 4
+    DATETIME = 5
+    TIMEDELTA = 6
+    POINT = 7
+
+
+def binary_serializable(category: SerializationCategory):
+    def wrapper(cls):
+        GameObjectSerializer.register(cls, category)
+        return cls
+
+    return wrapper
 
 def get_mapping(cls):
     if hasattr(cls, 'get_mapping'):
@@ -32,11 +40,9 @@ class GameObjectSerializer:
 
     _CLASS_FROM_ID: dict[int, type] = {}
     _ID_FROM_CLASS: dict[type, int] = {}
-    _CATEGORY: dict[type, str] = {}
+    _CATEGORY: dict[type, SerializationCategory] = {}
 
     _FIELDS_CACHE: dict[type, tuple[str, ...]] = {}
-
-    _PRELOADED = False
 
     # Marker to distinguish [type_id, ... ] from plain lists
     _TYPE_MARKER = -1
@@ -47,7 +53,7 @@ class GameObjectSerializer:
 
         
     @classmethod
-    def _register(cls, obj: type, category: str):
+    def register(cls, obj: type, category: SerializationCategory):
         """Register a type with its category."""
         type_id = len(cls._ID_FROM_CLASS)
 
@@ -62,58 +68,11 @@ class GameObjectSerializer:
             else:
                 cls._FIELDS_CACHE[obj] = tuple(mapping)
 
-    @classmethod
-    def preload(cls):
-        if cls._PRELOADED:
-            return
 
-        package = importlib.import_module('conflict_interface.data_types')
-
-        for loader, module_name, is_pkg in pkgutil. walk_packages(
-                package.__path__, package.__name__ + '.'
-        ):
-            try:
-                module = importlib.import_module(module_name)
-
-                for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if obj.__module__ != module_name:
-                        continue
-
-                    if obj in cls._CATEGORY:
-                        continue
-
-                    if obj is HashSet:
-                        pass
-
-                    if is_dataclass(obj):
-                        cls._register(obj, 'dataclass')
-                    elif isinstance(obj, type) and issubclass(obj, Enum) and obj is not Enum:
-                        cls._register(obj, 'enum')
-                    elif isinstance(obj, type) and issubclass(obj, list) and obj is not list:
-                        cls._register(obj, 'list')
-                    elif isinstance(obj, type) and issubclass(obj, dict) and obj is not dict:
-                        cls._register(obj, 'dict')
-                    elif isinstance(obj, type) and issubclass(obj, datetime):
-                        cls._register(obj, 'datetime')
-                    elif isinstance(obj, type) and issubclass(obj, timedelta):
-                        cls._register(obj, 'timedelta')
-                    elif obj is Point:
-                        cls._register(obj, 'point')
-
-            except ImportError as e:
-                logger.debug(f"Failed to load {module_name} because of ImportError: \n{e}")
-
-        cls._PRELOADED = True
 
     def serialize(self, obj: Any) -> bytes:
-        if not self._PRELOADED:
-            raise RuntimeError("Call preload() before serializing")
-
         raw = self._to_raw(obj)
-
         obj =  self._encoder.encode(raw)
-
-
         return obj
 
     def _to_raw(self, obj: Any):
@@ -126,48 +85,40 @@ class GameObjectSerializer:
             return obj
 
         if t is list:
-            to_raw = self._to_raw
-            return [to_raw(v) for v in obj]
+            return [self._to_raw(v) for v in obj]
 
         if t is dict:
-            to_raw = self._to_raw
-            return {"__dict__": [[to_raw(k), to_raw(v)] for k, v in obj.items()]}
+            return {"__dict__": [[self._to_raw(k), self._to_raw(v)] for k, v in obj.items()]}
 
         type_id = self._ID_FROM_CLASS[t]
         cat = self._CATEGORY[t]
 
-        marker = self._TYPE_MARKER
-        to_raw = self._to_raw
-
-        if cat == 'dataclass':
+        if cat == SerializationCategory.DATACLASS:
             field_names = self._FIELDS_CACHE[t]
-            return [marker, type_id, *[to_raw(getattr(obj, name)) for name in field_names]]
+            return [self._TYPE_MARKER, type_id, *[self._to_raw(getattr(obj, name)) for name in field_names]]
 
-        elif cat == 'list':
-            return [marker, type_id, [to_raw(v) for v in obj]]
+        elif cat == SerializationCategory.LIST:
+            return [self._TYPE_MARKER, type_id, [self._to_raw(v) for v in obj]]
 
-        elif cat == 'dict':
-            # FIX: Convert to list of [key, value] pairs for registered dict types too
-            return [marker, type_id, [[to_raw(k), to_raw(v)] for k, v in obj.items()]]
+        elif cat == SerializationCategory.DICT:
+            return [self._TYPE_MARKER, type_id, [[self._to_raw(k), self._to_raw(v)] for k, v in obj.items()]]
 
-        elif cat == 'datetime':
-            return [marker, type_id, obj.timestamp()]
+        elif cat == SerializationCategory.DATETIME:
+            return [self._TYPE_MARKER, type_id, obj.timestamp()]
 
-        elif cat == 'timedelta':
-            return [marker, type_id, obj.total_seconds()]
+        elif cat == SerializationCategory.TIMEDELTA:
+            return [self._TYPE_MARKER, type_id, obj.total_seconds()]
 
-        elif cat == 'enum':
-            return [marker, type_id, obj.value]
+        elif cat == SerializationCategory.ENUM:
+            return [self._TYPE_MARKER, type_id, obj.value]
 
-        elif cat == 'point':
-            return [marker, type_id, obj.x, obj. y]
+        elif cat == SerializationCategory.POINT:
+            return [self._TYPE_MARKER, type_id, obj.x, obj. y]
 
         raise RuntimeError(f"Unknown category type {cat}")
 
     def deserialize(self, data: bytes) -> object:
         """Deserialize bytes back to a game object."""
-        if not self._PRELOADED:
-            raise RuntimeError("Call preload() before deserializing")
         raw = self._decoder.decode(data)
         obj =  self._from_raw(raw)
         return obj
@@ -204,30 +155,29 @@ class GameObjectSerializer:
         cat = self._CATEGORY[cls]
         from_raw = self._from_raw
 
-        if cat == 'dataclass':
+        if cat == SerializationCategory.DATACLASS:
             field_names = self._FIELDS_CACHE[cls]
             kwargs = {name: from_raw(data[i + 2]) for i, name in enumerate(field_names)}
             instance = cls(**kwargs)
             instance.game = None
             return instance
 
-        elif cat == 'list':
+        elif cat == SerializationCategory.LIST:
             return cls([from_raw(v) for v in data[2]])
 
-        elif cat == 'dict':
-            # FIX:  Reconstruct from list of [key, value] pairs
+        elif cat == SerializationCategory.DICT:
             return cls({from_raw(pair[0]): from_raw(pair[1]) for pair in data[2]})
 
-        elif cat == 'datetime':
+        elif cat == SerializationCategory.DATETIME:
             return cls.fromtimestamp(data[2], UTC)
 
-        elif cat == 'timedelta':
+        elif cat == SerializationCategory.TIMEDELTA:
             return cls(seconds=data[2])
 
-        elif cat == 'enum':
+        elif cat == SerializationCategory.ENUM:
             return cls(data[2])
 
-        elif cat == 'point':
+        elif cat == SerializationCategory.POINT:
             return cls(data[2], data[3])
 
         raise TypeError(f"Unknown category:  {cat}")
@@ -236,9 +186,8 @@ class GameObjectSerializer:
         """Return statistics about registered types."""
         return {
             'total_types':  len(self._CLASS_FROM_ID),
-            'dataclasses': sum(1 for c in self._CATEGORY.values() if c == 'dataclass'),
-            'enums': sum(1 for c in self._CATEGORY. values() if c == 'enum'),
-            'list_wrappers': sum(1 for c in self._CATEGORY.values() if c == 'list'),
-            'dict_wrappers': sum(1 for c in self._CATEGORY.values() if c == 'dict'),
-            'preloaded': self._PRELOADED,
+            'dataclasses': sum(1 for c in self._CATEGORY.values() if c == SerializationCategory.DATACLASS),
+            'enums': sum(1 for c in self._CATEGORY. values() if c == SerializationCategory.ENUM),
+            'list_wrappers': sum(1 for c in self._CATEGORY.values() if c == SerializationCategory.LIST),
+            'dict_wrappers': sum(1 for c in self._CATEGORY.values() if c == SerializationCategory.DICT)
         }

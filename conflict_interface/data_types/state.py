@@ -3,10 +3,12 @@ from typing import Optional
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class State(GameObject):
     time_stamp: Optional[DateTimeMillisecondsInt]
