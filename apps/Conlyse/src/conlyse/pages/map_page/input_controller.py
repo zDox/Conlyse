@@ -63,6 +63,11 @@ class InputController:
         )
 
         self.keybindings_manager.register_action(
+            KeyAction.SWITCH_TO_RESOURCE_MAP_VIEW,
+            lambda: self.map_widget.set_active_map_view(MapViewType.RESOURCE)
+        )
+
+        self.keybindings_manager.register_action(
             KeyAction.TOGGLE_CONNECTIONS_OVERLAY,
             self.map_widget.toggle_render_connections
         )
