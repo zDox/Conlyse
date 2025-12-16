@@ -234,7 +234,7 @@ class MapPage(Page):
         """Position timeline overlay at the bottom of the map container."""
         if not self.timeline_controls or not self.map_container:
             return
-        container_rect = self.map_container.rect()
+        container_rect = self.rect()
         overlay_height = self.timeline_controls.sizeHint().height()
         self.timeline_controls.setGeometry(
             0,
