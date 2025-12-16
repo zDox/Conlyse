@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QHBoxLayout
 from PySide6.QtWidgets import QLabel
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtWidgets import QVBoxLayout
+from conlyse.constants import START_REPLAY_PAGE
 
 from conlyse.logger import get_logger
 from conlyse.managers.keybinding_manager.key_action import KeyAction
@@ -168,7 +169,7 @@ class ReplayListPage(Page):
 
         self.app.page_manager.switch_to(
             PageType.ReplayLoadPage,
-            next_page=PageType.MapPage,
+            next_page=START_REPLAY_PAGE,
             replay_path=self.selected_filepath
         )
 

@@ -338,6 +338,34 @@ class MUIDataGrid(QWidget):
         self.current_page = 0
         self._refresh_table()
 
+    def _refresh_row(self, row_index: int):
+        """Refresh a specific row in the table."""
+        start_idx = self.current_page * self.rows_per_page
+        end_idx = start_idx + self.rows_per_page
+        page_data = self.data_manager.filtered_data[start_idx:end_idx]
+
+        if row_index < 0 or row_index >= len(page_data):
+            return  # Row index out of current page bounds
+
+        row_data = page_data[row_index]
+        actual_row_index = start_idx + row_index
+
+        for col_idx, column in enumerate(self.data_manager.visible_columns):
+            value = row_data.get(column, '')
+
+            old_widget = self.table.cellWidget(row_index, col_idx)
+            if old_widget:
+                old_widget.deleteLater()
+                self.table.setCellWidget(row_index, col_idx, None)
+
+            if column in self.data_manager.cell_renderers:
+                widget = self.data_manager.cell_renderers[column](value, row_data, actual_row_index)
+                self.table.setCellWidget(row_index, col_idx, widget)
+            else:
+                item = QTableWidgetItem(str(value))
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.table.setItem(row_index, col_idx, item)
+
     def _refresh_table(self):
         """Refresh the table display with current page data."""
         start_idx = self.current_page * self.rows_per_page
@@ -354,6 +382,11 @@ class MUIDataGrid(QWidget):
 
                 for col_idx, column in enumerate(self.data_manager.visible_columns):
                     value = row_data.get(column, '')
+
+                    old_widget = self.table.cellWidget(row_idx, col_idx)
+                    if old_widget:
+                        old_widget.deleteLater()
+                        self.table.setCellWidget(row_idx, col_idx, None)
 
                     if column in self.data_manager.cell_renderers:
                         widget = self.data_manager.cell_renderers[column](value, row_data, actual_row_index)

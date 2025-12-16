@@ -10,13 +10,18 @@ Date: 2025-11-18
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
+from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget, QMessageBox
 from PySide6.QtCore import Qt
-
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
 from conlyse.logger import get_logger
-from conlyse.pages.page import Page
+from conlyse.pages.replay_page import ReplayPage
 from conlyse.utils.enums import PageType
 from conlyse.widgets.table_widget.mui_data_grid import MUIDataGrid
 
@@ -27,16 +32,12 @@ if TYPE_CHECKING:
 logger = get_logger()
 
 
-class PlayerListPage(Page):
+class PlayerListPage(ReplayPage):
     """Page displaying list of players from a replay with detailed information."""
-
     HEADER = True
 
     def __init__(self, app, parent=None):
-        super().__init__(parent)
-
-        self.app: App = app
-        self.replay_interface: Optional[ReplayInterface] = None
+        super().__init__(app, parent)
 
         # Data grid and components
         self.data_grid: Optional[MUIDataGrid] = None
@@ -44,6 +45,7 @@ class PlayerListPage(Page):
         self.back_button: Optional[QPushButton] = None
         self.export_button: Optional[QPushButton] = None
 
+        self.last_time = 0.0
         # Track if UI has been set up
         self._ui_initialized = False
 
@@ -54,12 +56,7 @@ class PlayerListPage(Page):
         """
         Called when page is opened - initialize with replay data.
         """
-        self.replay_interface = self.app.replay_manager.get_active_replay()
-
-        if not self.replay_interface:
-            logger.error("No active replay found in Replay Manager")
-            self.app.page_manager.switch_to(PageType.ReplayListPage, error_message="No active replay loaded.")
-            return
+        super().setup(context)
 
         # Initialize UI if first time
         if not self._ui_initialized:
@@ -291,19 +288,19 @@ class PlayerListPage(Page):
 
     def _load_player_data(self):
         """Load player data from replay interface into grid format."""
-        if not self.replay_interface:
+        if not self.ritf:
             return
 
         try:
             # Get players from replay interface
-            players = self.replay_interface.get_players().values()  # Adjust method name as needed
+            players = self.ritf.get_players().values()  # Adjust method name as needed
 
             # Convert PlayerProfile objects to dictionaries
             self._players_data = []
 
             for player in players:
-                team = self.replay_interface.get_team(player.team_id)
-                capital = self.replay_interface.get_province(player.capital_id)
+                team = self.ritf.get_team(player.team_id)
+                capital = self.ritf.get_province(player.capital_id)
                 team_name = team.name if team else "N/A"
                 capital_name = capital.name if capital else "N/A"
                 player_dict = {
@@ -388,13 +385,18 @@ class PlayerListPage(Page):
 
     def page_update(self, delta_time: float):
         """Called every frame - no continuous updates needed for this page."""
+        super().page_update(delta_time)
+
+    def _on_replay_jump(self):
         pass
+
+
 
     def clean_up(self):
         """Called when page is closed - cleanup resources."""
+        super().clean_up()
         # Clear data
         self._players_data = []
-        self.replay_interface = None
 
         # No need to destroy widgets, they will be handled by Qt parent-child relationship
 
@@ -409,7 +411,7 @@ class PlayerListPage(Page):
 
     def _on_view_map_clicked(self):
         """Handle view map button click."""
-        if not self.replay_interface:
+        if not self.ritf:
             return
         
         logger.info("Navigating to map page")
