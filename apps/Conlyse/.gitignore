@@ -12,3 +12,4 @@ config.json
 /app_data/
 /src/conlyse.egg-info/
 /src/conlyse/pages/map_page/test_replay.bin
+test_world_text_renderer.py

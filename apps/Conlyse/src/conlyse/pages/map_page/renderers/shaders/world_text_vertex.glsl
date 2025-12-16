@@ -8,7 +8,7 @@ layout (location = 1) in vec2 aAnchorWorld;      // World-space anchor position
 layout (location = 2) in vec2 aPixelOffset;      // Screen-space offset in pixels
 layout (location = 3) in vec4 aUVRect;           // (u_min, v_min, u_max, v_max)
 layout (location = 4) in vec4 aColor;            // RGBA color
-layout (location = 5) in float aGlyphSizePx;     // Glyph size in pixels
+layout (location = 5) in vec2 aGlyphSize;        // Glyph size (width, height) in pixels
 
 // Uniforms
 uniform mat3 uViewProjection;  // World → NDC
@@ -31,7 +31,7 @@ void main()
     
     // Build the glyph quad in NDC space
     // aQuadVertex is in [0,1] range, scale to pixel size
-    vec2 quadOffset = aQuadVertex * aGlyphSizePx * ndcPixelSize;
+    vec2 quadOffset = aQuadVertex * aGlyphSize * ndcPixelSize;
     
     // Add pixel offset to position the glyph
     vec2 pixelOffsetNDC = aPixelOffset * ndcPixelSize;

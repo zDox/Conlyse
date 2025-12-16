@@ -151,8 +151,8 @@ class WorldTextRenderer:
         # Bind instance VBO for instanced attributes
         self.instance_vbo.bind()
 
-        # Per-instance attributes (stride = 13 floats per instance)
-        stride = 13 * 4  # 13 floats * 4 bytes
+        # Per-instance attributes (stride = 14 floats per instance)
+        stride = 14 * 4  # 14 floats * 4 bytes
 
         # Attribute 1: aAnchorWorld (vec2)
         loc = gl.glGetAttribLocation(self.program.program_id, b"aAnchorWorld")
@@ -178,10 +178,10 @@ class WorldTextRenderer:
         gl.glVertexAttribPointer(loc, 4, gl.GL_FLOAT, gl.GL_FALSE, stride, gl.ctypes.c_void_p(32))
         gl.glVertexAttribDivisor(loc, 1)
 
-        # Attribute 5: aGlyphSizePx (float)
-        loc = gl.glGetAttribLocation(self.program.program_id, b"aGlyphSizePx")
+        # Attribute 5: aGlyphSize (vec2)
+        loc = gl.glGetAttribLocation(self.program.program_id, b"aGlyphSize")
         gl.glEnableVertexAttribArray(loc)
-        gl.glVertexAttribPointer(loc, 1, gl.GL_FLOAT, gl.GL_FALSE, stride, gl.ctypes.c_void_p(48))
+        gl.glVertexAttribPointer(loc, 2, gl.GL_FLOAT, gl.GL_FALSE, stride, gl.ctypes.c_void_p(48))
         gl.glVertexAttribDivisor(loc, 1)
 
         self.instance_vbo.unbind()
@@ -413,14 +413,21 @@ class WorldTextRenderer:
 
                 glyph = self.glyphs[char]
 
+                # Scale factor for this text size
+                scale = text_string.size_px / self.font_size
+
                 # Calculate pixel offset for this glyph
-                # X offset: cursor position + bearing
-                # Y offset: baseline adjustment based on bearing_y
-                pixel_offset_x = x_cursor + glyph.bearing_x
-                pixel_offset_y = -glyph.bearing_y  # Negative because Y axis points down in screen space
+                # X offset: cursor position + bearing (scaled)
+                # Y offset: baseline adjustment based on bearing_y (scaled)
+                pixel_offset_x = x_cursor + glyph.bearing_x * scale
+                pixel_offset_y = -glyph.bearing_y * scale  # Negative because Y axis points down in screen space
 
                 # Instance data: (anchor_world_x, anchor_world_y, pixel_offset_x, pixel_offset_y,
-                #                 u_min, v_min, u_max, v_max, color_r, color_g, color_b, color_a, size_px)
+                #                 u_min, v_min, u_max, v_max, color_r, color_g, color_b, color_a, 
+                #                 glyph_width_px, glyph_height_px)
+                scaled_width = glyph.width * scale
+                scaled_height = glyph.height * scale
+                
                 instance = [
                     text_string.anchor_world[0],  # anchor_world x
                     text_string.anchor_world[1],  # anchor_world y
@@ -434,12 +441,13 @@ class WorldTextRenderer:
                     text_string.color[1],  # color g
                     text_string.color[2],  # color b
                     text_string.color[3],  # color a
-                    glyph.width * (text_string.size_px / self.font_size),  # scaled glyph width
+                    scaled_width,  # glyph width in pixels
+                    scaled_height,  # glyph height in pixels
                 ]
                 instances.append(instance)
 
-                # Advance cursor
-                x_cursor += glyph.advance * (text_string.size_px / self.font_size)
+                # Advance cursor (scaled)
+                x_cursor += glyph.advance * scale
 
             # Store glyph range for this string
             text_string.glyph_range = (start_idx, len(instances) - start_idx)
