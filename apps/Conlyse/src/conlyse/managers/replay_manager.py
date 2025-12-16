@@ -54,7 +54,7 @@ class ReplayManager:
         :return: Replay object if opened successfully, None otherwise
         """
         ritf = self.replays[file_path]
-        ritf.open()
+        ritf.open("r")
         self.active_replay_path = file_path
 
     def open_replay_async(self, file_path: str):

@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
+from datetime import timedelta
+
 from PyQt6.QtWidgets import QSizePolicy
-from PyQt6.QtWidgets import QVBoxLayout
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 
 
@@ -21,6 +23,8 @@ from conlyse.pages.map_page.input_controller import InputController
 from conlyse.pages.map_page.map import Map
 from conlyse.pages.page import Page
 from conlyse.utils.enums import PageType
+from conlyse.widgets.mui.button import CButton
+from conlyse.widgets.timecontrol import TimelineControls
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -46,7 +50,10 @@ class MapPage(Page):
         self.app: App = app
         self.ritf = self.app.replay_manager.get_active_replay()
         self.map_widget: Map | None = None
+        self.map_container: QWidget | None = None
         self.input_controller: InputController | None = None
+        self.timeline_controls: TimelineControls | None = None
+        self.timeline_button: CButton | None = None
         samples = self.app.config_manager.main.get("graphics.msaa_samples")
 
         # Configure OpenGL format BEFORE creating the Map widget
@@ -83,16 +90,33 @@ class MapPage(Page):
                                             error_message=f"Failed to load replay: {self.app.replay_manager.active_replay_path}")
             return
 
+        self.ritf.register_province_trigger(["resource_production", "owner_id", "morale", "upgrade_set"])
 
-        layout.addWidget(self.map_widget)
+        self.map_container = QWidget(self)
+        container_layout = QVBoxLayout(self.map_container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+        container_layout.addWidget(self.map_widget)
+
+        self.timeline_controls = TimelineControls(self.ritf, parent=self.map_container)
+        self.timeline_controls.setVisible(False)
+        self.timeline_controls.time_changed.connect(self._on_timeline_time_changed)
+
+        layout.addWidget(self.map_container)
         self.setLayout(layout)
+
+        self._setup_timeline_button()
 
         # Set up performance metrics for this page
         self.app.performance_window.clear_metrics()
         self.app.performance_window.set_page("Map Page")
+        self.app.performance_window.add_metric("Last Jump Time")
         self.app.performance_window.add_metric("Province Fill")
         self.app.performance_window.add_metric("Province Connections")
-        
+        self.app.performance_window.add_metric("Province Borders")
+        self.app.performance_window.add_metric("Terrain Map View Update")
+        self.app.performance_window.add_metric("Resource Map View Update")
+        self.app.performance_window.add_metric("Political Map View Update")
         self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
         self.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
 
@@ -124,9 +148,13 @@ class MapPage(Page):
             self.perf_update_counter += 1
             if self.perf_update_counter >= self.perf_update_interval:
                 metrics = self.map_widget.get_performance_metrics()
+                self.app.performance_window.update_metric("Last Jump Time", metrics["last_jump_time"])
                 self.app.performance_window.update_metric("Province Fill", metrics["province_fill"])
                 self.app.performance_window.update_metric("Province Connections", metrics["province_connections"])
                 self.app.performance_window.update_metric("Province Borders", metrics["province_borders"])
+                self.app.performance_window.update_metric("Terrain Map View Update", metrics["terrainview_update"])
+                self.app.performance_window.update_metric("Resource Map View Update", metrics["resourceview_update"])
+                self.app.performance_window.update_metric("Political Map View Update", metrics["politicalview_update"])
                 self.app.performance_window.update_frame_time(metrics["total_frame"])
                 self.perf_update_counter = 0
 
@@ -143,9 +171,11 @@ class MapPage(Page):
                 self.fps_timer = 0.0
 
 
-    def page_update(self) -> None:
+    def page_update(self, delta_time: float) -> None:
         """Update method called by the page manager."""
         self.input_controller.update_camera_from_keyboard()
+        if self.timeline_controls:
+            self.timeline_controls.advance_time(delta_time)
         self.map_widget.render_frame()
 
         self.update_performance_window()
@@ -154,4 +184,62 @@ class MapPage(Page):
 
     def clean_up(self) -> None:
         """Clean up resources when the page is closed."""
+        self.input_controller.reset()
         self.map_widget.deleteLater()
+        if self.timeline_controls:
+            self.timeline_controls.clean_up()
+            self.timeline_controls.deleteLater()
+            self.timeline_controls = None
+        if self.timeline_button:
+            self.timeline_button.deleteLater()
+            self.timeline_button = None
+        self.app.main_window.header.set_actions([])
+
+    def _setup_timeline_button(self) -> None:
+        """Create and attach the header button that toggles the timeline panel."""
+        self.timeline_button = CButton("Open Timeline", "contained", parent=self.app.main_window.header)
+        self.timeline_button.clicked.connect(self.toggle_timeline_visibility)
+        self.app.main_window.header.set_actions([self.timeline_button])
+
+    def toggle_timeline_visibility(self) -> None:
+        """Toggle visibility of the timeline controls panel."""
+        if not self.timeline_controls:
+            return
+        is_visible = self.timeline_controls.isVisible()
+        new_visible_state = not is_visible
+        self.timeline_controls.setVisible(new_visible_state)
+        if new_visible_state:
+            self._position_timeline_overlay()
+            self.timeline_controls.raise_()
+        if self.timeline_button:
+            self.timeline_button.setText("Close Timeline" if new_visible_state else "Open Timeline")
+
+    def _on_timeline_time_changed(self, seconds: float) -> None:
+        """Jump the replay interface to the requested timestamp."""
+        if not self.ritf:
+            return
+        target_time = self.ritf.start_time + timedelta(seconds=seconds)
+        t1 = time.perf_counter()
+        self.ritf.jump_to(target_time)
+        t2 = time.perf_counter()
+        self.map_widget.performance_metrics["last_jump_time"] = t2 - t1
+        hook_events = self.ritf.poll_events()
+
+        self.map_widget.apply_hook_events(hook_events)
+
+    def _position_timeline_overlay(self) -> None:
+        """Position timeline overlay at the bottom of the map container."""
+        if not self.timeline_controls or not self.map_container:
+            return
+        container_rect = self.map_container.rect()
+        overlay_height = self.timeline_controls.sizeHint().height()
+        self.timeline_controls.setGeometry(
+            0,
+            container_rect.height() - overlay_height,
+            container_rect.width(),
+            overlay_height,
+        )
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._position_timeline_overlay()

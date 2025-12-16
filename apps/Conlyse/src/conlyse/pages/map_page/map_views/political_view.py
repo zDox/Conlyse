@@ -2,7 +2,7 @@
 
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.data_types.map_state.sea_province import SeaProvince
-
+from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.map_views.map_view import MapView
@@ -48,7 +48,6 @@ class PoliticalView(MapView):
     """
     def build_color_data(self):
         owner_color_data = {}
-        self.color_data = self._init_color_array()
 
         for province in self.ritf.get_provinces().values():
             if isinstance(province, SeaProvince):
@@ -63,9 +62,11 @@ class PoliticalView(MapView):
 
         logger.debug(f"Built political view color data for {len(owner_color_data)} owners.")
 
-    def update_province(self, province: Province, changed_attributes: dict):
-        if 'owner_id' in changed_attributes:
-            if isinstance(province, SeaProvince):
-                return  # Sea provinces don't change color
+    def update_provinces(self, events: list[ReplayHookEvent]):
+        for event in events:
+            province: Province = event.reference
+            changed_attributes: dict = event.attributes
+            if 'owner_id' not in changed_attributes:
+                continue
             r, g, b = id_to_rgb(province.owner_id)
             self.set_province_color(province.id, (r, g, b, 255))

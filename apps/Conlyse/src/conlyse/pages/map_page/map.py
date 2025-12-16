@@ -4,6 +4,7 @@ from OpenGL import GL as gl
 from PyQt6.QtCore import QSize
 from PyQt6.QtCore import Qt
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger
@@ -43,9 +44,13 @@ class Map(QOpenGLWidget):
         
         # Performance tracking
         self.performance_metrics = {
+            "last_jump_time": 0.0,
             "province_fill": 0.0,
             "province_connections": 0.0,
             "province_borders": 0.0,
+            "terrainview_update": 0.0,
+            "resourceview_update": 0.0,
+            "politicalview_update": 0.0,
             "total_frame": 0.0
         }
 
@@ -129,6 +134,11 @@ class Map(QOpenGLWidget):
 
         # Blit to widget once
         self.update()
+
+    def apply_hook_events(self, events: dict[str, list[ReplayHookEvent]]):
+        if "province_change" in events:
+            self.province_fill_renderer.handle_province_change_events(events["province_change"])
+
 
     def sizeHint(self):
         return QSize(800, 600)

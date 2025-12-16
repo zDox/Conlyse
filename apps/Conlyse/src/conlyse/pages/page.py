@@ -23,7 +23,7 @@ class Page(QWidget, metaclass=QtABCMeta):
 
 
     @abstractmethod
-    def page_update(self):
+    def page_update(self, delta_time: float):
         pass
 
     @abstractmethod

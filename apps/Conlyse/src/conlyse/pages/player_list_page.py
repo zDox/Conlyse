@@ -386,7 +386,7 @@ class PlayerListPage(Page):
             msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg_box.exec()
 
-    def page_update(self):
+    def page_update(self, delta_time: float):
         """Called every frame - no continuous updates needed for this page."""
         pass
 
