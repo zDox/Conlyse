@@ -7,7 +7,7 @@ Author: NikNam3
 Date: 2025-11-18
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import Qt, Signal as pyqtSignal
 from PySide6.QtWidgets import (
@@ -226,7 +226,7 @@ class MUIDataGrid(QWidget):
             # This is more efficient than a full reload
             self._apply_filters()
 
-    def update_rows_batch(self, updates: List[tuple[int, Dict[str, Any]]]):
+    def update_rows_batch(self, updates: List[Tuple[int, Dict[str, Any]]]):
         """
         Update multiple rows in a batch operation.
         More efficient than calling update_row_by_index multiple times.
