@@ -14,6 +14,7 @@ from conlyse.pages.map_page.map_views.map_view_type import MapViewType
 from conlyse.pages.map_page.renderers.province_border_renderer import ProvinceBorderRenderer
 from conlyse.pages.map_page.renderers.province_connection_renderer import ProvinceConnectionRenderer
 from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
+from conlyse.pages.map_page.renderers.world_text_renderer import WorldTextRenderer
 
 logger = get_logger()
 
@@ -40,6 +41,7 @@ class Map(QOpenGLWidget):
         self.province_fill_renderer = ProvinceFillRenderer(self)
         self.province_connection_renderer = ProvinceConnectionRenderer(self)
         self.province_border_renderer = ProvinceBorderRenderer(self)
+        self.world_text_renderer = WorldTextRenderer(self)
 
         self.active_map_view = MapViewType.POLITICAL
         self.render_connections = True
@@ -53,6 +55,7 @@ class Map(QOpenGLWidget):
             "province_fill": 0.0,
             "province_connections": 0.0,
             "province_borders": 0.0,
+            "world_text": 0.0,
             "terrainview_update": 0.0,
             "resourceview_update": 0.0,
             "politicalview_update": 0.0,
@@ -90,6 +93,7 @@ class Map(QOpenGLWidget):
         self.province_fill_renderer.initialize()
         self.province_connection_renderer.initialize()
         self.province_border_renderer.initialize()
+        self.world_text_renderer.initialize()
         gl.glClearColor(0.1, 0.1, 0.1, 1.0)
         # Enable blending
         gl.glEnable(gl.GL_BLEND)
@@ -119,6 +123,11 @@ class Map(QOpenGLWidget):
         render_start = time.perf_counter()
         self.province_border_renderer.render()
         self.performance_metrics["province_borders"] = (time.perf_counter() - render_start) * 1000
+        
+        # Track world text renderer time
+        render_start = time.perf_counter()
+        self.world_text_renderer.render()
+        self.performance_metrics["world_text"] = (time.perf_counter() - render_start) * 1000
         
         self.performance_metrics["total_frame"] = (time.perf_counter() - frame_start) * 1000
 
