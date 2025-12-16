@@ -5,10 +5,10 @@ from typing import Any
 from typing import Callable
 from typing import TYPE_CHECKING
 
-from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_queue_element import ReplayHookQueueElement
+from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
@@ -106,7 +106,7 @@ class ReplayHookSystem:
     A single event trigger can be registered per path. 
     """
 
-    def register_event_trigger(self, tag: str, path: list[str], attributes: list[str]):
+    def register_event_trigger(self, tag: ReplayHookTag, path: list[str], attributes: list[str]):
         """
         Register an event trigger for a specific path and attributes.
 

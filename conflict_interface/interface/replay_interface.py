@@ -10,6 +10,7 @@ from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_system import ReplayHookSystem
+from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.constants import ADD_OPERATION
@@ -253,7 +254,7 @@ class ReplayInterface(GameInterface):
     def get_hook_system(self) -> ReplayHookSystem:
         return self._hook_system
 
-    def poll_events(self) -> dict[str, list[ReplayHookEvent]]:
+    def poll_events(self) -> dict[ReplayHookTag, list[ReplayHookEvent]]:
         events = self._hook_system.poll_events()
         grouped_events = {}
         for event in events:
@@ -262,19 +263,19 @@ class ReplayInterface(GameInterface):
             grouped_events[event.tag].append(event)
         return grouped_events
 
+    def unregister_all_hooks(self):
+        self._hook_system.unregister_all_hooks()
+
     def register_province_trigger(self, attributes: list[str]):
         path = ["states", "map_state", "map", "locations"]
         self._hook_system.register_event_trigger(
-            tag="province_change",
+            tag=ReplayHookTag.ProvinceChanged,
             path=path,
             attributes=attributes
         )
     def unregister_province_trigger(self):
         path = ["states", "map_state", "map", "locations"]
         self._hook_system.unregister_event_trigger(path)
-
-    def unregister_all_hooks(self):
-        self._hook_system.unregister_all_hooks()
 
     def on_province_attribute_change(self, callback: Callable[[Province, dict], None], attributes: list[str]) -> None:
         """
@@ -294,7 +295,7 @@ class ReplayInterface(GameInterface):
         path_idx = self._replay.storage.path_tree.path_list_to_idx(path)
 
         hook = ReplayHook(
-            tag="province_attribute_change",
+            tag=ReplayHookTag.ProvinceChanged,
             callback=callback,
             change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
             attributes=attributes,
@@ -302,9 +303,42 @@ class ReplayInterface(GameInterface):
         )
         self._hook_system.register_hook(hook)
 
-    def remove_province_attribute_change_hook(self, callback: Callable[[Province, dict], None]) -> None:
+    def remove_province_attribute_change_callback(self, callback: Callable[[Province, dict], None]) -> None:
         """Remove a previously registered province attribute change hook."""
 
         path = ["states", "map_state", "map", "locations"]
         path_idx = self._replay.storage.path_tree.path_list_to_idx(path)
         self._hook_system.unregister_hook(path_idx, callback)
+
+    def register_player_trigger(self, attributes: list[str]):
+        path = ["states", "player_state", "players"]
+        self._hook_system.register_event_trigger(
+            tag=ReplayHookTag.PlayerChanged,
+            path=path,
+            attributes=attributes
+        )
+    def unregister_player_trigger(self):
+        path = ["states", "player_state", "players"]
+        self._hook_system.unregister_event_trigger(path)
+
+    def register_team_trigger(self, attributes: list[str]):
+        path = ["states", "player_state", "teams"]
+        self._hook_system.register_event_trigger(
+            tag=ReplayHookTag.TeamChanged,
+            path=path,
+            attributes=attributes
+        )
+    def unregister_team_trigger(self):
+        path = ["states", "player_state", "teams"]
+        self._hook_system.unregister_event_trigger(path)
+
+    def register_army_trigger(self, attributes: list[str]):
+        path = ["states", "army_state", "armies"]
+        self._hook_system.register_event_trigger(
+            tag=ReplayHookTag.ArmyChanged,
+            path=path,
+            attributes=attributes
+        )
+    def unregister_army_trigger(self):
+        path = ["states", "army_state", "armies"]
+        self._hook_system.unregister_event_trigger(path)
