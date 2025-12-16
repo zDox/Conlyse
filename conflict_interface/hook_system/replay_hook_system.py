@@ -134,6 +134,13 @@ class ReplayHookSystem:
         """Remove a previously registered event trigger."""
 
         path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
+        
+        # Remove tag(s) from the set before unregistering the hook
+        if path_idx in self._hooks:
+            for hook in self._hooks[path_idx]:
+                if hook.callback is None:  # Event triggers have callback=None
+                    self._tags.discard(hook.tag)
+        
         self.unregister_hook(path_idx, None)
 
     def poll_events(self) -> list[ReplayHookEvent]:
