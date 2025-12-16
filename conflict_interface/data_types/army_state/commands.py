@@ -148,7 +148,7 @@ class PatrolCommand(GameObject):
     def is_relocation(self) -> bool:
         return self.patrol_type != PatrolType.guard
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@binary_serializable(SerializationCategory.ENUM)
 class WaitDirection(Enum, metaclass=DefaultEnumMeta):
     UNKNOWN = -1
     WAITING = 0

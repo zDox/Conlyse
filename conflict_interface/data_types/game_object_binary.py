@@ -1,9 +1,9 @@
 from dataclasses import fields
-from dataclasses import is_dataclass
 from datetime import UTC
 from enum import Enum
 from logging import getLogger
 from typing import Any
+import hashlib
 
 import msgspec
 
@@ -18,6 +18,9 @@ class SerializationCategory(Enum):
     TIMEDELTA = 6
     POINT = 7
 
+def stable_type_id(cls):
+    s = f"{cls.__module__}.{cls.__qualname__}".encode()
+    return int.from_bytes(hashlib.sha256(s).digest()[:4], "little")
 
 def binary_serializable(category: SerializationCategory):
     def wrapper(cls):
@@ -32,7 +35,7 @@ def get_mapping(cls):
     elif hasattr(cls, 'MAPPING'):
         return cls.MAPPING
     else:
-        return [f.name for f in fields(cls)]
+        return {f.name: None for f in fields(cls)}
 
 
 class GameObjectSerializer:
@@ -55,19 +58,15 @@ class GameObjectSerializer:
     @classmethod
     def register(cls, obj: type, category: SerializationCategory):
         """Register a type with its category."""
-        type_id = len(cls._ID_FROM_CLASS)
+        type_id = stable_type_id(obj)
 
         cls._CLASS_FROM_ID[type_id] = obj
         cls._ID_FROM_CLASS[obj] = type_id
         cls._CATEGORY[obj] = category
 
-        if is_dataclass(obj):
+        if category == SerializationCategory.DATACLASS:
             mapping = get_mapping(obj)
-            if isinstance(mapping, dict):
-                cls._FIELDS_CACHE[obj] = tuple(mapping.keys())
-            else:
-                cls._FIELDS_CACHE[obj] = tuple(mapping)
-
+            cls._FIELDS_CACHE[obj] = tuple(mapping.keys())
 
 
     def serialize(self, obj: Any) -> bytes:

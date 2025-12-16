@@ -138,7 +138,6 @@ class TimeDeltaSecondsStr(timedelta):
 class TimeDeltaSecondsInt(timedelta):
     pass
 
-@binary_serializable(SerializationCategory.ENUM)
 class DefaultEnumMeta(EnumMeta):
     """
     A Metaclass which makes the first entry of an Enum its
