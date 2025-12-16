@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SUPPORTED_UI_PLUGINS = ("pyqt6",)
+SUPPORTED_UI_PLUGINS = ("pyside6",)
 DEFAULT_UI_PLUGIN = SUPPORTED_UI_PLUGINS[0]
 DEFAULT_OUTPUT_DIR = "build"
 
