@@ -1,0 +1,25 @@
+{
+  "actions": {
+    "reload_styles": "CTRL+SHIFT+R",
+    "open_replay_file_dialog": "CTRL+O",
+    "toggle_theme": "CTRL+SHIFT+T",
+    "toggle_drawer": "CTRL+D",
+
+    "camera_move_up": "W",
+    "camera_move_down": "S",
+    "camera_move_left": "A",
+    "camera_move_right": "D",
+    "camera_zoom_in": "E",
+    "camera_zoom_out": "Q",
+
+    "switch_to_political_map_view": "1",
+    "switch_to_terrain_map_view": "2",
+    "switch_to_resource_map_view": "3",
+
+    "toggle_connections_overlay": "C",
+
+    "toggle_performance_window": "F3",
+
+    "debug_toggle_mouse_click_logging": "F4"
+  }
+}
