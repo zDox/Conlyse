@@ -1,10 +1,10 @@
 # conlyse/pages/replay_list/replay_list_item.py
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout
-from PyQt6.QtWidgets import QVBoxLayout
-from PyQt6.QtWidgets import QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
 
 from conlyse.widgets.mui.chip import CChip
 from conlyse.widgets.mui.label import CLabel

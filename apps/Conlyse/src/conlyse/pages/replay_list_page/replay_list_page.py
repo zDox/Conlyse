@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFileDialog
-from PyQt6.QtWidgets import QHBoxLayout
-from PyQt6.QtWidgets import QLabel
-from PyQt6.QtWidgets import QMessageBox
-from PyQt6.QtWidgets import QVBoxLayout
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFileDialog
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QVBoxLayout
 
 from conlyse.logger import get_logger
 from conlyse.managers.keybinding_manager.key_action import KeyAction

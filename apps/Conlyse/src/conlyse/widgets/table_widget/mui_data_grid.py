@@ -9,8 +9,8 @@ Date: 2025-11-18
 
 from typing import Any, Callable, Dict, List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, Signal as pyqtSignal
+from PySide6.QtWidgets import (
     QComboBox, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
     QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 )

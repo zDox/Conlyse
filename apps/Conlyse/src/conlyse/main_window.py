@@ -1,10 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QEvent
-from PyQt6.QtWidgets import QMainWindow, QStackedWidget, QVBoxLayout, QWidget
-from PyQt6.QtCore import QPoint
-from PyQt6.QtWidgets import QSizePolicy
+from PySide6.QtCore import QEvent
+from PySide6.QtWidgets import QMainWindow, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtCore import QPoint
+from PySide6.QtWidgets import QSizePolicy
 
 from conlyse.constants import APPLICATION_NAME
 from conlyse.widgets.drawer import Drawer

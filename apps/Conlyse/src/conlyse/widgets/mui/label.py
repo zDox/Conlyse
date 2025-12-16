@@ -1,5 +1,5 @@
-from PyQt6.QtCore import QEvent, Qt, pyqtProperty
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget, QSizePolicy
+from PySide6.QtCore import QEvent, Qt, Property as pyqtProperty
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget, QSizePolicy
 import qtawesome as qta
 
 from conlyse.logger import get_logger

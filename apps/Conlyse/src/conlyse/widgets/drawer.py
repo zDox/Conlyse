@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from PyQt6.QtCore import QPoint, QPropertyAnimation, Qt, QTimer, QEvent
-from PyQt6.QtWidgets import QPushButton, QVBoxLayout, QWidget, QSizePolicy
+from PySide6.QtCore import QPoint, QPropertyAnimation, Qt, QTimer, QEvent
+from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget, QSizePolicy
 import traceback
 
 if TYPE_CHECKING:

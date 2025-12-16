@@ -1,16 +1,16 @@
 from typing import List, Optional
 import math
 
-from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtWidgets import QCheckBox
-from PyQt6.QtWidgets import QFrame
-from PyQt6.QtWidgets import QHBoxLayout
-from PyQt6.QtWidgets import QLabel
-from PyQt6.QtWidgets import QPushButton
-from PyQt6.QtWidgets import QScrollArea
-from PyQt6.QtWidgets import QVBoxLayout
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtWidgets import QGridLayout
+from PySide6.QtCore import Signal as pyqtSignal, Qt
+from PySide6.QtWidgets import QCheckBox
+from PySide6.QtWidgets import QFrame
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QScrollArea
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QGridLayout
 
 from conlyse.widgets.mui.button import CButton
 

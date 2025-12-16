@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING
 import time
 
-from PyQt6.QtWidgets import QStackedWidget
+from PySide6.QtWidgets import QStackedWidget
 
 from conlyse.logger import get_logger
 from conlyse.utils.enums import PageType

@@ -1,7 +1,7 @@
-from PyQt6.QtCore import Qt
-from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtGui import QColor, QMouseEvent, QPainter, QWheelEvent
-from PyQt6.QtWidgets import QWidget
+from PySide6.QtCore import Qt
+from PySide6.QtCore import Signal as pyqtSignal
+from PySide6.QtGui import QColor, QMouseEvent, QPainter, QWheelEvent
+from PySide6.QtWidgets import QWidget
 
 
 class SimplePositionSlider(QWidget):

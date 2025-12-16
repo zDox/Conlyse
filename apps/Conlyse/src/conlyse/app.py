@@ -1,7 +1,7 @@
 import sys
 
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
 
 from conlyse.logger import get_logger
 from conlyse.main_window import MainWindow
