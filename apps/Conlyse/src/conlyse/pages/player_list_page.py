@@ -89,12 +89,6 @@ class PlayerListPage(ReplayPage):
 
         header_layout.addStretch()
 
-        # Add button to navigate to map
-        map_button = QPushButton("View Map", self)
-        map_button.setObjectName("view_map_button")
-        map_button.clicked.connect(self._on_view_map_clicked)
-        header_layout.addWidget(map_button)
-
         main_layout.addLayout(header_layout)
 
         # ===== Data Grid =====
@@ -391,7 +385,6 @@ class PlayerListPage(ReplayPage):
         pass
 
 
-
     def clean_up(self):
         """Called when page is closed - cleanup resources."""
         super().clean_up()
@@ -399,45 +392,3 @@ class PlayerListPage(ReplayPage):
         self._players_data = []
 
         # No need to destroy widgets, they will be handled by Qt parent-child relationship
-
-    # ==========================================================================
-    # EVENT HANDLERS
-    # ==========================================================================
-
-    def _on_back_clicked(self):
-        """Handle back button click."""
-        logger.info("Navigating back to replay list")
-        self.app.page_manager.switch_to(PageType.ReplayListPage)
-
-    def _on_view_map_clicked(self):
-        """Handle view map button click."""
-        if not self.ritf:
-            return
-        
-        logger.info("Navigating to map page")
-        replay_path = self.app.replay_manager.active_replay_path
-        self.app.page_manager.switch_to(PageType.MapPage, replay_path=replay_path)
-
-    def _on_export_clicked(self):
-        """Handle export button click."""
-        logger.info("Export player data requested")
-
-        # Get filtered data
-        filtered_data = self.data_grid.get_all_filtered_data()
-
-        if not filtered_data:
-            QMessageBox.information(
-                self,
-                "No Data",
-                "No player data to export."
-            )
-            return
-
-        # TODO: Implement CSV export
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.setWindowTitle("Export")
-        msg.setText(f"Export {len(filtered_data)} players")
-        msg.setInformativeText("CSV export functionality will be implemented here.")
-        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-        msg.exec()
