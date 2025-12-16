@@ -5,7 +5,7 @@ from conflict_interface.data_types.game_object_binary import SerializationCatego
 from conflict_interface.data_types.game_object_binary import binary_serializable
 
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@binary_serializable(SerializationCategory.ENUM)
 class HubGameState(Enum, metaclass=DefaultEnumMeta):
     UNDEFINED = "undefined"
     NONE = "none"
