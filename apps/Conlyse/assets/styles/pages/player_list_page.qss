@@ -1,0 +1,5 @@
+/* --- TimeLineControls Section --- */
+
+TimelineControls {
+    background-color: $bg;
+}

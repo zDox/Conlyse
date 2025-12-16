@@ -1,0 +1,24 @@
+{
+    "ui": {
+        "theme": "DARK"
+    },
+    "graphics": {
+        "resolution": {
+            "width": 1280,
+            "height": 720
+        },
+        "frame_rate_limit": 120,
+        "fullscreen": false,
+        "anti_aliasing": true,
+        "msaa_samples": 4
+    },
+    "file": {
+        "default_open_path": "",
+        "replay_file_extension": ".bin"
+    },
+    "debug": {
+        "time": false,
+        "verbose": false,
+        "style_sheet_hot_loading": false
+    }
+}
