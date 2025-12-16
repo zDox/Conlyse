@@ -9,6 +9,8 @@ from conflict_interface.data_types.common.enums.region_type import RegionType
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import HashSet
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.data_types.map_state.region import Region
 from conflict_interface.data_types.map_state.sea_province import SeaProvince
@@ -17,6 +19,7 @@ from conflict_interface.data_types.static_map_data import StaticMapData
 
 ProvinceType = Union[Province, SeaProvince]
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class Map(GameObject):
     """

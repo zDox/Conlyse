@@ -7,9 +7,11 @@ from conflict_interface.data_types.custom_types import DateTimeSecondsInt
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.mod_state.premium import Premium
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class PremiumOffer(GameObject):
     C = "po"

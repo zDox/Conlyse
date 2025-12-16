@@ -1,6 +1,10 @@
 from enum import Enum
 
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 
+
+@binary_serializable(SerializationCategory.ENUM)
 class ArmyActionResult(Enum):
     """
     Represents potential outcomes or results of an action performed by an army.

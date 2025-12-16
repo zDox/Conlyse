@@ -33,9 +33,12 @@ from conflict_interface.data_types.mod_state.configuration import TokenFeature
 from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
 from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 
 logger = get_logger()
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class Battle(GameObject):
     C = "ultshared.warfare.UltBattle"
@@ -47,7 +50,7 @@ class Battle(GameObject):
 
 DEFAULT_ARMY_ANGLE = 2.199114857512855
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class Army(GameObject):
     """

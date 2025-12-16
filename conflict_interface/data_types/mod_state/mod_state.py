@@ -9,6 +9,8 @@ from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import HashSet
 from conflict_interface.data_types.custom_types import TreeMap
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.map_state.map_state_enums import SeaType
 from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
 from conflict_interface.data_types.map_state.province_state import ProvinceState
@@ -52,7 +54,7 @@ from conflict_interface.data_types.state import universal_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ModState(State):
     C = "ultshared.UltMod"

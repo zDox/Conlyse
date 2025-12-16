@@ -2,9 +2,12 @@ from dataclasses import dataclass
 from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import DateTimeSecondsInt
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class GameLogin:
     achievement_title_id: int
@@ -33,7 +36,7 @@ class GameLogin:
             cls._type_hints = get_type_hints(cls)
         return cls._type_hints
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class HubGameProperties:
     game_id: int
@@ -146,6 +149,7 @@ class HubGameProperties:
             cls._type_hints = get_type_hints(cls)
         return cls._type_hints
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class HubGame:
     C = "hup.model.games.Game"

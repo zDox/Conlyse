@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
+
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.resource_state.order_action_result import OrderActionResult
 
 from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
@@ -20,7 +23,7 @@ from conflict_interface.replay.replay_patch import PathNode
 
 logger = get_logger()
 
-
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ResourceState(State):
     C = "ultshared.UltResourceState"

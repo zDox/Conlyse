@@ -1,9 +1,11 @@
 from enum import Enum
 
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
 
-
+@binary_serializable(SerializationCategory.ENUM)
 class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
     """
     Enumeration for representing different types of administrative areas.
@@ -23,7 +25,7 @@ class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
     MAINLAND_CITY = 55
     MAX = 99
 
-
+@binary_serializable(SerializationCategory.ENUM)
 class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
     NONE = ResourceType.NONE.value + 1
     SUPPLY = ResourceType.SUPPLY.value + 1
@@ -40,11 +42,11 @@ class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
     CITY_CLAIM = ResourceType.CITY_CLAIM.value + 1
     PHARMACEUTICAL = ResourceType.PHARMACEUTICAL.value + 1
 
-
+@binary_serializable(SerializationCategory.ENUM)
 class RevoltSuppressionProperty(Enum):
     DEFENSE = "DEFENSE"
 
-
+@binary_serializable(SerializationCategory.ENUM)
 class ImpactType(Enum, metaclass=DefaultEnumMeta):
     NORMAL = 0
     DAMAGE_AIR = 1
@@ -52,13 +54,13 @@ class ImpactType(Enum, metaclass=DefaultEnumMeta):
     BUILDING = 3
     ATOMIC = 4
 
-
+@binary_serializable(SerializationCategory.ENUM)
 class SeaType(Enum):
     HIGH_SEA = "HIGHSEA"
     COASTAL = "COASTAL"
     RIVER = "RIVER"
 
-
+@binary_serializable(SerializationCategory.ENUM)
 class TerrainType(Enum, metaclass=DefaultEnumMeta):
     """
     The type of terrain a province is.
@@ -77,7 +79,7 @@ class TerrainType(Enum, metaclass=DefaultEnumMeta):
     COASTAL = 20
     SUBURBAN = 21
 
-
+@binary_serializable(SerializationCategory.ENUM)
 class TerrainTypeStr(Enum, metaclass=DefaultEnumMeta):
     """
     The type of terrain a province is.

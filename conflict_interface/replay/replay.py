@@ -52,8 +52,6 @@ class Replay:
         self._game: ReplayInterface | None = None
         self._max_patches = max_patches
 
-        GameObjectSerializer.preload()
-
     def set_game(self, game: ReplayInterface):
         self._game = game
 

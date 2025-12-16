@@ -26,6 +26,7 @@ GameEventType = Union[
         CoalitionMessageEvent, MissionEvent
     ]
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class GameEventState(State):
     C = "ultshared.gameevents.UltGameEventState"

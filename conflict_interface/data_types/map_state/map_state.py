@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.map_state.map import Map
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
@@ -11,6 +13,7 @@ from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import PathNode
 
 
+@binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class MapState(State):
     """
