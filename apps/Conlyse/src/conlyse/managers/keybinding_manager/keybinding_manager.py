@@ -4,8 +4,8 @@ from typing import Any
 from typing import Callable
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeyCombination, QKeySequence, QShortcut
+from PySide6.QtCore import Qt, QKeyCombination
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QWidget
 
 from conlyse.logger import get_logger

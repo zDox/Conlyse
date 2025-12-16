@@ -4,6 +4,7 @@ from OpenGL import GL as gl
 from PySide6.QtCore import QSize
 from PySide6.QtCore import Qt
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
+from PySide6.QtWidgets import QSizePolicy
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.interface.replay_interface import ReplayInterface
 
@@ -19,6 +20,7 @@ logger = get_logger()
 class Map(QOpenGLWidget):
     def __init__(self, ritf: ReplayInterface, main_config, parent=None):
         super().__init__(parent=parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.ritf = ritf
 
         # Determine if the map is wraps around
@@ -41,6 +43,9 @@ class Map(QOpenGLWidget):
 
         self.active_map_view = MapViewType.POLITICAL
         self.render_connections = True
+
+        # Track if we should skip paint events (to avoid double rendering)
+        self._manual_render_mode = False
         
         # Performance tracking
         self.performance_metrics = {
@@ -64,7 +69,8 @@ class Map(QOpenGLWidget):
 
     # Ignore Qt paint events
     def paintEvent(self, event):
-        pass
+        if not self._manual_render_mode:
+            super().paintEvent(event)
 
     def set_active_map_view(self, map_view: MapViewType):
         """
@@ -125,23 +131,26 @@ class Map(QOpenGLWidget):
             h: New height in pixels
         """
         gl.glViewport(0, 0, w, h)
+        self.render_frame()
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(200, 200)
 
     def render_frame(self):
         # Render manually
+        self._manual_render_mode = True
         self.makeCurrent()
         self.paintGL()
         self.doneCurrent()
 
         # Blit to widget once
         self.update()
+        self._manual_render_mode = False
 
     def apply_hook_events(self, events: dict[str, list[ReplayHookEvent]]):
         if "province_change" in events:
             self.province_fill_renderer.handle_province_change_events(events["province_change"])
 
-
-    def sizeHint(self):
-        return QSize(800, 600)
     
     def get_performance_metrics(self):
         """

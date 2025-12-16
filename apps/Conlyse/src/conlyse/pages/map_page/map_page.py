@@ -66,10 +66,11 @@ class MapPage(Page):
         # TODO: Fix resizing issue when creating the Map widget
         #
         old_size = app.main_window.size()
+        print("Old size:", old_size.width(), old_size.height())
         self.map_widget = Map(self.ritf, self.app.config_manager.main, self)
-        self.map_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         app.main_window.resize(old_size.width(), old_size.height())
-        
+
+        print(f"Map widget size after creation: {self.map_widget.width()}x{self.map_widget.height()}")
         # Performance tracking
         self.last_frame_time = time.perf_counter()
         self.frame_count = 0
@@ -194,6 +195,8 @@ class MapPage(Page):
             self.timeline_button.deleteLater()
             self.timeline_button = None
         self.app.main_window.header.set_actions([])
+
+        self.ritf.unregister_province_trigger()
 
     def _setup_timeline_button(self) -> None:
         """Create and attach the header button that toggles the timeline panel."""
