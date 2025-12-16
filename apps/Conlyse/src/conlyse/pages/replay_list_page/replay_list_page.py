@@ -1,7 +1,4 @@
 # conlyse/pages/replay_list_page.py
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFileDialog
@@ -10,15 +7,13 @@ from PySide6.QtWidgets import QLabel
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtWidgets import QVBoxLayout
 
+from conlyse.constants import START_REPLAY_PAGE
 from conlyse.logger import get_logger
 from conlyse.managers.keybinding_manager.key_action import KeyAction
 from conlyse.pages.page import Page
 from conlyse.pages.replay_list_page.replay_details_panel import ReplayDetailsPanel
 from conlyse.pages.replay_list_page.replay_list_panel import ReplayListPanel
 from conlyse.utils.enums import PageType
-
-if TYPE_CHECKING:
-    from conlyse.app import App
 
 logger = get_logger()
 
@@ -29,9 +24,8 @@ class ReplayListPage(Page):
     HEADER = False
 
     def __init__(self, app, parent=None):
-        super().__init__(parent)
+        super().__init__(app, parent)
 
-        self.app: App = app
         self.selected_replay = None
         self.selected_filepath: str | None = None
 
@@ -168,7 +162,7 @@ class ReplayListPage(Page):
 
         self.app.page_manager.switch_to(
             PageType.ReplayLoadPage,
-            next_page=PageType.MapPage,
+            next_page=START_REPLAY_PAGE,
             replay_path=self.selected_filepath
         )
 

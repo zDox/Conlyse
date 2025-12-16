@@ -1,0 +1,10 @@
+MapPage {
+    background-color: $bg_dark;
+}
+
+/* --- TimeLineControls Section --- */
+
+TimelineControls {
+    background-color: rgba(30, 30, 30, 240);
+}
+

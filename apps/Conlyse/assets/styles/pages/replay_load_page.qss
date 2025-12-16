@@ -1,0 +1,67 @@
+
+/* --- QSpinBox / QDoubleSpinBox --- */
+
+QSpinBox, QDoubleSpinBox {
+    background-color: $input_bg;
+    color: $input_text;
+    border: 1px solid $input_border;
+    border-radius: 4px;
+    padding: 6px 10px;
+    min-height: 32px;
+}
+
+QSpinBox:hover, QDoubleSpinBox:hover {
+    border-color: $input_border_hover;
+}
+
+QSpinBox:focus, QDoubleSpinBox:focus {
+    border-color: $input_border_focus;
+}
+
+QSpinBox:disabled, QDoubleSpinBox:disabled {
+    background-color: $disabled_bg;
+    color: $disabled_text;
+    border-color: $disabled_border;
+}
+
+QSpinBox::up-button, QDoubleSpinBox::up-button {
+    background-color: $secondary_button_bg;
+    border: none;
+    border-top-right-radius: 4px;
+    width: 20px;
+    subcontrol-origin: border;
+    subcontrol-position: right top;
+}
+
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover {
+    background-color: $secondary_button_hover;
+}
+
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    background-color: $secondary_button_bg;
+    border: none;
+    border-bottom-right-radius: 4px;
+    width: 20px;
+    subcontrol-origin: border;
+    subcontrol-position: right bottom;
+}
+
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
+    background-color: $secondary_button_hover;
+}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid $text_color;
+}
+
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid $text_color;
+}

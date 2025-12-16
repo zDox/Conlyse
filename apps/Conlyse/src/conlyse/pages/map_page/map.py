@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QSizePolicy
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
+from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger
@@ -156,9 +157,9 @@ class Map(QOpenGLWidget):
         self.update()
         self._manual_render_mode = False
 
-    def apply_hook_events(self, events: dict[str, list[ReplayHookEvent]]):
-        if "province_change" in events:
-            self.province_fill_renderer.handle_province_change_events(events["province_change"])
+    def apply_hook_events(self, events: dict[ReplayHookTag, list[ReplayHookEvent]]):
+        if ReplayHookTag.ProvinceChanged in events:
+            self.province_fill_renderer.handle_province_change_events(events[ReplayHookTag.ProvinceChanged])
 
     def cleanup(self):
         """Clean up OpenGL resources."""
