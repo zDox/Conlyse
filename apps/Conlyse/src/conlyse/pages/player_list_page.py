@@ -411,7 +411,8 @@ class PlayerListPage(ReplayPage):
                 # Get the row index for this player
                 row_idx = self._player_id_to_index.get(player.player_id)
                 if row_idx is None:
-                    # Player not in our data (shouldn't happen, but handle gracefully)
+                    # Player not in our data - log for debugging
+                    logger.warning(f"Player {player.player_id} not found in index mapping during replay jump")
                     continue
                 
                 # Get current data
@@ -436,11 +437,12 @@ class PlayerListPage(ReplayPage):
                     "VictoryPoints": player.victory_points,
                 }
                 
-                # Check if any data has actually changed
-                has_changed = any(
-                    current_data.get(key) != value 
-                    for key, value in updated_data.items()
-                )
+                # Check if any data has actually changed (short-circuit on first difference)
+                has_changed = False
+                for key, value in updated_data.items():
+                    if current_data.get(key) != value:
+                        has_changed = True
+                        break
                 
                 if has_changed:
                     # Add to batch updates

@@ -217,6 +217,11 @@ class MUIDataGrid(QWidget):
         Args:
             row_index: The index of the row in all_data to update
             new_data: Dictionary containing the new data for the row
+        
+        Note:
+            - Silently ignores invalid row_index values (out of bounds)
+            - Re-applies all filters after update, which may affect performance
+            - The updated row may be filtered out if it no longer matches active filters
         """
         if 0 <= row_index < len(self.data_manager.all_data):
             # Update the data in all_data
@@ -233,6 +238,11 @@ class MUIDataGrid(QWidget):
         
         Args:
             updates: List of tuples (row_index, new_data)
+        
+        Note:
+            - Invalid row indices are silently ignored
+            - Filters are re-applied once after all updates for efficiency
+            - Updated rows may be filtered out if they no longer match active filters
         """
         # Apply all updates to all_data
         for row_index, new_data in updates:
