@@ -42,7 +42,7 @@ def get_test_game_id(interface: HubInterface) -> int:
 
     return my_games[0].game_id
 
-def compare_dicts(default, changed, max_depth=10):
+def compare_dicts(default, changed, max_depth=100):
     """
     Compares two dictionaries, returning True if they match within constraints
     :param default: The default dictionary

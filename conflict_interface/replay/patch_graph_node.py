@@ -12,8 +12,9 @@ from conflict_interface.utils.binary import BinaryReader
 from conflict_interface.utils.binary import BinaryWriter
 from conflict_interface.utils.helper import is_primitive
 
-
 class PatchGraphNode:
+
+
     def __init__(self, from_timestamp: int, to_timestamp: int, op_types: list[int], paths: list[int], values: list[Any], cost = None):
         self.from_timestamp = from_timestamp # Seconds since epoch
         self.to_timestamp = to_timestamp # Seconds since epoch
@@ -68,6 +69,7 @@ class PatchGraphNode:
         writer.write_bytes(primitive_blob)
 
         complex_blob = serializer.serialize(complexes)
+
         writer.write_uint32(len(complex_blob))
         writer.write_bytes(complex_blob)
         return writer.getbuffer()

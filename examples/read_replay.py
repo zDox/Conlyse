@@ -18,7 +18,7 @@ if __name__ == "__main__":
     t2 = perf_counter()
     # Test Operations --------------------------------
     for i in range(100):
-        for i in range(1000):
+        for j in range(1000):
             ritf.jump_to_next_patch()
         ritf.jump_to(ritf.start_time)
     # End --------------------------------------------

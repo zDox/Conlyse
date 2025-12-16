@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pickle
 import struct
 from array import array
 from logging import getLogger
@@ -362,8 +363,7 @@ class ReplayStorage:
         if self._last_game_state_b is None:
             raise ValueError("Last game state is not recorded in the replay.")
 
-        self.last_game_state = self.serializer.deserialize(self._last_game_state_b)
-        self.last_game_state = cast(GameState, self.last_game_state)
+        self.last_game_state = pickle.loads(self._last_game_state_b)
         return self.last_game_state
 
     def load_static_map_data(self, game: ReplayInterface | None) -> StaticMapData:
@@ -502,7 +502,7 @@ class ReplayStorage:
         """Serializes the last game state using pickle."""
         assert self.last_game_state is not None, "No GameState provided."
         assert self.last_game_state.game is None, "Last game state has game set"
-        self._last_game_state_b = self.serializer.serialize(self.last_game_state)
+        self._last_game_state_b = pickle.dumps(self.last_game_state)
 
     def unload_static_map_data(self, static_map_data: StaticMapData):
         """
