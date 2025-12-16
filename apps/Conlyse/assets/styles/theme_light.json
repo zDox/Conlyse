@@ -1,0 +1,44 @@
+{
+  "H1": "32px",
+  "H2": "24px",
+  "H3": "20px",
+  "H4": "16px",
+  "H5": "14px",
+  "H6": "12px",
+  "body": "14px",
+
+
+  "bg_dark": "#E0F9FF",
+  "bg": "#F0FAFF",
+  "bg_light": "#FCFFFF",
+
+  "text": "#0A0A0A",
+  "text_muted": "#041D2F",
+  "text_disabled": "#2e404d",
+
+  "highlight": "#F3FFFF",
+
+  "border": "#1A97A7",
+  "border_muted": "#2CA4B0",
+  "border_disabled": "#A3D5DD",
+
+  "primary": "#194B70",
+  "primary_dark": "#062F4D",
+  "primary_darker": "#031826",
+  "secondary": "#702D08",
+  "secondary_dark": "#4A1E05",
+  "secondary_darker": "#331302",
+
+  "error": "#D36D5B",
+  "error_dark": "#A94433",
+  "error_darker": "#7A331F",
+  "warning": "#BF9A6A",
+  "warning_dark": "#8C6F47",
+  "warning_darker": "#5E4B2E",
+  "success": "#71B48C",
+  "success_dark": "#4A7C58",
+  "success_darker": "#315032",
+  "info": "#658ED1",
+  "info_dark": "#3A5EA8",
+  "info_darker": "#243B6E"
+}

@@ -1,11 +1,9 @@
 /.idea
 /__pycache__
 /src/conlyse/pages/__pycache__
-/assets
 /src/conlyse/__pycache__
 /src/conlyse/managers/__pycache__
 /src/conlyse/utils/__pycache__
-config.json
 /src/conlyse/managers/events/__pycache__
 *.pyc
 /tests/test_data/

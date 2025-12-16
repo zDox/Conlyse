@@ -1,0 +1,138 @@
+/* ============================================================================
+   Replay List Page Styles
+   Page-specific styles for the replay list and details view
+   ============================================================================ */
+
+/* --- Page Container --- */
+
+ReplayListPage {
+    background-color: $bg_dark;
+}
+
+/* --- Header Section --- */
+
+QLabel#replay_list_page_header {
+    font-size: $H2;
+    font-weight: bold;
+    color: $text;
+    padding: 0;
+    margin: 0;
+}
+
+
+/* --- List Card --- */
+
+ReplayListPanel {
+    background-color: $bg;
+    border: 1px solid $border_muted;
+    border-radius: 8px;
+}
+
+QLabel#replay_list_card_title {
+    font-size: $H4;
+    font-weight: 600;
+    color: $text;
+}
+
+QLabel#replay_list_badge {
+    background-color: $bg_light;
+    color: $text;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: $body;
+    font-weight: 500;
+}
+
+/* --- Replay List Widget --- */
+
+QListWidget#replay_list_widget {
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+
+
+/* --- Replay List Item --- */
+QListWidget#replay_list_widget::item {
+    background-color: $bg;
+    border-radius: 6px;
+    padding: 0;
+    margin-bottom: 8px;
+    border: 1px solid $border_muted;
+}
+
+QListWidget#replay_list_widget::item:selected {
+    background-color: $bg_light;
+}
+
+QListWidget#replay_list_widget::item:hover {
+    border: 1px solid $primary;
+}
+
+
+CLabel#replay_list_item_title QLabel#text_label  {
+    font-size: $H4;
+    color: $text;
+}
+
+
+CLabel#replay_list_item_mode QLabel#text_label {
+    font-size: $body;
+    color: $text_muted;
+}
+
+
+
+/* --- Details Card --- */
+
+ReplayDetailsPanel {
+    background-color: $bg;
+    border: 1px solid $border_muted;
+    border-radius: 8px;
+}
+
+QLabel#replay_details_card_title {
+    font-size: $H4;
+    font-weight: 600;
+    color: $text;
+}
+
+/* --- Details Sections --- */
+
+QLabel#replay_details_section_title {
+    font-size: $body;
+    font-weight: 600;
+    color: $text;
+}
+
+QLabel#replay_details_section_subtitle {
+    font-size: $body;
+    color: $text_muted;
+}
+
+/* --- Info Fields --- */
+
+QLabel#replay_details_field_value {
+    font-size: $body;
+    color: $text_muted;
+
+}
+
+/* --- File Path --- */
+
+QLabel#replay_details_path {
+    background-color: $bg_light;
+    color: $text;
+    font-size: $body;
+    border: 1px solid $border_muted;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+/* --- Empty State --- */
+
+QLabel#replay_details_empty {
+    font-size: $body;
+    color: $text_muted;
+    padding: 40px;
+}

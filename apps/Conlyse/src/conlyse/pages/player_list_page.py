@@ -8,35 +8,67 @@ Author: NikNam3
 Date: 2025-11-18
 """
 
-from __future__ import annotations
+from typing import Optional
 
-from typing import TYPE_CHECKING, Optional
-
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget, QMessageBox
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
+from conflict_interface.data_types.player_state.player_profile import PlayerProfile
+from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 
 from conlyse.logger import get_logger
-from conlyse.pages.page import Page
-from conlyse.utils.enums import PageType
+from conlyse.pages.replay_page import ReplayPage
 from conlyse.widgets.table_widget.mui_data_grid import MUIDataGrid
-
-if TYPE_CHECKING:
-    from conlyse.app import App
-    from conlyse.managers.replay_manager import ReplayInterface
 
 logger = get_logger()
 
 
-class PlayerListPage(Page):
+class PlayerListPage(ReplayPage):
     """Page displaying list of players from a replay with detailed information."""
-
     HEADER = True
 
-    def __init__(self, app, parent=None):
-        super().__init__(parent)
+    # Mapping between display column names and PlayerProfile attribute names
+    # Format: "DisplayName": "attribute_name"
+    # Special cases: "TeamName", "CapitalName", "NationName" are computed fields
+    COLUMN_MAPPING = {
+        "PlayerID": "player_id",
+        "TeamName": None,  # Computed from team_id
+        "Name": "name",
+        "CapitalName": None,  # Computed from capital_id
+        "NationName": "nation_name",
+        "ComputerPlayer": "computer_player",
+        "NativeComputer": "native_computer",
+        "UserName": "user_name",
+        "Defeated": "defeated",
+        "Retired": "retired",
+        "Playing": "playing",
+        "Taken": "taken",
+        "Faction": "faction",
+        "Available": "available",
+        "PremiumUser": "premium_user",
+        "AccumulatedVictoryPoints": "accumulated_victory_points",
+        "DailyVictoryPoints": "daily_victory_points",
+        "TerroristCountry": "terrorist_country",
+        "Banned": "banned",
+        "VictoryPoints": "victory_points",
+    }
 
-        self.app: App = app
-        self.replay_interface: Optional[ReplayInterface] = None
+    # Column types for renderer assignment
+    BOOLEAN_COLUMNS = [
+        "ComputerPlayer", "NativeComputer", "Defeated", "Retired",
+        "Playing", "Taken", "Available", "TerroristCountry", "Banned"
+    ]
+    OPTIONAL_BOOLEAN_COLUMNS = ["PremiumUser"]
+    FACTION_COLUMNS = ["Faction"]
+    VICTORY_POINTS_COLUMNS = ["AccumulatedVictoryPoints", "DailyVictoryPoints", "VictoryPoints"]
+    OPTIONAL_STRING_COLUMNS = ["UserName"]
+
+    def __init__(self, app, parent=None):
+        super().__init__(app, parent)
 
         # Data grid and components
         self.data_grid: Optional[MUIDataGrid] = None
@@ -47,19 +79,16 @@ class PlayerListPage(Page):
         # Track if UI has been set up
         self._ui_initialized = False
 
-        # Player data cache
+        # Player data cache and mapping
         self._players_data = []
+        # Map player_id to index in _players_data for O(1) lookups
+        self._player_id_to_index = {}
 
     def setup(self, context):
         """
         Called when page is opened - initialize with replay data.
         """
-        self.replay_interface = self.app.replay_manager.get_active_replay()
-
-        if not self.replay_interface:
-            logger.error("No active replay found in Replay Manager")
-            self.app.page_manager.switch_to(PageType.ReplayListPage, error_message="No active replay loaded.")
-            return
+        super().setup(context)
 
         # Initialize UI if first time
         if not self._ui_initialized:
@@ -68,6 +97,13 @@ class PlayerListPage(Page):
 
         # Load player data
         self._load_player_data()
+
+        # Register triggers for all PlayerProfile attributes (excluding computed fields)
+        trigger_attributes = [
+            attr_name for attr_name in self.COLUMN_MAPPING.values()
+            if attr_name is not None
+        ]
+        self.ritf.register_player_trigger(trigger_attributes)
 
         logger.info(f"PlayerListPage setup complete with {len(self._players_data)} players")
 
@@ -91,12 +127,6 @@ class PlayerListPage(Page):
         header_layout.addWidget(self.info_label)
 
         header_layout.addStretch()
-
-        # Add button to navigate to map
-        map_button = QPushButton("View Map", self)
-        map_button.setObjectName("view_map_button")
-        map_button.clicked.connect(self._on_view_map_clicked)
-        header_layout.addWidget(map_button)
 
         main_layout.addLayout(header_layout)
 
@@ -183,29 +213,23 @@ class PlayerListPage(Page):
 
         # ===== Register Renderers =====
         # Boolean columns
-        self.data_grid.set_cell_renderer("ComputerPlayer", render_boolean)
-        self.data_grid.set_cell_renderer("NativeComputer", render_boolean)
-        self.data_grid.set_cell_renderer("Defeated", render_boolean)
-        self.data_grid.set_cell_renderer("Retired", render_boolean)
-        self.data_grid.set_cell_renderer("Playing", render_boolean)
-        self.data_grid.set_cell_renderer("Taken", render_boolean)
-        self.data_grid.set_cell_renderer("Available", render_boolean)
-        self.data_grid.set_cell_renderer("TerroristCountry", render_boolean)
-        self.data_grid.set_cell_renderer("Banned", render_boolean)
+        for col in self.BOOLEAN_COLUMNS:
+            self.data_grid.set_cell_renderer(col, render_boolean)
 
         # Optional boolean columns
-        self.data_grid.set_cell_renderer("PremiumUser", render_optional_boolean)
+        for col in self.OPTIONAL_BOOLEAN_COLUMNS:
+            self.data_grid.set_cell_renderer(col, render_optional_boolean)
 
         # Faction column
         self.data_grid.set_cell_renderer("Faction", render_faction)
 
         # Victory points columns
-        self.data_grid.set_cell_renderer("AccumulatedVictoryPoints", render_victory_points)
-        self.data_grid.set_cell_renderer("DailyVictoryPoints", render_victory_points)
-        self.data_grid.set_cell_renderer("VictoryPoints", render_victory_points)
+        for col in self.VICTORY_POINTS_COLUMNS:
+            self.data_grid.set_cell_renderer(col, render_victory_points)
 
         # Optional string columns
-        self.data_grid.set_cell_renderer("UserName", render_optional_string)
+        for col in self.OPTIONAL_STRING_COLUMNS:
+            self.data_grid.set_cell_renderer(col, render_optional_string)
 
     def _setup_extractors(self):
         """Set up filter and search value extractors."""
@@ -239,122 +263,80 @@ class PlayerListPage(Page):
 
         # ===== Register Filter Extractors =====
         # Boolean columns
-        self.data_grid.set_filter_value_extractor("ComputerPlayer", extract_boolean)
-        self.data_grid.set_filter_value_extractor("NativeComputer", extract_boolean)
-        self.data_grid.set_filter_value_extractor("Defeated", extract_boolean)
-        self.data_grid.set_filter_value_extractor("Retired", extract_boolean)
-        self.data_grid.set_filter_value_extractor("Playing", extract_boolean)
-        self.data_grid.set_filter_value_extractor("Taken", extract_boolean)
-        self.data_grid.set_filter_value_extractor("Available", extract_boolean)
-        self.data_grid.set_filter_value_extractor("TerroristCountry", extract_boolean)
-        self.data_grid.set_filter_value_extractor("Banned", extract_boolean)
+        for col in self.BOOLEAN_COLUMNS:
+            self.data_grid.set_filter_value_extractor(col, extract_boolean)
 
         # Optional boolean
-        self.data_grid.set_filter_value_extractor("PremiumUser", extract_optional_boolean)
+        for col in self.OPTIONAL_BOOLEAN_COLUMNS:
+            self.data_grid.set_filter_value_extractor(col, extract_optional_boolean)
 
         # Faction
         self.data_grid.set_filter_value_extractor("Faction", extract_faction)
 
         # Victory points
-        self.data_grid.set_filter_value_extractor("AccumulatedVictoryPoints", extract_victory_points)
-        self.data_grid.set_filter_value_extractor("DailyVictoryPoints", extract_victory_points)
-        self.data_grid.set_filter_value_extractor("VictoryPoints", extract_victory_points)
+        for col in self.VICTORY_POINTS_COLUMNS:
+            self.data_grid.set_filter_value_extractor(col, extract_victory_points)
 
         # Optional string
-        self.data_grid.set_filter_value_extractor("UserName", extract_optional_string)
+        for col in self.OPTIONAL_STRING_COLUMNS:
+            self.data_grid.set_filter_value_extractor(col, extract_optional_string)
 
         # ===== Register Search Extractors =====
         # Boolean columns
-        self.data_grid.set_search_value_extractor("ComputerPlayer", extract_boolean)
-        self.data_grid.set_search_value_extractor("NativeComputer", extract_boolean)
-        self.data_grid.set_search_value_extractor("Defeated", extract_boolean)
-        self.data_grid.set_search_value_extractor("Retired", extract_boolean)
-        self.data_grid.set_search_value_extractor("Playing", extract_boolean)
-        self.data_grid.set_search_value_extractor("Taken", extract_boolean)
-        self.data_grid.set_search_value_extractor("Available", extract_boolean)
-        self.data_grid.set_search_value_extractor("TerroristCountry", extract_boolean)
-        self.data_grid.set_search_value_extractor("Banned", extract_boolean)
+        for col in self.BOOLEAN_COLUMNS:
+            self.data_grid.set_search_value_extractor(col, extract_boolean)
 
         # Optional boolean
-        self.data_grid.set_search_value_extractor("PremiumUser", extract_optional_boolean)
+        for col in self.OPTIONAL_BOOLEAN_COLUMNS:
+            self.data_grid.set_search_value_extractor(col, extract_optional_boolean)
 
         # Faction
         self.data_grid.set_search_value_extractor("Faction", extract_faction)
 
         # Victory points
-        self.data_grid.set_search_value_extractor("AccumulatedVictoryPoints", search_victory_points)
-        self.data_grid.set_search_value_extractor("DailyVictoryPoints", search_victory_points)
-        self.data_grid.set_search_value_extractor("VictoryPoints", search_victory_points)
+        for col in self.VICTORY_POINTS_COLUMNS:
+            self.data_grid.set_search_value_extractor(col, search_victory_points)
 
         # Optional string
-        self.data_grid.set_search_value_extractor("UserName", extract_optional_string)
+        for col in self.OPTIONAL_STRING_COLUMNS:
+            self.data_grid.set_search_value_extractor(col, extract_optional_string)
 
     def _load_player_data(self):
         """Load player data from replay interface into grid format."""
-        if not self.replay_interface:
+        if not self.ritf:
             return
 
         try:
             # Get players from replay interface
-            players = self.replay_interface.get_players().values()  # Adjust method name as needed
+            players = self.ritf.get_players().values()
 
             # Convert PlayerProfile objects to dictionaries
             self._players_data = []
+            self._player_id_to_index = {}
 
-            for player in players:
-                team = self.replay_interface.get_team(player.team_id)
-                capital = self.replay_interface.get_province(player.capital_id)
-                team_name = team.name if team else "N/A"
-                capital_name = capital.name if capital else "N/A"
-                player_dict = {
-                    # All attributes as separate columns
-                    "PlayerID": player.player_id,
-                    "TeamName": team_name,
-                    "Name": player.name,
-                    "CapitalName": capital_name,
-                    "NationName": player.nation_name,
-                    "ComputerPlayer": player.computer_player,
-                    "NativeComputer": player.native_computer,
-                    "UserName": player.user_name,
-                    "Defeated": player.defeated,
-                    "Retired": player.retired,
-                    "Playing": player.playing,
-                    "Taken": player.taken,
-                    "Faction": player.faction,
-                    "Available": player.available,
-                    "PremiumUser": player.premium_user,
-                    "AccumulatedVictoryPoints": player.accumulated_victory_points,
-                    "DailyVictoryPoints": player.daily_victory_points,
-                    "TerroristCountry": player.terrorist_country,
-                    "Banned": player.banned,
-                    "VictoryPoints": player.victory_points,
-                }
+            for idx, player in enumerate(players):
+                player_dict = {}
+
+                # Iterate through column mapping to build player dict
+                for display_name, attr_name in self.COLUMN_MAPPING.items():
+                    if attr_name is None:
+                        # Handle computed fields
+                        if display_name == "TeamName":
+                            team = self.ritf.get_team(player.team_id)
+                            player_dict[display_name] = team.name if team else "N/A"
+                        elif display_name == "CapitalName":
+                            capital = self.ritf.get_province(player.capital_id)
+                            player_dict[display_name] = capital.name if capital else "N/A"
+                    else:
+                        # Get attribute directly from PlayerProfile
+                        player_dict[display_name] = getattr(player, attr_name)
 
                 self._players_data.append(player_dict)
+                # Build mapping for efficient updates
+                self._player_id_to_index[player.player_id] = idx
 
-            # Define all visible columns (one for each attribute)
-            visible_columns = [
-                "PlayerID",
-                "TeamName",
-                "Name",
-                "CapitalName",
-                "NationName",
-                "ComputerPlayer",
-                "NativeComputer",
-                "UserName",
-                "Defeated",
-                "Retired",
-                "Playing",
-                "Taken",
-                "Faction",
-                "Available",
-                "PremiumUser",
-                "AccumulatedVictoryPoints",
-                "DailyVictoryPoints",
-                "TerroristCountry",
-                "Banned",
-                "VictoryPoints",
-            ]
+            # Get visible columns from mapping keys (maintains order)
+            visible_columns = list(self.COLUMN_MAPPING.keys())
 
             # Load into data grid
             self.data_grid.set_data(self._players_data, columns=visible_columns)
@@ -388,54 +370,68 @@ class PlayerListPage(Page):
 
     def page_update(self, delta_time: float):
         """Called every frame - no continuous updates needed for this page."""
-        pass
+        super().page_update(delta_time)
+
+    def _on_replay_jump(self):
+        """
+        Efficiently update player data when replay jumps to a different time.
+        Only updates players that have changed, avoiding full data reload.
+        """
+        if not self.ritf or not self._players_data:
+            return
+
+        events = self.ritf.poll_events()
+        if ReplayHookTag.PlayerChanged not in events:
+            return  # No player changes, skip update
+
+        updates = []
+        for event in events[ReplayHookTag.PlayerChanged]:
+            player: PlayerProfile = event.reference
+
+            # Get the row index for this player
+            row_idx = self._player_id_to_index.get(player.player_id)
+            if row_idx is None:
+                # Player not in our data - log for debugging
+                logger.warning(f"Player {player.player_id} not found in index mapping during replay jump")
+                continue
+
+            # Get current data
+            current_data = self._players_data[row_idx]
+
+            # Build updated data dict using COLUMN_MAPPING
+            updated_data = {}
+            changed_attrs = {key for key, _ in event.attributes.items()}
+
+            for display_name, attr_name in self.COLUMN_MAPPING.items():
+                # Check if this attribute or its dependencies changed
+                if attr_name is None:
+                    # Handle computed fields
+                    if display_name == "TeamName" and "team_id" in changed_attrs:
+                        team = self.ritf.get_team(player.team_id)
+                        updated_data[display_name] = team.name if team else "N/A"
+                    elif display_name == "CapitalName" and "capital_id" in changed_attrs:
+                        capital = self.ritf.get_province(player.capital_id)
+                        updated_data[display_name] = capital.name if capital else "N/A"
+                elif attr_name in changed_attrs:
+                    # Get updated attribute value from PlayerProfile
+                    updated_data[display_name] = getattr(player, attr_name)
+
+            updates.append((row_idx, updated_data))
+            # Update our cache
+            current_data.update(updated_data)
+
+        if not updates:
+            return  # No actual changes detected
+
+        # Apply all updates in a single batch operation
+        self.data_grid.update_rows_batch(updates)
 
     def clean_up(self):
         """Called when page is closed - cleanup resources."""
+        super().clean_up()
         # Clear data
         self._players_data = []
-        self.replay_interface = None
+        self._player_id_to_index = {}
+        self.ritf.unregister_player_trigger()
 
         # No need to destroy widgets, they will be handled by Qt parent-child relationship
-
-    # ==========================================================================
-    # EVENT HANDLERS
-    # ==========================================================================
-
-    def _on_back_clicked(self):
-        """Handle back button click."""
-        logger.info("Navigating back to replay list")
-        self.app.page_manager.switch_to(PageType.ReplayListPage)
-
-    def _on_view_map_clicked(self):
-        """Handle view map button click."""
-        if not self.replay_interface:
-            return
-        
-        logger.info("Navigating to map page")
-        replay_path = self.app.replay_manager.active_replay_path
-        self.app.page_manager.switch_to(PageType.MapPage, replay_path=replay_path)
-
-    def _on_export_clicked(self):
-        """Handle export button click."""
-        logger.info("Export player data requested")
-
-        # Get filtered data
-        filtered_data = self.data_grid.get_all_filtered_data()
-
-        if not filtered_data:
-            QMessageBox.information(
-                self,
-                "No Data",
-                "No player data to export."
-            )
-            return
-
-        # TODO: Implement CSV export
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.setWindowTitle("Export")
-        msg.setText(f"Export {len(filtered_data)} players")
-        msg.setInformativeText("CSV export functionality will be implemented here.")
-        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-        msg.exec()
