@@ -4,11 +4,9 @@ from typing import Any
 from typing import Callable
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QKeyCombination
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QKeySequence
-from PyQt6.QtGui import QShortcut
-from PyQt6.QtWidgets import QWidget
+from PySide6.QtCore import Qt, QKeyCombination
+from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtWidgets import QWidget
 
 from conlyse.logger import get_logger
 from conlyse.managers.keybinding_manager.key_action import KeyAction
@@ -59,7 +57,7 @@ class KeybindingManager:
         if action in self.callbacks:
             if action in self.shortcuts:
                 self.shortcuts[action].deleteLater()
-            shortcut = QShortcut(key_sequence, self.app.main_window)
+            shortcut = QShortcut(QKeySequence(key_sequence.toCombined()), self.app.main_window)
             shortcut.activated.connect(self.callbacks[action])
             self.shortcuts[action] = shortcut
 
@@ -93,7 +91,7 @@ class KeybindingManager:
             key_sequence = self.keybindings[action]
             if widget is None:
                 widget = self.app.main_window
-            shortcut = QShortcut(QKeySequence(key_sequence), widget)
+            shortcut = QShortcut(QKeySequence(key_sequence.toCombined()), widget)
             shortcut.activated.connect(function)
             self.shortcuts[action] = shortcut
 

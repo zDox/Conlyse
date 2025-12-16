@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import QLabel, QVBoxLayout
-from PyQt6.QtWidgets import QMessageBox
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QLabel, QVBoxLayout
+from PySide6.QtWidgets import QMessageBox
 
 from conlyse.logger import get_logger
 from conlyse.managers.events.event import Event

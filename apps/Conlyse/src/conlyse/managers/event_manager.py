@@ -8,7 +8,7 @@ from typing import List
 from typing import TYPE_CHECKING
 from typing import Type
 
-from PyQt6.QtCore import QObject, pyqtSignal, QMetaObject, Qt, Q_ARG
+from PySide6.QtCore import QObject, Signal as pyqtSignal, QMetaObject, Qt, Q_ARG
 
 from conlyse.logger import get_logger
 from conlyse.managers.events.event import Event
