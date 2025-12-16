@@ -4,7 +4,7 @@ import shutil
 
 from tqdm import tqdm
 
-from conflict_interface.data_types.game_object import dump_any
+from conflict_interface.data_types.game_object_json import dump_any
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from tools.recording_converter.recorder_logger import get_logger
 from tools.recording_converter.recording_reader import RecordingReader

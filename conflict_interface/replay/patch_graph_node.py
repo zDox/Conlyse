@@ -6,13 +6,15 @@ import msgpack
 import numpy as np
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.data_types.game_object_binary import GameObjectSerializer
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.utils.binary import BinaryReader
 from conflict_interface.utils.binary import BinaryWriter
 from conflict_interface.utils.helper import is_primitive
 
-
 class PatchGraphNode:
+
+
     def __init__(self, from_timestamp: int, to_timestamp: int, op_types: list[int], paths: list[int], values: list[Any], cost = None):
         self.from_timestamp = from_timestamp # Seconds since epoch
         self.to_timestamp = to_timestamp # Seconds since epoch
@@ -28,7 +30,7 @@ class PatchGraphNode:
         """Compute the cost of this patch node."""
         return len(self.op_types)
 
-    def serialize(self, new_paths: list[tuple[int, int, str]]) -> memoryview:
+    def serialize(self, new_paths: list[tuple[int, int, str]], serializer: GameObjectSerializer) -> memoryview:
         writer = BinaryWriter()
 
         # Header
@@ -66,13 +68,14 @@ class PatchGraphNode:
         writer.write_uint32(len(primitive_blob))
         writer.write_bytes(primitive_blob)
 
-        complex_blob = pickle.dumps(complexes, protocol=pickle.HIGHEST_PROTOCOL)
+        complex_blob = serializer.serialize(complexes)
+
         writer.write_uint32(len(complex_blob))
         writer.write_bytes(complex_blob)
         return writer.getbuffer()
 
     @staticmethod
-    def deserialize(patch_b, game: GameInterface | None) -> tuple['PatchGraphNode', list[tuple[int, int, int |str]]]:
+    def deserialize(patch_b, game: GameInterface | None, serializer: GameObjectSerializer) -> tuple['PatchGraphNode', list[tuple[int, int, int |str]]]:
         reader = BinaryReader(patch_b)
 
         from_ts = reader.read_int64()
@@ -96,7 +99,7 @@ class PatchGraphNode:
         complexes = reader.read_bytes_view(len_complexes)
 
         primitive_values = msgpack.unpackb(primitives, raw=False)
-        complex_values = pickle.loads(complexes)
+        complex_values = serializer.deserialize(complexes)
 
         if game is not None:
             for v in complex_values:

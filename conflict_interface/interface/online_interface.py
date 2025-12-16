@@ -12,7 +12,7 @@ from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from conflict_interface.data_types.game_api_types.login_action import LoginAction
-from conflict_interface.data_types.game_object import parse_any
+from conflict_interface.data_types.game_object_json import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.game_api import GameApi

@@ -12,7 +12,8 @@ from typing import Optional
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.data_types.game_object import dump_any
+from conflict_interface.data_types.game_object_json import dump_any
+
 
 # Mock GameObject classes for testing
 @dataclass

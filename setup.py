@@ -74,7 +74,8 @@ setup(
         "cloudscraper25",
         "msgpack",
         "zstandard",
-        "lz4"
+        "lz4",
+        "msgspec"
     ],
     extras_require=extras_require,
     entry_points={

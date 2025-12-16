@@ -142,9 +142,9 @@ class UpgradeFeature(Enum):
 
 
 class ValueFunction(Enum):
-    VALUE_FUNCTION_LINEAR = 0,
-    VALUE_FUNCTION_SQRT = 1,
-    VALUE_FUNCTION_PANZERWARS = 2,
+    VALUE_FUNCTION_LINEAR = 0
+    VALUE_FUNCTION_SQRT = 1
+    VALUE_FUNCTION_PANZERWARS = 2
     VALUE_FUNCTION_STEP = 3
 from enum import Enum
 

@@ -6,8 +6,8 @@ from conflict_interface.data_types.army_state.army_state import ArmyState
 from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state import ForeignAffairsState
 from conflict_interface.data_types.game_event_state.game_event_state import GameEventState
 from conflict_interface.data_types.game_info_state.game_info_state import GameInfoState
-from conflict_interface.data_types.game_object import dump_any
-from conflict_interface.data_types.game_object import parse_game_object
+from conflict_interface.data_types.game_object_json import dump_any
+from conflict_interface.data_types.game_object_json import parse_game_object
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.map_state.map_state import MapState
 from conflict_interface.data_types.mod_state.mod_state import ModState
