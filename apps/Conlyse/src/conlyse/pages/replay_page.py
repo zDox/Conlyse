@@ -20,8 +20,7 @@ class ReplayPage(Page):
     Handles timeline controls and replay interaction.
     """
     def __init__(self, app, parent=None):
-        super().__init__(parent)
-        self.app = app
+        super().__init__(app, parent)
         self.ritf: ReplayInterface = self.app.replay_manager.get_active_replay()
         self.timeline_controls: TimelineControls | None = None
         self.timeline_button: CButton | None = None
@@ -87,9 +86,7 @@ class ReplayPage(Page):
         if not self.ritf:
             return
         target_time = self.ritf.start_time + timedelta(seconds=current_time)
-        t1 = time.perf_counter()
         self.ritf.jump_to(target_time)
-        t2 = time.perf_counter()
         self._on_replay_jump()
 
     def _position_timeline_overlay(self):

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QLabel, QVBoxLayout
+from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QLabel
 from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QVBoxLayout
 
 from conlyse.logger import get_logger
 from conlyse.managers.events.event import Event
@@ -12,10 +12,6 @@ from conlyse.managers.events.replay_load_complete_event import ReplayOpenComplet
 from conlyse.managers.events.replay_load_failed_event import ReplayOpenFailedEvent
 from conlyse.pages.page import Page
 from conlyse.utils.enums import PageType
-
-
-if TYPE_CHECKING:
-    from conlyse.app import App
 
 logger = get_logger()
 
@@ -26,9 +22,7 @@ class ReplayLoadPage(Page):
     HEADER = False
 
     def __init__(self, app, parent=None):
-        super().__init__(parent)
-
-        self.app: App = app
+        super().__init__(app, parent)
         self.loading_label = None
         self.animation_timer = None
         self.animation_state = 0

@@ -8,11 +8,7 @@ Author: NikNam3
 Date: 2025-11-18
 """
 
-from __future__ import annotations
-
-import time
 from typing import Optional
-from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout
@@ -26,12 +22,7 @@ from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 
 from conlyse.logger import get_logger
 from conlyse.pages.replay_page import ReplayPage
-from conlyse.utils.enums import PageType
 from conlyse.widgets.table_widget.mui_data_grid import MUIDataGrid
-
-if TYPE_CHECKING:
-    from conlyse.app import App
-    from conlyse.managers.replay_manager import ReplayInterface
 
 logger = get_logger()
 
@@ -85,7 +76,6 @@ class PlayerListPage(ReplayPage):
         self.back_button: Optional[QPushButton] = None
         self.export_button: Optional[QPushButton] = None
 
-        self.last_time = 0.0
         # Track if UI has been set up
         self._ui_initialized = False
 
@@ -435,7 +425,6 @@ class PlayerListPage(ReplayPage):
 
         # Apply all updates in a single batch operation
         self.data_grid.update_rows_batch(updates)
-
 
     def clean_up(self):
         """Called when page is closed - cleanup resources."""

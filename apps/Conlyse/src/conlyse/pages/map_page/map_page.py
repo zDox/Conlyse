@@ -3,29 +3,20 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeyEvent, QMouseEvent, QSurfaceFormat, QWheelEvent
-from datetime import timedelta
-
-from PySide6.QtWidgets import QSizePolicy
-from PySide6.QtWidgets import QVBoxLayout, QWidget
-
-
+from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QMouseEvent
+from PySide6.QtGui import QSurfaceFormat
+from PySide6.QtGui import QWheelEvent
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
 
 from conlyse.logger import get_logger
-from conlyse.pages.map_page.constants import (
-    OPENGL_VERSION_MAJOR,
-    OPENGL_VERSION_MINOR,
-
-)
+from conlyse.pages.map_page.constants import OPENGL_VERSION_MAJOR
+from conlyse.pages.map_page.constants import OPENGL_VERSION_MINOR
 from conlyse.pages.map_page.input_controller import InputController
 from conlyse.pages.map_page.map import Map
-from conlyse.pages.page import Page
 from conlyse.pages.replay_page import ReplayPage
-from conlyse.utils.enums import PageType
-from conlyse.widgets.mui.button import CButton
-from conlyse.widgets.timecontrol import TimelineControls
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -65,11 +56,9 @@ class MapPage(ReplayPage):
         # TODO: Fix resizing issue when creating the Map widget
         #
         old_size = app.main_window.size()
-        print("Old size:", old_size.width(), old_size.height())
         self.map_widget = Map(self.ritf, self.app.config_manager.main, self)
         app.main_window.resize(old_size.width(), old_size.height())
 
-        print(f"Map widget size after creation: {self.map_widget.width()}x{self.map_widget.height()}")
         # Performance tracking
         self.last_frame_time = time.perf_counter()
         self.frame_count = 0
@@ -160,17 +149,13 @@ class MapPage(ReplayPage):
                 self.frame_count = 0
                 self.fps_timer = 0.0
 
-
     def page_update(self, delta_time: float) -> None:
         """Update method called by the page manager."""
         super().page_update(delta_time)
         self.input_controller.update_camera_from_keyboard()
-
         self.map_widget.render_frame()
 
         self.update_performance_window()
-        
-
 
     def clean_up(self) -> None:
         """Clean up resources when the page is closed."""

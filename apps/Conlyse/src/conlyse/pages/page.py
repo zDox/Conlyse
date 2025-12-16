@@ -1,11 +1,14 @@
+from __future__ import annotations
 from abc import abstractmethod
 from abc import ABCMeta
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QWidget
 
+
 if TYPE_CHECKING:
-    pass
+    from conlyse.app import App
+
 
 
 class QtABCMeta(ABCMeta, type(QWidget)):
@@ -14,8 +17,9 @@ class QtABCMeta(ABCMeta, type(QWidget)):
 
 class Page(QWidget, metaclass=QtABCMeta):
     HEADER = True
-    def __init__(self, app, parent=None):
+    def __init__(self, app: App, parent=None):
         super().__init__(parent)
+        self.app = app
 
     @abstractmethod
     def setup(self, context):
