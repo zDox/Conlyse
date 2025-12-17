@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 import freetype
 import numpy as np
 from OpenGL import GL as gl
+from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
+from conflict_interface.data_types.map_state.sea_province import SeaProvince
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.opengl_wrapper.shader import Shader, ShaderType
@@ -33,6 +35,7 @@ script_dir = Path(__file__).parent
 class TextGroup(Enum):
     """Text group categories for efficient activation/deactivation."""
     GLOBAL = "global"
+    NATION_LABELS = "nation_labels"
     PROVINCE_LABELS = "province_labels"
     CITY_LABELS = "city_labels"
     DEBUG = "debug"
@@ -205,12 +208,35 @@ class WorldTextRenderer:
         self.vao.unbind()
 
         for province in self.map_widget.ritf.get_provinces().values():
+            if isinstance(province, SeaProvince):
+                continue
+            if province.province_state_id not in (
+                ProvinceStateID.MAINLAND_CITY,
+                ProvinceStateID.ANNEXED_CITY,
+                ProvinceStateID.OCCUPIED_CITY,
+            ):
+                continue
             province_center = province.center_coordinate
             self.add_text(
                 province.name,
                 anchor_world=(province_center.x, province_center.y),
                 color=(1.0, 1.0, 1.0, 1.0),
-                size_world=20.0,
+                size_world=15.0,
+                group=TextGroup.CITY_LABELS
+            )
+
+        for player in self.map_widget.ritf.get_players().values():
+            if player.nation_label_coord is None:
+                logger.warning(f"Player {player.nation_name} has no nation label coordinates, skipping label")
+                continue
+            nation_label_coordinate = player.nation_label_coord.x, player.nation_label_coord.y
+            nation_label_size = player.nation_label_size * 100
+            self.add_text(
+                player.nation_name,
+                anchor_world=nation_label_coordinate,
+                color=(1.0, 1.0, 0.0, 1.0),
+                size_world=nation_label_size,
+                group=TextGroup.NATION_LABELS
             )
 
         logger.info("WorldTextRenderer initialized")
@@ -562,6 +588,12 @@ class WorldTextRenderer:
 
     def render(self):
         """Render all text strings in a single draw call."""
+        if self.map_widget.camera.zoom > 20:
+            self.deactivate_group(TextGroup.NATION_LABELS)
+            self.activate_group(TextGroup.CITY_LABELS)
+        else:
+            self.activate_group(TextGroup.NATION_LABELS)
+            self.deactivate_group(TextGroup.CITY_LABELS)
         # Rebuild instance data if dirty
         self._rebuild_instance_data()
 

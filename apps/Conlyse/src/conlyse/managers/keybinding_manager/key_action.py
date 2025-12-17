@@ -31,6 +31,10 @@ class KeyAction(StrEnum):
 
     # Toggle Connections Overlay
     TOGGLE_CONNECTIONS_OVERLAY = "toggle_connections_overlay"
+
+    # Toggle Labels
+    TOGGLE_PROVINCE_LABELS = "toggle_province_labels"
+    TOGGLE_NATION_LABELS = "toggle_nation_labels"
     
     # Performance monitoring
     TOGGLE_PERFORMANCE_WINDOW = "toggle_performance_window"

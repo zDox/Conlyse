@@ -5,7 +5,7 @@
 # Camera constants
 MIN_ZOOM = 3
 INITIAL_ZOOM = 3
-MAX_ZOOM = 30.0
+MAX_ZOOM = 100.0
 
 
 # Connection Line Color

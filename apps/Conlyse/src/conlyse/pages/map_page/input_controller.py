@@ -15,6 +15,7 @@ from conlyse.pages.map_page.constants import CAMERA_MOVEMENT_STEP
 from conlyse.pages.map_page.constants import ZOOM_FACTOR_IN
 from conlyse.pages.map_page.constants import ZOOM_FACTOR_OUT
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
+from conlyse.pages.map_page.renderers.world_text_renderer import TextGroup
 
 if TYPE_CHECKING:
     from conlyse.pages.map_page.map import Map

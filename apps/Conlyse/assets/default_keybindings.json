@@ -17,6 +17,8 @@
     "switch_to_resource_map_view": "3",
 
     "toggle_connections_overlay": "C",
+    "toggle_province_labels": "L",
+    "toggle_nation_labels": "N",
 
     "toggle_performance_window": "F3",
 
