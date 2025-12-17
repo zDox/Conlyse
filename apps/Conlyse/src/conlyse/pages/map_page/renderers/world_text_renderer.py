@@ -412,8 +412,9 @@ class WorldTextRenderer:
         Args:
             group: The TextGroup to activate
         """
-        if group not in self.active_groups:
-            self.active_groups.add(group)
+        was_inactive = group not in self.active_groups
+        self.active_groups.add(group)
+        if was_inactive:
             self.dirty = True
             logger.debug(f"Activated text group: {group.value}")
 
@@ -424,8 +425,9 @@ class WorldTextRenderer:
         Args:
             group: The TextGroup to deactivate
         """
-        if group in self.active_groups:
-            self.active_groups.remove(group)
+        was_active = group in self.active_groups
+        self.active_groups.discard(group)  # discard doesn't raise KeyError
+        if was_active:
             self.dirty = True
             logger.debug(f"Deactivated text group: {group.value}")
 
