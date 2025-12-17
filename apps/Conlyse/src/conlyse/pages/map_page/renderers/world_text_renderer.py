@@ -398,6 +398,7 @@ class WorldTextRenderer:
         """Rebuild the instance VBO data from all active strings."""
         if not self.dirty:
             return
+        logger.debug(f"Rebuilding instance data for {len(self.strings)} strings")
 
         instances = []
 
@@ -455,6 +456,7 @@ class WorldTextRenderer:
         if instances:
             self.instance_data = np.array(instances, dtype=np.float32).flatten()
             self.instance_count = len(instances)
+            print(f"Rebuilt instance data with {self.instance_count} glyphs")
         else:
             self.instance_data = np.array([], dtype=np.float32)
             self.instance_count = 0
@@ -478,9 +480,6 @@ class WorldTextRenderer:
         Args:
             viewport_px: Viewport dimensions (width, height) in pixels. If None, queried from OpenGL.
         """
-        if self.instance_count == 0:
-            return
-
         # Rebuild instance data if dirty
         self._rebuild_instance_data()
 

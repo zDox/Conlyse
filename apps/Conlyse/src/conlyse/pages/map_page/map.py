@@ -103,6 +103,11 @@ class Map(QOpenGLWidget):
         if self.enable_anti_aliasing:
             gl.glEnable(gl.GL_MULTISAMPLE)
 
+        berlin_coordinates = self.ritf.get_provinces_by_name("Berlin").center_coordinate
+        self.world_text_renderer.add_text("Berlin", (berlin_coordinates.x, berlin_coordinates.y),
+                                          size_px=32, color=(1.0, 1.0, 0.0, 1.0))
+        print(berlin_coordinates)
+
     def paintGL(self):
         """Render the map. Called whenever the widget needs to be redrawn."""
         frame_start = time.perf_counter()

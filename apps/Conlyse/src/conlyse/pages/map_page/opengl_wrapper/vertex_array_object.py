@@ -22,7 +22,6 @@ class VertexArrayObject:
         else:
             gl.glVertexAttribPointer(index, size, element_type.value, gl.GL_FALSE, stride, ctypes.c_void_p(offset))
         vbo.unbind()
-        self.unbind()
         self.vbos.append(vbo)
 
     def bind(self):
