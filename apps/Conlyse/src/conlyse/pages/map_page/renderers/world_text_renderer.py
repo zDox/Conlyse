@@ -104,6 +104,12 @@ class WorldTextRenderer:
     - Dynamic updates: efficient add/edit/remove of strings
     - Group management: efficiently activate/deactivate groups of text
     """
+    
+    # Outline sampling directions (normalized, scale by outline_width at runtime)
+    OUTLINE_OFFSETS = [
+        (-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0),  # Cardinal
+        (-0.707, -0.707), (0.707, -0.707), (-0.707, 0.707), (0.707, 0.707),  # Diagonal
+    ]
 
     def __init__(self, map_widget: Map, font_size: int = 48, atlas_size: int = 1024):
         """
@@ -599,15 +605,9 @@ class WorldTextRenderer:
             has_outline = text_string.outline_width > 0.0
             if has_outline:
                 # Render outline by drawing text multiple times with slight offsets
-                outline_offsets = [
-                    (-text_string.outline_width, 0), (text_string.outline_width, 0),
-                    (0, -text_string.outline_width), (0, text_string.outline_width),
-                    (-text_string.outline_width * 0.707, -text_string.outline_width * 0.707),
-                    (text_string.outline_width * 0.707, -text_string.outline_width * 0.707),
-                    (-text_string.outline_width * 0.707, text_string.outline_width * 0.707),
-                    (text_string.outline_width * 0.707, text_string.outline_width * 0.707),
-                ]
-                for offset_x, offset_y in outline_offsets:
+                for norm_x, norm_y in self.OUTLINE_OFFSETS:
+                    offset_x = norm_x * text_string.outline_width
+                    offset_y = norm_y * text_string.outline_width
                     x_cursor = 0.0
                     for char in text_string.text:
                         if char not in self.glyphs:
