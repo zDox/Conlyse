@@ -46,10 +46,6 @@ class TextGroup(Enum):
     NATION_LABELS = "nation_labels"
     PROVINCE_LABELS = "province_labels"
     CITY_LABELS = "city_labels"
-    DEBUG = "debug"
-    CUSTOM_1 = "custom_1"
-    CUSTOM_2 = "custom_2"
-    CUSTOM_3 = "custom_3"
 
 
 class GlyphInfo:
@@ -195,6 +191,7 @@ class WorldTextRenderer:
         # Attribute 0: Quad vertex (per-vertex, not instanced)
         loc = gl.glGetAttribLocation(self.program.program_id, b"aQuadVertex")
         self.vao.add_vbo(self.quad_vbo, loc, 2, 0, 0)
+        self.vao.bind()
         gl.glVertexAttribDivisor(loc, 0)  # Per-vertex
 
         # Bind instance VBO for instanced attributes

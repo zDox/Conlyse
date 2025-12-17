@@ -23,6 +23,7 @@ class VertexArrayObject:
             gl.glVertexAttribPointer(index, size, element_type.value, gl.GL_FALSE, stride, ctypes.c_void_p(offset))
         vbo.unbind()
         self.vbos.append(vbo)
+        self.unbind()
 
     def bind(self):
         gl.glBindVertexArray(self.id)

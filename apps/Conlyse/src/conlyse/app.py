@@ -1,8 +1,6 @@
 import sys
-import time
 
 from PySide6.QtCore import QElapsedTimer
-from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from conlyse.logger import get_logger
@@ -78,7 +76,6 @@ class App:
 
 
     def run_loop(self):
-        self.clock = QElapsedTimer()
         self.clock.start()
         self.last_time = self.clock.nsecsElapsed()  # store in nanoseconds
         while True:

@@ -106,7 +106,6 @@ class Map(QOpenGLWidget):
     def paintGL(self):
         """Render the map. Called whenever the widget needs to be redrawn."""
         if not self._manual_render_mode:
-            print("Skipping automatic paintGL call")
             return  # Skip automatic paint events
         self.performance_metrics["time_since_last_frame"] = (time.perf_counter() - self.last_render_time) * 1000
         self.last_render_time = time.perf_counter()

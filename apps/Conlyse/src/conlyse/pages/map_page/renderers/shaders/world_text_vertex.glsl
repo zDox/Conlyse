@@ -26,8 +26,8 @@ void main()
     vec3 ndcPos = uViewProjection * vec3(worldPos, 1.0);
     
     gl_Position = vec4(ndcPos.xy, 0.0, 1.0);
-    
-    // Interpolate UV coordinates (flip V to fix upside-down text)
+
+    // Calculate texture coordinates
     vec2 uv = aQuadVertex;
     vTexCoord = mix(aUVRect.xy, aUVRect.zw, uv);
     vColor = aColor;
