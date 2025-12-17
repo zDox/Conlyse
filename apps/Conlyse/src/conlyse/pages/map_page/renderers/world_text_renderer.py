@@ -6,6 +6,7 @@ with text that scales with the camera zoom level.
 """
 from __future__ import annotations
 
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -27,6 +28,17 @@ if TYPE_CHECKING:
 
 logger = get_logger()
 script_dir = Path(__file__).parent
+
+
+class TextGroup(Enum):
+    """Text group categories for efficient activation/deactivation."""
+    GLOBAL = "global"
+    PROVINCE_LABELS = "province_labels"
+    CITY_LABELS = "city_labels"
+    DEBUG = "debug"
+    CUSTOM_1 = "custom_1"
+    CUSTOM_2 = "custom_2"
+    CUSTOM_3 = "custom_3"
 
 
 class GlyphInfo:
@@ -55,11 +67,13 @@ class TextString:
         anchor_world: tuple[float, float],
         color: tuple[float, float, float, float],
         size_world: float,
+        group: TextGroup,
     ):
         self.text = text
         self.anchor_world = anchor_world
         self.color = color
         self.size_world = size_world  # Size in world units
+        self.group = group  # Text group for activation/deactivation
         # Range of glyph instances in the VBO (start_idx, count)
         self.glyph_range = (0, 0)
 
@@ -73,6 +87,7 @@ class WorldTextRenderer:
     - World-anchored: text positions follow world coordinates
     - World-sized: glyphs scale with camera zoom
     - Dynamic updates: efficient add/edit/remove of strings
+    - Group management: efficiently activate/deactivate groups of text
     """
 
     def __init__(self, map_widget: Map, font_size: int = 48, atlas_size: int = 1024):
@@ -104,6 +119,9 @@ class WorldTextRenderer:
         # Text string management
         self.strings: dict[int, TextString] = {}  # string_id -> TextString
         self.next_string_id: int = 0
+
+        # Group management - all groups active by default
+        self.active_groups: set[TextGroup] = set(TextGroup)
 
         # Instance data tracking
         self.instance_data: np.ndarray = np.array([], dtype=np.float32)
@@ -312,6 +330,7 @@ class WorldTextRenderer:
         anchor_world: tuple[float, float],
         color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
         size_world: float = 1.0,
+        group: TextGroup = TextGroup.GLOBAL,
     ) -> int:
         """
         Add a text string to be rendered.
@@ -321,6 +340,7 @@ class WorldTextRenderer:
             anchor_world: World coordinates (x, y) for the text anchor
             color: RGBA color tuple (values in [0, 1])
             size_world: Size of the text in world units
+            group: Text group for activation/deactivation (default: TextGroup.GLOBAL)
             
         Returns:
             String ID for later updates/removal
@@ -328,7 +348,7 @@ class WorldTextRenderer:
         string_id = self.next_string_id
         self.next_string_id += 1
 
-        text_string = TextString(text, anchor_world, color, size_world)
+        text_string = TextString(text, anchor_world, color, size_world, group)
         self.strings[string_id] = text_string
         self.dirty = True
 
@@ -341,6 +361,7 @@ class WorldTextRenderer:
         anchor_world: tuple[float, float] | None = None,
         color: tuple[float, float, float, float] | None = None,
         size_world: float | None = None,
+        group: TextGroup | None = None,
     ):
         """
         Update an existing text string.
@@ -351,6 +372,7 @@ class WorldTextRenderer:
             anchor_world: New world anchor (optional)
             color: New color (optional)
             size_world: New size in world units (optional)
+            group: New text group (optional)
         """
         if string_id not in self.strings:
             logger.warning(f"Attempted to update non-existent string ID: {string_id}")
@@ -365,6 +387,8 @@ class WorldTextRenderer:
             text_string.color = color
         if size_world is not None:
             text_string.size_world = size_world
+        if group is not None:
+            text_string.group = group
 
         self.dirty = True
 
@@ -381,6 +405,74 @@ class WorldTextRenderer:
         else:
             logger.warning(f"Attempted to remove non-existent string ID: {string_id}")
 
+    def activate_group(self, group: TextGroup):
+        """
+        Activate a text group, making all strings in that group visible.
+        
+        Args:
+            group: The TextGroup to activate
+        """
+        if group not in self.active_groups:
+            self.active_groups.add(group)
+            self.dirty = True
+            logger.debug(f"Activated text group: {group.value}")
+
+    def deactivate_group(self, group: TextGroup):
+        """
+        Deactivate a text group, hiding all strings in that group.
+        
+        Args:
+            group: The TextGroup to deactivate
+        """
+        if group in self.active_groups:
+            self.active_groups.remove(group)
+            self.dirty = True
+            logger.debug(f"Deactivated text group: {group.value}")
+
+    def toggle_group(self, group: TextGroup):
+        """
+        Toggle a text group's visibility.
+        
+        Args:
+            group: The TextGroup to toggle
+        """
+        if group in self.active_groups:
+            self.deactivate_group(group)
+        else:
+            self.activate_group(group)
+
+    def is_group_active(self, group: TextGroup) -> bool:
+        """
+        Check if a text group is currently active.
+        
+        Args:
+            group: The TextGroup to check
+            
+        Returns:
+            True if the group is active, False otherwise
+        """
+        return group in self.active_groups
+
+    def get_active_groups(self) -> set[TextGroup]:
+        """
+        Get the set of currently active text groups.
+        
+        Returns:
+            Set of active TextGroup enums
+        """
+        return self.active_groups.copy()
+
+    def set_active_groups(self, groups: set[TextGroup]):
+        """
+        Set which text groups are active.
+        
+        Args:
+            groups: Set of TextGroup enums to activate (all others will be deactivated)
+        """
+        self.active_groups = groups.copy()
+        self.dirty = True
+        logger.debug(f"Set active groups: {[g.value for g in groups]}")
+
     def _rebuild_instance_data(self):
         """Rebuild the instance VBO data from all active strings."""
         if not self.dirty:
@@ -390,6 +482,10 @@ class WorldTextRenderer:
         instances = []
 
         for string_id, text_string in self.strings.items():
+            # Skip strings from inactive groups
+            if text_string.group not in self.active_groups:
+                continue
+
             start_idx = len(instances)
 
             # Layout text glyphs in world space
