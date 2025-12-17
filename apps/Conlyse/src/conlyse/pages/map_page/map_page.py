@@ -48,7 +48,8 @@ class MapPage(ReplayPage):
 
         # Configure OpenGL format BEFORE creating the Map widget
         fmt = QSurfaceFormat()
-        fmt.setSamples(samples)
+        if self.app.config_manager.main.get("graphics.anti_aliasing"):
+            fmt.setSamples(samples)
         if self.app.config_manager.main.get("graphics.vsync"):
             fmt.setSwapInterval(1)
         else:
