@@ -186,6 +186,15 @@ class WorldTextRenderer:
         self.instance_vbo.unbind()
         self.vao.unbind()
 
+        for province in self.map_widget.ritf.get_provinces().values():
+            province_center = province.center_coordinate
+            self.add_text(
+                province.name,
+                anchor_world=(province_center.x, province_center.y),
+                color=(1.0, 1.0, 1.0, 1.0),
+                size_world=20.0,
+            )
+
         logger.info("WorldTextRenderer initialized")
 
     def _load_font_and_build_atlas(self):
@@ -213,8 +222,7 @@ class WorldTextRenderer:
             # Fallback: create a simple error message
             logger.error("No suitable font found, text rendering will be limited")
             # Create a minimal atlas with a placeholder
-            self._create_placeholder_atlas()
-            return
+            raise Exception(f"No suitable font found for WorldTextRenderer")
 
         # Set font size
         face.set_pixel_sizes(0, self.font_size)
@@ -294,30 +302,9 @@ class WorldTextRenderer:
         gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
         gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
+        self.font_max_bearing_y = max(g.bearing_y for g in self.glyphs.values())
         logger.info(f"Glyph atlas created with {len(self.glyphs)} glyphs")
 
-    def _create_placeholder_atlas(self):
-        """Create a minimal placeholder atlas when no font is available."""
-        # Create a simple white square
-        atlas = np.full((64, 64), 255, dtype=np.uint8)
-        self.atlas_texture_id = gl.glGenTextures(1)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, self.atlas_texture_id)
-        gl.glTexImage2D(
-            gl.GL_TEXTURE_2D, 0, gl.GL_RED, 64, 64, 0, gl.GL_RED, gl.GL_UNSIGNED_BYTE, atlas
-        )
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
-
-        # Create a basic glyph for all characters
-        for c in [chr(i) for i in range(32, 127)]:
-            self.glyphs[c] = GlyphInfo(c, 8, 8, 0, 8, 8)
-            self.glyphs[c].u_min = 0.0
-            self.glyphs[c].v_min = 0.0
-            self.glyphs[c].u_max = 1.0
-            self.glyphs[c].v_max = 1.0
 
     def add_text(
         self,
@@ -421,7 +408,7 @@ class WorldTextRenderer:
                 # X offset: cursor position + bearing (scaled to world)
                 # Y offset: baseline adjustment based on bearing_y (scaled to world)
                 world_offset_x = x_cursor + glyph.bearing_x * scale
-                world_offset_y = glyph.bearing_y * scale  # Positive Y for proper orientation
+                world_offset_y = (self.font_max_bearing_y - glyph.bearing_y) * scale
 
                 # Glyph size in world units
                 scaled_width = glyph.width * scale

@@ -29,7 +29,6 @@ void main()
     
     // Interpolate UV coordinates (flip V to fix upside-down text)
     vec2 uv = aQuadVertex;
-    uv.y = 1.0 - uv.y;  // Flip Y axis
     vTexCoord = mix(aUVRect.xy, aUVRect.zw, uv);
     vColor = aColor;
 }
