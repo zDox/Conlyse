@@ -1,8 +1,8 @@
 """
-WorldTextRenderer - Renders world-anchored text with screen-space sized glyphs.
+WorldTextRenderer - Renders world-anchored text with world-space sized glyphs.
 
 This renderer batches all active strings into a single instanced draw call,
-maintaining constant pixel size when zooming while text anchors move with world coordinates.
+with text that scales with the camera zoom level.
 """
 from __future__ import annotations
 
@@ -54,24 +54,24 @@ class TextString:
         text: str,
         anchor_world: tuple[float, float],
         color: tuple[float, float, float, float],
-        size_px: float,
+        size_world: float,
     ):
         self.text = text
         self.anchor_world = anchor_world
         self.color = color
-        self.size_px = size_px
+        self.size_world = size_world  # Size in world units
         # Range of glyph instances in the VBO (start_idx, count)
         self.glyph_range = (0, 0)
 
 
 class WorldTextRenderer:
     """
-    Renders world-anchored text with screen-space sized glyphs in a single instanced draw call.
+    Renders world-anchored text with world-space sized glyphs in a single instanced draw call.
     
     Features:
     - Batched rendering: all visible text rendered in one draw call
     - World-anchored: text positions follow world coordinates
-    - Screen-sized: glyphs maintain constant pixel size under zoom/pan
+    - World-sized: glyphs scale with camera zoom
     - Dynamic updates: efficient add/edit/remove of strings
     """
 
@@ -159,8 +159,8 @@ class WorldTextRenderer:
         gl.glVertexAttribPointer(loc, 2, gl.GL_FLOAT, gl.GL_FALSE, stride, gl.ctypes.c_void_p(0))
         gl.glVertexAttribDivisor(loc, 1)
 
-        # Attribute 2: aPixelOffset (vec2)
-        loc = gl.glGetAttribLocation(self.program.program_id, b"aPixelOffset")
+        # Attribute 2: aWorldOffset (vec2)
+        loc = gl.glGetAttribLocation(self.program.program_id, b"aWorldOffset")
         gl.glEnableVertexAttribArray(loc)
         gl.glVertexAttribPointer(loc, 2, gl.GL_FLOAT, gl.GL_FALSE, stride, gl.ctypes.c_void_p(8))
         gl.glVertexAttribDivisor(loc, 1)
@@ -324,7 +324,7 @@ class WorldTextRenderer:
         text: str,
         anchor_world: tuple[float, float],
         color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
-        size_px: float = 16.0,
+        size_world: float = 1.0,
     ) -> int:
         """
         Add a text string to be rendered.
@@ -333,7 +333,7 @@ class WorldTextRenderer:
             text: The text string to render
             anchor_world: World coordinates (x, y) for the text anchor
             color: RGBA color tuple (values in [0, 1])
-            size_px: Size of the text in screen pixels
+            size_world: Size of the text in world units
             
         Returns:
             String ID for later updates/removal
@@ -341,7 +341,7 @@ class WorldTextRenderer:
         string_id = self.next_string_id
         self.next_string_id += 1
 
-        text_string = TextString(text, anchor_world, color, size_px)
+        text_string = TextString(text, anchor_world, color, size_world)
         self.strings[string_id] = text_string
         self.dirty = True
 
@@ -353,7 +353,7 @@ class WorldTextRenderer:
         text: str | None = None,
         anchor_world: tuple[float, float] | None = None,
         color: tuple[float, float, float, float] | None = None,
-        size_px: float | None = None,
+        size_world: float | None = None,
     ):
         """
         Update an existing text string.
@@ -363,7 +363,7 @@ class WorldTextRenderer:
             text: New text (optional)
             anchor_world: New world anchor (optional)
             color: New color (optional)
-            size_px: New size (optional)
+            size_world: New size in world units (optional)
         """
         if string_id not in self.strings:
             logger.warning(f"Attempted to update non-existent string ID: {string_id}")
@@ -376,8 +376,8 @@ class WorldTextRenderer:
             text_string.anchor_world = anchor_world
         if color is not None:
             text_string.color = color
-        if size_px is not None:
-            text_string.size_px = size_px
+        if size_world is not None:
+            text_string.size_world = size_world
 
         self.dirty = True
 
@@ -405,7 +405,7 @@ class WorldTextRenderer:
         for string_id, text_string in self.strings.items():
             start_idx = len(instances)
 
-            # Layout text glyphs
+            # Layout text glyphs in world space
             x_cursor = 0.0
             for char in text_string.text:
                 if char not in self.glyphs:
@@ -413,26 +413,28 @@ class WorldTextRenderer:
 
                 glyph = self.glyphs[char]
 
-                # Scale factor for this text size
-                scale = text_string.size_px / self.font_size
+                # Scale factor: convert from font pixels to world units
+                # This makes text size relative to world space, so it scales with zoom
+                scale = text_string.size_world / self.font_size
 
-                # Calculate pixel offset for this glyph
-                # X offset: cursor position + bearing (scaled)
-                # Y offset: baseline adjustment based on bearing_y (scaled)
-                pixel_offset_x = x_cursor + glyph.bearing_x * scale
-                pixel_offset_y = -glyph.bearing_y * scale  # Negative because Y axis points down in screen space
+                # Calculate world offset for this glyph
+                # X offset: cursor position + bearing (scaled to world)
+                # Y offset: baseline adjustment based on bearing_y (scaled to world)
+                world_offset_x = x_cursor + glyph.bearing_x * scale
+                world_offset_y = glyph.bearing_y * scale  # Positive Y for proper orientation
 
-                # Instance data: (anchor_world_x, anchor_world_y, pixel_offset_x, pixel_offset_y,
-                #                 u_min, v_min, u_max, v_max, color_r, color_g, color_b, color_a, 
-                #                 glyph_width_px, glyph_height_px)
+                # Glyph size in world units
                 scaled_width = glyph.width * scale
                 scaled_height = glyph.height * scale
                 
+                # Instance data: (anchor_world_x, anchor_world_y, world_offset_x, world_offset_y,
+                #                 u_min, v_min, u_max, v_max, color_r, color_g, color_b, color_a, 
+                #                 glyph_width_world, glyph_height_world)
                 instance = [
                     text_string.anchor_world[0],  # anchor_world x
                     text_string.anchor_world[1],  # anchor_world y
-                    pixel_offset_x,  # pixel offset x
-                    pixel_offset_y,  # pixel offset y
+                    world_offset_x,  # world offset x
+                    world_offset_y,  # world offset y
                     glyph.u_min,  # u_min
                     glyph.v_min,  # v_min
                     glyph.u_max,  # u_max
@@ -441,12 +443,12 @@ class WorldTextRenderer:
                     text_string.color[1],  # color g
                     text_string.color[2],  # color b
                     text_string.color[3],  # color a
-                    scaled_width,  # glyph width in pixels
-                    scaled_height,  # glyph height in pixels
+                    scaled_width,  # glyph width in world units
+                    scaled_height,  # glyph height in world units
                 ]
                 instances.append(instance)
 
-                # Advance cursor (scaled)
+                # Advance cursor in world units
                 x_cursor += glyph.advance * scale
 
             # Store glyph range for this string
@@ -456,7 +458,7 @@ class WorldTextRenderer:
         if instances:
             self.instance_data = np.array(instances, dtype=np.float32).flatten()
             self.instance_count = len(instances)
-            print(f"Rebuilt instance data with {self.instance_count} glyphs")
+            logger.debug(f"Rebuilt instance data with {self.instance_count} glyphs")
         else:
             self.instance_data = np.array([], dtype=np.float32)
             self.instance_count = 0
@@ -473,13 +475,8 @@ class WorldTextRenderer:
 
         self.dirty = False
 
-    def render(self, viewport_px: tuple[int, int] | None = None):
-        """
-        Render all text strings in a single draw call.
-        
-        Args:
-            viewport_px: Viewport dimensions (width, height) in pixels. If None, queried from OpenGL.
-        """
+    def render(self):
+        """Render all text strings in a single draw call."""
         # Rebuild instance data if dirty
         self._rebuild_instance_data()
 
@@ -489,14 +486,8 @@ class WorldTextRenderer:
         # Use shader program
         self.program.use_program()
 
-        # Set uniforms
+        # Set camera uniforms
         self.camera.set_uniforms(self.program)
-
-        if viewport_px is None:
-            viewport = gl.glGetIntegerv(gl.GL_VIEWPORT)
-            viewport_px = (viewport[2], viewport[3])
-
-        self.program.set_uniform_2f("uViewport", float(viewport_px[0]), float(viewport_px[1]))
 
         # Bind atlas texture
         gl.glActiveTexture(gl.GL_TEXTURE0)
