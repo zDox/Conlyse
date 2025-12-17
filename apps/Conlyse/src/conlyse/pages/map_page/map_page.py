@@ -49,12 +49,12 @@ class MapPage(ReplayPage):
         # Configure OpenGL format BEFORE creating the Map widget
         fmt = QSurfaceFormat()
         fmt.setSamples(samples)
+        fmt.setSwapInterval(0)
         fmt.setVersion(OPENGL_VERSION_MAJOR, OPENGL_VERSION_MINOR)
         fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
         QSurfaceFormat.setDefaultFormat(fmt)
 
         # TODO: Fix resizing issue when creating the Map widget
-        #
         old_size = app.main_window.size()
         self.map_widget = Map(self.ritf, self.app.config_manager.main, self)
         app.main_window.resize(old_size.width(), old_size.height())
@@ -65,7 +65,7 @@ class MapPage(ReplayPage):
         self.fps_update_interval = 0.5  # Update FPS every 0.5 seconds
         self.fps_timer = 0.0
         self.perf_update_counter = 0
-        self.perf_update_interval = 10  # Update performance metrics every 10 frames
+        self.perf_update_interval = 100  # Update performance metrics every 100 frames
 
     def setup(self, context) -> None:
         """Initialize the UI layout and OpenGL context."""
@@ -89,6 +89,8 @@ class MapPage(ReplayPage):
         # Set up performance metrics for this page
         self.app.performance_window.clear_metrics()
         self.app.performance_window.set_page("Map Page")
+        self.app.performance_window.add_metric("Render Frame")
+        self.app.performance_window.add_metric("Time Since Last Frame")
         self.app.performance_window.add_metric("Last Jump Time")
         self.app.performance_window.add_metric("Province Fill")
         self.app.performance_window.add_metric("Province Connections")
@@ -128,7 +130,6 @@ class MapPage(ReplayPage):
             self.perf_update_counter += 1
             if self.perf_update_counter >= self.perf_update_interval:
                 metrics = self.map_widget.get_performance_metrics()
-                self.app.performance_window.update_metric("Last Jump Time", metrics["last_jump_time"])
                 self.app.performance_window.update_metric("Province Fill", metrics["province_fill"])
                 self.app.performance_window.update_metric("Province Connections", metrics["province_connections"])
                 self.app.performance_window.update_metric("Province Borders", metrics["province_borders"])
@@ -136,7 +137,8 @@ class MapPage(ReplayPage):
                 self.app.performance_window.update_metric("Terrain Map View Update", metrics["terrainview_update"])
                 self.app.performance_window.update_metric("Resource Map View Update", metrics["resourceview_update"])
                 self.app.performance_window.update_metric("Political Map View Update", metrics["politicalview_update"])
-                self.app.performance_window.update_frame_time(metrics["total_frame"])
+                self.app.performance_window.update_metric("Render Frame", metrics["render_frame"])
+                self.app.performance_window.update_metric("Time Since Last Frame", metrics["time_since_last_frame"])
                 self.perf_update_counter = 0
 
             # Calculate FPS
@@ -151,12 +153,16 @@ class MapPage(ReplayPage):
                 self.frame_count = 0
                 self.fps_timer = 0.0
 
-    def page_update(self, delta_time: float) -> None:
+    def page_update(self, dt: float) -> None:
         """Update method called by the page manager."""
-        super().page_update(delta_time)
+        super().page_update(dt)
         self.input_controller.update_camera_from_keyboard()
-        self.map_widget.render_frame()
 
+    def page_render(self, dt: float) -> None:
+        """Render method called by the page manager."""
+        super().page_render(dt)
+        if self.map_widget:
+            self.map_widget.render_frame()
         self.update_performance_window()
 
     def clean_up(self) -> None:

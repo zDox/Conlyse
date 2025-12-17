@@ -12,6 +12,7 @@ from conflict_interface.data_types.point import Point
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger
+from conlyse.pages.map_page.color_util import rgba_to_normalized
 from conlyse.pages.map_page.constants import CONNECTION_LINE_COLOR
 from conlyse.pages.map_page.opengl_wrapper.shader import Shader
 from conlyse.pages.map_page.opengl_wrapper.shader import ShaderType
@@ -77,10 +78,10 @@ class WorldLineRenderer(ABC):
         self.vbo.update_data(self.vertices)
         self.vbo.unbind()
 
-    def render_lines(self, line_color: tuple[float, float, float, float], line_width_pixels: float):
+    def render_lines(self, line_color: tuple[int, int, int, int], line_width_pixels: float):
         self.program.use_program()
         self.camera.set_uniforms(self.program)
-        self.program.set_uniform_4f("lineColor", *line_color)
+        self.program.set_uniform_4f("lineColor", *rgba_to_normalized(line_color))
         self.program.set_uniform_1f("uWorldWidth", self.map_widget.world_width)
         self.program.set_uniform_1b("uEnableWrapping", self.map_widget.enable_wrapping)
 

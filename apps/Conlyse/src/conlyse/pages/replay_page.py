@@ -38,6 +38,10 @@ class ReplayPage(Page):
         if self.timeline_controls:
             self.timeline_controls.advance_time(delta_time)
 
+    def page_render(self, dt: float):
+        pass
+
+
     def clean_up(self):
         if self.timeline_controls:
             self.timeline_controls.clean_up()
@@ -86,7 +90,12 @@ class ReplayPage(Page):
         if not self.ritf:
             return
         target_time = self.ritf.start_time + timedelta(seconds=current_time)
+        t1 = time.perf_counter()
         self.ritf.jump_to(target_time)
+        t2 = time.perf_counter()
+        self.app.performance_window.update_metric(
+            "Last Jump Time", (t2 - t1) * 1000.0
+        )
         self._on_replay_jump()
 
     def _position_timeline_overlay(self):

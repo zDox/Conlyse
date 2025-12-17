@@ -25,11 +25,9 @@ class OverviewBar(QWidget):
     def set_viewport(self, start, end):
         self.visible_start = start
         self.visible_end = end
-        self.update()
 
     def set_position(self, pos):
         self.current_position = pos
-        self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)

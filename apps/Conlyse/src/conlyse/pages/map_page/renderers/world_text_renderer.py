@@ -17,6 +17,14 @@ from conflict_interface.data_types.map_state.map_state_enums import ProvinceStat
 from conflict_interface.data_types.map_state.sea_province import SeaProvince
 
 from conlyse.logger import get_logger
+from conlyse.pages.map_page.color_util import rgba_to_normalized
+from conlyse.pages.map_page.constants import CITY_LABEL_COLOR
+from conlyse.pages.map_page.constants import CITY_LABEL_OUTLINE_WIDTH
+from conlyse.pages.map_page.constants import CITY_LABEL_OUTLINE_COLOR
+from conlyse.pages.map_page.constants import CITY_LABEL_SIZE
+from conlyse.pages.map_page.constants import NATION_LABEL_COLOR
+from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_COLOR
+from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_OFFSET
 from conlyse.pages.map_page.opengl_wrapper.shader import Shader, ShaderType
 from conlyse.pages.map_page.opengl_wrapper.shader_program import ShaderProgram
 from conlyse.pages.map_page.opengl_wrapper.vertex_array_object import VertexArrayObject
@@ -241,8 +249,10 @@ class WorldTextRenderer:
             self.add_text(
                 province.name,
                 anchor_world=(province_center.x, province_center.y),
-                color=(1.0, 1.0, 1.0, 1.0),
-                size_world=15.0,
+                color=CITY_LABEL_COLOR,
+                outline_width=CITY_LABEL_OUTLINE_WIDTH,
+                outline_color=CITY_LABEL_OUTLINE_COLOR,
+                size_world=CITY_LABEL_SIZE,
                 group=TextGroup.CITY_LABELS
             )
 
@@ -254,8 +264,11 @@ class WorldTextRenderer:
             nation_label_size = player.nation_label_size * 100
             self.add_text(
                 player.nation_name,
+                centered=True,
+                shadow_offset=NATION_LABEL_SHADOW_OFFSET,
+                shadow_color=NATION_LABEL_SHADOW_COLOR,
                 anchor_world=nation_label_coordinate,
-                color=(1.0, 1.0, 0.0, 1.0),
+                color=NATION_LABEL_COLOR,
                 size_world=nation_label_size,
                 group=TextGroup.NATION_LABELS
             )
@@ -286,7 +299,6 @@ class WorldTextRenderer:
         if face is None:
             # Fallback: create a simple error message
             logger.error("No suitable font found, text rendering will be limited")
-            # Create a minimal atlas with a placeholder
             raise Exception(f"No suitable font found for WorldTextRenderer")
 
         # Set font size
@@ -375,14 +387,14 @@ class WorldTextRenderer:
         self,
         text: str,
         anchor_world: tuple[float, float],
-        color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
-        size_world: float = 1.0,
+        color: tuple[int, int, int, int] = (255, 255, 255, 255),
+        size_world: float = 10,
         group: TextGroup = TextGroup.GLOBAL,
         centered: bool = False,
         outline_width: float = 0.0,
-        outline_color: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
+        outline_color: tuple[int, int, int, int] = (0, 0, 0, 255),
         shadow_offset: tuple[float, float] = (0.0, 0.0),
-        shadow_color: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.5),
+        shadow_color: tuple[int, int, int, int] = (0, 0, 0, 128),
     ) -> int:
         """
         Add a text string to be rendered.
@@ -390,7 +402,7 @@ class WorldTextRenderer:
         Args:
             text: The text string to render
             anchor_world: World coordinates (x, y) for the text anchor
-            color: RGBA color tuple (values in [0, 1])
+            color: RGBA color tuple (values in [0, 255])
             size_world: Size of the text in world units
             group: Text group for activation/deactivation (default: TextGroup.GLOBAL)
             centered: Whether to center the text around the anchor (default: False)
@@ -406,8 +418,8 @@ class WorldTextRenderer:
         self.next_string_id += 1
 
         text_string = TextString(
-            text, anchor_world, color, size_world, group,
-            centered, outline_width, outline_color, shadow_offset, shadow_color
+            text, anchor_world, rgba_to_normalized(color), size_world, group,
+            centered, outline_width, rgba_to_normalized(outline_color), shadow_offset, rgba_to_normalized(shadow_color)
         )
         self.strings[string_id] = text_string
         self.string_visibility[string_id] = group in self.active_groups
@@ -420,7 +432,7 @@ class WorldTextRenderer:
         string_id: int,
         text: str | None = None,
         anchor_world: tuple[float, float] | None = None,
-        color: tuple[float, float, float, float] | None = None,
+        color: tuple[int, int, int, int] | None = None,
         size_world: float | None = None,
         group: TextGroup | None = None,
     ):
@@ -445,7 +457,7 @@ class WorldTextRenderer:
         if anchor_world is not None:
             text_string.anchor_world = anchor_world
         if color is not None:
-            text_string.color = color
+            text_string.color = rgba_to_normalized(color)
         if size_world is not None:
             text_string.size_world = size_world
         if group is not None:

@@ -113,6 +113,18 @@ class PerformanceWindow(QWidget):
             self.layout().insertWidget(self.layout().count() - 1, label)
             self.metric_labels[name] = label
             logger.debug(f"Added metric '{name}' to performance window")
+
+    def has_metric(self, name: str) -> bool:
+        """
+        Check if a metric with the given name exists.
+
+        Args:
+            name: Name of the metric
+
+        Returns:
+            True if the metric exists, False otherwise
+        """
+        return name in self.metric_labels
     
     def update_metric(self, name: str, value: float, unit: str = "ms") -> None:
         """
