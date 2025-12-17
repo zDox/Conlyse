@@ -5,17 +5,26 @@ from PySide6.QtCore import QSize
 from PySide6.QtCore import Qt
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QSizePolicy
+from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
+from conflict_interface.data_types.map_state.sea_province import SeaProvince
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.camera import Camera
+from conlyse.pages.map_page.constants import CITY_LABEL_COLOR
+from conlyse.pages.map_page.constants import CITY_LABEL_OUTLINE_COLOR
+from conlyse.pages.map_page.constants import CITY_LABEL_OUTLINE_WIDTH
+from conlyse.pages.map_page.constants import CITY_LABEL_SIZE
+from conlyse.pages.map_page.constants import NATION_LABEL_COLOR
+from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_COLOR
+from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_OFFSET
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
 from conlyse.pages.map_page.renderers.province_border_renderer import ProvinceBorderRenderer
 from conlyse.pages.map_page.renderers.province_connection_renderer import ProvinceConnectionRenderer
 from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
-from conlyse.pages.map_page.renderers.world_text_renderer import WorldTextRenderer
+from conlyse.pages.map_page.renderers.world_text_renderer import TextGroup, WorldTextRenderer
 
 logger = get_logger()
 
@@ -102,6 +111,7 @@ class Map(QOpenGLWidget):
 
         if self.enable_anti_aliasing:
             gl.glEnable(gl.GL_MULTISAMPLE)
+        self._initialize_world_labels()
 
     def paintGL(self):
         """Render the map. Called whenever the widget needs to be redrawn."""
@@ -179,3 +189,41 @@ class Map(QOpenGLWidget):
             dict: Dictionary containing performance metrics in milliseconds
         """
         return self.performance_metrics.copy()
+
+    def _initialize_world_labels(self):
+        for province in self.ritf.get_provinces().values():
+            if isinstance(province, SeaProvince):
+                continue
+            if province.province_state_id not in (
+                ProvinceStateID.MAINLAND_CITY,
+                ProvinceStateID.ANNEXED_CITY,
+                ProvinceStateID.OCCUPIED_CITY,
+            ):
+                continue
+            province_center = province.center_coordinate
+            self.world_text_renderer.add_text(
+                province.name,
+                anchor_world=(province_center.x, province_center.y),
+                color=CITY_LABEL_COLOR,
+                outline_width=CITY_LABEL_OUTLINE_WIDTH,
+                outline_color=CITY_LABEL_OUTLINE_COLOR,
+                size_world=CITY_LABEL_SIZE,
+                group=TextGroup.CITY_LABELS
+            )
+
+        for player in self.ritf.get_players().values():
+            if player.nation_label_coord is None:
+                logger.warning(f"Player {player.nation_name} has no nation label coordinates, skipping label")
+                continue
+            nation_label_coordinate = player.nation_label_coord.x, player.nation_label_coord.y
+            nation_label_size = player.nation_label_size * 100
+            self.world_text_renderer.add_text(
+                player.nation_name,
+                centered=True,
+                shadow_offset=NATION_LABEL_SHADOW_OFFSET,
+                shadow_color=NATION_LABEL_SHADOW_COLOR,
+                anchor_world=nation_label_coordinate,
+                color=NATION_LABEL_COLOR,
+                size_world=nation_label_size,
+                group=TextGroup.NATION_LABELS
+            )
