@@ -71,14 +71,26 @@ class TextString:
         color: tuple[float, float, float, float],
         size_world: float,
         group: TextGroup,
+        centered: bool = False,
+        outline_width: float = 0.0,
+        outline_color: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
+        shadow_offset: tuple[float, float] = (0.0, 0.0),
+        shadow_color: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.5),
     ):
         self.text = text
         self.anchor_world = anchor_world
         self.color = color
         self.size_world = size_world  # Size in world units
         self.group = group  # Text group for activation/deactivation
+        self.centered = centered  # Whether to center text around anchor
+        self.outline_width = outline_width  # Outline width in world units
+        self.outline_color = outline_color  # Outline color RGBA
+        self.shadow_offset = shadow_offset  # Shadow offset (x, y) in world units
+        self.shadow_color = shadow_color  # Shadow color RGBA
         # Range of glyph instances in the VBO (start_idx, count)
         self.glyph_range = (0, 0)
+        # Total width for centering calculation
+        self.total_width = 0.0
 
 
 class WorldTextRenderer:
@@ -125,6 +137,9 @@ class WorldTextRenderer:
 
         # Group management - all groups active by default
         self.active_groups: set[TextGroup] = set(TextGroup)
+        
+        # Per-string visibility tracking (string_id -> visible)
+        self.string_visibility: dict[int, bool] = {}
 
         # Instance data tracking
         self.instance_data: np.ndarray = np.array([], dtype=np.float32)
@@ -357,6 +372,11 @@ class WorldTextRenderer:
         color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
         size_world: float = 1.0,
         group: TextGroup = TextGroup.GLOBAL,
+        centered: bool = False,
+        outline_width: float = 0.0,
+        outline_color: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
+        shadow_offset: tuple[float, float] = (0.0, 0.0),
+        shadow_color: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.5),
     ) -> int:
         """
         Add a text string to be rendered.
@@ -367,6 +387,11 @@ class WorldTextRenderer:
             color: RGBA color tuple (values in [0, 1])
             size_world: Size of the text in world units
             group: Text group for activation/deactivation (default: TextGroup.GLOBAL)
+            centered: Whether to center the text around the anchor (default: False)
+            outline_width: Width of outline effect in world units (default: 0.0, disabled)
+            outline_color: RGBA color for outline (default: black)
+            shadow_offset: Shadow offset (x, y) in world units (default: (0, 0), disabled)
+            shadow_color: RGBA color for shadow (default: semi-transparent black)
             
         Returns:
             String ID for later updates/removal
@@ -374,8 +399,12 @@ class WorldTextRenderer:
         string_id = self.next_string_id
         self.next_string_id += 1
 
-        text_string = TextString(text, anchor_world, color, size_world, group)
+        text_string = TextString(
+            text, anchor_world, color, size_world, group,
+            centered, outline_width, outline_color, shadow_offset, shadow_color
+        )
         self.strings[string_id] = text_string
+        self.string_visibility[string_id] = group in self.active_groups
         self.dirty = True
 
         return string_id
@@ -427,6 +456,8 @@ class WorldTextRenderer:
         """
         if string_id in self.strings:
             del self.strings[string_id]
+            if string_id in self.string_visibility:
+                del self.string_visibility[string_id]
             self.dirty = True
         else:
             logger.warning(f"Attempted to remove non-existent string ID: {string_id}")
@@ -434,6 +465,7 @@ class WorldTextRenderer:
     def activate_group(self, group: TextGroup):
         """
         Activate a text group, making all strings in that group visible.
+        Triggers a lightweight rebuild of instance data.
         
         Args:
             group: The TextGroup to activate
@@ -441,12 +473,18 @@ class WorldTextRenderer:
         was_inactive = group not in self.active_groups
         self.active_groups.add(group)
         if was_inactive:
+            # Update visibility for all strings in this group
+            for string_id, text_string in self.strings.items():
+                if text_string.group == group:
+                    self.string_visibility[string_id] = True
+            # Mark dirty to rebuild only visible instances
             self.dirty = True
             logger.debug(f"Activated text group: {group.value}")
 
     def deactivate_group(self, group: TextGroup):
         """
         Deactivate a text group, hiding all strings in that group.
+        Triggers a lightweight rebuild of instance data.
         
         Args:
             group: The TextGroup to deactivate
@@ -454,6 +492,11 @@ class WorldTextRenderer:
         was_active = group in self.active_groups
         self.active_groups.discard(group)  # discard doesn't raise KeyError
         if was_active:
+            # Update visibility for all strings in this group
+            for string_id, text_string in self.strings.items():
+                if text_string.group == group:
+                    self.string_visibility[string_id] = False
+            # Mark dirty to rebuild only visible instances
             self.dirty = True
             logger.debug(f"Deactivated text group: {group.value}")
 
@@ -502,60 +545,110 @@ class WorldTextRenderer:
         logger.debug(f"Set active groups: {[g.value for g in groups]}")
 
     def _rebuild_instance_data(self):
-        """Rebuild the instance VBO data from all active strings."""
+        """Rebuild the instance VBO data from visible strings only (optimized)."""
         if not self.dirty:
             return
-        logger.debug(f"Rebuilding instance data for {len(self.strings)} strings")
+        logger.debug(f"Rebuilding instance data for visible strings")
 
         instances = []
 
         for string_id, text_string in self.strings.items():
-            # Skip strings from inactive groups
-            if text_string.group not in self.active_groups:
+            # Skip invisible strings - this is the optimization!
+            if not self.string_visibility.get(string_id, False):
                 continue
 
             start_idx = len(instances)
 
-            # Layout text glyphs in world space
+            # First pass: calculate total text width for centering
+            scale = text_string.size_world / self.font_size
+            total_width = 0.0
+            for char in text_string.text:
+                if char in self.glyphs:
+                    total_width += self.glyphs[char].advance * scale
+            text_string.total_width = total_width
+
+            # Calculate centering offset
+            center_offset_x = -total_width / 2.0 if text_string.centered else 0.0
+
+            # Add shadow layer if enabled
+            has_shadow = text_string.shadow_offset != (0.0, 0.0)
+            if has_shadow:
+                x_cursor = 0.0
+                for char in text_string.text:
+                    if char not in self.glyphs:
+                        continue
+
+                    glyph = self.glyphs[char]
+                    world_offset_x = center_offset_x + x_cursor + glyph.bearing_x * scale + text_string.shadow_offset[0]
+                    world_offset_y = (self.font_max_bearing_y - glyph.bearing_y) * scale + text_string.shadow_offset[1]
+                    scaled_width = glyph.width * scale
+                    scaled_height = glyph.height * scale
+
+                    instance = [
+                        text_string.anchor_world[0], text_string.anchor_world[1],
+                        world_offset_x, world_offset_y,
+                        glyph.u_min, glyph.v_min, glyph.u_max, glyph.v_max,
+                        text_string.shadow_color[0], text_string.shadow_color[1],
+                        text_string.shadow_color[2], text_string.shadow_color[3],
+                        scaled_width, scaled_height,
+                    ]
+                    instances.append(instance)
+                    x_cursor += glyph.advance * scale
+
+            # Add outline layer if enabled
+            has_outline = text_string.outline_width > 0.0
+            if has_outline:
+                # Render outline by drawing text multiple times with slight offsets
+                outline_offsets = [
+                    (-text_string.outline_width, 0), (text_string.outline_width, 0),
+                    (0, -text_string.outline_width), (0, text_string.outline_width),
+                    (-text_string.outline_width * 0.707, -text_string.outline_width * 0.707),
+                    (text_string.outline_width * 0.707, -text_string.outline_width * 0.707),
+                    (-text_string.outline_width * 0.707, text_string.outline_width * 0.707),
+                    (text_string.outline_width * 0.707, text_string.outline_width * 0.707),
+                ]
+                for offset_x, offset_y in outline_offsets:
+                    x_cursor = 0.0
+                    for char in text_string.text:
+                        if char not in self.glyphs:
+                            continue
+
+                        glyph = self.glyphs[char]
+                        world_offset_x = center_offset_x + x_cursor + glyph.bearing_x * scale + offset_x
+                        world_offset_y = (self.font_max_bearing_y - glyph.bearing_y) * scale + offset_y
+                        scaled_width = glyph.width * scale
+                        scaled_height = glyph.height * scale
+
+                        instance = [
+                            text_string.anchor_world[0], text_string.anchor_world[1],
+                            world_offset_x, world_offset_y,
+                            glyph.u_min, glyph.v_min, glyph.u_max, glyph.v_max,
+                            text_string.outline_color[0], text_string.outline_color[1],
+                            text_string.outline_color[2], text_string.outline_color[3],
+                            scaled_width, scaled_height,
+                        ]
+                        instances.append(instance)
+                        x_cursor += glyph.advance * scale
+
+            # Add main text layer
             x_cursor = 0.0
             for char in text_string.text:
                 if char not in self.glyphs:
-                    continue  # Skip unknown characters
+                    continue
 
                 glyph = self.glyphs[char]
-
-                # Scale factor: convert from font pixels to world units
-                # This makes text size relative to world space, so it scales with zoom
-                scale = text_string.size_world / self.font_size
-
-                # Calculate world offset for this glyph
-                # X offset: cursor position + bearing (scaled to world)
-                # Y offset: baseline adjustment based on bearing_y (scaled to world)
-                world_offset_x = x_cursor + glyph.bearing_x * scale
+                world_offset_x = center_offset_x + x_cursor + glyph.bearing_x * scale
                 world_offset_y = (self.font_max_bearing_y - glyph.bearing_y) * scale
-
-                # Glyph size in world units
                 scaled_width = glyph.width * scale
                 scaled_height = glyph.height * scale
-                
-                # Instance data: (anchor_world_x, anchor_world_y, world_offset_x, world_offset_y,
-                #                 u_min, v_min, u_max, v_max, color_r, color_g, color_b, color_a, 
-                #                 glyph_width_world, glyph_height_world)
+
                 instance = [
-                    text_string.anchor_world[0],  # anchor_world x
-                    text_string.anchor_world[1],  # anchor_world y
-                    world_offset_x,  # world offset x
-                    world_offset_y,  # world offset y
-                    glyph.u_min,  # u_min
-                    glyph.v_min,  # v_min
-                    glyph.u_max,  # u_max
-                    glyph.v_max,  # v_max
-                    text_string.color[0],  # color r
-                    text_string.color[1],  # color g
-                    text_string.color[2],  # color b
-                    text_string.color[3],  # color a
-                    scaled_width,  # glyph width in world units
-                    scaled_height,  # glyph height in world units
+                    text_string.anchor_world[0], text_string.anchor_world[1],
+                    world_offset_x, world_offset_y,
+                    glyph.u_min, glyph.v_min, glyph.u_max, glyph.v_max,
+                    text_string.color[0], text_string.color[1],
+                    text_string.color[2], text_string.color[3],
+                    scaled_width, scaled_height,
                 ]
                 instances.append(instance)
 
@@ -587,14 +680,15 @@ class WorldTextRenderer:
         self.dirty = False
 
     def render(self):
-        """Render all text strings in a single draw call."""
+        """Render visible text strings in a single draw call."""
         if self.map_widget.camera.zoom > 20:
             self.deactivate_group(TextGroup.NATION_LABELS)
             self.activate_group(TextGroup.CITY_LABELS)
         else:
             self.activate_group(TextGroup.NATION_LABELS)
             self.deactivate_group(TextGroup.CITY_LABELS)
-        # Rebuild instance data if dirty
+        
+        # Rebuild instance data if dirty (only includes visible strings now)
         self._rebuild_instance_data()
 
         if self.instance_count == 0:
@@ -611,7 +705,7 @@ class WorldTextRenderer:
         gl.glBindTexture(gl.GL_TEXTURE_2D, self.atlas_texture_id)
         self.program.set_uniform_1i("uAtlasTexture", 0)
 
-        # Draw instanced
+        # Draw all visible instances in one call
         self.vao.bind()
         gl.glDrawArraysInstanced(gl.GL_TRIANGLES, 0, 6, self.instance_count)
         self.vao.unbind()
