@@ -67,11 +67,15 @@ class CIconButton(QPushButton):
 
     def set_icon(self, icon_name: str):
         """Change the icon dynamically."""
+        if self.icon_name == icon_name:
+            return
         self.icon_name = icon_name
         self._update_icon()
 
     def set_icon_color(self, color: str):
         """Change the icon color dynamically."""
+        if self.property("color") == color:
+            return
         self.setProperty("color", color)
 
         self.style().unpolish(self)

@@ -16,6 +16,7 @@ dependencies = [
     "numpy>=1.21.0",
     "qtawesome>=1.4.0",
     "conflict-interface @ git+ssh://git@github.com/zDox/ConflictInterface.git@main",
+    "freetype-py>=2.3.0",
     "mapbox-earcut>=1.0.0",
 ]
 

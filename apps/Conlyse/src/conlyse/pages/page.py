@@ -33,3 +33,6 @@ class Page(QWidget, metaclass=QtABCMeta):
     @abstractmethod
     def clean_up(self):
         pass
+
+    def page_render(self, dt: float):
+        pass

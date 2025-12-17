@@ -279,6 +279,7 @@ class TimelineControls(QWidget):
 
         self.overview_bar.set_viewport(range_normalized_start, range_normalized_end)
         self.overview_bar.set_position(position_normalized)
+        self.overview_bar.update()
 
         zoom = self.total_seconds / (self.visible_end - self.visible_start) if self.visible_end > self.visible_start else 1.0
         self.zoom_label.setText(f"{zoom:.1f}x")

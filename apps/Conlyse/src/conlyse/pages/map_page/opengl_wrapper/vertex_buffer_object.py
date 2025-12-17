@@ -26,3 +26,6 @@ class VertexBufferObject:
 
     def unbind(self):
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+
+    def delete(self):
+        gl.glDeleteBuffers(1, [self.buffer_id])

@@ -118,5 +118,5 @@ class ProvinceFillRenderer:
             t1 = time.perf_counter()
             map_view.update_provinces(events)
             t2 = time.perf_counter()
-            self.map_widget.performance_metrics[f"{map_view.__class__.__name__.lower()}_update"] = (t2 - t1)
+            self.map_widget.performance_metrics[f"{map_view.__class__.__name__.lower()}_update"] = (t2 - t1) * 1000
             map_view.update_texture()

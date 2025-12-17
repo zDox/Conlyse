@@ -2,12 +2,16 @@
     "ui": {
         "theme": "DARK"
     },
+    "simulation": {
+        "ups": 60
+    },
     "graphics": {
         "resolution": {
             "width": 1280,
             "height": 720
         },
         "frame_rate_limit": 120,
+        "vsync": false,
         "fullscreen": false,
         "anti_aliasing": true,
         "msaa_samples": 4

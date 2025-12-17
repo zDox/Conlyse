@@ -15,6 +15,7 @@ from conlyse.pages.map_page.map_views.map_view_type import MapViewType
 from conlyse.pages.map_page.renderers.province_border_renderer import ProvinceBorderRenderer
 from conlyse.pages.map_page.renderers.province_connection_renderer import ProvinceConnectionRenderer
 from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
+from conlyse.pages.map_page.renderers.world_text_renderer import WorldTextRenderer
 
 logger = get_logger()
 
@@ -41,6 +42,8 @@ class Map(QOpenGLWidget):
         self.province_fill_renderer = ProvinceFillRenderer(self)
         self.province_connection_renderer = ProvinceConnectionRenderer(self)
         self.province_border_renderer = ProvinceBorderRenderer(self)
+        self.world_text_renderer = WorldTextRenderer(self, font_size=100)
+        self.last_render_time = time.perf_counter()
 
         self.active_map_view = MapViewType.POLITICAL
         self.render_connections = True
@@ -50,14 +53,15 @@ class Map(QOpenGLWidget):
         
         # Performance tracking
         self.performance_metrics = {
-            "last_jump_time": 0.0,
             "province_fill": 0.0,
             "province_connections": 0.0,
             "province_borders": 0.0,
+            "world_text": 0.0,
             "terrainview_update": 0.0,
             "resourceview_update": 0.0,
             "politicalview_update": 0.0,
-            "total_frame": 0.0
+            "render_frame": 0.0,
+            "time_since_last_frame": 0.0,
         }
 
     def disable_pyqt_redraws(self):
@@ -70,8 +74,7 @@ class Map(QOpenGLWidget):
 
     # Ignore Qt paint events
     def paintEvent(self, event):
-        if not self._manual_render_mode:
-            super().paintEvent(event)
+        pass
 
     def set_active_map_view(self, map_view: MapViewType):
         """
@@ -91,6 +94,7 @@ class Map(QOpenGLWidget):
         self.province_fill_renderer.initialize()
         self.province_connection_renderer.initialize()
         self.province_border_renderer.initialize()
+        self.world_text_renderer.initialize()
         gl.glClearColor(0.1, 0.1, 0.1, 1.0)
         # Enable blending
         gl.glEnable(gl.GL_BLEND)
@@ -101,6 +105,10 @@ class Map(QOpenGLWidget):
 
     def paintGL(self):
         """Render the map. Called whenever the widget needs to be redrawn."""
+        if not self._manual_render_mode:
+            return  # Skip automatic paint events
+        self.performance_metrics["time_since_last_frame"] = (time.perf_counter() - self.last_render_time) * 1000
+        self.last_render_time = time.perf_counter()
         frame_start = time.perf_counter()
         
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
@@ -121,7 +129,12 @@ class Map(QOpenGLWidget):
         self.province_border_renderer.render()
         self.performance_metrics["province_borders"] = (time.perf_counter() - render_start) * 1000
         
-        self.performance_metrics["total_frame"] = (time.perf_counter() - frame_start) * 1000
+        # Track world text renderer time
+        render_start = time.perf_counter()
+        self.world_text_renderer.render()
+        self.performance_metrics["world_text"] = (time.perf_counter() - render_start) * 1000
+        
+        self.performance_metrics["render_frame"] = (time.perf_counter() - frame_start) * 1000
 
     def resizeGL(self, w: int, h: int):
         """
@@ -152,6 +165,11 @@ class Map(QOpenGLWidget):
         if ReplayHookTag.ProvinceChanged in events:
             self.province_fill_renderer.handle_province_change_events(events[ReplayHookTag.ProvinceChanged])
 
+    def cleanup(self):
+        """Clean up OpenGL resources."""
+        self.makeCurrent()
+        self.world_text_renderer.cleanup()
+        self.doneCurrent()
     
     def get_performance_metrics(self):
         """
