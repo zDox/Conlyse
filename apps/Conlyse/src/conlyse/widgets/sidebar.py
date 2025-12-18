@@ -106,9 +106,15 @@ class Sidebar(QWidget):
         if self.bottom_panel_height_callback:
             bottom_panel_height = self.bottom_panel_height_callback()
 
-        # Sidebar height should leave space for bottom panel
+        # Sidebar (button strip) takes full height
         sidebar_height = parent_height
-
+        
+        # Panel container should stop where bottom panel starts
+        panel_container_height = parent_height - bottom_panel_height
+        
+        # Set maximum height for panel container
+        if self.panel_container:
+            self.panel_container.setMaximumHeight(panel_container_height)
 
         if self.active_panel:
             # Show both button strip and panel
