@@ -106,10 +106,6 @@ class MapPage(ReplayPage):
             return panel_class()
         return QWidget()
 
-    def get_content_widget(self) -> QWidget:
-        """Return the map widget as the main content."""
-        return self.map_widget
-
     def setup(self, context) -> None:
         """Initialize the UI layout and OpenGL context."""
         super().setup(context)

@@ -213,6 +213,10 @@ class Sidebar(QWidget):
         self.active_panel = None
         self._update_geometry()
     
+    def update_geometry(self):
+        """Public method to update sidebar geometry."""
+        self._update_geometry()
+    
     def get_active_panel(self) -> str | None:
         """Get the name of the currently active panel."""
         return self.active_panel

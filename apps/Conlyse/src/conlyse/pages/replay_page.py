@@ -221,9 +221,9 @@ class ReplayPage(Page):
             return
         # Update sidebar geometries when page is resized
         if self.left_sidebar:
-            self.left_sidebar._update_geometry()
+            self.left_sidebar.update_geometry()
         if self.right_sidebar:
-            self.right_sidebar._update_geometry()
+            self.right_sidebar.update_geometry()
         # Update bottom panel position
         if self.bottom_panel and self.bottom_panel.isVisible():
             panel_height = self.bottom_panel.height()
