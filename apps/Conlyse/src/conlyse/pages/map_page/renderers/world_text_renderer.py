@@ -13,18 +13,9 @@ from typing import TYPE_CHECKING
 import freetype
 import numpy as np
 from OpenGL import GL as gl
-from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
-from conflict_interface.data_types.map_state.sea_province import SeaProvince
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.color_util import rgba_to_normalized
-from conlyse.pages.map_page.constants import CITY_LABEL_COLOR
-from conlyse.pages.map_page.constants import CITY_LABEL_OUTLINE_WIDTH
-from conlyse.pages.map_page.constants import CITY_LABEL_OUTLINE_COLOR
-from conlyse.pages.map_page.constants import CITY_LABEL_SIZE
-from conlyse.pages.map_page.constants import NATION_LABEL_COLOR
-from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_COLOR
-from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_OFFSET
 from conlyse.pages.map_page.opengl_wrapper.shader import Shader, ShaderType
 from conlyse.pages.map_page.opengl_wrapper.shader_program import ShaderProgram
 from conlyse.pages.map_page.opengl_wrapper.vertex_array_object import VertexArrayObject
@@ -232,43 +223,6 @@ class WorldTextRenderer:
 
         self.instance_vbo.unbind()
         self.vao.unbind()
-
-        for province in self.map_widget.ritf.get_provinces().values():
-            if isinstance(province, SeaProvince):
-                continue
-            if province.province_state_id not in (
-                ProvinceStateID.MAINLAND_CITY,
-                ProvinceStateID.ANNEXED_CITY,
-                ProvinceStateID.OCCUPIED_CITY,
-            ):
-                continue
-            province_center = province.center_coordinate
-            self.add_text(
-                province.name,
-                anchor_world=(province_center.x, province_center.y),
-                color=CITY_LABEL_COLOR,
-                outline_width=CITY_LABEL_OUTLINE_WIDTH,
-                outline_color=CITY_LABEL_OUTLINE_COLOR,
-                size_world=CITY_LABEL_SIZE,
-                group=TextGroup.CITY_LABELS
-            )
-
-        for player in self.map_widget.ritf.get_players().values():
-            if player.nation_label_coord is None:
-                logger.warning(f"Player {player.nation_name} has no nation label coordinates, skipping label")
-                continue
-            nation_label_coordinate = player.nation_label_coord.x, player.nation_label_coord.y
-            nation_label_size = player.nation_label_size * 100
-            self.add_text(
-                player.nation_name,
-                centered=True,
-                shadow_offset=NATION_LABEL_SHADOW_OFFSET,
-                shadow_color=NATION_LABEL_SHADOW_COLOR,
-                anchor_world=nation_label_coordinate,
-                color=NATION_LABEL_COLOR,
-                size_world=nation_label_size,
-                group=TextGroup.NATION_LABELS
-            )
 
         logger.info("WorldTextRenderer initialized")
 
