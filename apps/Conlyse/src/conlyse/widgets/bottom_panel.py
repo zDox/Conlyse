@@ -161,6 +161,10 @@ class BottomPanel(QWidget):
         """Get the name of the currently active content."""
         return self.active_content
     
+    def get_default_height(self) -> int:
+        """Get the default height of the bottom panel."""
+        return self.default_height
+    
     def update_geometry(self):
         """Public method to update bottom panel geometry."""
         self._update_geometry()

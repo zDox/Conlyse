@@ -61,16 +61,20 @@ class ReplayPage(Page):
         
         self.setLayout(layout)
         
-        # Setup sidebars first (before bottom panel)
-        self.setup_sidebars()
-        
-        # Create bottom panel as overlay (after sidebars so we can get their widths)
+        # Create bottom panel first (so we can get its default height for sidebars)
         self.bottom_panel = BottomPanel(
             parent=self.content_container,
             default_height=150,
-            left_sidebar_width_callback=lambda: self.left_sidebar.get_current_width() if self.left_sidebar else 0,
-            right_sidebar_width_callback=lambda: self.right_sidebar.get_current_width() if self.right_sidebar else 0
+            left_sidebar_width_callback=None,  # Will be set after sidebars are created
+            right_sidebar_width_callback=None
         )
+        
+        # Setup sidebars (after bottom panel so they can use its height)
+        self.setup_sidebars()
+        
+        # Update bottom panel with sidebar width callbacks
+        self.bottom_panel.left_sidebar_width_callback = lambda: self.left_sidebar.get_current_width() if self.left_sidebar else 0
+        self.bottom_panel.right_sidebar_width_callback = lambda: self.right_sidebar.get_current_width() if self.right_sidebar else 0
         
         # Setup timeline controls as bottom panel content
         self.setup_timeline_controls()
@@ -113,19 +117,21 @@ class ReplayPage(Page):
         
         available_panels = self.get_available_panels()
         
-        # Create sidebars
+        # Create sidebars with bottom panel height callback
         self.left_sidebar = Sidebar(
             side="left",
             parent=self.content_container,
             button_width=40,
-            panel_width=300
+            panel_width=300,
+            bottom_panel_height_callback=lambda: self.bottom_panel.get_default_height() if self.bottom_panel else 0
         )
         
         self.right_sidebar = Sidebar(
             side="right",
             parent=self.content_container,
             button_width=40,
-            panel_width=300
+            panel_width=300,
+            bottom_panel_height_callback=lambda: self.bottom_panel.get_default_height() if self.bottom_panel else 0
         )
         
         # Add panels based on availability
