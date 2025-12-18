@@ -372,7 +372,7 @@ class PlayerListPage(ReplayPage):
         """Called every frame - no continuous updates needed for this page."""
         super().page_update(delta_time)
 
-    def _on_replay_jump(self):
+    def _on_replay_jump(self, events: Optional[dict[ReplayHookTag, list]] = None):
         """
         Efficiently update player data when replay jumps to a different time.
         Only updates players that have changed, avoiding full data reload.
@@ -380,7 +380,6 @@ class PlayerListPage(ReplayPage):
         if not self.ritf or not self._players_data:
             return
 
-        events = self.ritf.poll_events()
         if ReplayHookTag.PlayerChanged not in events:
             return  # No player changes, skip update
 

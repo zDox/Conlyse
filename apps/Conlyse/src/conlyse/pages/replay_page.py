@@ -7,6 +7,7 @@ from typing import final
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QVBoxLayout, QWidget
+from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conlyse.logger import get_logger
@@ -43,6 +44,7 @@ class ReplayPage(Page):
 
     def setup(self, context):
         """Initialize the page. Subclasses should call this via super().setup()"""
+        self.ritf.register_province_trigger(["resource_production", "owner_id", "morale", "upgrade_set"])
         if self._use_panel_system:
             self._setup_panel_system()
         else:
@@ -197,6 +199,7 @@ class ReplayPage(Page):
         pass
 
     def clean_up(self):
+        self.ritf.unregister_province_trigger()
         if self.timeline_controls:
             self.timeline_controls.clean_up()
             self.timeline_controls.deleteLater()
@@ -229,7 +232,7 @@ class ReplayPage(Page):
         pass
 
     @abstractmethod
-    def _on_replay_jump(self):
+    def _on_replay_jump(self, events: dict[ReplayHookTag, list] | None = None):
         """Handle any additional updates needed after a replay jump."""
         pass
 
@@ -244,7 +247,8 @@ class ReplayPage(Page):
         self.app.performance_window.update_metric(
             "Last Jump Time", (t2 - t1) * 1000.0
         )
-        self._on_replay_jump()
+        events = self.ritf.poll_events()
+        self._on_replay_jump(events)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

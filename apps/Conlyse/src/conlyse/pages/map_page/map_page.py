@@ -10,6 +10,7 @@ from PySide6.QtGui import QSurfaceFormat
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtWidgets import QWidget
+from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.constants import OPENGL_VERSION_MAJOR
@@ -116,7 +117,6 @@ class MapPage(ReplayPage):
         container_layout.setSpacing(0)
         container_layout.addWidget(self.map_widget)
 
-        self.ritf.register_province_trigger(["resource_production", "owner_id", "morale", "upgrade_set"])
 
         # Set up performance metrics for this page
         self.app.performance_window.clear_metrics()
@@ -211,10 +211,7 @@ class MapPage(ReplayPage):
         self.map_widget.deleteLater()
         self.app.main_window.header.set_actions([])
 
-        self.ritf.unregister_province_trigger()
 
-    def _on_replay_jump(self) -> None:
+    def _on_replay_jump(self, events: dict[ReplayHookTag: list] = None) -> None:
         """Jump the replay interface to the requested timestamp."""
-        hook_events = self.ritf.poll_events()
-
-        self.map_widget.apply_hook_events(hook_events)
+        self.map_widget.apply_hook_events(events)
