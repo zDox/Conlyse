@@ -19,7 +19,7 @@ class Sidebar(QWidget):
     Panels overlay the main content when opened.
     """
     
-    def __init__(self, side: str = "left", parent=None, button_width: int = 40, panel_width: int = 300, bottom_panel_height_callback=None):
+    def __init__(self, side: str = "left", parent=None, button_width: int = 40, panel_width: int = 300):
         """
         Initialize the sidebar.
         
@@ -28,7 +28,6 @@ class Sidebar(QWidget):
             parent: Parent widget
             button_width: Width of the sidebar button strip
             panel_width: Width of the panel when opened
-            bottom_panel_height_callback: Callable that returns the height of the bottom panel
         """
         super().__init__(parent)
         self.side = side
@@ -36,7 +35,7 @@ class Sidebar(QWidget):
         self.panel_width = panel_width
         self.panels = {}  # panel_name -> (button, panel_widget)
         self.active_panel = None
-        self.bottom_panel_height_callback = bottom_panel_height_callback
+        self.bottom_panel_buttons = {}  # bottom_panel_name -> button
         
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setObjectName("sidebar")
@@ -55,7 +54,7 @@ class Sidebar(QWidget):
         self.button_layout = QVBoxLayout(self.button_strip)
         self.button_layout.setContentsMargins(0, 0, 0, 0)
         self.button_layout.setSpacing(0)
-        self.button_layout.addStretch()
+        self.button_layout.addStretch()  # Stretch to push bottom panel buttons to bottom
         
         # Panel container
         self.panel_container = QWidget(self)
@@ -95,13 +94,8 @@ class Sidebar(QWidget):
         parent_width = parent.width()
         parent_height = parent.height()
         
-        # Get bottom panel height if callback is provided
-        bottom_panel_height = 0
-        if self.bottom_panel_height_callback:
-            bottom_panel_height = self.bottom_panel_height_callback()
-        
-        # Calculate sidebar height (exclude bottom panel area)
-        sidebar_height = parent_height - bottom_panel_height
+        # Sidebar is now full height
+        sidebar_height = parent_height
         
         if self.active_panel:
             # Show both button strip and panel
@@ -114,6 +108,42 @@ class Sidebar(QWidget):
             self.setGeometry(0, 0, width, sidebar_height)
         else:
             self.setGeometry(parent_width - width, 0, width, sidebar_height)
+    
+    def add_bottom_panel_button(self, name: str, label: str, callback):
+        """
+        Add a button for bottom panel control (only for left sidebar).
+        
+        Args:
+            name: Unique identifier for the bottom panel
+            label: Text to display on the button
+            callback: Function to call when button is clicked
+        """
+        if self.side != "left":
+            return  # Bottom panel buttons only on left sidebar
+        
+        # Create button
+        button = QPushButton(label, self.button_strip)
+        button.setObjectName("bottom_panel_button")
+        button.setFixedHeight(40)
+        button.setCheckable(True)
+        button.clicked.connect(callback)
+        
+        # Add button at the end (after the stretch)
+        self.button_layout.addWidget(button)
+        
+        # Store button
+        self.bottom_panel_buttons[name] = button
+    
+    def set_bottom_panel_button_checked(self, name: str, checked: bool):
+        """
+        Set the checked state of a bottom panel button.
+        
+        Args:
+            name: Name of the bottom panel button
+            checked: Whether to check or uncheck the button
+        """
+        if name in self.bottom_panel_buttons:
+            self.bottom_panel_buttons[name].setChecked(checked)
     
     def add_panel(self, name: str, label: str, panel_widget: QWidget):
         """
@@ -216,6 +246,12 @@ class Sidebar(QWidget):
     def update_geometry(self):
         """Public method to update sidebar geometry."""
         self._update_geometry()
+    
+    def get_current_width(self) -> int:
+        """Get the current width of the sidebar."""
+        if self.active_panel:
+            return self.button_width + self.panel_width
+        return self.button_width
     
     def get_active_panel(self) -> str | None:
         """Get the name of the currently active panel."""

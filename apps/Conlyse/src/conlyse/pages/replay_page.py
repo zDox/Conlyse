@@ -59,17 +59,24 @@ class ReplayPage(Page):
         self.content_container = QWidget(self)
         layout.addWidget(self.content_container)
         
-        # Create bottom panel
-        self.bottom_panel = BottomPanel(parent=self, default_height=150)
-        layout.addWidget(self.bottom_panel)
-        
         self.setLayout(layout)
+        
+        # Setup sidebars first (before bottom panel)
+        self.setup_sidebars()
+        
+        # Create bottom panel as overlay (after sidebars so we can get their widths)
+        self.bottom_panel = BottomPanel(
+            parent=self.content_container,
+            default_height=150,
+            left_sidebar_width_callback=lambda: self.left_sidebar.get_current_width() if self.left_sidebar else 0,
+            right_sidebar_width_callback=lambda: self.right_sidebar.get_current_width() if self.right_sidebar else 0
+        )
         
         # Setup timeline controls as bottom panel content
         self.setup_timeline_controls()
         
-        # Setup sidebars
-        self.setup_sidebars()
+        # Add bottom panel buttons to left sidebar
+        self.setup_bottom_panel_buttons()
 
     def _setup_legacy_timeline(self):
         """Setup legacy timeline controls (for pages not using panel system)."""
@@ -111,16 +118,21 @@ class ReplayPage(Page):
             side="left",
             parent=self.content_container,
             button_width=40,
-            panel_width=300,
-            bottom_panel_height_callback=lambda: self.bottom_panel.get_height() if self.bottom_panel else 0
+            panel_width=300
         )
         
         self.right_sidebar = Sidebar(
             side="right",
             parent=self.content_container,
             button_width=40,
-            panel_width=300,
-            bottom_panel_height_callback=lambda: self.bottom_panel.get_height() if self.bottom_panel else 0
+            panel_width=300
+        )
+        
+        self.right_sidebar = Sidebar(
+            side="right",
+            parent=self.content_container,
+            button_width=40,
+            panel_width=300
         )
         
         # Add panels based on availability
@@ -143,6 +155,29 @@ class ReplayPage(Page):
         self.left_sidebar.raise_()
         self.right_sidebar.show()
         self.right_sidebar.raise_()
+
+    @final
+    def setup_bottom_panel_buttons(self):
+        """Add bottom panel buttons to the left sidebar."""
+        if not self.left_sidebar or not self.bottom_panel:
+            return
+        
+        available_panels = self.get_available_panels()
+        
+        # Add buttons for bottom panel content (e.g., Timeline)
+        for panel_id, panel_type in available_panels.items():
+            if panel_type == PanelType.TIMELINE:
+                label = self._get_panel_label(panel_type)
+                # Create callback that toggles the bottom panel and updates button state
+                def make_callback(pid):
+                    def callback():
+                        self.bottom_panel.toggle_content(pid)
+                        # Update button checked state
+                        is_active = self.bottom_panel.get_active_content() == pid
+                        self.left_sidebar.set_bottom_panel_button_checked(pid, is_active)
+                    return callback
+                
+                self.left_sidebar.add_bottom_panel_button(panel_id, label, make_callback(panel_id))
 
     @final
     def _get_panel_label(self, panel_type: PanelType) -> str:
@@ -189,7 +224,7 @@ class ReplayPage(Page):
         # Add timeline to bottom panel if it's in available panels
         available_panels = self.get_available_panels()
         if PanelType.TIMELINE in available_panels.values():
-            self.bottom_panel.add_content("timeline", "Timeline", self.timeline_controls)
+            self.bottom_panel.add_content("timeline", self.timeline_controls)
 
     @final
     def setup_timeline_controls_legacy(self):
@@ -225,11 +260,5 @@ class ReplayPage(Page):
         if self.right_sidebar:
             self.right_sidebar.update_geometry()
         # Update bottom panel position
-        if self.bottom_panel and self.bottom_panel.isVisible():
-            panel_height = self.bottom_panel.height()
-            self.bottom_panel.setGeometry(
-                0,
-                self.rect().height() - panel_height,
-                self.rect().width(),
-                panel_height
-            )
+        if self.bottom_panel:
+            self.bottom_panel.update_geometry()
