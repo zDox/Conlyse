@@ -128,13 +128,6 @@ class ReplayPage(Page):
             panel_width=300
         )
         
-        self.right_sidebar = Sidebar(
-            side="right",
-            parent=self.content_container,
-            button_width=40,
-            panel_width=300
-        )
-        
         # Add panels based on availability
         for panel_id, panel_type in available_panels.items():
             if panel_type == PanelType.TIMELINE:
