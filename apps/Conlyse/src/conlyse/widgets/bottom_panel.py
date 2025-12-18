@@ -19,22 +19,22 @@ class BottomPanel(QWidget):
     Positioned between left and right sidebars, controlled by buttons in the left sidebar.
     """
     
-    def __init__(self, parent=None, default_height: int = 150, left_sidebar_width_callback=None, right_sidebar_width_callback=None):
+    def __init__(self, parent=None, default_height: int = 150, left_sidebar_button_width: int = 40, right_sidebar_button_width: int = 40):
         """
         Initialize the bottom panel.
         
         Args:
             parent: Parent widget
             default_height: Default height of the panel when visible
-            left_sidebar_width_callback: Callable that returns the width of the left sidebar
-            right_sidebar_width_callback: Callable that returns the width of the right sidebar
+            left_sidebar_button_width: Callable that returns the width of the left sidebar
+            right_sidebar_button_width: Callable that returns the width of the right sidebar
         """
         super().__init__(parent)
         self.default_height = default_height
         self.active_content = None
         self.content_widgets = {}  # panel_name -> widget
-        self.left_sidebar_width_callback = left_sidebar_width_callback
-        self.right_sidebar_width_callback = right_sidebar_width_callback
+        self.left_sidebar_button_width = left_sidebar_button_width
+        self.right_sidebar_button_width = right_sidebar_button_width
         
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setObjectName("bottom_panel")
@@ -66,18 +66,11 @@ class BottomPanel(QWidget):
         parent_width = parent.width()
         parent_height = parent.height()
         
-        # Get sidebar widths
-        left_width = 0
-        if self.left_sidebar_width_callback:
-            left_width = self.left_sidebar_width_callback()
-        
-        right_width = 0
-        if self.right_sidebar_width_callback:
-            right_width = self.right_sidebar_width_callback()
+
         
         # Position at bottom, between sidebars
-        x = left_width
-        width = parent_width - left_width - right_width
+        x = self.left_sidebar_button_width
+        width = parent_width - self.left_sidebar_button_width - self.right_sidebar_button_width
         y = parent_height - self.default_height
         
         self.setGeometry(x, y, width, self.default_height)

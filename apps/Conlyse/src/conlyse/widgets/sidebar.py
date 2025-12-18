@@ -5,8 +5,13 @@ Each sidebar can have multiple panel buttons, but only one panel can be open at 
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QPropertyAnimation, QPoint, QEvent
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy
+from PySide6.QtCore import QEvent
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHBoxLayout
+from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QSizePolicy
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
     pass
@@ -57,18 +62,18 @@ class Sidebar(QWidget):
         self.button_layout.setContentsMargins(0, 0, 0, 0)
         self.button_layout.setSpacing(0)
         self.button_layout.addStretch()  # Stretch to push bottom panel buttons to bottom
-        
+
         # Panel container
         self.panel_container = QWidget(self)
         self.panel_container.setObjectName("sidebar_panel_container")
         self.panel_container.setFixedWidth(panel_width)
         self.panel_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         self.panel_container.hide()
-        
+
         self.panel_layout = QVBoxLayout(self.panel_container)
         self.panel_layout.setContentsMargins(0, 0, 0, 0)
         self.panel_layout.setSpacing(0)
-        
+
         # Arrange widgets based on side
         if side == "left":
             self.main_layout.addWidget(self.button_strip)
@@ -86,36 +91,36 @@ class Sidebar(QWidget):
         if event.type() == QEvent.Type.Resize:
             self._update_geometry()
         return super().eventFilter(obj, event)
-    
+
     def _update_geometry(self):
         """Update the sidebar geometry based on parent size and active panel."""
         parent = self.parent()
         if parent is None:
             return
-        
+
         parent_width = parent.width()
         parent_height = parent.height()
-        
+
         # Get bottom panel height if callback is provided
         bottom_panel_height = 0
         if self.bottom_panel_height_callback:
             bottom_panel_height = self.bottom_panel_height_callback()
-        
+
         # Sidebar height should leave space for bottom panel
-        sidebar_height = parent_height - bottom_panel_height
-        
+        sidebar_height = parent_height
+
+
         if self.active_panel:
             # Show both button strip and panel
             width = self.button_width + self.panel_width
         else:
             # Show only button strip
             width = self.button_width
-        
         if self.side == "left":
             self.setGeometry(0, 0, width, sidebar_height)
         else:
             self.setGeometry(parent_width - width, 0, width, sidebar_height)
-    
+
     def add_bottom_panel_button(self, name: str, label: str, callback):
         """
         Add a button for bottom panel control (only for left sidebar).

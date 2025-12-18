@@ -65,17 +65,14 @@ class ReplayPage(Page):
         self.bottom_panel = BottomPanel(
             parent=self.content_container,
             default_height=150,
-            left_sidebar_width_callback=None,  # Will be set after sidebars are created
-            right_sidebar_width_callback=None
+            left_sidebar_button_width=40,  # Will be set after sidebars are created
+            right_sidebar_button_width=40
         )
         
         # Setup sidebars (after bottom panel so they can use its height)
         self.setup_sidebars()
         
-        # Update bottom panel with sidebar width callbacks
-        self.bottom_panel.left_sidebar_width_callback = lambda: self.left_sidebar.get_current_width() if self.left_sidebar else 0
-        self.bottom_panel.right_sidebar_width_callback = lambda: self.right_sidebar.get_current_width() if self.right_sidebar else 0
-        
+
         # Setup timeline controls as bottom panel content
         self.setup_timeline_controls()
         
