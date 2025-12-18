@@ -8,3 +8,109 @@ TimelineControls {
     background-color: rgba(30, 30, 30, 240);
 }
 
+/* --- Sidebar Styles --- */
+
+#sidebar {
+    background-color: transparent;
+}
+
+#sidebar_button_strip {
+    background-color: rgba(30, 30, 30, 200);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#sidebar_panel_container {
+    background-color: rgba(40, 40, 40, 230);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#sidebar_panel_button {
+    background-color: transparent;
+    color: #ccc;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 8px 4px;
+}
+
+#sidebar_panel_button:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+#sidebar_panel_button:checked {
+    background-color: rgba(33, 150, 243, 0.3);
+    color: #2196F3;
+    border-left: 3px solid #2196F3;
+}
+
+/* --- Panel Styles --- */
+
+#game_info_panel,
+#province_info_panel,
+#army_info_panel,
+#events_panel,
+#city_list_panel,
+#army_list_panel {
+    background-color: rgba(40, 40, 40, 230);
+}
+
+#panel_title {
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#panel_separator {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: none;
+}
+
+#panel_label {
+    color: #888;
+    font-size: 12px;
+}
+
+#panel_value {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ScrollArea styling for panels */
+QScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+QScrollArea > QWidget > QWidget {
+    background-color: transparent;
+}
+
+QScrollBar:vertical {
+    background-color: rgba(255, 255, 255, 0.05);
+    width: 8px;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+}

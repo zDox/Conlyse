@@ -16,7 +16,14 @@ from conlyse.pages.map_page.constants import OPENGL_VERSION_MAJOR
 from conlyse.pages.map_page.constants import OPENGL_VERSION_MINOR
 from conlyse.pages.map_page.input_controller import InputController
 from conlyse.pages.map_page.map import Map
+from conlyse.pages.map_page.panels.game_info_panel import GameInfoPanel
+from conlyse.pages.map_page.panels.province_info_panel import ProvinceInfoPanel
+from conlyse.pages.map_page.panels.army_info_panel import ArmyInfoPanel
+from conlyse.pages.map_page.panels.events_panel import EventsPanel
+from conlyse.pages.map_page.panels.city_list_panel import CityListPanel
+from conlyse.pages.map_page.panels.army_list_panel import ArmyListPanel
 from conlyse.pages.replay_page import ReplayPage
+from conlyse.widgets.sidebar import Sidebar
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -44,6 +51,8 @@ class MapPage(ReplayPage):
         self.map_widget: Map | None = None
         self.map_container: QWidget | None = None
         self.input_controller: InputController | None = None
+        self.left_sidebar: Sidebar | None = None
+        self.right_sidebar: Sidebar | None = None
         samples = self.app.config_manager.main.get("graphics.msaa_samples")
 
         # Configure OpenGL format BEFORE creating the Map widget
@@ -85,10 +94,24 @@ class MapPage(ReplayPage):
         container_layout.setSpacing(0)
         container_layout.addWidget(self.map_widget)
 
-
         layout.addWidget(self.map_container)
         self.setLayout(layout)
 
+        # Create and setup left sidebar
+        self.left_sidebar = Sidebar(side="left", parent=self.map_container, button_width=40, panel_width=300)
+        self.left_sidebar.add_panel("game_info", "Game", GameInfoPanel())
+        self.left_sidebar.add_panel("province_info", "Province", ProvinceInfoPanel())
+        self.left_sidebar.add_panel("army_info", "Army", ArmyInfoPanel())
+        self.left_sidebar.show()
+        self.left_sidebar.raise_()
+
+        # Create and setup right sidebar
+        self.right_sidebar = Sidebar(side="right", parent=self.map_container, button_width=40, panel_width=300)
+        self.right_sidebar.add_panel("events", "Events", EventsPanel())
+        self.right_sidebar.add_panel("city_list", "Cities", CityListPanel())
+        self.right_sidebar.add_panel("army_list", "Armies", ArmyListPanel())
+        self.right_sidebar.show()
+        self.right_sidebar.raise_()
 
         # Set up performance metrics for this page
         self.app.performance_window.clear_metrics()
