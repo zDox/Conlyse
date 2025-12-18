@@ -2,8 +2,7 @@
 Panel System for managing sidebars and bottom panel in ReplayPage.
 Handles panel lifecycle, event routing, and provides panels with replay interface access.
 """
-from __future__ import annotations
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
 from PySide6.QtWidgets import QWidget
 
@@ -12,10 +11,9 @@ from conlyse.utils.enums import PanelType
 from conlyse.widgets.bottom_panel import BottomPanel
 from conlyse.widgets.sidebar import Sidebar
 
-if TYPE_CHECKING:
-    from conflict_interface.interface.replay_interface import ReplayInterface
-    from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
-    from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
+from conflict_interface.interface.replay_interface import ReplayInterface
+from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
+from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 
 logger = get_logger()
 
@@ -88,8 +86,8 @@ class PanelSystem:
         )
         
         # Update bottom panel with sidebar width callbacks
-        self.bottom_panel.left_sidebar_width_callback = lambda: self.left_sidebar.get_current_width() if self.left_sidebar else 0
-        self.bottom_panel.right_sidebar_width_callback = lambda: self.right_sidebar.get_current_width() if self.right_sidebar else 0
+        self.bottom_panel.left_sidebar_width_callback = lambda: 40 if self.left_sidebar else 0
+        self.bottom_panel.right_sidebar_width_callback = lambda: 40 if self.right_sidebar else 0
         
         # Add panels based on availability
         for panel_id, panel_type in available_panels.items():

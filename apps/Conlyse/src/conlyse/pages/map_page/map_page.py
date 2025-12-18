@@ -105,11 +105,14 @@ class MapPage(ReplayPage):
         panel_class = panel_map.get(panel_type)
         if panel_class:
             return panel_class()
+        elif panel_type == PanelType.TIMELINE:
+            return self.timeline_controls
         return QWidget()
 
     def setup(self, context) -> None:
         """Initialize the UI layout and OpenGL context."""
         super().setup(context)
+        self.ritf.register_province_trigger(["owner_id", "resource_production", "morale"])
         
         # Setup map container in the content_container
         container_layout = QVBoxLayout(self.content_container)
@@ -134,10 +137,9 @@ class MapPage(ReplayPage):
         self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
         self.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
 
-        # Show sidebars
-        self.bottom_panel.raise_()
-        self.left_sidebar.raise_()
-        self.right_sidebar.raise_()
+        self.panel_system.bottom_panel.raise_()
+        self.panel_system.left_sidebar.raise_()
+        self.panel_system.right_sidebar.raise_()
 
     # ---- Input event handlers ----
     # These methods forward events to the InputController
@@ -210,6 +212,7 @@ class MapPage(ReplayPage):
             self.map_widget.cleanup()
         self.map_widget.deleteLater()
         self.app.main_window.header.set_actions([])
+        self.ritf.unregister_province_trigger()
 
 
     def _on_replay_jump(self, events: dict[ReplayHookTag: list] = None) -> None:
