@@ -134,6 +134,11 @@ class MapPage(ReplayPage):
         self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
         self.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
 
+        # Show sidebars
+        self.bottom_panel.raise_()
+        self.left_sidebar.raise_()
+        self.right_sidebar.raise_()
+
     # ---- Input event handlers ----
     # These methods forward events to the InputController
 
