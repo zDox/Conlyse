@@ -67,7 +67,7 @@ class Sidebar(QWidget):
         self.panel_container = QWidget(self)
         self.panel_container.setObjectName("sidebar_panel_container")
         self.panel_container.setFixedWidth(panel_width)
-        self.panel_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        self.panel_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Maximum)
         self.panel_container.hide()
 
         self.panel_layout = QVBoxLayout(self.panel_container)
@@ -77,9 +77,9 @@ class Sidebar(QWidget):
         # Arrange widgets based on side
         if side == "left":
             self.main_layout.addWidget(self.button_strip)
-            self.main_layout.addWidget(self.panel_container)
+            self.main_layout.addWidget(self.panel_container, 0, Qt.AlignmentFlag.AlignTop)
         else:
-            self.main_layout.addWidget(self.panel_container)
+            self.main_layout.addWidget(self.panel_container, 0, Qt.AlignmentFlag.AlignTop)
             self.main_layout.addWidget(self.button_strip)
         
         # Listen for parent resize
@@ -113,8 +113,7 @@ class Sidebar(QWidget):
         panel_container_height = parent_height - bottom_panel_height
         
         # Set maximum height for panel container
-        if self.panel_container:
-            self.panel_container.setMaximumHeight(panel_container_height)
+        self.panel_container.setMaximumHeight(panel_container_height)
 
         if self.active_panel:
             # Show both button strip and panel
