@@ -35,13 +35,12 @@ class Sidebar(QWidget):
         self.panel_width = panel_width
         self.panels = {}  # panel_name -> (button, panel_widget)
         self.active_panel = None
-        self.anim = None
         
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setObjectName("sidebar")
         
         # Main layout
-        self.main_layout = QHBoxLayout(self) if side == "left" else QHBoxLayout(self)
+        self.main_layout = QHBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
         
@@ -164,7 +163,7 @@ class Sidebar(QWidget):
             return
         
         # Close any currently open panel first
-        if self.active_panel and self.active_panel != name:
+        if self.active_panel:
             self.close_panel()
         
         button, panel_widget = self.panels[name]
