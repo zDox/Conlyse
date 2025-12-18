@@ -19,7 +19,7 @@ class Sidebar(QWidget):
     Panels overlay the main content when opened.
     """
     
-    def __init__(self, side: str = "left", parent=None, button_width: int = 40, panel_width: int = 300):
+    def __init__(self, side: str = "left", parent=None, button_width: int = 40, panel_width: int = 300, bottom_panel_height_callback=None):
         """
         Initialize the sidebar.
         
@@ -28,6 +28,7 @@ class Sidebar(QWidget):
             parent: Parent widget
             button_width: Width of the sidebar button strip
             panel_width: Width of the panel when opened
+            bottom_panel_height_callback: Callable that returns the height of the bottom panel
         """
         super().__init__(parent)
         self.side = side
@@ -35,6 +36,7 @@ class Sidebar(QWidget):
         self.panel_width = panel_width
         self.panels = {}  # panel_name -> (button, panel_widget)
         self.active_panel = None
+        self.bottom_panel_height_callback = bottom_panel_height_callback
         
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setObjectName("sidebar")
@@ -93,6 +95,14 @@ class Sidebar(QWidget):
         parent_width = parent.width()
         parent_height = parent.height()
         
+        # Get bottom panel height if callback is provided
+        bottom_panel_height = 0
+        if self.bottom_panel_height_callback:
+            bottom_panel_height = self.bottom_panel_height_callback()
+        
+        # Calculate sidebar height (exclude bottom panel area)
+        sidebar_height = parent_height - bottom_panel_height
+        
         if self.active_panel:
             # Show both button strip and panel
             width = self.button_width + self.panel_width
@@ -101,9 +111,9 @@ class Sidebar(QWidget):
             width = self.button_width
         
         if self.side == "left":
-            self.setGeometry(0, 0, width, parent_height)
+            self.setGeometry(0, 0, width, sidebar_height)
         else:
-            self.setGeometry(parent_width - width, 0, width, parent_height)
+            self.setGeometry(parent_width - width, 0, width, sidebar_height)
     
     def add_panel(self, name: str, label: str, panel_widget: QWidget):
         """

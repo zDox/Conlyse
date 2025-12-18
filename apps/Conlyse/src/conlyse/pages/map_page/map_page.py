@@ -23,7 +23,7 @@ from conlyse.pages.map_page.panels.events_panel import EventsPanel
 from conlyse.pages.map_page.panels.city_list_panel import CityListPanel
 from conlyse.pages.map_page.panels.army_list_panel import ArmyListPanel
 from conlyse.pages.replay_page import ReplayPage
-from conlyse.widgets.sidebar import Sidebar
+from conlyse.utils.enums import PanelType
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -46,13 +46,12 @@ class MapPage(ReplayPage):
         The replay interface (`ritf`) is obtained from `self.app.replay_manager.get_active_replay()`.
         """
         super().__init__(app, parent)
+        self._use_panel_system = True  # Enable panel system for MapPage
         self.app: App = app
         self.ritf = self.app.replay_manager.get_active_replay()
         self.map_widget: Map | None = None
         self.map_container: QWidget | None = None
         self.input_controller: InputController | None = None
-        self.left_sidebar: Sidebar | None = None
-        self.right_sidebar: Sidebar | None = None
         samples = self.app.config_manager.main.get("graphics.msaa_samples")
 
         # Configure OpenGL format BEFORE creating the Map widget
@@ -80,38 +79,48 @@ class MapPage(ReplayPage):
         self.perf_update_counter = 0
         self.perf_update_interval = 100  # Update performance metrics every 100 frames
 
+    def get_available_panels(self) -> dict[str, PanelType]:
+        """Return available panels for MapPage."""
+        return {
+            "game_info": PanelType.GAME_INFO,
+            "province_info": PanelType.PROVINCE_INFO,
+            "army_info": PanelType.ARMY_INFO,
+            "events": PanelType.EVENTS,
+            "city_list": PanelType.CITY_LIST,
+            "army_list": PanelType.ARMY_LIST,
+            "timeline": PanelType.TIMELINE
+        }
+
+    def create_panel_widget(self, panel_type: PanelType) -> QWidget:
+        """Create panel widgets based on type."""
+        panel_map = {
+            PanelType.GAME_INFO: GameInfoPanel,
+            PanelType.PROVINCE_INFO: ProvinceInfoPanel,
+            PanelType.ARMY_INFO: ArmyInfoPanel,
+            PanelType.EVENTS: EventsPanel,
+            PanelType.CITY_LIST: CityListPanel,
+            PanelType.ARMY_LIST: ArmyListPanel
+        }
+        panel_class = panel_map.get(panel_type)
+        if panel_class:
+            return panel_class()
+        return QWidget()
+
+    def get_content_widget(self) -> QWidget:
+        """Return the map widget as the main content."""
+        return self.map_widget
+
     def setup(self, context) -> None:
         """Initialize the UI layout and OpenGL context."""
         super().setup(context)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        self.ritf.register_province_trigger(["resource_production", "owner_id", "morale", "upgrade_set"])
-
-        self.map_container = QWidget(self)
-        container_layout = QVBoxLayout(self.map_container)
+        
+        # Setup map container in the content_container
+        container_layout = QVBoxLayout(self.content_container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         container_layout.setSpacing(0)
         container_layout.addWidget(self.map_widget)
 
-        layout.addWidget(self.map_container)
-        self.setLayout(layout)
-
-        # Create and setup left sidebar
-        self.left_sidebar = Sidebar(side="left", parent=self.map_container, button_width=40, panel_width=300)
-        self.left_sidebar.add_panel("game_info", "Game", GameInfoPanel())
-        self.left_sidebar.add_panel("province_info", "Province", ProvinceInfoPanel())
-        self.left_sidebar.add_panel("army_info", "Army", ArmyInfoPanel())
-        self.left_sidebar.show()
-        self.left_sidebar.raise_()
-
-        # Create and setup right sidebar
-        self.right_sidebar = Sidebar(side="right", parent=self.map_container, button_width=40, panel_width=300)
-        self.right_sidebar.add_panel("events", "Events", EventsPanel())
-        self.right_sidebar.add_panel("city_list", "Cities", CityListPanel())
-        self.right_sidebar.add_panel("army_list", "Armies", ArmyListPanel())
-        self.right_sidebar.show()
-        self.right_sidebar.raise_()
+        self.ritf.register_province_trigger(["resource_production", "owner_id", "morale", "upgrade_set"])
 
         # Set up performance metrics for this page
         self.app.performance_window.clear_metrics()

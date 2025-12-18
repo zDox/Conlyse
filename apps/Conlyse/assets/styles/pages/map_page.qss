@@ -8,6 +8,44 @@ TimelineControls {
     background-color: rgba(30, 30, 30, 240);
 }
 
+/* --- Bottom Panel Styles --- */
+
+#bottom_panel {
+    background-color: transparent;
+}
+
+#bottom_panel_button_strip {
+    background-color: rgba(30, 30, 30, 200);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#bottom_panel_content_container {
+    background-color: rgba(40, 40, 40, 230);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#bottom_panel_button {
+    background-color: transparent;
+    color: #ccc;
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    text-align: center;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 4px 2px;
+}
+
+#bottom_panel_button:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+#bottom_panel_button:checked {
+    background-color: rgba(33, 150, 243, 0.3);
+    color: #2196F3;
+    border-top: 3px solid #2196F3;
+}
+
 /* --- Sidebar Styles --- */
 
 #sidebar {
