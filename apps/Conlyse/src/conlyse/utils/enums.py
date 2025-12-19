@@ -14,7 +14,7 @@ class Theme(Enum):
     LIGHT = auto()
     DARK = auto()
 
-class PanelType(Enum):
+class DockType(Enum):
     """Types of panels available in ReplayPage sidebars and bottom panel."""
     # Left sidebar panels
     GAME_INFO = auto()

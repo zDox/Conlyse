@@ -1,35 +1,35 @@
-"""Events panel for the MapPage right sidebar."""
+"""Events dock for the MapPage right sidebar."""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea, QHBoxLayout
 
 
-class EventsPanel(QWidget):
-    """Panel displaying game events."""
+class EventsDock(QWidget):
+    """Dock displaying game events."""
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("events_panel")
+        self.setObjectName("events_dock")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setup_ui()
     
     def setup_ui(self):
-        """Setup the panel UI."""
+        """Setup the dock UI."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
         
         # Title
         title = QLabel("Events")
-        title.setObjectName("panel_title")
+        title.setObjectName("dock_title")
         title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
         
         # Separator
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setObjectName("panel_separator")
+        separator.setObjectName("dock_separator")
         layout.addWidget(separator)
         
         # Scroll area for events

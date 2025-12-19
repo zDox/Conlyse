@@ -12,8 +12,8 @@ from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conlyse.logger import get_logger
 from conlyse.pages.page import Page
-from conlyse.utils.enums import PageType, PanelType
-from conlyse.widgets.panel_system import PanelSystem
+from conlyse.utils.enums import PageType, DockType
+from conlyse.widgets.dock_system.dock_system import DockSystem
 from conlyse.widgets.timecontrol import TimelineControls
 
 logger = get_logger()
@@ -23,15 +23,16 @@ class ReplayPage(Page):
     Base page class for pages with an active replay.
     Handles timeline controls, optional panel system, and replay interaction.
     """
+    use_dock_system = False
+
     def __init__(self, app, parent=None):
         super().__init__(app, parent)
         self.ritf: ReplayInterface = self.app.replay_manager.get_active_replay()
         self.timeline_controls: TimelineControls | None = None
         
         # Panel system (optional, enabled by subclasses)
-        self.panel_system: PanelSystem | None = None
+        self.dock_system: DockSystem | None = None
         self.content_container: QWidget | None = None
-        self._use_panel_system = False  # Subclasses set this to True to enable panels
 
         if not self.ritf:
             logger.error(f"Replay not loaded for path: {self.app.replay_manager.active_replay_path}")
@@ -41,13 +42,13 @@ class ReplayPage(Page):
 
     def setup(self, context):
         """Initialize the page. Subclasses should call this via super().setup()"""
-        if self._use_panel_system:
-            self._setup_panel_system()
+        if self.use_dock_system:
+            self._setup_dock_system()
         else:
             self._setup_legacy_timeline()
 
-    def _setup_panel_system(self):
-        """Setup the full panel system with sidebars and bottom panel."""
+    def _setup_dock_system(self):
+        """Setup the full dock system with sidebars and bottom dock."""
         # Create main layout
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -59,67 +60,67 @@ class ReplayPage(Page):
         
         self.setLayout(layout)
         
-        # Create panel system
-        self.panel_system = PanelSystem(self, self.ritf, self.content_container)
+        # Create dock system
+        self.dock_system = DockSystem(self, self.ritf, self.content_container)
         
         # Setup timeline controls
         self.setup_timeline_controls()
         
-        # Get available panels and setup
-        available_panels = self.get_available_panels()
-        self.panel_system.setup(
-            available_panels=available_panels,
-            panel_factory=self.create_panel_widget,
-            get_panel_ritf_requirement=self.panel_needs_replay_interface
+        # Get available docks and setup
+        available_docks = self.get_available_docks()
+        self.dock_system.setup(
+            available_docks=available_docks,
+            dock_factory=self.create_dock_widget,
+            get_dock_ritf_requirement=self.dock_needs_replay_interface
         )
         
         # Setup event subscriptions
-        self.setup_panel_event_subscriptions()
+        self.setup_dock_event_subscriptions()
 
     def _setup_legacy_timeline(self):
-        """Setup legacy timeline controls (for pages not using panel system)."""
+        """Setup legacy timeline controls (for pages not using dock system)."""
         self.setup_timeline_controls_legacy()
 
-    def get_available_panels(self) -> dict[str, PanelType]:
+    def get_available_docks(self) -> dict[str, DockType]:
         """
-        Return a dictionary of available panels for this page.
-        Override this in subclasses that use the panel system.
+        Return a dictionary of available docks for this page.
+        Override this in subclasses that use the dock system.
         
         Returns:
-            Dictionary mapping panel identifiers to PanelType enums.
+            Dictionary mapping dock identifiers to DockType enums.
         """
         return {}
 
-    def create_panel_widget(self, panel_type: PanelType) -> QWidget:
+    def create_dock_widget(self, dock_type: DockType) -> QWidget:
         """
-        Create and return a widget for the given panel type.
-        Override this in subclasses that use the panel system.
+        Create and return a widget for the given dock type.
+        Override this in subclasses that use the dock system.
         
         Args:
-            panel_type: The type of panel to create
+            dock_type: The type of dock to create
             
         Returns:
-            Widget instance for the panel
+            Widget instance for the dock
         """
         return QWidget()
     
-    def panel_needs_replay_interface(self, panel_type: PanelType) -> bool:
+    def dock_needs_replay_interface(self, dock_type: DockType) -> bool:
         """
-        Determine if a panel needs access to the ReplayInterface.
-        Override this in subclasses to specify which panels need ritf.
+        Determine if a dock needs access to the ReplayInterface.
+        Override this in subclasses to specify which docks need ritf.
         
         Args:
-            panel_type: The type of panel
+            dock_type: The type of dock
             
         Returns:
-            True if panel needs ReplayInterface, False otherwise
+            True if dock needs ReplayInterface, False otherwise
         """
         return False
     
-    def setup_panel_event_subscriptions(self):
+    def setup_dock_event_subscriptions(self):
         """
-        Setup event subscriptions for panels.
-        Override this in subclasses to subscribe panels to specific events.
+        Setup event subscriptions for docks.
+        Override this in subclasses to subscribe docks to specific events.
         """
         pass
 
@@ -135,19 +136,18 @@ class ReplayPage(Page):
             self.timeline_controls.clean_up()
             self.timeline_controls.deleteLater()
             self.timeline_controls = None
-        if self.panel_system:
-            self.panel_system.cleanup()
-            self.panel_system = None
+        if self.dock_system:
+            self.dock_system.cleanup()
 
     @final
     def setup_timeline_controls(self):
-        """Set up the timeline controls in the bottom panel (for panel system)."""
+        """Set up the timeline controls in the bottom dock (for dock system)."""
         self.timeline_controls = TimelineControls(self.ritf, parent=self)
         self.timeline_controls.time_changed.connect(self._private_on_timeline_time_changed)
 
     @final
     def setup_timeline_controls_legacy(self):
-        """Set up legacy timeline controls (for pages not using panel system)."""
+        """Set up legacy timeline controls (for pages not using dock system)."""
         # This is empty for now - legacy pages can override if needed
         pass
 
@@ -170,14 +170,14 @@ class ReplayPage(Page):
         events = self.ritf.poll_events()
         self._on_replay_jump(events)
         
-        # Process events through panel system if available
-        if self.panel_system:
-            self.panel_system.process_events(events)
+        # Process events through dock system if available
+        if self.dock_system:
+            self.dock_system.process_events(events)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if not self._use_panel_system:
+        if not self.use_dock_system:
             return
-        # Update panel system geometries when page is resized
-        if self.panel_system:
-            self.panel_system.update_geometries()
+        # Update dock system geometries when page is resized
+        if self.dock_system:
+            self.dock_system.update_geometries()

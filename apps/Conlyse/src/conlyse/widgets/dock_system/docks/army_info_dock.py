@@ -1,35 +1,35 @@
-"""Army information panel for the MapPage left sidebar."""
+"""Army information dock for the MapPage left sidebar."""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QGridLayout, QScrollArea
 
 
-class ArmyInfoPanel(QWidget):
-    """Panel displaying information about a selected army."""
+class ArmyInfoDock(QWidget):
+    """Dock displaying information about a selected army."""
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("army_info_panel")
+        self.setObjectName("army_info_dock")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setup_ui()
     
     def setup_ui(self):
-        """Setup the panel UI."""
+        """Setup the dock UI."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
         
         # Title
         title = QLabel("Army Information")
-        title.setObjectName("panel_title")
+        title.setObjectName("dock_title")
         title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
         
         # Separator
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setObjectName("panel_separator")
+        separator.setObjectName("dock_separator")
         layout.addWidget(separator)
         
         # Scroll area for content
@@ -71,7 +71,7 @@ class ArmyInfoPanel(QWidget):
         
         # Unit list
         units_label = QLabel("• 5x Main Battle Tank\n• 3x Infantry Fighting Vehicle\n• 2x Mobile Artillery\n• 1x Anti-Air Vehicle")
-        units_label.setObjectName("panel_value")
+        units_label.setObjectName("dock_value")
         units_label.setStyleSheet("margin-left: 20px;")
         units_label.setWordWrap(True)
         content_layout.addWidget(units_label)
@@ -83,11 +83,11 @@ class ArmyInfoPanel(QWidget):
     def _add_info_row(self, grid: QGridLayout, row: int, label: str, value: str):
         """Add an information row to the grid."""
         label_widget = QLabel(label)
-        label_widget.setObjectName("panel_label")
+        label_widget.setObjectName("dock_label")
         label_widget.setStyleSheet("color: #888;")
         
         value_widget = QLabel(value)
-        value_widget.setObjectName("panel_value")
+        value_widget.setObjectName("dock_value")
         value_widget.setStyleSheet("font-weight: 500;")
         
         grid.addWidget(label_widget, row, 0, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)

@@ -8,15 +8,15 @@ TimelineControls {
     background-color: rgba(30, 30, 30, 240);
 }
 
-/* --- Bottom Panel Styles --- */
+/* --- Bottom Dock Styles --- */
 
-#bottom_panel {
+#bottom_dock {
     background-color: rgba(40, 40, 40, 230);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Bottom panel buttons are now in the left sidebar */
-#bottom_panel_button {
+/* Bottom dock buttons are now in the left sidebar */
+#bottom_dock_button {
     background-color: transparent;
     color: #ccc;
     border: none;
@@ -27,12 +27,12 @@ TimelineControls {
     padding: 8px 4px;
 }
 
-#bottom_panel_button:hover {
+#bottom_dock_button:hover {
     background-color: rgba(255, 255, 255, 0.05);
     color: #fff;
 }
 
-#bottom_panel_button:checked {
+#bottom_dock_button:checked {
     background-color: rgba(33, 150, 243, 0.3);
     color: #2196F3;
     border-left: 3px solid #2196F3;
@@ -49,12 +49,12 @@ TimelineControls {
     border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-#sidebar_panel_container {
+#sidebar_dock_container {
     background-color: rgba(40, 40, 40, 230);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-#sidebar_panel_button {
+#sidebar_dock_button {
     background-color: transparent;
     color: #ccc;
     border: none;
@@ -65,51 +65,51 @@ TimelineControls {
     padding: 8px 4px;
 }
 
-#sidebar_panel_button:hover {
+#sidebar_dock_button:hover {
     background-color: rgba(255, 255, 255, 0.05);
     color: #fff;
 }
 
-#sidebar_panel_button:checked {
+#sidebar_dock_button:checked {
     background-color: rgba(33, 150, 243, 0.3);
     color: #2196F3;
     border-left: 3px solid #2196F3;
 }
 
-/* --- Panel Styles --- */
+/* --- Dock Styles --- */
 
-#game_info_panel,
-#province_info_panel,
-#army_info_panel,
-#events_panel,
-#city_list_panel,
-#army_list_panel {
+#game_info_dock,
+#province_info_dock,
+#army_info_dock,
+#events_dock,
+#city_list_dock,
+#army_list_dock {
     background-color: rgba(40, 40, 40, 230);
 }
 
-#panel_title {
+#dock_title {
     color: #fff;
     font-size: 16px;
     font-weight: bold;
 }
 
-#panel_separator {
+#dock_separator {
     background-color: rgba(255, 255, 255, 0.1);
     border: none;
 }
 
-#panel_label {
+#dock_label {
     color: #888;
     font-size: 12px;
 }
 
-#panel_value {
+#dock_value {
     color: #fff;
     font-size: 12px;
     font-weight: 500;
 }
 
-/* ScrollArea styling for panels */
+/* ScrollArea styling for docks */
 QScrollArea {
     background-color: transparent;
     border: none;

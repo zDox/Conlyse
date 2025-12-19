@@ -231,8 +231,7 @@ class WorldTextRenderer:
         # Try to find a FreeFont font (common on Linux systems)
         # Fallback to system fonts
         font_paths = [
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf",
             "/System/Library/Fonts/Helvetica.ttc",  # macOS
             "C:/Windows/Fonts/arial.ttf",  # Windows
         ]

@@ -17,14 +17,14 @@ from conlyse.pages.map_page.constants import OPENGL_VERSION_MAJOR
 from conlyse.pages.map_page.constants import OPENGL_VERSION_MINOR
 from conlyse.pages.map_page.input_controller import InputController
 from conlyse.pages.map_page.map import Map
-from conlyse.pages.map_page.panels.game_info_panel import GameInfoPanel
-from conlyse.pages.map_page.panels.province_info_panel import ProvinceInfoPanel
-from conlyse.pages.map_page.panels.army_info_panel import ArmyInfoPanel
-from conlyse.pages.map_page.panels.events_panel import EventsPanel
-from conlyse.pages.map_page.panels.city_list_panel import CityListPanel
-from conlyse.pages.map_page.panels.army_list_panel import ArmyListPanel
 from conlyse.pages.replay_page import ReplayPage
-from conlyse.utils.enums import PanelType
+from conlyse.utils.enums import DockType
+from conlyse.widgets.dock_system.docks.army_info_dock import ArmyInfoDock
+from conlyse.widgets.dock_system.docks.army_list_dock import ArmyListDock
+from conlyse.widgets.dock_system.docks.city_list_dock import CityListDock
+from conlyse.widgets.dock_system.docks.events_dock import EventsDock
+from conlyse.widgets.dock_system.docks.game_info_dock import GameInfoDock
+from conlyse.widgets.dock_system.docks.province_info_dock import ProvinceInfoDock
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -36,6 +36,7 @@ class MapPage(ReplayPage):
     """
     Page for displaying and interacting with the game map.
     """
+    use_dock_system = True
 
     def __init__(self, app: App, parent=None):
         """
@@ -47,7 +48,6 @@ class MapPage(ReplayPage):
         The replay interface (`ritf`) is obtained from `self.app.replay_manager.get_active_replay()`.
         """
         super().__init__(app, parent)
-        self._use_panel_system = True  # Enable panel system for MapPage
         self.app: App = app
         self.ritf = self.app.replay_manager.get_active_replay()
         self.map_widget: Map | None = None
@@ -80,32 +80,32 @@ class MapPage(ReplayPage):
         self.perf_update_counter = 0
         self.perf_update_interval = 100  # Update performance metrics every 100 frames
 
-    def get_available_panels(self) -> dict[str, PanelType]:
-        """Return available panels for MapPage."""
+    def get_available_docks(self) -> dict[str, DockType]:
+        """Return available docks for MapPage."""
         return {
-            "game_info": PanelType.GAME_INFO,
-            "province_info": PanelType.PROVINCE_INFO,
-            "army_info": PanelType.ARMY_INFO,
-            "events": PanelType.EVENTS,
-            "city_list": PanelType.CITY_LIST,
-            "army_list": PanelType.ARMY_LIST,
-            "timeline": PanelType.TIMELINE
+            "game_info": DockType.GAME_INFO,
+            "province_info": DockType.PROVINCE_INFO,
+            "army_info": DockType.ARMY_INFO,
+            "events": DockType.EVENTS,
+            "city_list": DockType.CITY_LIST,
+            "army_list": DockType.ARMY_LIST,
+            "timeline": DockType.TIMELINE
         }
 
-    def create_panel_widget(self, panel_type: PanelType) -> QWidget:
-        """Create panel widgets based on type."""
-        panel_map = {
-            PanelType.GAME_INFO: GameInfoPanel,
-            PanelType.PROVINCE_INFO: ProvinceInfoPanel,
-            PanelType.ARMY_INFO: ArmyInfoPanel,
-            PanelType.EVENTS: EventsPanel,
-            PanelType.CITY_LIST: CityListPanel,
-            PanelType.ARMY_LIST: ArmyListPanel
+    def create_dock_widget(self, dock_type: DockType) -> QWidget:
+        """Create dock widgets based on type."""
+        dock_map = {
+            DockType.GAME_INFO: GameInfoDock,
+            DockType.PROVINCE_INFO: ProvinceInfoDock,
+            DockType.ARMY_INFO: ArmyInfoDock,
+            DockType.EVENTS: EventsDock,
+            DockType.CITY_LIST: CityListDock,
+            DockType.ARMY_LIST: ArmyListDock
         }
-        panel_class = panel_map.get(panel_type)
-        if panel_class:
-            return panel_class()
-        elif panel_type == PanelType.TIMELINE:
+        dock_class = dock_map.get(dock_type)
+        if dock_class:
+            return dock_class()
+        elif dock_type == DockType.TIMELINE:
             return self.timeline_controls
         return QWidget()
 
@@ -137,9 +137,9 @@ class MapPage(ReplayPage):
         self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
         self.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
 
-        self.panel_system.bottom_panel.raise_()
-        self.panel_system.left_sidebar.raise_()
-        self.panel_system.right_sidebar.raise_()
+        self.dock_system.bottom_dock_container.raise_()
+        self.dock_system.left_sidebar.raise_()
+        self.dock_system.right_sidebar.raise_()
 
     # ---- Input event handlers ----
     # These methods forward events to the InputController

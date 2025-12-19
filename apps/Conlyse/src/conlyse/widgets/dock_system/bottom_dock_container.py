@@ -1,5 +1,5 @@
 """
-Bottom panel widget for ReplayPage.
+Bottom dock widget for ReplayPage.
 Can display different content like TimelineControls.
 Overlays the map between the two sidebars when active.
 """
@@ -13,31 +13,31 @@ if TYPE_CHECKING:
     pass
 
 
-class BottomPanel(QWidget):
+class BottomDockContainer(QWidget):
     """
-    A bottom panel widget that overlays the map content.
+    A bottom dock widget that overlays the map content.
     Positioned between left and right sidebars, controlled by buttons in the left sidebar.
     """
     
     def __init__(self, parent=None, default_height: int = 150, left_sidebar_width_callback=None, right_sidebar_width_callback=None):
         """
-        Initialize the bottom panel.
+        Initialize the bottom dock.
         
         Args:
             parent: Parent widget
-            default_height: Default height of the panel when visible
+            default_height: Default height of the dock when visible
             left_sidebar_width_callback: Callable that returns the width of the left sidebar
             right_sidebar_width_callback: Callable that returns the width of the right sidebar
         """
         super().__init__(parent)
         self.default_height = default_height
         self.active_content = None
-        self.content_widgets = {}  # panel_name -> widget
+        self.content_widgets = {}  # dock_name -> widget
         self.left_sidebar_width_callback = left_sidebar_width_callback
         self.right_sidebar_width_callback = right_sidebar_width_callback
         
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setObjectName("bottom_panel")
+        self.setObjectName("bottom_dock")
         
         # Content layout
         self.content_layout = QVBoxLayout(self)
@@ -58,7 +58,7 @@ class BottomPanel(QWidget):
         return super().eventFilter(obj, event)
     
     def _update_geometry(self):
-        """Update the bottom panel geometry based on parent size and sidebars."""
+        """Update the bottom dock geometry based on parent size and sidebars."""
         parent = self.parent()
         if parent is None or not self.isVisible():
             return
@@ -84,7 +84,7 @@ class BottomPanel(QWidget):
     
     def add_content(self, name: str, widget: QWidget):
         """
-        Add a content widget that can be displayed in the bottom panel.
+        Add a content widget that can be displayed in the bottom dock.
         
         Args:
             name: Unique identifier for the content
@@ -137,7 +137,7 @@ class BottomPanel(QWidget):
         self.content_layout.addWidget(widget)
         widget.show()
         
-        # Show panel
+        # Show dock
         self.show()
         self.raise_()
         self._update_geometry()
@@ -162,9 +162,9 @@ class BottomPanel(QWidget):
         return self.active_content
     
     def get_default_height(self) -> int:
-        """Get the default height of the bottom panel."""
+        """Get the default height of the bottom dock."""
         return self.default_height
     
     def update_geometry(self):
-        """Public method to update bottom panel geometry."""
+        """Public method to update bottom dock geometry."""
         self._update_geometry()

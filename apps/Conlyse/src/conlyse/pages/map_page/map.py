@@ -83,7 +83,9 @@ class Map(QOpenGLWidget):
 
     # Ignore Qt paint events
     def paintEvent(self, event):
-        pass
+        # No idea why, but on Linux we need to call pass the event to the parent class
+        # On Windows this is not necessary
+        return super().paintEvent(event)
 
     def set_active_map_view(self, map_view: MapViewType):
         """
