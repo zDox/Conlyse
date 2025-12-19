@@ -5,11 +5,15 @@ from abc import abstractmethod
 from datetime import timedelta
 from typing import final
 
+from PySide6.QtWidgets import QVBoxLayout, QWidget
+from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
+from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
+
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conlyse.logger import get_logger
 from conlyse.pages.page import Page
-from conlyse.utils.enums import PageType
-from conlyse.widgets.mui.button import CButton
+from conlyse.utils.enums import PageType, DockType
+from conlyse.widgets.dock_system.dock_system import DockSystem
 from conlyse.widgets.timecontrol import TimelineControls
 
 logger = get_logger()
@@ -17,13 +21,19 @@ logger = get_logger()
 class ReplayPage(Page):
     """
     Base page class for pages with an active replay.
-    Handles timeline controls and replay interaction.
+    Handles timeline controls, optional dock system, and replay interaction.
     """
+    use_dock_system = False
+    available_docks: set[DockType] = set()
+
     def __init__(self, app, parent=None):
         super().__init__(app, parent)
         self.ritf: ReplayInterface = self.app.replay_manager.get_active_replay()
         self.timeline_controls: TimelineControls | None = None
-        self.timeline_button: CButton | None = None
+        
+        # Dock system (optional, enabled by subclasses)
+        self.dock_system: DockSystem | None = None
+        self.content_container: QWidget | None = None
 
         if not self.ritf:
             logger.error(f"Replay not loaded for path: {self.app.replay_manager.active_replay_path}")
@@ -32,7 +42,48 @@ class ReplayPage(Page):
             return
 
     def setup(self, context):
-        self.setup_timeline_controls()
+        """Initialize the page. Subclasses should call this via super().setup()"""
+        if self.use_dock_system:
+            self._setup_dock_system()
+
+    def _setup_dock_system(self):
+        """Setup the full dock system with sidebars and bottom dock."""
+        # Create main layout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Create content container (where subclass content goes)
+        self.content_container = QWidget(self)
+        layout.addWidget(self.content_container)
+        
+        self.setLayout(layout)
+        
+        # Create dock system
+        self.dock_system = DockSystem(self, self.ritf, self.content_container)
+        
+        # Setup timeline controls
+        self.timeline_controls = TimelineControls(self.ritf, parent=self)
+        self.timeline_controls.time_changed.connect(self._private_on_timeline_time_changed)
+        
+        self.dock_system.setup(
+            available_docks=self.available_docks,
+            dock_factory=self.create_dock_widget
+        )
+
+    def create_dock_widget(self, dock_type: DockType) -> QWidget:
+        """
+        Create and return a widget for the given dock type.
+        Override this in subclasses that use the dock system.
+        
+        Args:
+            dock_type: The type of dock to create
+            
+        Returns:
+            Widget instance for the dock
+        """
+        return QWidget()
+
 
     def page_update(self, delta_time: float):
         if self.timeline_controls:
@@ -41,47 +92,16 @@ class ReplayPage(Page):
     def page_render(self, dt: float):
         pass
 
-
     def clean_up(self):
         if self.timeline_controls:
             self.timeline_controls.clean_up()
             self.timeline_controls.deleteLater()
             self.timeline_controls = None
-        if self.timeline_button:
-            self.timeline_button.deleteLater()
-            self.timeline_button = None
-
-    @final
-    def setup_timeline_controls(self):
-        """Set up the timeline panel and button."""
-        self.timeline_controls = TimelineControls(self.ritf, parent=self)
-        self.timeline_controls.setVisible(False)
-        self.timeline_controls.time_changed.connect(self._private_on_timeline_time_changed)
-
-        self._setup_timeline_button()
-
-    @final
-    def _setup_timeline_button(self):
-        """Create and attach the header button that toggles the timeline panel."""
-        self.timeline_button = CButton("Open Timeline", "contained", parent=self.app.main_window.header)
-        self.timeline_button.clicked.connect(self.toggle_timeline_visibility)
-        self.app.main_window.header.set_actions([self.timeline_button])
-
-    @final
-    def toggle_timeline_visibility(self):
-        if not self.timeline_controls:
-            return
-        is_visible = self.timeline_controls.isVisible()
-        new_visible_state = not is_visible
-        self.timeline_controls.setVisible(new_visible_state)
-        if new_visible_state:
-            self._position_timeline_overlay()
-            self.timeline_controls.raise_()
-        if self.timeline_button:
-            self.timeline_button.setText("Close Timeline" if new_visible_state else "Open Timeline")
+        if self.dock_system:
+            self.dock_system.cleanup()
 
     @abstractmethod
-    def _on_replay_jump(self):
+    def _on_replay_jump(self, events: dict[ReplayHookTag, list[ReplayHookEvent]]):
         """Handle any additional updates needed after a replay jump."""
         pass
 
@@ -96,19 +116,17 @@ class ReplayPage(Page):
         self.app.performance_window.update_metric(
             "Last Jump Time", (t2 - t1) * 1000.0
         )
-        self._on_replay_jump()
-
-    def _position_timeline_overlay(self):
-        if not self.timeline_controls:
-            return
-        overlay_height = self.timeline_controls.sizeHint().height()
-        self.timeline_controls.setGeometry(
-            0,
-            self.rect().height() - overlay_height,
-            self.rect().width(),
-            overlay_height,
-        )
+        events = self.ritf.poll_events()
+        self._on_replay_jump(events)
+        
+        # Process events through dock system if available
+        if self.dock_system:
+            self.dock_system.process_events(events)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._position_timeline_overlay()
+        if not self.use_dock_system:
+            return
+        # Update dock system geometries when page is resized
+        if self.dock_system:
+            self.dock_system.update_geometries()
