@@ -35,7 +35,7 @@ class Sidebar(QWidget):
             parent: Parent widget
             button_width: Width of the sidebar button strip
             dock_width: Width of the dock when opened
-            bottom_dock_height: Callable that returns the default height of the bottom dock
+            bottom_dock_height: Default height of the bottom dock in pixels
         """
         super().__init__(parent)
         self.side = side
@@ -189,7 +189,7 @@ class Sidebar(QWidget):
         If another dock is open, close it first.
         
         Args:
-            dock_type: Name of the dock to toggle
+            dock_type: DockType enum value for the dock to toggle
         """
         if dock_type not in self.docks:
             return
@@ -266,6 +266,6 @@ class Sidebar(QWidget):
             return self.button_width + self.dock_width
         return self.button_width
     
-    def get_active_dock(self) -> str | None:
+    def get_active_dock(self) -> DockType | None:
         """Get the name of the currently active dock."""
         return self.active_dock

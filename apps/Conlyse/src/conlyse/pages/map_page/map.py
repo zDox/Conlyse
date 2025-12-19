@@ -83,7 +83,7 @@ class Map(QOpenGLWidget):
 
     # Ignore Qt paint events
     def paintEvent(self, event):
-        # No idea why, but on Linux we need to call pass the event to the parent class
+        # No idea why, but on Linux we need to pass the event to the parent class
         # On Windows this is not necessary
         return super().paintEvent(event)
 

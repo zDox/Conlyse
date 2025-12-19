@@ -130,8 +130,8 @@ class ProvinceInfoDock(QWidget):
         value_widget = QLabel()
         value_widget.setStyleSheet("font-weight: 500;")
 
-        self.grid.addWidget(label_widget, row, 0, Qt.AlignLeft)
-        self.grid.addWidget(value_widget, row, 1, Qt.AlignLeft)
+        self.grid.addWidget(label_widget, row, 0, Qt.AlignmentFlag.AlignLeft)
+        self.grid.addWidget(value_widget, row, 1, Qt.AlignmentFlag.AlignLeft)
 
         self._value_labels[key] = value_widget
 

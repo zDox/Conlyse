@@ -28,8 +28,8 @@ class BottomDockContainer(QWidget):
         Args:
             parent: Parent widget
             default_height: Default height of the dock when visible
-            left_sidebar_button_width: the width of the left sidebar
-            right_sidebar_button_width: the width of the right sidebar
+            left_sidebar_button_width: width of the left sidebar's button strip (excluding any open dock width)
+            right_sidebar_button_width: width of the right sidebar's button strip (excluding any open dock width)
         """
         super().__init__(parent)
         self.default_height = default_height
@@ -111,7 +111,7 @@ class BottomDockContainer(QWidget):
         Open a specific content widget.
         
         Args:
-            dock_type: Name of the content to open
+            dock_type: DockType enum value for the content to open
         """
         if dock_type not in self.docks:
             return
@@ -151,7 +151,7 @@ class BottomDockContainer(QWidget):
         self.active_content = None
     
     def get_active_dock(self) -> DockType | None:
-        """Get the name of the currently active content."""
+        """Get the DockType of the currently active content."""
         return self.active_content
     
     def get_default_height(self) -> int:

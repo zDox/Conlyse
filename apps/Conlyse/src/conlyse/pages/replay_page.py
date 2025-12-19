@@ -66,7 +66,6 @@ class ReplayPage(Page):
         self.timeline_controls = TimelineControls(self.ritf, parent=self)
         self.timeline_controls.time_changed.connect(self._private_on_timeline_time_changed)
         
-        # setup
         self.dock_system.setup(
             available_docks=self.available_docks,
             dock_factory=self.create_dock_widget

@@ -1,5 +1,5 @@
 """
-dock System for managing sidebars and bottom dock in ReplayPage.
+DockSystem for managing sidebars and bottom dock in ReplayPage.
 Handles dock lifecycle, event routing, and provides docks with replay interface access.
 """
 from typing import Callable
@@ -43,11 +43,8 @@ class DockSystem:
         self.right_sidebar: Sidebar | None = None
         self.bottom_dock_container: BottomDockContainer | None = None
 
-        # Dock registry: dock_name -> (dock_widget, dock_type, needs_ritf)
+        # Dock registry: dock_type -> (dock_widget, dock_type, needs_ritf)
         self.docks: dict[DockType, QWidget] = {}
-
-        # Event subscriptions: ReplayHookTag -> set of dock_names
-        self.event_subscriptions: dict[ReplayHookTag, set[DockType]] = {}
 
     def setup(self,
               available_docks: set[DockType],
@@ -173,7 +170,7 @@ class DockSystem:
             self.bottom_dock_container.update_geometry()
 
     def get_dock(self, dock_type: DockType) -> QWidget | None:
-        """Get a dock widget by its ID."""
+        """Get a dock widget by its DockType."""
         if dock_type in self.docks:
             return self.docks[dock_type]
         return None
@@ -210,14 +207,13 @@ class DockSystem:
     def cleanup(self):
         """Clean up dock system resources."""
         # Clean up docks
-        for dock_id, dock_widget in self.docks.items():
+        for dock_type, dock_widget in self.docks.items():
             if hasattr(dock_widget, 'cleanup'):
                 dock_widget.cleanup()
             dock_widget.deleteLater()
         
         self.docks.clear()
-        self.event_subscriptions.clear()
-        
+
         # Clean up widgets
         if self.left_sidebar:
             self.left_sidebar.deleteLater()

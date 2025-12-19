@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea, QHBoxLayout
+from PySide6.QtWidgets import QFrame
+from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QScrollArea
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
 
 
 class EventsDock(QWidget):

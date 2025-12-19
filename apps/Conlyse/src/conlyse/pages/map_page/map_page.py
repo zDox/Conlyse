@@ -10,6 +10,7 @@ from PySide6.QtGui import QSurfaceFormat
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtWidgets import QWidget
+from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 
 from conlyse.logger import get_logger
@@ -213,6 +214,6 @@ class MapPage(ReplayPage):
         self.ritf.unregister_province_trigger()
 
 
-    def _on_replay_jump(self, events: dict[ReplayHookTag, list] = None) -> None:
+    def _on_replay_jump(self, events: dict[ReplayHookTag, list[ReplayHookEvent]] = None) -> None:
         """Jump the replay interface to the requested timestamp."""
         self.map_widget.apply_hook_events(events)
