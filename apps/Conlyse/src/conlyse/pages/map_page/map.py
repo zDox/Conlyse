@@ -1,6 +1,5 @@
 import time
 
-import numpy as np
 from OpenGL import GL as gl
 from PySide6.QtCore import QSize
 from PySide6.QtCore import Qt
@@ -22,7 +21,7 @@ from conlyse.pages.map_page.constants import NATION_LABEL_COLOR
 from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_COLOR
 from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_OFFSET
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
-from conlyse.pages.map_page.opengl_wrapper.color_palette_texture import ColorPaletteTexture
+from conlyse.pages.map_page.picking import ProvincePicker
 from conlyse.pages.map_page.renderers.province_border_renderer import ProvinceBorderRenderer
 from conlyse.pages.map_page.renderers.province_connection_renderer import ProvinceConnectionRenderer
 from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
@@ -54,6 +53,7 @@ class Map(QOpenGLWidget):
         self.province_connection_renderer = ProvinceConnectionRenderer(self)
         self.province_border_renderer = ProvinceBorderRenderer(self)
         self.world_text_renderer = WorldTextRenderer(self, font_size=100)
+        self.province_picker = ProvincePicker(self, self.province_fill_renderer)
         self.last_render_time = time.perf_counter()
 
         self.active_map_view = MapViewType.POLITICAL
@@ -74,13 +74,6 @@ class Map(QOpenGLWidget):
             "render_frame": 0.0,
             "time_since_last_frame": 0.0,
         }
-
-        # Province picking resources
-        self._picking_fbo: int | None = None
-        self._picking_texture: int | None = None
-        self._picking_depth_rbo: int | None = None
-        self._picking_palette_texture: ColorPaletteTexture | None = None
-        self._picking_size: tuple[int, int] = (0, 0)
 
     def disable_pyqt_redraws(self):
         # Prevent Qt automatic redraws
@@ -183,66 +176,8 @@ class Map(QOpenGLWidget):
         self._manual_render_mode = False
 
     def get_province_id_at_world_position(self, world_x: float, world_y: float) -> int | None:
-        """
-        Determine the province ID at the given world position using GPU color picking.
-
-        Renders the provinces into an offscreen framebuffer where each province has a
-        unique color derived from its ID, then reads back the pixel corresponding to
-        the provided world coordinates.
-        """
-        width = self.width()
-        height = self.height()
-        if width <= 0 or height <= 0:
-            return None
-        if self.province_fill_renderer.program is None or self.province_fill_renderer.vao is None:
-            return None
-
-        screen_pos = self.camera.world_to_screen(world_x, world_y)
-        sx, sy = int(screen_pos[0]), int(screen_pos[1])
-        if sx < 0 or sy < 0 or sx >= width or sy >= height:
-            return None
-
-        self.makeCurrent()
-        try:
-            if not self._ensure_picking_framebuffer(width, height):
-                return None
-            self._ensure_picking_palette_texture()
-
-            prev_fb = int(gl.glGetIntegerv(gl.GL_FRAMEBUFFER_BINDING))
-            prev_viewport = tuple(int(v) for v in gl.glGetIntegerv(gl.GL_VIEWPORT))
-            blend_enabled = gl.glIsEnabled(gl.GL_BLEND)
-
-            prev_clear_color = gl.glGetFloatv(gl.GL_COLOR_CLEAR_VALUE)
-
-            gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self._picking_fbo)
-            gl.glViewport(0, 0, width, height)
-            gl.glClearColor(0.0, 0.0, 0.0, 0.0)
-            gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-            if blend_enabled:
-                gl.glDisable(gl.GL_BLEND)
-
-            self.province_fill_renderer.render_palette(self._picking_palette_texture)
-
-            pixel = gl.glReadPixels(sx, height - sy - 1, 1, 1, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE)
-
-            if blend_enabled:
-                gl.glEnable(gl.GL_BLEND)
-            gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, prev_fb)
-            gl.glClearColor(prev_clear_color[0], prev_clear_color[1], prev_clear_color[2], prev_clear_color[3])
-            gl.glViewport(prev_viewport[0], prev_viewport[1], prev_viewport[2], prev_viewport[3])
-        finally:
-            self.doneCurrent()
-
-        if pixel is None:
-            return None
-
-        rgba = np.frombuffer(pixel, dtype=np.uint8, count=4)
-        if rgba.size < 4:
-            return None
-        encoded = int(rgba[0]) | (int(rgba[1]) << 8) | (int(rgba[2]) << 16)
-        if encoded == 0:
-            return None
-        return encoded - 1
+        """Delegate province picking to the picker helper."""
+        return self.province_picker.get_province_id_at_world_position(world_x, world_y)
 
     def apply_hook_events(self, events: dict[ReplayHookTag, list[ReplayHookEvent]]):
         if ReplayHookTag.ProvinceChanged in events:
@@ -252,7 +187,7 @@ class Map(QOpenGLWidget):
         """Clean up OpenGL resources."""
         self.makeCurrent()
         self.world_text_renderer.cleanup()
-        self._destroy_picking_resources()
+        self.province_picker.cleanup()
         self.doneCurrent()
     
     def get_performance_metrics(self):
@@ -264,70 +199,6 @@ class Map(QOpenGLWidget):
         """
         return self.performance_metrics.copy()
 
-    def _ensure_picking_palette_texture(self):
-        if self._picking_palette_texture is not None:
-            return
-        max_id = self.province_fill_renderer.province_mesh.max_province_id
-        color_data = np.zeros((max_id + 1, 4), dtype=np.uint8)
-        for province_id in range(max_id + 1):
-            encoded = province_id + 1  # Offset to reserve 0 for 'no hit'
-            color_data[province_id] = (
-                encoded & 0xFF,
-                (encoded >> 8) & 0xFF,
-                (encoded >> 16) & 0xFF,
-                255
-            )
-        self._picking_palette_texture = ColorPaletteTexture(color_data.flatten())
-
-    def _ensure_picking_framebuffer(self, width: int, height: int) -> bool:
-        if self._picking_fbo is None:
-            self._picking_fbo = gl.glGenFramebuffers(1)
-            self._picking_texture = gl.glGenTextures(1)
-            self._picking_depth_rbo = gl.glGenRenderbuffers(1)
-
-        if self._picking_size == (width, height):
-            return True
-
-        gl.glBindTexture(gl.GL_TEXTURE_2D, self._picking_texture)
-        gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, width, height, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, None)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
-
-        gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, self._picking_depth_rbo)
-        gl.glRenderbufferStorage(gl.GL_RENDERBUFFER, gl.GL_DEPTH_COMPONENT24, width, height)
-
-        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self._picking_fbo)
-        gl.glFramebufferTexture2D(gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0, gl.GL_TEXTURE_2D, self._picking_texture, 0)
-        gl.glFramebufferRenderbuffer(gl.GL_FRAMEBUFFER, gl.GL_DEPTH_ATTACHMENT, gl.GL_RENDERBUFFER, self._picking_depth_rbo)
-
-        status = gl.glCheckFramebufferStatus(gl.GL_FRAMEBUFFER)
-        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
-        gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, 0)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
-
-        if status != gl.GL_FRAMEBUFFER_COMPLETE:
-            logger.error(f"Province picking framebuffer incomplete: {status}")
-            return False
-
-        self._picking_size = (width, height)
-        return True
-
-    def _destroy_picking_resources(self):
-        if self._picking_palette_texture is not None:
-            gl.glDeleteTextures(1, [self._picking_palette_texture.texture_id])
-            self._picking_palette_texture = None
-        if self._picking_texture is not None:
-            gl.glDeleteTextures([self._picking_texture])
-            self._picking_texture = None
-        if self._picking_depth_rbo is not None:
-            gl.glDeleteRenderbuffers(1, [self._picking_depth_rbo])
-            self._picking_depth_rbo = None
-        if self._picking_fbo is not None:
-            gl.glDeleteFramebuffers(1, [self._picking_fbo])
-            self._picking_fbo = None
-        self._picking_size = (0, 0)
 
     def _initialize_world_labels(self):
         for province in self.ritf.get_provinces().values():

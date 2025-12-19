@@ -38,3 +38,10 @@ class ColorPaletteTexture:
 
     def unbind(self):
         gl.glBindTexture(gl.GL_TEXTURE_1D, 0)
+
+    def delete(self):
+        if self.texture_id is None:
+            return
+        gl.glDeleteTextures(1, [self.texture_id])
+        self.texture_id = None
+
