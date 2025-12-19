@@ -13,6 +13,8 @@ from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtWidgets import QWidget
 
+from conlyse.utils.enums import DockType
+
 if TYPE_CHECKING:
     pass
 
@@ -24,7 +26,7 @@ class Sidebar(QWidget):
     docks overlay the main content when opened.
     """
     
-    def __init__(self, side: str = "left", parent=None, button_width: int = 40, dock_width: int = 300, bottom_dock_height_callback=None):
+    def __init__(self, side: str = "left", parent=None, button_width: int = 40, dock_width: int = 300, bottom_dock_height: int=150):
         """
         Initialize the sidebar.
         
@@ -33,16 +35,16 @@ class Sidebar(QWidget):
             parent: Parent widget
             button_width: Width of the sidebar button strip
             dock_width: Width of the dock when opened
-            bottom_dock_height_callback: Callable that returns the default height of the bottom dock
+            bottom_dock_height: Callable that returns the default height of the bottom dock
         """
         super().__init__(parent)
         self.side = side
         self.button_width = button_width
         self.dock_width = dock_width
-        self.docks = {}  # dock_name -> (button, dock_widget)
+        self.docks: dict[DockType, tuple[QPushButton, QWidget]] = {}  # dock_name -> (button, dock_widget)
         self.active_dock = None
-        self.bottom_dock_buttons = {}  # bottom_dock_name -> button
-        self.bottom_dock_height_callback = bottom_dock_height_callback
+        self.bottom_dock_buttons: dict[DockType, QPushButton] = {}  # bottom_dock_name -> button
+        self.bottom_dock_height: int = bottom_dock_height
         
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setObjectName("sidebar")
@@ -101,16 +103,11 @@ class Sidebar(QWidget):
         parent_width = parent.width()
         parent_height = parent.height()
 
-        # Get bottom dock height if callback is provided
-        bottom_dock_height = 0
-        if self.bottom_dock_height_callback:
-            bottom_dock_height = self.bottom_dock_height_callback()
-
         # Entire sidebar widget takes full height (so button strip is full height)
         sidebar_height = parent_height
         
         # Dock container should stop where bottom dock starts
-        dock_container_height = parent_height - bottom_dock_height
+        dock_container_height = parent_height - self.bottom_dock_height
         
         # Set maximum height for dock container
         self.dock_container.setMaximumHeight(dock_container_height)
@@ -126,12 +123,12 @@ class Sidebar(QWidget):
         else:
             self.setGeometry(parent_width - width, 0, width, sidebar_height)
 
-    def add_bottom_dock_button(self, name: str, label: str, callback):
+    def add_bottom_dock_button(self, dock_type: DockType, label: str, callback):
         """
         Add a button for bottom dock control (only for left sidebar).
         
         Args:
-            name: Unique identifier for the bottom dock
+            dock_type: Unique identifier for the bottom dock
             label: Text to display on the button
             callback: Function to call when button is clicked
         """
@@ -149,25 +146,25 @@ class Sidebar(QWidget):
         self.button_layout.addWidget(button)
         
         # Store button
-        self.bottom_dock_buttons[name] = button
+        self.bottom_dock_buttons[dock_type] = button
     
-    def set_bottom_dock_button_checked(self, name: str, checked: bool):
+    def set_bottom_dock_button_checked(self, dock_type: DockType, checked: bool):
         """
         Set the checked state of a bottom dock button.
         
         Args:
-            name: Name of the bottom dock button
+            dock_type: Name of the bottom dock button
             checked: Whether to check or uncheck the button
         """
-        if name in self.bottom_dock_buttons:
-            self.bottom_dock_buttons[name].setChecked(checked)
+        if dock_type in self.bottom_dock_buttons:
+            self.bottom_dock_buttons[dock_type].setChecked(checked)
     
-    def add_dock(self, name: str, label: str, dock_widget: QWidget):
+    def add_dock(self, dock_type: DockType, label: str, dock_widget: QWidget):
         """
         Add a dock to the sidebar.
         
         Args:
-            name: Unique identifier for the dock
+            dock_type: Unique identifier for the dock
             label: Text to display on the button
             dock_widget: The widget to show when dock is opened
         """
@@ -176,7 +173,7 @@ class Sidebar(QWidget):
         button.setObjectName("sidebar_dock_button")
         button.setFixedHeight(40)
         button.setCheckable(True)
-        button.clicked.connect(lambda checked: self.toggle_dock(name))
+        button.clicked.connect(lambda checked: self.toggle_dock(dock_type))
         
         # Insert button before the stretch
         self.button_layout.insertWidget(self.button_layout.count() - 1, button)
@@ -184,45 +181,45 @@ class Sidebar(QWidget):
         # Store dock
         dock_widget.setParent(self.dock_container)
         dock_widget.hide()
-        self.docks[name] = (button, dock_widget)
+        self.docks[dock_type] = (button, dock_widget)
     
-    def toggle_dock(self, name: str):
+    def toggle_dock(self, dock_type: DockType):
         """
         Toggle a dock open or closed.
         If another dock is open, close it first.
         
         Args:
-            name: Name of the dock to toggle
+            dock_type: Name of the dock to toggle
         """
-        if name not in self.docks:
+        if dock_type not in self.docks:
             return
         
 
         # If clicking the currently open dock, close it
-        if self.active_dock == name:
+        if self.active_dock == dock_type:
             self.close_dock()
         else:
             # Close currently open dock if any
             if self.active_dock:
                 self.close_dock()
             # Open the new dock
-            self.open_dock(name)
+            self.open_dock(dock_type)
     
-    def open_dock(self, name: str):
+    def open_dock(self, dock_type: DockType):
         """
         Open a specific dock.
         
         Args:
-            name: Name of the dock to open
+            dock_type: Name of the dock to open
         """
-        if name not in self.docks:
+        if dock_type not in self.docks:
             return
         
         # Close any currently open dock first
         if self.active_dock:
             self.close_dock()
         
-        button, dock_widget = self.docks[name]
+        button, dock_widget = self.docks[dock_type]
         
         # Update button state
         button.setChecked(True)
@@ -239,7 +236,7 @@ class Sidebar(QWidget):
         # Show dock container
         self.dock_container.show()
         
-        self.active_dock = name
+        self.active_dock = dock_type
         self._update_geometry()
     
     def close_dock(self):

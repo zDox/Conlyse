@@ -21,16 +21,17 @@ logger = get_logger()
 class ReplayPage(Page):
     """
     Base page class for pages with an active replay.
-    Handles timeline controls, optional panel system, and replay interaction.
+    Handles timeline controls, optional dock system, and replay interaction.
     """
     use_dock_system = False
+    available_docks: set[DockType] = set()
 
     def __init__(self, app, parent=None):
         super().__init__(app, parent)
         self.ritf: ReplayInterface = self.app.replay_manager.get_active_replay()
         self.timeline_controls: TimelineControls | None = None
         
-        # Panel system (optional, enabled by subclasses)
+        # Dock system (optional, enabled by subclasses)
         self.dock_system: DockSystem | None = None
         self.content_container: QWidget | None = None
 
@@ -44,8 +45,6 @@ class ReplayPage(Page):
         """Initialize the page. Subclasses should call this via super().setup()"""
         if self.use_dock_system:
             self._setup_dock_system()
-        else:
-            self._setup_legacy_timeline()
 
     def _setup_dock_system(self):
         """Setup the full dock system with sidebars and bottom dock."""
@@ -66,30 +65,16 @@ class ReplayPage(Page):
         # Setup timeline controls
         self.setup_timeline_controls()
         
-        # Get available docks and setup
-        available_docks = self.get_available_docks()
+        # setup
         self.dock_system.setup(
-            available_docks=available_docks,
-            dock_factory=self.create_dock_widget,
-            get_dock_ritf_requirement=self.dock_needs_replay_interface
+            available_docks=self.available_docks,
+            dock_factory=self.create_dock_widget
         )
-        
-        # Setup event subscriptions
-        self.setup_dock_event_subscriptions()
+
 
     def _setup_legacy_timeline(self):
         """Setup legacy timeline controls (for pages not using dock system)."""
-        self.setup_timeline_controls_legacy()
-
-    def get_available_docks(self) -> dict[str, DockType]:
-        """
-        Return a dictionary of available docks for this page.
-        Override this in subclasses that use the dock system.
-        
-        Returns:
-            Dictionary mapping dock identifiers to DockType enums.
-        """
-        return {}
+        pass
 
     def create_dock_widget(self, dock_type: DockType) -> QWidget:
         """
@@ -103,26 +88,7 @@ class ReplayPage(Page):
             Widget instance for the dock
         """
         return QWidget()
-    
-    def dock_needs_replay_interface(self, dock_type: DockType) -> bool:
-        """
-        Determine if a dock needs access to the ReplayInterface.
-        Override this in subclasses to specify which docks need ritf.
-        
-        Args:
-            dock_type: The type of dock
-            
-        Returns:
-            True if dock needs ReplayInterface, False otherwise
-        """
-        return False
-    
-    def setup_dock_event_subscriptions(self):
-        """
-        Setup event subscriptions for docks.
-        Override this in subclasses to subscribe docks to specific events.
-        """
-        pass
+
 
     def page_update(self, delta_time: float):
         if self.timeline_controls:
@@ -145,11 +111,6 @@ class ReplayPage(Page):
         self.timeline_controls = TimelineControls(self.ritf, parent=self)
         self.timeline_controls.time_changed.connect(self._private_on_timeline_time_changed)
 
-    @final
-    def setup_timeline_controls_legacy(self):
-        """Set up legacy timeline controls (for pages not using dock system)."""
-        # This is empty for now - legacy pages can override if needed
-        pass
 
     @abstractmethod
     def _on_replay_jump(self, events: dict[ReplayHookTag, list[ReplayHookEvent]]):

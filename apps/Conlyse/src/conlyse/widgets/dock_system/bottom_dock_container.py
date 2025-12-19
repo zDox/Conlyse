@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 
+from conlyse.utils.enums import DockType
+
 if TYPE_CHECKING:
     pass
 
@@ -19,22 +21,22 @@ class BottomDockContainer(QWidget):
     Positioned between left and right sidebars, controlled by buttons in the left sidebar.
     """
     
-    def __init__(self, parent=None, default_height: int = 150, left_sidebar_width_callback=None, right_sidebar_width_callback=None):
+    def __init__(self, parent=None, default_height: int = 150, left_sidebar_button_width=40, right_sidebar_button_width=40):
         """
         Initialize the bottom dock.
         
         Args:
             parent: Parent widget
             default_height: Default height of the dock when visible
-            left_sidebar_width_callback: Callable that returns the width of the left sidebar
-            right_sidebar_width_callback: Callable that returns the width of the right sidebar
+            left_sidebar_button_width: the width of the left sidebar
+            right_sidebar_button_width: the width of the right sidebar
         """
         super().__init__(parent)
         self.default_height = default_height
-        self.active_content = None
-        self.content_widgets = {}  # dock_name -> widget
-        self.left_sidebar_width_callback = left_sidebar_width_callback
-        self.right_sidebar_width_callback = right_sidebar_width_callback
+        self.active_content: DockType | None = None
+        self.docks: dict[DockType, QWidget] = {}  # dock_name -> widget
+        self.left_sidebar_button_width = left_sidebar_button_width
+        self.right_sidebar_button_width = right_sidebar_button_width
         
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setObjectName("bottom_dock")
@@ -65,68 +67,59 @@ class BottomDockContainer(QWidget):
         
         parent_width = parent.width()
         parent_height = parent.height()
-        
-        # Get sidebar widths
-        left_width = 0
-        if self.left_sidebar_width_callback:
-            left_width = self.left_sidebar_width_callback()
-        
-        right_width = 0
-        if self.right_sidebar_width_callback:
-            right_width = self.right_sidebar_width_callback()
+
         
         # Position at bottom, between sidebars
-        x = left_width
-        width = parent_width - left_width - right_width
+        x = self.left_sidebar_button_width
+        width = parent_width - self.left_sidebar_button_width - self.right_sidebar_button_width
         y = parent_height - self.default_height
         
         self.setGeometry(x, y, width, self.default_height)
     
-    def add_content(self, name: str, widget: QWidget):
+    def add_content(self, dock_type: DockType, widget: QWidget):
         """
         Add a content widget that can be displayed in the bottom dock.
         
         Args:
-            name: Unique identifier for the content
+            dock_type: Unique DockType for the content
             widget: The widget to show when content is selected
         """
         # Store content
         widget.setParent(self)
         widget.hide()
-        self.content_widgets[name] = widget
+        self.docks[dock_type] = widget
     
-    def toggle_content(self, name: str):
+    def toggle_content(self, dock_type: DockType):
         """
         Toggle a content widget open or closed.
         
         Args:
-            name: Name of the content to toggle
+            dock_type: DockType of the dock to toggle
         """
-        if name not in self.content_widgets:
+        if dock_type not in self.docks:
             return
-        
+
         # If clicking the currently active content, close it
-        if self.active_content == name:
+        if self.active_content == dock_type:
             self.close_content()
         else:
             # Open the new content
-            self.open_content(name)
+            self.open_content(dock_type)
     
-    def open_content(self, name: str):
+    def open_content(self, dock_type: DockType):
         """
         Open a specific content widget.
         
         Args:
-            name: Name of the content to open
+            dock_type: Name of the content to open
         """
-        if name not in self.content_widgets:
+        if dock_type not in self.docks:
             return
-        
+
         # Close any currently active content first
         if self.active_content:
             self.close_content()
-        
-        widget = self.content_widgets[name]
+        widget = self.docks[dock_type]
         
         # Clear content layout and add the new widget
         for i in reversed(range(self.content_layout.count())):
@@ -142,14 +135,14 @@ class BottomDockContainer(QWidget):
         self.raise_()
         self._update_geometry()
         
-        self.active_content = name
+        self.active_content = dock_type
     
     def close_content(self):
         """Close the currently open content."""
         if not self.active_content:
             return
         
-        widget = self.content_widgets[self.active_content]
+        widget = self.docks[self.active_content]
         
         # Hide content
         widget.hide()
@@ -157,7 +150,7 @@ class BottomDockContainer(QWidget):
         
         self.active_content = None
     
-    def get_active_content(self) -> str | None:
+    def get_active_content(self) -> DockType | None:
         """Get the name of the currently active content."""
         return self.active_content
     

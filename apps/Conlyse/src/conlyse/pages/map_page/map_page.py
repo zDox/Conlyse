@@ -37,6 +37,9 @@ class MapPage(ReplayPage):
     Page for displaying and interacting with the game map.
     """
     use_dock_system = True
+    available_docks = {DockType.GAME_INFO, DockType.ARMY_INFO, DockType.PROVINCE_INFO,
+                       DockType.EVENTS, DockType.CITY_LIST, DockType.ARMY_LIST,
+                       DockType.TIMELINE}
 
     def __init__(self, app: App, parent=None):
         """
@@ -100,7 +103,7 @@ class MapPage(ReplayPage):
             DockType.ARMY_INFO: ArmyInfoDock,
             DockType.EVENTS: EventsDock,
             DockType.CITY_LIST: CityListDock,
-            DockType.ARMY_LIST: ArmyListDock
+            DockType.ARMY_LIST: ArmyListDock,
         }
         dock_class = dock_map.get(dock_type)
         if dock_class:

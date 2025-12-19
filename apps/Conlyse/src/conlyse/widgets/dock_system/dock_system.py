@@ -44,29 +44,27 @@ class DockSystem:
         self.bottom_dock_container: BottomDockContainer | None = None
 
         # Dock registry: dock_name -> (dock_widget, dock_type, needs_ritf)
-        self.docks: dict[str, tuple[QWidget, DockType, bool]] = {}
+        self.docks: dict[DockType, QWidget] = {}
 
         # Event subscriptions: ReplayHookTag -> set of dock_names
-        self.event_subscriptions: dict[ReplayHookTag, set[str]] = {}
+        self.event_subscriptions: dict[ReplayHookTag, set[DockType]] = {}
 
     def setup(self,
-              available_docks: dict[str, DockType],
-              dock_factory: Callable[[DockType], QWidget],
-              get_dock_ritf_requirement: Callable[[DockType], bool] = None):
+              available_docks: set[DockType],
+              dock_factory: Callable[[DockType], QWidget]):
         """
         Setup the dock system with sidebars and bottom dock.
 
         Args:
-            available_docks: Dictionary mapping dock IDs to dockTypes
+            available_docks: set with available DockType values
             dock_factory: Callable that creates dock widgets from dockType
-            get_dock_ritf_requirement: Optional callable to check if dock needs ritf
         """
         # Create bottom dock first (so we can get its default height for sidebars)
         self.bottom_dock_container = BottomDockContainer(
             parent=self.content_container,
             default_height=150,
-            left_sidebar_width_callback=None,  # Will be set after sidebars
-            right_sidebar_width_callback=None
+            left_sidebar_button_width=40,  # Will be set after sidebars
+            right_sidebar_button_width=40
         )
 
         # Create sidebars with bottom dock height callback
@@ -75,7 +73,7 @@ class DockSystem:
             parent=self.content_container,
             button_width=40,
             dock_width=300,
-            bottom_dock_height_callback=lambda: self.bottom_dock_container.get_default_height() if self.bottom_dock_container else 0
+            bottom_dock_height=150
         )
 
         self.right_sidebar = Sidebar(
@@ -83,45 +81,37 @@ class DockSystem:
             parent=self.content_container,
             button_width=40,
             dock_width=300,
-            bottom_dock_height_callback=lambda: self.bottom_dock_container.get_default_height() if self.bottom_dock_container else 0
+            bottom_dock_height=150,
         )
 
-        # Update bottom dock with sidebar width callbacks
-        self.bottom_dock_container.left_sidebar_width_callback = lambda: 40 if self.left_sidebar else 0
-        self.bottom_dock_container.right_sidebar_width_callback = lambda: 40 if self.right_sidebar else 0
-
         # Add docks based on availability
-        for dock_id, dock_type in available_docks.items():
-            # Check if dock needs ritf
-            needs_ritf = False
-            if get_dock_ritf_requirement:
-                needs_ritf = get_dock_ritf_requirement(dock_type)
-
+        for dock_type in available_docks:
             # Create dock widget
             dock_widget = dock_factory(dock_type)
 
-            # Provide ritf to dock if it needs it
-            if needs_ritf and hasattr(dock_widget, 'set_replay_interface'):
-                dock_widget.set_replay_interface(self.ritf)
-
             # Store dock
-            self.docks[dock_id] = (dock_widget, dock_type, needs_ritf)
+            self.docks[dock_type] = dock_widget
 
             # Get dock label
             label = self._get_dock_label(dock_type)
 
-            # Add to appropriate location
-            if dock_type == DockType.TIMELINE:
-                # Timeline goes to bottom dock
-                self.bottom_dock_container.add_content(dock_id, dock_widget)
-                # Add bottom dock button to left sidebar
-                self._add_bottom_dock_button(dock_id, label)
-            elif dock_type in [DockType.GAME_INFO, DockType.PROVINCE_INFO, DockType.ARMY_INFO]:
+
+            if dock_type in [DockType.GAME_INFO, DockType.PROVINCE_INFO, DockType.ARMY_INFO]:
                 # Left sidebar docks
-                self.left_sidebar.add_dock(dock_id, label, dock_widget)
+                self.left_sidebar.add_dock(dock_type, label, dock_widget)
             elif dock_type in [DockType.EVENTS, DockType.CITY_LIST, DockType.ARMY_LIST]:
                 # Right sidebar docks
-                self.right_sidebar.add_dock(dock_id, label, dock_widget)
+                self.right_sidebar.add_dock(dock_type, label, dock_widget)
+
+        if DockType.TIMELINE in available_docks:
+            # Create dock widget
+            dock_widget = dock_factory(DockType.TIMELINE)
+            self.docks[DockType.TIMELINE] = dock_widget
+
+            # Get dock label
+            label = self._get_dock_label(DockType.TIMELINE)
+            self.bottom_dock_container.add_content(DockType.TIMELINE, dock_widget)
+            self._add_bottom_dock_button(DockType.TIMELINE, label)
 
         # Show sidebars
         self.left_sidebar.show()
@@ -129,7 +119,7 @@ class DockSystem:
         self.right_sidebar.show()
         self.right_sidebar.raise_()
 
-    def _add_bottom_dock_button(self, dock_id: str, label: str):
+    def _add_bottom_dock_button(self, dock_type: DockType, label: str):
         """Add a button for bottom dock control to the left sidebar."""
         if not self.left_sidebar or not self.bottom_dock_container:
             return
@@ -143,7 +133,7 @@ class DockSystem:
                 self.left_sidebar.set_bottom_dock_button_checked(pid, is_active)
             return callback
 
-        self.left_sidebar.add_bottom_dock_button(dock_id, label, make_callback(dock_id))
+        self.left_sidebar.add_bottom_dock_button(dock_type, label, make_callback(dock_type))
 
     def _get_dock_label(self, dock_type: DockType) -> str:
         """Get display label for a dock type."""
@@ -158,22 +148,6 @@ class DockSystem:
         }
         return labels.get(dock_type, "Unknown")
 
-    def subscribe_dock_to_event(self, dock_id: str, hook_tag: ReplayHookTag):
-        """
-        Subscribe a dock to receive specific replay events.
-
-        Args:
-            dock_id: ID of the dock to subscribe
-            hook_tag: ReplayHookTag to subscribe to
-        """
-        if dock_id not in self.docks:
-            logger.warning(f"Cannot subscribe unknown dock '{dock_id}' to events")
-            return
-
-        if hook_tag not in self.event_subscriptions:
-            self.event_subscriptions[hook_tag] = set()
-
-        self.event_subscriptions[hook_tag].add(dock_id)
 
     def process_events(self, events: dict[ReplayHookTag, list[ReplayHookEvent]]):
         """
@@ -182,22 +156,7 @@ class DockSystem:
         Args:
             events: Dictionary of ReplayHookTag to list of events
         """
-        for hook_tag, event_list in events.items():
-            if hook_tag not in self.event_subscriptions:
-                continue
-
-            # Get docks subscribed to this event type
-            subscribed_docks = self.event_subscriptions[hook_tag]
-
-            for dock_id in subscribed_docks:
-                if dock_id not in self.docks:
-                    continue
-
-                dock_widget, dock_type, needs_ritf = self.docks[dock_id]
-
-                # Call dock's event handler if it has one
-                if hasattr(dock_widget, 'handle_replay_events'):
-                    dock_widget.handle_replay_events(hook_tag, event_list)
+        pass
 
     def update_geometries(self):
         """Update sidebar and bottom dock geometries."""
@@ -208,49 +167,49 @@ class DockSystem:
         if self.bottom_dock_container:
             self.bottom_dock_container.update_geometry()
 
-    def get_dock(self, dock_id: str) -> QWidget | None:
+    def get_dock(self, dock_type: DockType) -> QWidget | None:
         """Get a dock widget by its ID."""
-        if dock_id in self.docks:
-            return self.docks[dock_id][0]
+        if dock_type in self.docks:
+            return self.docks[dock_type]
         return None
 
-    def open_dock(self, dock_id: str):
+    def open_dock(self, dock_type: DockType):
         """Open a specific dock."""
-        if dock_id not in self.docks:
+        if dock_type not in self.docks:
             return
 
-        dock_widget, dock_type, needs_ritf = self.docks[dock_id]
+        dock_widget, dock_type, needs_ritf = self.docks[dock_type]
 
         # Determine which container and open it
         if dock_type == DockType.TIMELINE:
-            self.bottom_dock_container.open_content(dock_id)
+            self.bottom_dock_container.open_content(dock_type)
         elif dock_type in [DockType.GAME_INFO, DockType.PROVINCE_INFO, DockType.ARMY_INFO]:
-            self.left_sidebar.open_dock(dock_id)
+            self.left_sidebar.open_dock(dock_type)
         elif dock_type in [DockType.EVENTS, DockType.CITY_LIST, DockType.ARMY_LIST]:
-            self.right_sidebar.open_dock(dock_id)
+            self.right_sidebar.open_dock(dock_type)
 
-    def close_dock(self, dock_id: str):
+    def close_dock(self, dock_type: DockType):
         """Close a specific dock."""
-        if dock_id not in self.docks:
+        if dock_type not in self.docks:
             return
 
-        dock_widget, dock_type, needs_ritf = self.docks[dock_id]
+        dock_widget, dock_type, needs_ritf = self.docks[dock_type]
 
         # Determine which container and close it
         if dock_type == DockType.TIMELINE:
-            if self.bottom_dock_container.get_active_content() == dock_id:
+            if self.bottom_dock_container.get_active_content() == dock_type:
                 self.bottom_dock_container.close_content()
         elif dock_type in [DockType.GAME_INFO, DockType.PROVINCE_INFO, DockType.ARMY_INFO]:
-            if self.left_sidebar.get_active_dock() == dock_id:
+            if self.left_sidebar.get_active_dock() == dock_type:
                 self.left_sidebar.close_dock()
         elif dock_type in [DockType.EVENTS, DockType.CITY_LIST, DockType.ARMY_LIST]:
-            if self.right_sidebar.get_active_dock() == dock_id:
+            if self.right_sidebar.get_active_dock() == dock_type:
                 self.right_sidebar.close_dock()
 
     def cleanup(self):
         """Clean up dock system resources."""
         # Clean up docks
-        for dock_id, (dock_widget, dock_type, needs_ritf) in self.docks.items():
+        for dock_id, dock_widget in self.docks.items():
             if hasattr(dock_widget, 'cleanup'):
                 dock_widget.cleanup()
             dock_widget.deleteLater()
