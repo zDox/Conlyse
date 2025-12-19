@@ -212,6 +212,8 @@ class Map(QOpenGLWidget):
             prev_viewport = tuple(int(v) for v in gl.glGetIntegerv(gl.GL_VIEWPORT))
             blend_enabled = gl.glIsEnabled(gl.GL_BLEND)
 
+            prev_clear_color = gl.glGetFloatv(gl.GL_COLOR_CLEAR_VALUE)
+
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self._picking_fbo)
             gl.glViewport(0, 0, width, height)
             gl.glClearColor(0.0, 0.0, 0.0, 0.0)
@@ -226,6 +228,7 @@ class Map(QOpenGLWidget):
             if blend_enabled:
                 gl.glEnable(gl.GL_BLEND)
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, prev_fb)
+            gl.glClearColor(prev_clear_color[0], prev_clear_color[1], prev_clear_color[2], prev_clear_color[3])
             gl.glViewport(prev_viewport[0], prev_viewport[1], prev_viewport[2], prev_viewport[3])
         finally:
             self.doneCurrent()
