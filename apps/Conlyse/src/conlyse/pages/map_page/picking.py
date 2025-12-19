@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 import numpy as np
 from OpenGL import GL as gl
+from typing import TYPE_CHECKING
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.opengl_wrapper.color_palette_texture import ColorPaletteTexture
+
+if TYPE_CHECKING:
+    from conlyse.pages.map_page.map import Map
+    from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
 
 logger = get_logger()
 
@@ -12,7 +19,7 @@ MAX_PICKING_PROVINCE_ID = 0xFFFFFFFE
 class ProvincePicker:
     """Handles GPU-based province picking via offscreen rendering."""
 
-    def __init__(self, map_widget, province_fill_renderer):
+    def __init__(self, map_widget: Map, province_fill_renderer: ProvinceFillRenderer):
         self.map_widget = map_widget
         self.camera = map_widget.camera
         self.province_fill_renderer = province_fill_renderer
@@ -107,9 +114,8 @@ class ProvincePicker:
         if max_id > MAX_PICKING_PROVINCE_ID:
             logger.error(f"Province ID {max_id} exceeds supported range for picking.")
             return False
-        color_data = np.zeros((max_id + 1, 4), dtype=np.uint8)
-        for province_id in range(max_id + 1):
-            color_data[province_id] = self._encode_province_id(province_id)
+        encoded = np.arange(max_id + 1, dtype=np.uint32) + 1
+        color_data = np.ascontiguousarray(encoded.view(np.uint8).reshape(-1, 4))
         self._picking_palette_texture = ColorPaletteTexture(color_data.flatten())
         return True
 
