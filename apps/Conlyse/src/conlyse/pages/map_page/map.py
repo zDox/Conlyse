@@ -316,7 +316,7 @@ class Map(QOpenGLWidget):
 
     def _destroy_picking_resources(self):
         if self._picking_palette_texture is not None:
-            gl.glDeleteTextures([self._picking_palette_texture.texture_id])
+            gl.glDeleteTextures(1, [self._picking_palette_texture.texture_id])
             self._picking_palette_texture = None
         if self._picking_texture is not None:
             gl.glDeleteTextures([self._picking_texture])
