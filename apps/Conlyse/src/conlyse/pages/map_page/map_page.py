@@ -56,19 +56,8 @@ class MapPage(ReplayPage):
         self.map_widget: Map | None = None
         self.map_container: QWidget | None = None
         self.input_controller: InputController | None = None
-        samples = self.app.config_manager.main.get("graphics.msaa_samples")
 
-        # Configure OpenGL format BEFORE creating the Map widget
-        fmt = QSurfaceFormat()
-        if self.app.config_manager.main.get("graphics.anti_aliasing"):
-            fmt.setSamples(samples)
-        if self.app.config_manager.main.get("graphics.vsync"):
-            fmt.setSwapInterval(1)
-        else:
-            fmt.setSwapInterval(0)
-        fmt.setVersion(OPENGL_VERSION_MAJOR, OPENGL_VERSION_MINOR)
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
-        QSurfaceFormat.setDefaultFormat(fmt)
+        self.setup_opengl_surface()
 
         # TODO: Fix resizing issue when creating the Map widget
         old_size = app.main_window.size()
@@ -83,34 +72,40 @@ class MapPage(ReplayPage):
         self.perf_update_counter = 0
         self.perf_update_interval = 100  # Update performance metrics every 100 frames
 
-    def get_available_docks(self) -> dict[str, DockType]:
-        """Return available docks for MapPage."""
-        return {
-            "game_info": DockType.GAME_INFO,
-            "province_info": DockType.PROVINCE_INFO,
-            "army_info": DockType.ARMY_INFO,
-            "events": DockType.EVENTS,
-            "city_list": DockType.CITY_LIST,
-            "army_list": DockType.ARMY_LIST,
-            "timeline": DockType.TIMELINE
-        }
+    def setup_opengl_surface(self):
+        samples = self.app.config_manager.main.get("graphics.msaa_samples")
+
+        # Configure OpenGL format BEFORE creating the Map widget
+        fmt = QSurfaceFormat()
+        if self.app.config_manager.main.get("graphics.anti_aliasing"):
+            fmt.setSamples(samples)
+        if self.app.config_manager.main.get("graphics.vsync"):
+            fmt.setSwapInterval(1)
+        else:
+            fmt.setSwapInterval(0)
+        fmt.setVersion(OPENGL_VERSION_MAJOR, OPENGL_VERSION_MINOR)
+        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        QSurfaceFormat.setDefaultFormat(fmt)
 
     def create_dock_widget(self, dock_type: DockType) -> QWidget:
         """Create dock widgets based on type."""
-        dock_map = {
-            DockType.GAME_INFO: GameInfoDock,
-            DockType.PROVINCE_INFO: ProvinceInfoDock,
-            DockType.ARMY_INFO: ArmyInfoDock,
-            DockType.EVENTS: EventsDock,
-            DockType.CITY_LIST: CityListDock,
-            DockType.ARMY_LIST: ArmyListDock,
-        }
-        dock_class = dock_map.get(dock_type)
-        if dock_class:
-            return dock_class()
-        elif dock_type == DockType.TIMELINE:
-            return self.timeline_controls
-        return QWidget()
+        match dock_type:
+            case DockType.GAME_INFO:
+                return GameInfoDock()
+            case DockType.PROVINCE_INFO:
+                return ProvinceInfoDock(self.ritf)
+            case DockType.ARMY_INFO:
+                return ArmyInfoDock()
+            case DockType.EVENTS:
+                return EventsDock()
+            case DockType.CITY_LIST:
+                return CityListDock()
+            case DockType.ARMY_LIST:
+                return ArmyListDock()
+            case DockType.TIMELINE:
+                return self.timeline_controls
+            case _:
+                return QWidget()
 
     def setup(self, context) -> None:
         """Initialize the UI layout and OpenGL context."""
@@ -218,6 +213,6 @@ class MapPage(ReplayPage):
         self.ritf.unregister_province_trigger()
 
 
-    def _on_replay_jump(self, events: dict[ReplayHookTag: list] = None) -> None:
+    def _on_replay_jump(self, events: dict[ReplayHookTag, list] = None) -> None:
         """Jump the replay interface to the requested timestamp."""
         self.map_widget.apply_hook_events(events)

@@ -101,12 +101,12 @@ class BottomDockContainer(QWidget):
 
         # If clicking the currently active content, close it
         if self.active_content == dock_type:
-            self.close_content()
+            self.close_dock()
         else:
             # Open the new content
-            self.open_content(dock_type)
+            self.open_dock(dock_type)
     
-    def open_content(self, dock_type: DockType):
+    def open_dock(self, dock_type: DockType):
         """
         Open a specific content widget.
         
@@ -118,7 +118,7 @@ class BottomDockContainer(QWidget):
 
         # Close any currently active content first
         if self.active_content:
-            self.close_content()
+            self.close_dock()
         widget = self.docks[dock_type]
         
         # Clear content layout and add the new widget
@@ -137,7 +137,7 @@ class BottomDockContainer(QWidget):
         
         self.active_content = dock_type
     
-    def close_content(self):
+    def close_dock(self):
         """Close the currently open content."""
         if not self.active_content:
             return
@@ -150,7 +150,7 @@ class BottomDockContainer(QWidget):
         
         self.active_content = None
     
-    def get_active_content(self) -> DockType | None:
+    def get_active_dock(self) -> DockType | None:
         """Get the name of the currently active content."""
         return self.active_content
     

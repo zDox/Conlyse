@@ -63,18 +63,14 @@ class ReplayPage(Page):
         self.dock_system = DockSystem(self, self.ritf, self.content_container)
         
         # Setup timeline controls
-        self.setup_timeline_controls()
+        self.timeline_controls = TimelineControls(self.ritf, parent=self)
+        self.timeline_controls.time_changed.connect(self._private_on_timeline_time_changed)
         
         # setup
         self.dock_system.setup(
             available_docks=self.available_docks,
             dock_factory=self.create_dock_widget
         )
-
-
-    def _setup_legacy_timeline(self):
-        """Setup legacy timeline controls (for pages not using dock system)."""
-        pass
 
     def create_dock_widget(self, dock_type: DockType) -> QWidget:
         """
@@ -104,13 +100,6 @@ class ReplayPage(Page):
             self.timeline_controls = None
         if self.dock_system:
             self.dock_system.cleanup()
-
-    @final
-    def setup_timeline_controls(self):
-        """Set up the timeline controls in the bottom dock (for dock system)."""
-        self.timeline_controls = TimelineControls(self.ritf, parent=self)
-        self.timeline_controls.time_changed.connect(self._private_on_timeline_time_changed)
-
 
     @abstractmethod
     def _on_replay_jump(self, events: dict[ReplayHookTag, list[ReplayHookEvent]]):

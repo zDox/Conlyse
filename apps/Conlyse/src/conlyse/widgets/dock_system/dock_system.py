@@ -129,7 +129,7 @@ class DockSystem:
             def callback():
                 self.bottom_dock_container.toggle_content(pid)
                 # Update button checked state
-                is_active = self.bottom_dock_container.get_active_content() == pid
+                is_active = self.bottom_dock_container.get_active_dock() == pid
                 self.left_sidebar.set_bottom_dock_button_checked(pid, is_active)
             return callback
 
@@ -156,7 +156,12 @@ class DockSystem:
         Args:
             events: Dictionary of ReplayHookTag to list of events
         """
-        pass
+        for dock in self.docks.values():
+            if hasattr(dock, 'process_events') and hasattr(dock, 'subscribed_events'):
+                dock.process_events({
+                    tag: evts for tag, evts in events.items()
+                    if tag in dock.subscribed_events
+                })
 
     def update_geometries(self):
         """Update sidebar and bottom dock geometries."""
@@ -178,11 +183,9 @@ class DockSystem:
         if dock_type not in self.docks:
             return
 
-        dock_widget, dock_type, needs_ritf = self.docks[dock_type]
-
         # Determine which container and open it
         if dock_type == DockType.TIMELINE:
-            self.bottom_dock_container.open_content(dock_type)
+            self.bottom_dock_container.open_dock(dock_type)
         elif dock_type in [DockType.GAME_INFO, DockType.PROVINCE_INFO, DockType.ARMY_INFO]:
             self.left_sidebar.open_dock(dock_type)
         elif dock_type in [DockType.EVENTS, DockType.CITY_LIST, DockType.ARMY_LIST]:
@@ -193,12 +196,10 @@ class DockSystem:
         if dock_type not in self.docks:
             return
 
-        dock_widget, dock_type, needs_ritf = self.docks[dock_type]
-
         # Determine which container and close it
         if dock_type == DockType.TIMELINE:
-            if self.bottom_dock_container.get_active_content() == dock_type:
-                self.bottom_dock_container.close_content()
+            if self.bottom_dock_container.get_active_dock() == dock_type:
+                self.bottom_dock_container.close_dock()
         elif dock_type in [DockType.GAME_INFO, DockType.PROVINCE_INFO, DockType.ARMY_INFO]:
             if self.left_sidebar.get_active_dock() == dock_type:
                 self.left_sidebar.close_dock()
