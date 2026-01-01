@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.opengl_wrapper.color_palette_texture import ColorPaletteTexture
+from conlyse.pages.map_page.opengl_wrapper.framebuffer import Framebuffer
+from conlyse.pages.map_page.opengl_wrapper.renderbuffer import Renderbuffer
+from conlyse.pages.map_page.opengl_wrapper.texture_2d import Texture2D
 
 if TYPE_CHECKING:
     from conlyse.pages.map_page.map import Map
@@ -24,9 +27,9 @@ class ProvincePicker:
         self.camera = map_widget.camera
         self.province_fill_renderer = province_fill_renderer
 
-        self._picking_fbo: int | None = None
-        self._picking_texture: int | None = None
-        self._picking_depth_rbo: int | None = None
+        self._picking_fbo: Framebuffer | None = None
+        self._picking_texture: Texture2D | None = None
+        self._picking_depth_rbo: Renderbuffer | None = None
         self._picking_palette_texture: ColorPaletteTexture | None = None
         self._picking_size: tuple[int, int] = (0, 0)
 
@@ -121,31 +124,31 @@ class ProvincePicker:
 
     def _ensure_picking_framebuffer(self, width: int, height: int) -> bool:
         if self._picking_fbo is None:
-            self._picking_fbo = gl.glGenFramebuffers(1)
-            self._picking_texture = gl.glGenTextures(1)
-            self._picking_depth_rbo = gl.glGenRenderbuffers(1)
+            self._picking_fbo = Framebuffer()
+            self._picking_texture = Texture2D()
+            self._picking_depth_rbo = Renderbuffer()
 
         if self._picking_size == (width, height):
             return True
 
-        gl.glBindTexture(gl.GL_TEXTURE_2D, self._picking_texture)
-        gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA8, width, height, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, None)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
+        self._picking_texture.set_image(width, height, gl.GL_RGBA8, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, None)
+        self._picking_texture.set_parameters({
+            gl.GL_TEXTURE_MIN_FILTER: gl.GL_NEAREST,
+            gl.GL_TEXTURE_MAG_FILTER: gl.GL_NEAREST,
+            gl.GL_TEXTURE_WRAP_S: gl.GL_CLAMP_TO_EDGE,
+            gl.GL_TEXTURE_WRAP_T: gl.GL_CLAMP_TO_EDGE,
+        })
 
-        gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, self._picking_depth_rbo)
-        gl.glRenderbufferStorage(gl.GL_RENDERBUFFER, gl.GL_DEPTH_COMPONENT24, width, height)
+        self._picking_depth_rbo.storage(gl.GL_DEPTH_COMPONENT24, width, height)
 
-        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self._picking_fbo)
-        gl.glFramebufferTexture2D(gl.GL_FRAMEBUFFER, gl.GL_COLOR_ATTACHMENT0, gl.GL_TEXTURE_2D, self._picking_texture, 0)
-        gl.glFramebufferRenderbuffer(gl.GL_FRAMEBUFFER, gl.GL_DEPTH_ATTACHMENT, gl.GL_RENDERBUFFER, self._picking_depth_rbo)
+        self._picking_fbo.bind()
+        self._picking_fbo.attach_texture2d(gl.GL_COLOR_ATTACHMENT0, self._picking_texture.texture_id)
+        self._picking_fbo.attach_renderbuffer(gl.GL_DEPTH_ATTACHMENT, self._picking_depth_rbo.renderbuffer_id)
 
-        status = gl.glCheckFramebufferStatus(gl.GL_FRAMEBUFFER)
-        gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
-        gl.glBindRenderbuffer(gl.GL_RENDERBUFFER, 0)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+        status = self._picking_fbo.check_complete()
+        self._picking_fbo.unbind()
+        self._picking_depth_rbo.unbind()
+        self._picking_texture.unbind()
 
         if status != gl.GL_FRAMEBUFFER_COMPLETE:
             logger.error(f"Province picking framebuffer incomplete: {status}")
@@ -159,12 +162,12 @@ class ProvincePicker:
             self._picking_palette_texture.delete()
             self._picking_palette_texture = None
         if self._picking_texture is not None:
-            gl.glDeleteTextures(1, [self._picking_texture])
+            self._picking_texture.delete()
             self._picking_texture = None
         if self._picking_depth_rbo is not None:
-            gl.glDeleteRenderbuffers(1, [self._picking_depth_rbo])
+            self._picking_depth_rbo.delete()
             self._picking_depth_rbo = None
         if self._picking_fbo is not None:
-            gl.glDeleteFramebuffers(1, [self._picking_fbo])
+            self._picking_fbo.delete()
             self._picking_fbo = None
         self._picking_size = (0, 0)
