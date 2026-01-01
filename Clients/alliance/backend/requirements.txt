@@ -1,0 +1,12 @@
+Flask==2.3.3
+Flask-CORS==4.0.0
+Flask-Compress==1.14
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.23
+mysql-connector-python==8.2.0
+python-dotenv==1.0.0
+PyJWT==2.8.0
+Werkzeug==3.0.1
+requests==2.31.0
+beautifulsoup4==4.12.2
+gunicorn==21.2.0
