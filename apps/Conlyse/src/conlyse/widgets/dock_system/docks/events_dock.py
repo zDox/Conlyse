@@ -8,8 +8,10 @@ from PySide6.QtWidgets import QScrollArea
 from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtWidgets import QWidget
 
+from conlyse.widgets.dock_system.docks.dock import Dock
 
-class EventsDock(QWidget):
+
+class EventsDock(Dock):
     """Dock displaying game events."""
     
     def __init__(self, parent=None):

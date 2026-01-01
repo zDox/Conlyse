@@ -4,8 +4,10 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QGridLayout
 
+from conlyse.widgets.dock_system.docks.dock import Dock
 
-class GameInfoDock(QWidget):
+
+class GameInfoDock(Dock):
     """Dock displaying general game information."""
     
     def __init__(self, parent=None):

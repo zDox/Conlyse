@@ -92,27 +92,7 @@ class ProvinceFillRenderer:
             logger.error(f"Map view {map_view_type} not found")
             return
         # Render the filled provinces
-        self.program.use_program()
-        self.camera.set_uniforms(self.program)
-
-        # Camera / world uniforms
-        self.program.set_uniform_1b("uEnableWrapping", self.map_widget.enable_wrapping)
-        self.program.set_uniform_1f("uWorldWidth", self.map_widget.world_max_x - self.map_widget.world_min_x)
-        self.program.set_uniform_1f("uWorldHeight", self.map_widget.world_max_y - self.map_widget.world_min_y)
-
-
-        # Province color texture
-        self.program.set_uniform_1i("uProvinceColorsTex", 0)
-        self.program.set_uniform_1i("uNumColors", self.province_mesh.max_province_id + 1)
-
-        gl.glActiveTexture(gl.GL_TEXTURE0)
-        map_view.texture.bind()
-        map_view.texture.upload_data_if_dirty()
-
-        self.vao.bind()
-        gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.province_mesh._vertex_data) // 2)
-        map_view.texture.unbind()
-        self.vao.unbind()
+        self.render_palette(map_view.texture)
 
     def handle_province_change_events(self, events: list[ReplayHookEvent]):
         for map_view in self.map_views.values():

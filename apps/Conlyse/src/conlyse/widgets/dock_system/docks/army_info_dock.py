@@ -4,8 +4,10 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QGridLayout, QScrollArea
 
+from conlyse.widgets.dock_system.docks.dock import Dock
 
-class ArmyInfoDock(QWidget):
+
+class ArmyInfoDock(Dock):
     """Dock displaying information about a selected army."""
     
     def __init__(self, parent=None):

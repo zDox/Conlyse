@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import cast
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
@@ -17,9 +18,11 @@ from conlyse.pages.map_page.constants import CAMERA_MOVEMENT_STEP
 from conlyse.pages.map_page.constants import ZOOM_FACTOR_IN
 from conlyse.pages.map_page.constants import ZOOM_FACTOR_OUT
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
+from conlyse.utils.enums import DockType
+from conlyse.widgets.dock_system.docks.province_info_dock import ProvinceInfoDock
 
 if TYPE_CHECKING:
-    from conlyse.pages.map_page.map import Map
+    from conlyse.pages.map_page.map_page import MapPage
 
 logger = get_logger()
 
@@ -30,18 +33,19 @@ class InputController:
     This class separates input handling logic from the main MapPage class.
     """
 
-    def __init__(self, map_widget: Map, keybindings_manager: KeybindingManager):
+    def __init__(self, map_page: MapPage):
         """
         Initialize the input controller.
 
         Args:
-            map_widget: The Map widget to control
-            keybindings_manager: The keybindings manager
+            map_page: The Map Page to control
         """
-        self.map_widget = map_widget
-        self.keybindings_manager = keybindings_manager
+        self.map_page = map_page
+        self.map_widget = map_page.map_widget
+        self.keybindings_manager = map_page.app.keybinding_manager
         self.last_mouse_pos: Point | None = None
         self.dragging = False
+        self.moved_since_last_click = False
         self.pressed_keys: set[int] = set()
         self.enable_mouse_click_logging = False
 
@@ -84,6 +88,8 @@ class InputController:
         self.enable_mouse_click_logging = not self.enable_mouse_click_logging
         logger.info(f"Mouse click logging {'enabled' if self.enable_mouse_click_logging else 'disabled'}.")
 
+
+
     def handle_key_press(self, event: QKeyEvent) -> None:
         """
         Handle key press events.
@@ -112,11 +118,15 @@ class InputController:
         if event.button() == Qt.MouseButton.LeftButton:
             self.last_mouse_pos = Point(event.pos().x(), event.pos().y())
             self.dragging = True
+            self.moved_since_last_click = False
+
 
             if self.enable_mouse_click_logging:
                 world_pos = self.map_widget.camera.screen_to_world(event.pos().x(), event.pos().y())
+                province_id = self.map_widget.get_province_id_at_world_position(world_pos[0], world_pos[1])
+                province_name = self.map_widget.ritf.get_province(province_id).name if province_id is not None else ""
                 logger.debug(f"Mouse click at screen ({event.pos().x()}, {event.pos().y()}) "
-                             f"-> world ({world_pos[0]:.2f}, {world_pos[1]:.2f})")
+                             f"-> world ({world_pos[0]:.2f}, {world_pos[1]:.2f}) Province ({province_name})")
 
     def handle_mouse_move(self, event: QMouseEvent) -> None:
         """
@@ -127,6 +137,7 @@ class InputController:
         """
         if not self.dragging:
             return
+        self.moved_since_last_click = True
 
         event_pos = Point(event.pos().x(), event.pos().y())
         delta = event_pos - self.last_mouse_pos
@@ -143,6 +154,14 @@ class InputController:
         """
         if event.button() == Qt.MouseButton.LeftButton:
             self.dragging = False
+
+            if not self.moved_since_last_click:
+                world_pos = self.map_widget.camera.screen_to_world(event.pos().x(), event.pos().y())
+                province_id = self.map_widget.get_province_id_at_world_position(world_pos[0], world_pos[1])
+
+                province_info_dock: ProvinceInfoDock = cast(ProvinceInfoDock,
+                                                            self.map_page.dock_system.get_dock(DockType.PROVINCE_INFO))
+                province_info_dock.set_selected_province_id(province_id)
 
     def handle_wheel(self, event: QWheelEvent) -> None:
         """
