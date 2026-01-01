@@ -21,7 +21,7 @@ from conlyse.pages.map_page.constants import NATION_LABEL_COLOR
 from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_COLOR
 from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_OFFSET
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
-from conlyse.pages.map_page.picking import ProvincePicker
+from conlyse.pages.map_page.province_picker import ProvincePicker
 from conlyse.pages.map_page.renderers.province_border_renderer import ProvinceBorderRenderer
 from conlyse.pages.map_page.renderers.province_connection_renderer import ProvinceConnectionRenderer
 from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
