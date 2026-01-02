@@ -156,6 +156,10 @@ class Province(GameObject):
         return self.owner_id == self.game.player_id
 
     @property
+    def owner(self) -> str:
+        return self.game.get_player(self.owner_id).name
+
+    @property
     def properties(self) -> ProvinceProperty | None:
         if self._properties:
             return self._properties
