@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import wraps
 from typing import Optional
+from typing import cast
 
 from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.custom_types import HashSet
@@ -457,6 +458,15 @@ class Province(GameObject):
 
     def has_construction(self, slot: int) -> bool:
         return self.constructions[slot] is not None
+
+    @property
+    def population(self) -> int | None:
+        if self.constructions is None:
+            return None
+        if self.constructions[3] is None:
+            return None
+        upgrade = cast(ModableUpgrade, self.constructions[3].upgrade)
+        return upgrade.get_upgrade_type().tier - 1
 
     def has_upgrades(self, required_upgrades: list[int]) -> bool:
         for required_upgrade in required_upgrades:

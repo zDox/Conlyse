@@ -175,24 +175,24 @@ class UpgradeType(GameObject):
             return last_replacing_upgrade.tier
         return self.tier
 
-    def get_last_replacing_upgrade(self) -> int:
+    def get_last_replacing_upgrade(self) -> int | None:
         """
         Get the last replacing upgrade of this upgrade, if any.
         """
         replacing_upgrade = None
-        replacing_id = self._replacing_upgrade_id or 0
-        while replacing_id > 0:
+        replacing_id = self.replacing_upgrade_id
+        while replacing_id:
             replacing_upgrade = self.game.get_upgrade_type(replacing_id)
-            replacing_id = replacing_upgrade.get_replacing_upgrade()
+            replacing_id = replacing_upgrade.replacing_upgrade_id
         return replacing_upgrade.id if replacing_upgrade else 0
 
-    def get_replacing_upgrade(self) -> int:
+    @property
+    def replacing_upgrade_id(self) -> int | None:
         """
         Find an upgrade that replaces this one.
         """
         if not self._replacing_upgrade_id:
             upgrades = self.game.get_upgrade_types()
-            self._replacing_upgrade_id = 0
             for upgrade_id, upgrade in upgrades.items():
                 if upgrade.get_replaced_upgrade() == self.id:
                     self._replacing_upgrade_id = upgrade_id
