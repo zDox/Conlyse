@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea, QGridLayout
+from conflict_interface.data_types.map_state.province import Province
+from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.widgets.dock_system.docks.dock import Dock
 
@@ -10,8 +12,9 @@ from conlyse.widgets.dock_system.docks.dock import Dock
 class CityListDock(Dock):
     """Dock displaying a list of cities."""
     
-    def __init__(self, parent=None):
+    def __init__(self, ritf: ReplayInterface, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.ritf = ritf
         self.setObjectName("city_list_dock")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setup_ui()
@@ -43,27 +46,16 @@ class CityListDock(Dock):
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.setSpacing(8)
-        
-        # Dummy cities
-        cities = [
-            ("Berlin", "Germany", "3.5M", "85%"),
-            ("Paris", "France", "2.2M", "78%"),
-            ("London", "UK", "8.9M", "92%"),
-            ("Moscow", "Russia", "12.5M", "88%"),
-            ("Rome", "Italy", "2.8M", "81%"),
-            ("Madrid", "Spain", "3.2M", "79%"),
-            ("Warsaw", "Poland", "1.8M", "75%"),
-        ]
-        
-        for name, owner, population, morale in cities:
-            city_widget = self._create_city_item(name, owner, population, morale)
+
+        for city in self.ritf.get_my_cities().values():
+            city_widget = self._create_city_item(city)
             content_layout.addWidget(city_widget)
         
         content_layout.addStretch()
         scroll.setWidget(content)
         layout.addWidget(scroll)
     
-    def _create_city_item(self, name: str, owner: str, population: str, morale: str) -> QWidget:
+    def _create_city_item(self, city: Province) -> QWidget:
         """Create a city item widget."""
         widget = QWidget()
         widget.setObjectName("city_item")
@@ -80,7 +72,7 @@ class CityListDock(Dock):
         layout.setSpacing(6)
         
         # City name
-        name_label = QLabel(name)
+        name_label = QLabel(city.name)
         name_label.setStyleSheet("font-weight: bold; font-size: 14px;")
         layout.addWidget(name_label)
         
@@ -91,7 +83,7 @@ class CityListDock(Dock):
         # Owner
         owner_label = QLabel("Owner:")
         owner_label.setStyleSheet("color: #888; font-size: 11px;")
-        owner_value = QLabel(owner)
+        owner_value = QLabel(city.owner)
         owner_value.setStyleSheet("font-size: 11px;")
         grid.addWidget(owner_label, 0, 0)
         grid.addWidget(owner_value, 0, 1)
@@ -99,7 +91,7 @@ class CityListDock(Dock):
         # Population
         pop_label = QLabel("Population:")
         pop_label.setStyleSheet("color: #888; font-size: 11px;")
-        pop_value = QLabel(population)
+        pop_value = QLabel(city.population)
         pop_value.setStyleSheet("font-size: 11px;")
         grid.addWidget(pop_label, 1, 0)
         grid.addWidget(pop_value, 1, 1)
@@ -107,7 +99,7 @@ class CityListDock(Dock):
         # Morale
         morale_label = QLabel("Morale:")
         morale_label.setStyleSheet("color: #888; font-size: 11px;")
-        morale_value = QLabel(morale)
+        morale_value = QLabel(f"{city.morale}%")
         morale_value.setStyleSheet("font-size: 11px;")
         grid.addWidget(morale_label, 2, 0)
         grid.addWidget(morale_value, 2, 1)

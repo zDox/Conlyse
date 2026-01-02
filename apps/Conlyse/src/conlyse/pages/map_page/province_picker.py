@@ -58,7 +58,7 @@ class ProvincePicker:
             blend_enabled = gl.glIsEnabled(gl.GL_BLEND)
             prev_clear_color = gl.glGetFloatv(gl.GL_COLOR_CLEAR_VALUE)
 
-            gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self._picking_fbo)
+            self._picking_fbo.bind()
             gl.glViewport(0, 0, width, height)
             gl.glClearColor(0.0, 0.0, 0.0, 0.0)
             gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
