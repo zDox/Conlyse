@@ -72,7 +72,7 @@ class ProvinceProperty(GameObject):
             upgrade_type = self.game.get_upgrade_type(upgrade.id)
             if upgrade_type is None:
                 continue
-            replacing_upgrade_type = self.game.get_upgrade_type(upgrade_type.replacing_upgrade_id())
+            replacing_upgrade_type = self.game.get_upgrade_type(upgrade_type.replacing_upgrade_id)
             if replacing_upgrade_type is None:
                 continue
             if not province.has_upgrades(list(replacing_upgrade_type.required_upgrades.keys())):

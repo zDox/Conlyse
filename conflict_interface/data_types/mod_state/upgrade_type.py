@@ -184,7 +184,7 @@ class UpgradeType(GameObject):
         while replacing_id:
             replacing_upgrade = self.game.get_upgrade_type(replacing_id)
             replacing_id = replacing_upgrade.replacing_upgrade_id
-        return replacing_upgrade.id if replacing_upgrade else 0
+        return replacing_upgrade.id if replacing_upgrade else None
 
     @property
     def replacing_upgrade_id(self) -> int | None:

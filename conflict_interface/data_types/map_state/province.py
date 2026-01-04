@@ -469,7 +469,9 @@ class Province(GameObject):
             return None
         if self.constructions[3] is None:
             return None
-        upgrade = cast(ModableUpgrade, self.constructions[3].upgrade)
+        upgrade = self.constructions[3].upgrade
+        if not isinstance(upgrade, ModableUpgrade):
+            return None
         return upgrade.get_upgrade_type().tier - 1
 
     def has_upgrades(self, required_upgrades: list[int]) -> bool:
@@ -482,9 +484,6 @@ class Province(GameObject):
             if not has_upgrade:
                 return False
         return True
-
-    def set_static_province(self, obj):
-        self.static_data = obj
 
     def update(self, other: "Province", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         for updateable_key in Province.updateable_keys:
