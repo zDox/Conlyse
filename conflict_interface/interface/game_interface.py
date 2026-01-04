@@ -566,10 +566,10 @@ class GameInterface:
     def client_time(self) -> datetime:
         pass
 
-    def game_day(self, timestamp: datetime | None):
+    def game_day(self, timestamp: datetime | None = None) -> int:
         # Returns the current in-game day based on the provided ingame timestamp.
         if timestamp is None:
-            timestamp = self.game_state.states.game_info_state.day_of_game
+            return self.game_state.states.game_info_state.day_of_game
         seconds_per_day = 86400
         ingame_duration = timestamp - self.start_of_game
         return int(ingame_duration.total_seconds() // seconds_per_day) + 1
