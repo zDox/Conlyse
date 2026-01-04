@@ -36,7 +36,7 @@ class ProvinceInfoDock(Dock):
         selected_province_id: ID of the currently selected province, or None.
     """
 
-    subscribed_events = {ReplayHookTag.ProvinceChanged}
+    subscribed_tags = {ReplayHookTag.ProvinceChanged}
 
     # Field configuration for province information display
     _LAND_PROVINCE_FIELDS = [

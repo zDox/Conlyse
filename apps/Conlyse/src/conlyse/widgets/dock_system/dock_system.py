@@ -14,6 +14,7 @@ from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 
 from conlyse.widgets.dock_system.bottom_dock_container import BottomDockContainer
+from conlyse.widgets.dock_system.docks.dock import Dock
 from conlyse.widgets.dock_system.sidebar import Sidebar
 
 logger = get_logger()
@@ -44,11 +45,11 @@ class DockSystem:
         self.bottom_dock_container: BottomDockContainer | None = None
 
         # Dock registry: dock_type -> (dock_widget, dock_type, needs_ritf)
-        self.docks: dict[DockType, QWidget] = {}
+        self.docks: dict[DockType, Dock] = {}
 
     def setup(self,
               available_docks: set[DockType],
-              dock_factory: Callable[[DockType], QWidget]):
+              dock_factory: Callable[[DockType], Dock]):
         """
         Setup the dock system with sidebars and bottom dock.
 
@@ -154,11 +155,13 @@ class DockSystem:
             events: Dictionary of ReplayHookTag to list of events
         """
         for dock in self.docks.values():
-            if hasattr(dock, 'process_events') and hasattr(dock, 'subscribed_events'):
-                dock.process_events({
-                    tag: evts for tag, evts in events.items()
-                    if tag in dock.subscribed_events
-                })
+            subscribed_events = {
+                tag: evts for tag, evts in events.items()
+                if tag in dock.subscribed_tags
+            }
+            if not subscribed_events:
+                continue
+            dock.process_events(subscribed_events)
 
     def update_geometries(self):
         """Update sidebar and bottom dock geometries."""

@@ -6,7 +6,7 @@ from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 
 
 class Dock(QWidget):
-    subscribed_events: FrozenSet[ReplayHookTag] = frozenset()
+    subscribed_tags: FrozenSet[ReplayHookTag] = frozenset()
 
     def process_events(self, events: dict[ReplayHookTag, list[ReplayHookEvent]]):
-        raise NotImplementedError("Dock subscribed to events, but no process_events method implemented.")
+        raise NotImplementedError(f"{self.__class__.__name__} subscribed to events, but no process_events method implemented.")
