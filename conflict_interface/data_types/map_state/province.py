@@ -22,6 +22,7 @@ from conflict_interface.data_types.map_state.update_province_action import Updat
 from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionModes
 from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
+from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
@@ -156,8 +157,8 @@ class Province(GameObject):
         return self.owner_id == self.game.player_id
 
     @property
-    def owner(self) -> str:
-        return self.game.get_player(self.owner_id).name
+    def owner(self) -> PlayerProfile:
+        return self.game.get_player(self.owner_id)
 
     @property
     def properties(self) -> ProvinceProperty | None:
