@@ -100,7 +100,7 @@ class MapPage(ReplayPage):
             case DockType.EVENTS:
                 return EventsDock()
             case DockType.CITY_LIST:
-                return CityListDock()
+                return CityListDock(self.ritf)
             case DockType.ARMY_LIST:
                 return ArmyListDock()
             case DockType.TIMELINE:
