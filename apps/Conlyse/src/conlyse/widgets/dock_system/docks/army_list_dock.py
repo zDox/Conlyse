@@ -4,8 +4,10 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea, QGridLayout
 
+from conlyse.widgets.dock_system.docks.dock import Dock
 
-class ArmyListDock(QWidget):
+
+class ArmyListDock(Dock):
     """Dock displaying a list of armies."""
     
     def __init__(self, parent=None):
@@ -23,7 +25,6 @@ class ArmyListDock(QWidget):
         # Title
         title = QLabel("Armies")
         title.setObjectName("dock_title")
-        title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
         
         # Separator
@@ -63,13 +64,6 @@ class ArmyListDock(QWidget):
         """Create an army item widget."""
         widget = QWidget()
         widget.setObjectName("army_item")
-        widget.setStyleSheet("""
-            #army_item {
-                background-color: rgba(255, 255, 255, 0.05);
-                border-radius: 4px;
-                padding: 8px;
-            }
-        """)
         
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -77,7 +71,7 @@ class ArmyListDock(QWidget):
         
         # Army name
         name_label = QLabel(name)
-        name_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        name_label.setObjectName("dock_item_title")
         layout.addWidget(name_label)
         
         # Grid for details
@@ -86,33 +80,33 @@ class ArmyListDock(QWidget):
         
         # Owner
         owner_label = QLabel("Owner:")
-        owner_label.setStyleSheet("color: #888; font-size: 11px;")
+        owner_label.setObjectName("dock_item_meta")
         owner_value = QLabel(owner)
-        owner_value.setStyleSheet("font-size: 11px;")
+        owner_value.setObjectName("dock_item_value")
         grid.addWidget(owner_label, 0, 0)
         grid.addWidget(owner_value, 0, 1)
         
         # Location
         loc_label = QLabel("Location:")
-        loc_label.setStyleSheet("color: #888; font-size: 11px;")
+        loc_label.setObjectName("dock_item_meta")
         loc_value = QLabel(location)
-        loc_value.setStyleSheet("font-size: 11px;")
+        loc_value.setObjectName("dock_item_value")
         grid.addWidget(loc_label, 1, 0)
         grid.addWidget(loc_value, 1, 1)
         
         # Strength
         strength_label = QLabel("Strength:")
-        strength_label.setStyleSheet("color: #888; font-size: 11px;")
+        strength_label.setObjectName("dock_item_meta")
         strength_value = QLabel(strength)
-        strength_value.setStyleSheet("font-size: 11px;")
+        strength_value.setObjectName("dock_item_value")
         grid.addWidget(strength_label, 2, 0)
         grid.addWidget(strength_value, 2, 1)
         
         # Morale
         morale_label = QLabel("Morale:")
-        morale_label.setStyleSheet("color: #888; font-size: 11px;")
+        morale_label.setObjectName("dock_item_meta")
         morale_value = QLabel(morale)
-        morale_value.setStyleSheet("font-size: 11px;")
+        morale_value.setObjectName("dock_item_value")
         grid.addWidget(morale_label, 3, 0)
         grid.addWidget(morale_value, 3, 1)
         

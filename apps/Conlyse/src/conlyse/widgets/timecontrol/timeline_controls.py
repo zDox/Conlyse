@@ -1,5 +1,4 @@
 from datetime import timedelta
-from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtCore import Signal as pyqtSignal
@@ -8,17 +7,17 @@ from PySide6.QtWidgets import QFrame
 from PySide6.QtWidgets import QHBoxLayout
 from PySide6.QtWidgets import QLabel
 from PySide6.QtWidgets import QVBoxLayout
-from PySide6.QtWidgets import QWidget
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.widgets.mui.icon_button import CIconButton
 from .overview_bar import OverviewBar
 from .simple_position_slider import SimplePositionSlider
+from ..dock_system.docks.dock import Dock
 
 MIN_TIMELINE_DURATION_SECONDS = 1.0
 
 
-class TimelineControls(QWidget):
+class TimelineControls(Dock):
     """Main timeline control panel."""
 
     close_requested = pyqtSignal()

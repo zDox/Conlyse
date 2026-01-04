@@ -21,6 +21,7 @@ from conlyse.pages.map_page.constants import NATION_LABEL_COLOR
 from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_COLOR
 from conlyse.pages.map_page.constants import NATION_LABEL_SHADOW_OFFSET
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
+from conlyse.pages.map_page.province_picker import ProvincePicker
 from conlyse.pages.map_page.renderers.province_border_renderer import ProvinceBorderRenderer
 from conlyse.pages.map_page.renderers.province_connection_renderer import ProvinceConnectionRenderer
 from conlyse.pages.map_page.renderers.province_fill_renderer import ProvinceFillRenderer
@@ -52,6 +53,7 @@ class Map(QOpenGLWidget):
         self.province_connection_renderer = ProvinceConnectionRenderer(self)
         self.province_border_renderer = ProvinceBorderRenderer(self)
         self.world_text_renderer = WorldTextRenderer(self, font_size=100)
+        self.province_picker = ProvincePicker(self, self.province_fill_renderer)
         self.last_render_time = time.perf_counter()
 
         self.active_map_view = MapViewType.POLITICAL
@@ -173,6 +175,10 @@ class Map(QOpenGLWidget):
         self.update()
         self._manual_render_mode = False
 
+    def get_province_id_at_world_position(self, world_x: float, world_y: float) -> int | None:
+        """Delegate province picking to the picker helper."""
+        return self.province_picker.get_province_id_at_world_position(world_x, world_y)
+
     def apply_hook_events(self, events: dict[ReplayHookTag, list[ReplayHookEvent]]):
         if ReplayHookTag.ProvinceChanged in events:
             self.province_fill_renderer.handle_province_change_events(events[ReplayHookTag.ProvinceChanged])
@@ -181,6 +187,7 @@ class Map(QOpenGLWidget):
         """Clean up OpenGL resources."""
         self.makeCurrent()
         self.world_text_renderer.cleanup()
+        self.province_picker.cleanup()
         self.doneCurrent()
     
     def get_performance_metrics(self):

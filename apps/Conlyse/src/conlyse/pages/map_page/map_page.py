@@ -100,7 +100,7 @@ class MapPage(ReplayPage):
             case DockType.EVENTS:
                 return EventsDock()
             case DockType.CITY_LIST:
-                return CityListDock()
+                return CityListDock(self.ritf)
             case DockType.ARMY_LIST:
                 return ArmyListDock()
             case DockType.TIMELINE:
@@ -133,7 +133,7 @@ class MapPage(ReplayPage):
         self.app.performance_window.add_metric("Terrain Map View Update")
         self.app.performance_window.add_metric("Resource Map View Update")
         self.app.performance_window.add_metric("Political Map View Update")
-        self.input_controller = InputController(self.map_widget, self.app.keybinding_manager)
+        self.input_controller = InputController(self)
         self.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
 
         self.dock_system.bottom_dock_container.raise_()

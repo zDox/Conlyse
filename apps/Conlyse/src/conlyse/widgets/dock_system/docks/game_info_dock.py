@@ -4,8 +4,10 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QGridLayout
 
+from conlyse.widgets.dock_system.docks.dock import Dock
 
-class GameInfoDock(QWidget):
+
+class GameInfoDock(Dock):
     """Dock displaying general game information."""
     
     def __init__(self, parent=None):
@@ -23,7 +25,6 @@ class GameInfoDock(QWidget):
         # Title
         title = QLabel("Game Information")
         title.setObjectName("dock_title")
-        title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
         
         # Separator
@@ -61,11 +62,9 @@ class GameInfoDock(QWidget):
         """Add an information row to the grid."""
         label_widget = QLabel(label)
         label_widget.setObjectName("dock_label")
-        label_widget.setStyleSheet("color: #888;")
         
         value_widget = QLabel(value)
         value_widget.setObjectName("dock_value")
-        value_widget.setStyleSheet("font-weight: 500;")
         
         grid.addWidget(label_widget, row, 0, Qt.AlignmentFlag.AlignLeft)
         grid.addWidget(value_widget, row, 1, Qt.AlignmentFlag.AlignLeft)

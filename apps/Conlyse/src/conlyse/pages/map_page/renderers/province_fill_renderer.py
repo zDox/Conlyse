@@ -10,6 +10,7 @@ from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.map_views.map_view import MapView
 from conlyse.pages.map_page.map_views.map_view_type import MapViewType
+from conlyse.pages.map_page.opengl_wrapper.color_palette_texture import ColorPaletteTexture
 from conlyse.pages.map_page.opengl_wrapper.opengl_types import OpenGLTypes
 from conlyse.pages.map_page.opengl_wrapper.shader import Shader
 from conlyse.pages.map_page.opengl_wrapper.shader import ShaderType
@@ -91,27 +92,7 @@ class ProvinceFillRenderer:
             logger.error(f"Map view {map_view_type} not found")
             return
         # Render the filled provinces
-        self.program.use_program()
-        self.camera.set_uniforms(self.program)
-
-        # Camera / world uniforms
-        self.program.set_uniform_1b("uEnableWrapping", self.map_widget.enable_wrapping)
-        self.program.set_uniform_1f("uWorldWidth", self.map_widget.world_max_x - self.map_widget.world_min_x)
-        self.program.set_uniform_1f("uWorldHeight", self.map_widget.world_max_y - self.map_widget.world_min_y)
-
-
-        # Province color texture
-        self.program.set_uniform_1i("uProvinceColorsTex", 0)
-        self.program.set_uniform_1i("uNumColors", self.province_mesh.max_province_id + 1)
-
-        gl.glActiveTexture(gl.GL_TEXTURE0)
-        map_view.texture.bind()
-        map_view.texture.upload_data_if_dirty()
-
-        self.vao.bind()
-        gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.province_mesh._vertex_data) // 2)
-        map_view.texture.unbind()
-        self.vao.unbind()
+        self.render_palette(map_view.texture)
 
     def handle_province_change_events(self, events: list[ReplayHookEvent]):
         for map_view in self.map_views.values():
@@ -120,3 +101,24 @@ class ProvinceFillRenderer:
             t2 = time.perf_counter()
             self.map_widget.performance_metrics[f"{map_view.__class__.__name__.lower()}_update"] = (t2 - t1) * 1000
             map_view.update_texture()
+
+    def render_palette(self, palette_texture: ColorPaletteTexture):
+        """Render provinces using the provided palette texture (used for picking)."""
+        self.program.use_program()
+        self.camera.set_uniforms(self.program)
+
+        self.program.set_uniform_1b("uEnableWrapping", self.map_widget.enable_wrapping)
+        self.program.set_uniform_1f("uWorldWidth", self.map_widget.world_max_x - self.map_widget.world_min_x)
+        self.program.set_uniform_1f("uWorldHeight", self.map_widget.world_max_y - self.map_widget.world_min_y)
+
+        self.program.set_uniform_1i("uProvinceColorsTex", 0)
+        self.program.set_uniform_1i("uNumColors", self.province_mesh.max_province_id + 1)
+
+        gl.glActiveTexture(gl.GL_TEXTURE0)
+        palette_texture.bind()
+        palette_texture.upload_data_if_dirty()
+
+        self.vao.bind()
+        gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.province_mesh._vertex_data) // 2)
+        palette_texture.unbind()
+        self.vao.unbind()
