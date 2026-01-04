@@ -39,7 +39,7 @@ class ReplayDebugCLI(PatchAnalysisMixin):
         """
         try:
             self.ritf = ReplayInterface(self.filename)
-            self.ritf.open()
+            self.ritf.open(mode="r")
             self.navigator = ReplayNavigator(self.ritf)
             self.game_object_viewer = GameObjectViewer(self.ritf)
             # Set replay reference for patch analysis methods

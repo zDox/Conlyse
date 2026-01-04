@@ -10,5 +10,5 @@ class ReplayHook:
     tag: ReplayHookTag # Unique identifier for the hook
     path: int  # Path pattern with potential wildcards
     change_types: list[int]  # Which change types trigger this hook
-    attributes: list[str] # Which attribute names to look for
+    attributes: list[str] | None # Which attribute names to look for. If None, all attributes are matched
     callback: Callable = None # Optional callback function callback(reference, changed_data)
