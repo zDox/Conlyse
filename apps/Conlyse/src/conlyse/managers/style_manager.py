@@ -26,6 +26,7 @@ class StyleManager:
         self.global_style: str = ""
         self.header_style: str = ""
         self.table_widget_style: str = ""
+        self.dock_style: str = ""
 
         self.current_theme: Theme = Theme.LIGHT # Asset loader is not available yet
         self.themes: dict[Theme, dict] = {}
@@ -42,6 +43,7 @@ class StyleManager:
         self.global_style = self.app.asset_manager.load_string("global_style")
         self.header_style = self.app.asset_manager.load_string("header_style")
         self.table_widget_style = self.app.asset_manager.load_string("table_widget_style")
+        self.dock_style = self.app.asset_manager.load_string("dock_style")
         self.app.asset_manager.load_json("theme_light")
         self.app.asset_manager.load_json("theme_dark")
         self.themes[Theme.LIGHT] = self.app.asset_manager.get_asset("theme_light")
@@ -51,11 +53,13 @@ class StyleManager:
         self.app.asset_manager.unload_asset("global_style")
         self.app.asset_manager.unload_asset("header_style")
         self.app.asset_manager.unload_asset("table_widget_style")
+        self.app.asset_manager.unload_asset("dock_style")
         self.app.asset_manager.unload_asset("theme_light")
         self.app.asset_manager.unload_asset("theme_dark")
         self.global_style = ""
         self.header_style = ""
         self.table_widget_style = ""
+        self.dock_style = ""
         del self.themes[Theme.LIGHT]
         del self.themes[Theme.DARK]
 
@@ -111,9 +115,13 @@ class StyleManager:
             table_widget_style = DollarTemplate(self.table_widget_style).substitute(self.themes[self.current_theme])
         except KeyError as e:
             logger.error(f"StyleManager: Missing key({e.args}) in table widget style for theme {self.current_theme.name}")
+        dock_style = ""
+        current_page = self.app.page_manager.current_page
+        if current_page and getattr(current_page, "use_dock_system", False):
+            dock_style = self.dock_style or ""
         self.page_styles[(self.current_theme, page_type)] = page_style
 
-        final_style = global_style + "\n" + header_style + "\n" + table_widget_style + "\n" + page_style
+        final_style = global_style + "\n" + header_style + "\n" + table_widget_style + "\n" + dock_style + "\n" + page_style
         self.app.q_app.setStyleSheet(final_style)
 
     def toggle_theme(self):
@@ -138,5 +146,4 @@ class StyleManager:
         self.unload_all_page_styles()
         self.load_themes()
         self.update_style()
-
 

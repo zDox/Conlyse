@@ -199,7 +199,6 @@ class Map(QOpenGLWidget):
         """
         return self.performance_metrics.copy()
 
-
     def _initialize_world_labels(self):
         for province in self.ritf.get_provinces().values():
             if isinstance(province, SeaProvince):

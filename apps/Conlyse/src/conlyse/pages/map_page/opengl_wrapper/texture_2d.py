@@ -2,6 +2,7 @@ from OpenGL import GL as gl
 
 
 class Texture2D:
+    """Wrapper class for OpenGL 2D textures handling creation, parameters, uploads, and cleanup."""
     def __init__(self):
         self.texture_id = gl.glGenTextures(1)
 

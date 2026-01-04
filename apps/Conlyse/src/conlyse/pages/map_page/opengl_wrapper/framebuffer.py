@@ -2,6 +2,7 @@ from OpenGL import GL as gl
 
 
 class Framebuffer:
+    """Wrapper class for OpenGL framebuffers managing binding, attachments, completeness checks, and cleanup."""
     def __init__(self):
         self.framebuffer_id = gl.glGenFramebuffers(1)
 

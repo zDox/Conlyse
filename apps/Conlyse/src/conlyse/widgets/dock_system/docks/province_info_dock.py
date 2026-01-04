@@ -116,7 +116,6 @@ class ProvinceInfoDock(Dock):
         """
         title = QLabel("Province Information")
         title.setObjectName("dock_title")
-        title.setStyleSheet("font-size: 16px; font-weight: bold;")
         return title
 
     def _create_separator(self) -> QFrame:
@@ -143,10 +142,10 @@ class ProvinceInfoDock(Dock):
             key: Internal key for accessing the value label.
         """
         label_widget = QLabel(f"{label}:")
-        label_widget.setStyleSheet("color: #888;")
+        label_widget.setObjectName("dock_label")
 
         value_widget = QLabel()
-        value_widget.setStyleSheet("font-weight: 500;")
+        value_widget.setObjectName("dock_value")
 
         if self.grid is not None:
             self.grid.addWidget(label_widget, row, 0, Qt.AlignmentFlag.AlignLeft)

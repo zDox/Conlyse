@@ -25,7 +25,6 @@ class ArmyInfoDock(Dock):
         # Title
         title = QLabel("Army Information")
         title.setObjectName("dock_title")
-        title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
         
         # Separator
@@ -73,8 +72,7 @@ class ArmyInfoDock(Dock):
         
         # Unit list
         units_label = QLabel("• 5x Main Battle Tank\n• 3x Infantry Fighting Vehicle\n• 2x Mobile Artillery\n• 1x Anti-Air Vehicle")
-        units_label.setObjectName("dock_value")
-        units_label.setStyleSheet("margin-left: 20px;")
+        units_label.setObjectName("dock_value_indented")
         units_label.setWordWrap(True)
         content_layout.addWidget(units_label)
         
@@ -86,11 +84,9 @@ class ArmyInfoDock(Dock):
         """Add an information row to the grid."""
         label_widget = QLabel(label)
         label_widget.setObjectName("dock_label")
-        label_widget.setStyleSheet("color: #888;")
-        
+
         value_widget = QLabel(value)
         value_widget.setObjectName("dock_value")
-        value_widget.setStyleSheet("font-weight: 500;")
         
         grid.addWidget(label_widget, row, 0, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         grid.addWidget(value_widget, row, 1, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)

@@ -28,7 +28,6 @@ class CityListDock(Dock):
         # Title
         title = QLabel("Cities")
         title.setObjectName("dock_title")
-        title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
 
         # Separator
@@ -59,13 +58,6 @@ class CityListDock(Dock):
         """Create a city item widget."""
         widget = QWidget()
         widget.setObjectName("city_item")
-        widget.setStyleSheet("""
-            #city_item {
-                background-color: rgba(255, 255, 255, 0.05);
-                border-radius: 4px;
-                padding: 8px;
-            }
-        """)
 
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -73,7 +65,7 @@ class CityListDock(Dock):
 
         # City name
         name_label = QLabel(city.name)
-        name_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        name_label.setObjectName("dock_item_title")
         layout.addWidget(name_label)
 
         # Grid for details
@@ -82,25 +74,25 @@ class CityListDock(Dock):
 
         # Owner
         owner_label = QLabel("Owner:")
-        owner_label.setStyleSheet("color: #888; font-size: 11px;")
+        owner_label.setObjectName("dock_item_meta")
         owner_value = QLabel(city.owner.nation_name)
-        owner_value.setStyleSheet("font-size: 11px;")
+        owner_value.setObjectName("dock_item_value")
         grid.addWidget(owner_label, 0, 0)
         grid.addWidget(owner_value, 0, 1)
 
         # Population
         pop_label = QLabel("Population:")
-        pop_label.setStyleSheet("color: #888; font-size: 11px;")
+        pop_label.setObjectName("dock_item_meta")
         pop_value = QLabel(str(city.population))
-        pop_value.setStyleSheet("font-size: 11px;")
+        pop_value.setObjectName("dock_item_value")
         grid.addWidget(pop_label, 1, 0)
         grid.addWidget(pop_value, 1, 1)
 
         # Morale
         morale_label = QLabel("Morale:")
-        morale_label.setStyleSheet("color: #888; font-size: 11px;")
+        morale_label.setObjectName("dock_item_meta")
         morale_value = QLabel(f"{city.morale}%")
-        morale_value.setStyleSheet("font-size: 11px;")
+        morale_value.setObjectName("dock_item_value")
         grid.addWidget(morale_label, 2, 0)
         grid.addWidget(morale_value, 2, 1)
 

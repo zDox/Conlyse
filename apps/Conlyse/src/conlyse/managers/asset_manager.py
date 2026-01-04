@@ -28,6 +28,7 @@ ASSET_NAME_TO_PATH = {
     "global_style": Path("styles/global_style.qss"),
     "header_style": Path("styles/header.qss"),
     "table_widget_style": Path("styles/table_widget.qss"),
+    "dock_style": Path("styles/dock_system.qss"),
     "theme_light": Path("styles/theme_light.json"),
     "theme_dark": Path("styles/theme_dark.json"),
 

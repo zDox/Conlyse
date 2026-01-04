@@ -2,6 +2,7 @@ from OpenGL import GL as gl
 
 
 class Renderbuffer:
+    """Wrapper class for OpenGL renderbuffers managing creation, storage, and cleanup."""
     def __init__(self):
         self.renderbuffer_id = gl.glGenRenderbuffers(1)
 

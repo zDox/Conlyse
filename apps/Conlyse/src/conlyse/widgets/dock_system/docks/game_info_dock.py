@@ -25,7 +25,6 @@ class GameInfoDock(Dock):
         # Title
         title = QLabel("Game Information")
         title.setObjectName("dock_title")
-        title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
         
         # Separator
@@ -63,11 +62,9 @@ class GameInfoDock(Dock):
         """Add an information row to the grid."""
         label_widget = QLabel(label)
         label_widget.setObjectName("dock_label")
-        label_widget.setStyleSheet("color: #888;")
         
         value_widget = QLabel(value)
         value_widget.setObjectName("dock_value")
-        value_widget.setStyleSheet("font-weight: 500;")
         
         grid.addWidget(label_widget, row, 0, Qt.AlignmentFlag.AlignLeft)
         grid.addWidget(value_widget, row, 1, Qt.AlignmentFlag.AlignLeft)

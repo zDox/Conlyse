@@ -88,8 +88,6 @@ class InputController:
         self.enable_mouse_click_logging = not self.enable_mouse_click_logging
         logger.info(f"Mouse click logging {'enabled' if self.enable_mouse_click_logging else 'disabled'}.")
 
-
-
     def handle_key_press(self, event: QKeyEvent) -> None:
         """
         Handle key press events.
@@ -124,7 +122,8 @@ class InputController:
             if self.enable_mouse_click_logging:
                 world_pos = self.map_widget.camera.screen_to_world(event.pos().x(), event.pos().y())
                 province_id = self.map_widget.get_province_id_at_world_position(world_pos[0], world_pos[1])
-                province_name = self.map_widget.ritf.get_province(province_id).name if province_id is not None else ""
+                province = self.map_widget.ritf.get_province(province_id) if province_id is not None else None
+                province_name = province.name if province is not None else "Unknown"
                 logger.debug(f"Mouse click at screen ({event.pos().x()}, {event.pos().y()}) "
                              f"-> world ({world_pos[0]:.2f}, {world_pos[1]:.2f}) Province ({province_name})")
 

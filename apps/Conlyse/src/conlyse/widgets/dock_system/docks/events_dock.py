@@ -29,7 +29,6 @@ class EventsDock(Dock):
         # Title
         title = QLabel("Events")
         title.setObjectName("dock_title")
-        title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
         
         # Separator
@@ -69,13 +68,6 @@ class EventsDock(Dock):
         """Create an event item widget."""
         widget = QWidget()
         widget.setObjectName("event_item")
-        widget.setStyleSheet("""
-            #event_item {
-                background-color: rgba(255, 255, 255, 0.05);
-                border-radius: 4px;
-                padding: 8px;
-            }
-        """)
         
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -83,18 +75,18 @@ class EventsDock(Dock):
         
         # Time
         time_label = QLabel(time)
-        time_label.setStyleSheet("color: #888; font-size: 11px;")
+        time_label.setObjectName("event_time")
         layout.addWidget(time_label)
         
         # Event type
         type_label = QLabel(event_type)
-        type_label.setStyleSheet("font-weight: bold; font-size: 13px;")
+        type_label.setObjectName("event_type")
         layout.addWidget(type_label)
         
         # Description
         desc_label = QLabel(description)
         desc_label.setWordWrap(True)
-        desc_label.setStyleSheet("font-size: 12px;")
+        desc_label.setObjectName("event_desc")
         layout.addWidget(desc_label)
         
         return widget
