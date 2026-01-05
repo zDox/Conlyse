@@ -57,6 +57,7 @@ class RecordingStorage:
         self.recorder_log_file_handler = None
         self.library_log_file_handler = None
         self.log_thread_id: int | None = None
+        self.resume_metadata: dict = {}
 
         self.save_game_states = save_game_states
 
@@ -85,6 +86,15 @@ class RecordingStorage:
             with open(self.metadata_file, 'r') as f:
                 return json.load(f)
         return {"version": "1.0", "updates": []}
+
+    def update_resume_metadata(self, resume: dict):
+        """
+        Persist resume information (auth, cookies, replay path, etc.) to metadata.json.
+        """
+        metadata = self._load_metadata()
+        metadata["resume"] = resume
+        self._save_metadata(metadata)
+        self.resume_metadata = resume
 
     @staticmethod
     def append_bytes_to_file(file_path: Path, timestamp_ms: int, data: bytes):
