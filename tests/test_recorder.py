@@ -129,6 +129,17 @@ class TestRecorder(unittest.TestCase):
         
         self.assertTrue(result)
         mock_sleep.assert_called_once_with(action)
+
+    @patch.object(Recorder, '_update_until_game_end')
+    def test_execute_action_update_until_game_end(self, mock_update):
+        """Test execution of update_until_game_end action."""
+        mock_update.return_value = True
+        
+        action = {'type': 'update_until_game_end'}
+        result = self.recorder.execute_action(action)
+        
+        self.assertTrue(result)
+        mock_update.assert_called_once_with(action)
     
     def test_get_army_by_id(self):
         """Test getting army by ID."""

@@ -7,6 +7,7 @@ import logging
 import sys
 
 from tools.recorder.recorder import Recorder
+from tools.recorder.multi_recorder import MultiRecorder
 from tools.recorder.account_pool import AccountPool
 from conflict_interface.logger_config import setup_library_logger
 
@@ -117,9 +118,12 @@ For a complete list of action types and their parameters, see the documentation.
             sys.exit(1)
     
     # Create and run recorder
-    recorder = Recorder(config, account_pool=account_pool, save_game_states=args.save_game_states)
-    
     try:
+        if isinstance(config.get("scenario_ids"), list) and len(config.get("scenario_ids") or []) > 0:
+            recorder = MultiRecorder(config, account_pool=account_pool)
+        else:
+            recorder = Recorder(config, account_pool=account_pool, save_game_states=args.save_game_states)
+
         success = recorder.run()
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
