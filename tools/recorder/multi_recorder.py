@@ -23,6 +23,7 @@ from tools.recorder.account_pool import AccountPool
 from tools.recorder.recorder import Recorder
 from tools.recorder.recorder_logger import get_logger
 from tools.recorder.recording_registry import RecordingRegistry
+from tools.recorder.telemetry import TelemetryRecorder
 
 logger = get_logger()
 
@@ -52,6 +53,8 @@ class MultiRecorder:
         self._running: Dict[Future, int] = {}
         self._running_game_ids: Set[int] = set()
         self._account_index: int = 0
+        self.telemetry = TelemetryRecorder()
+        self._update_account_metrics()
 
     @staticmethod
     def _normalize_percentage(value) -> float:
@@ -124,7 +127,12 @@ class MultiRecorder:
             per_game_config["password"] = account.password
             per_game_config["proxy_url"] = account.proxy_url
         per_game_config["record_requests"] = per_game_config.get("record_requests", False)
-        return Recorder(per_game_config, account_pool=None, save_game_states=self.config.get("save_game_states", False))
+        return Recorder(
+            per_game_config,
+            account_pool=None,
+            save_game_states=self.config.get("save_game_states", False),
+            telemetry=self.telemetry,
+        )
 
     def _per_game_config(self, game_id: int, scenario_id: int, replay_path: Optional[str]) -> dict:
         cfg = {k: v for k, v in self.config.items() if k not in ("scenario_ids", "registry_path", "record_percentage", "max_parallel_recordings")}
@@ -175,6 +183,7 @@ class MultiRecorder:
             return
         self._running[future] = game_id
         self._running_game_ids.add(game_id)
+        self._update_account_metrics()
 
     def _run_single_recorder(self, game_id: int, recorder: Recorder, account: Optional[Account]) -> bool:
         try:
@@ -184,6 +193,7 @@ class MultiRecorder:
             return False
         finally:
             self._decrement_account(account)
+            self._update_account_metrics()
 
     def _process_finished(self):
         done = [future for future in self._running if future.done()]
@@ -199,6 +209,13 @@ class MultiRecorder:
                 self.registry.mark_completed(game_id)
             else:
                 self.registry.mark_failed(game_id, "execution_failed")
+        if done:
+            self._update_account_metrics()
+
+    def _update_account_metrics(self):
+        total_accounts = len(self.account_pool.accounts) if self.account_pool else 0
+        accounts_in_use = len(self._running_game_ids)
+        self.telemetry.update_account_usage(accounts_in_use, total_accounts)
 
     def _resume_active(self):
         for game_id, meta in self.registry.active().items():

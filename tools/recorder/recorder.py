@@ -19,6 +19,7 @@ from tools.recorder.recorder_logger import get_logger
 from tools.recorder.storage import RecordingStorage
 from tools.recorder.utils import format_duration
 from tools.recorder.utils import parse_duration
+from tools.recorder.telemetry import TelemetryRecorder
 
 logger = get_logger()
 
@@ -28,7 +29,7 @@ class Recorder:
     Main recorder class that handles game recording independently of replay system.
     """
     
-    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None, save_game_states: bool = False):
+    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None, save_game_states: bool = False, telemetry: TelemetryRecorder | None = None):
         """
         Initialize recorder with configuration.
         
@@ -47,6 +48,7 @@ class Recorder:
         self.join_as_guest: bool = bool(self.config.get("join_as_guest", False))
         self.replay_filepath: Optional[str] = None
         self.record_requests: bool = bool(self.config.get("record_requests", True))
+        self.telemetry = telemetry or TelemetryRecorder()
         
         # Track the last server request and response for recording
         self._last_request: Optional[dict] = None
@@ -65,9 +67,10 @@ class Recorder:
 
         if self.record_as_replay:
             self.replay_filepath = self.config.get("replay_path") or os.path.join(output_path, "replay.db")
-        
+
         # Set up log file recording
         self.storage.setup_logging()
+        self.telemetry.on_start()
         
         logger.info(f"Recording storage initialized at: {output_path}")
 
@@ -202,6 +205,7 @@ class Recorder:
             original_request_method = game_interface.game_api.make_game_server_request
 
             def patched_request(*args, **kwargs):
+                start_req = time()
                 self.storage.save_game_state(time(),
                                              game_interface.game_state)
                 # Capture the request parameters
@@ -214,7 +218,13 @@ class Recorder:
                 response = original_request_method(*args, **kwargs)
                 self._last_response = {**response, "game_api_request_id": game_interface.game_api.request_id}
                 if self.record_requests and self.storage:
-                    self.storage.save_request_response(time(), self._last_request, self._last_response)
+                    ts = time()
+                    self.storage.save_request_response(ts, self._last_request, self._last_response)
+                    elapsed_ms = (ts - start_req) * 1000.0
+                    approx_bytes = len(str(self._last_request)) + len(str(self._last_response))
+                    self.telemetry.record_update(elapsed_ms, approx_bytes)
+                    if elapsed_ms > 2000:
+                        self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms for game {game_id}")
                 return response
 
             game_interface.game_api.make_game_server_request = patched_request
@@ -448,7 +458,7 @@ class Recorder:
 
             # Only update if we're not done
             if elapsed < duration_seconds:
-                self.game_itf.update()
+                self._update_with_telemetry()
 
             # Print progress
             progress = min(100.0, 100.0 * elapsed / duration_seconds)
@@ -493,6 +503,14 @@ class Recorder:
                 return True
 
             sleep(update_interval)
+
+    def _update_with_telemetry(self):
+        t0 = time()
+        self.game_itf.update()
+        elapsed_ms = (time() - t0) * 1000.0
+        self.telemetry.record_update(elapsed_ms, 0)
+        if elapsed_ms > 2000:
+            self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms during recording")
     
     def _get_army(self, action: dict):
         """Helper to get army from ID or number."""
@@ -621,3 +639,5 @@ class Recorder:
             # Always teardown logging, even if there was an error
             if self.storage:
                 self.storage.teardown_logging()
+            if self.telemetry:
+                self.telemetry.on_stop()
