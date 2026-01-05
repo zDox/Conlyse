@@ -12,7 +12,6 @@ from conflict_interface.data_types.map_state.province_action_result import Updat
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
 from conflict_interface.utils.helper import datetime_to_unix_ms
-from conflict_interface.replay.replay import Replay
 from tools.recorder.account import Account
 from tools.recorder.account_pool import AccountPool
 from tools.recorder.find_game_logic import GameFinder
@@ -50,7 +49,6 @@ class Recorder:
         self.replay_filepath: Optional[str] = None
         self.record_requests: bool = bool(self.config.get("record_requests", True))
         self.telemetry = telemetry or TelemetryRecorder()
-        self.resume_info: dict = {}
         
         # Track the last server request and response for recording
         self._last_request: Optional[dict] = None
@@ -73,10 +71,6 @@ class Recorder:
         # Set up log file recording
         self.storage.setup_logging()
         self.telemetry.on_start()
-        self.resume_info = {
-            "game_id": self.config.get("game_id"),
-            "replay_path": self.replay_filepath,
-        }
         
         logger.info(f"Recording storage initialized at: {output_path}")
 
@@ -174,20 +168,6 @@ class Recorder:
             guest=self.join_as_guest,
             replay_filename=self.replay_filepath if self.record_as_replay else None
         )
-        # store resume info
-        try:
-            self.resume_info.update({
-                "game_id": game_id,
-                "player_id": getattr(self.game_itf, "player_id", None),
-                "proxy": self.hub_itf.api.proxy,
-                "auth": getattr(self.hub_itf.api, "auth", None),
-                "cookies": self.hub_itf.api.session.cookies.get_dict(),
-                "replay_path": self.replay_filepath,
-            })
-            if self.storage:
-                self.storage.update_resume_metadata(self.resume_info)
-        except Exception as e:
-            logger.debug(f"Failed to write resume metadata: {e}")
 
         # Save initial game state and static map data
         self._save_static_map_data(self.game_itf.static_map_data)
@@ -658,8 +638,6 @@ class Recorder:
         finally:
             # Always teardown logging, even if there was an error
             if self.storage:
-                if self.resume_info:
-                    self.storage.update_resume_metadata(self.resume_info)
                 self.storage.teardown_logging()
             if self.telemetry:
                 self.telemetry.on_stop()
