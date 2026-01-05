@@ -74,9 +74,9 @@ def test_pick_account_respects_max_guest_limit():
     acc2 = MagicMock()
     acc2.username = "acc2"
     pool = MagicMock()
-    pool.accounts = [acc1, acc2]
+    pool.next_guest_account.return_value = acc2
     multi.account_pool = pool
-    multi._account_guest_counts = {"acc1": 1}
 
     picked = multi._pick_account()
     assert picked == acc2
+    pool.next_guest_account.assert_called_once_with(1)

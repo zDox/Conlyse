@@ -4,17 +4,14 @@ Coordinator for recording multiple games concurrently.
 from __future__ import annotations
 
 import random
-from collections import deque
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from time import sleep
-from typing import Deque
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
-from typing import Set
 
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
@@ -52,18 +49,7 @@ class MultiRecorder:
         self._listing_interface: Optional[HubInterface] = None
         self._running: Dict[Future, int] = {}
         self._running_game_ids: Set[int] = set()
-        self._account_guest_counts: Dict[str, int] = {}
         self._account_index: int = 0
-        self._available_accounts: Deque[Account] = deque()
-        self._available_account_names: Set[str] = set()
-
-    def _refresh_available_accounts(self):
-        if not self.account_pool:
-            return
-        if not self._available_accounts and self.max_guest_per_account is not None:
-            for account in self.account_pool.accounts:
-                self._available_accounts.append(account)
-                self._available_account_names.add(account.username)
 
     @staticmethod
     def _normalize_percentage(value) -> float:
@@ -149,53 +135,19 @@ class MultiRecorder:
     def _pick_account(self) -> Optional[Account]:
         if not self.account_pool:
             return None
-        accounts = self.account_pool.accounts
-        if not accounts:
-            return None
-
-        if self.max_guest_per_account is None:
-            total = len(accounts)
-            account = accounts[self._account_index % total]
-            self._account_index += 1
-            return account
-
-        self._refresh_available_accounts()
-        while self._available_accounts:
-            account = self._available_accounts[0]
-            current = self._account_guest_counts.get(account.username, 0)
-            if current < self.max_guest_per_account:
-                self._available_accounts.rotate(-1)
-                return account
-            self._available_accounts.popleft()
-            self._available_account_names.discard(account.username)
-        return None
+        return self.account_pool.next_guest_account(self.max_guest_per_account)
 
     def _increment_account(self, account: Optional[Account]):
         if not account:
             return
-        self._account_guest_counts[account.username] = self._account_guest_counts.get(account.username, 0) + 1
-        if (
-            self.max_guest_per_account is not None
-            and self._account_guest_counts[account.username] >= self.max_guest_per_account
-            and account.username in self._available_account_names
-        ):
-            self._available_accounts = deque(
-                a for a in self._available_accounts if a.username != account.username
-            )
-            self._available_account_names.discard(account.username)
+        if self.account_pool and hasattr(self.account_pool, "increment_guest_join"):
+            self.account_pool.increment_guest_join(account)
 
     def _decrement_account(self, account: Optional[Account]):
         if not account:
             return
-        if account.username in self._account_guest_counts:
-            self._account_guest_counts[account.username] = max(0, self._account_guest_counts[account.username] - 1)
-        if (
-            self.max_guest_per_account is not None
-            and self._account_guest_counts.get(account.username, 0) < self.max_guest_per_account
-            and account.username not in self._available_account_names
-        ):
-            self._available_accounts.append(account)
-            self._available_account_names.add(account.username)
+        if self.account_pool and hasattr(self.account_pool, "decrement_guest_join"):
+            self.account_pool.decrement_guest_join(account)
 
     def _start_recording(self, game_id: int, scenario_id: int, replay_path: Optional[str] = None):
         account = self._pick_account()

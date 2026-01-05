@@ -27,6 +27,8 @@ class AccountPool:
         self.web_share_token = None
         self.pool_path: Path = Path(path)
         self.free_account_pointer = 0
+        self.guest_account_pointer = 0
+        self.guest_join_counts: dict[str, int] = {}
 
         self.load_token()
         self.load_proxies()
@@ -212,6 +214,34 @@ class AccountPool:
         if len(self.accounts) == 0:
             return None
         return self.accounts[0]
+
+    def next_guest_account(self, max_guest_games_per_account: int | None) -> Account | None:
+        """
+        Returns the next account eligible for joining as guest respecting the cap.
+        """
+        if len(self.accounts) == 0:
+            return None
+        total = len(self.accounts)
+        checked = 0
+        while checked < total:
+            account = self.accounts[self.guest_account_pointer % total]
+            self.guest_account_pointer += 1
+            checked += 1
+            current = self.guest_join_counts.get(account.username, 0)
+            if max_guest_games_per_account is None or current < max_guest_games_per_account:
+                return account
+        return None
+
+    def increment_guest_join(self, account: Account):
+        if not account:
+            return
+        self.guest_join_counts[account.username] = self.guest_join_counts.get(account.username, 0) + 1
+
+    def decrement_guest_join(self, account: Account):
+        if not account:
+            return
+        if account.username in self.guest_join_counts:
+            self.guest_join_counts[account.username] = max(0, self.guest_join_counts[account.username] - 1)
 
     def status(self) -> AccountPoolStatus:
         accounts = len(self.accounts)
