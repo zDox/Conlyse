@@ -51,6 +51,7 @@ class MultiRecorder:
         self._running: Dict[Future, int] = {}
         self._running_game_ids: Set[int] = set()
         self._account_guest_counts: Dict[str, int] = {}
+        self._account_index: int = 0
 
     @staticmethod
     def _normalize_percentage(value) -> float:
@@ -136,7 +137,12 @@ class MultiRecorder:
     def _pick_account(self) -> Optional[Account]:
         if not self.account_pool:
             return None
-        for account in self.account_pool.accounts:
+        accounts = self.account_pool.accounts
+        if not accounts:
+            return None
+        for _ in range(len(accounts)):
+            account = accounts[self._account_index % len(accounts)]
+            self._account_index += 1
             current = self._account_guest_counts.get(account.username, 0)
             if self.max_guest_per_account is not None and current >= self.max_guest_per_account:
                 continue
@@ -166,8 +172,12 @@ class MultiRecorder:
         replay_file = cfg.get("replay_path") or str(Path(cfg.get("output_dir", "./recordings")) / cfg.get("recording_name") / "replay.db")
 
         self.registry.mark_recording(game_id, scenario_id, replay_file)
+        try:
+            future = self.executor.submit(self._run_single_recorder, game_id, recorder, account)
+        except Exception:
+            self.registry.mark_failed(game_id, "submission_failed")
+            return
         self._increment_account(account)
-        future = self.executor.submit(self._run_single_recorder, game_id, recorder, account)
         self._running[future] = game_id
         self._running_game_ids.add(game_id)
 

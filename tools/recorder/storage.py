@@ -56,6 +56,7 @@ class RecordingStorage:
         self.library_log_file = self.output_path / "library.log"
         self.recorder_log_file_handler = None
         self.library_log_file_handler = None
+        self.log_thread_id: int | None = None
 
         self.save_game_states = save_game_states
 
@@ -134,7 +135,7 @@ class RecordingStorage:
         library_logger = logging.getLogger("con_itf")
         recording_logger = logging.getLogger("rec")
 
-        thread_id = threading.get_ident()
+        self.log_thread_id = threading.get_ident()
 
         def add_file_handler(logger, filename, level=logging.DEBUG, formatter=None):
             file_handler = logging.FileHandler(filename)
@@ -142,7 +143,7 @@ class RecordingStorage:
             if formatter is None:
                 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             file_handler.setFormatter(formatter)
-            file_handler.addFilter(lambda record: record.thread == thread_id)
+            file_handler.addFilter(lambda record: self.log_thread_id is None or record.thread == self.log_thread_id)
             logger.addHandler(file_handler)
             return file_handler
 
