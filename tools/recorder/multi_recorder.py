@@ -7,11 +7,13 @@ import random
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from pprint import pprint
 from time import sleep
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Set
 
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
@@ -93,8 +95,7 @@ class MultiRecorder:
         except Exception as exc:
             logger.warning(f"Failed to list games {exc}")
             return
-
-        logger.info(f"Found {len(games)} games")
+        seen_games: set[int] = set()  # track what we yield
 
         for scenario_id in self.scenario_ids:
             new_candidates = [
@@ -109,8 +110,12 @@ class MultiRecorder:
             )
 
             for game in joinable:
+                if game.game_id in seen_games:
+                    continue  # skip duplicates
                 if random.random() > self.record_percentage:
                     continue
+                seen_games.add(game.game_id)
+                print(f"Yielding {game.game_id} {scenario_id}")
                 yield scenario_id, game
 
     def _build_recorder(self, per_game_config: dict, account: Optional[Account]) -> Recorder:
@@ -199,6 +204,7 @@ class MultiRecorder:
         for game_id, meta in self.registry.active().items():
             if game_id in self._running_game_ids:
                 continue
+            logger.info(f"Resuming recording for game {game_id}")
             self._start_recording(game_id, meta.get("scenario_id"), meta.get("replay_path"))
 
     def run(self, iterations: Optional[int] = None) -> bool:
