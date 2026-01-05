@@ -505,13 +505,14 @@ class Recorder:
         start_time = time()
 
         while True:
-            self.game_itf.update()
+            game_state = self._update_with_telemetry()
             updates_done += 1
 
             if self.save_game_states and self.storage:
-                self.storage.save_game_state(time(), self.game_itf.game_state)
+                if game_state:
+                    self.storage.save_game_state(time(), game_state)
 
-            game_info = getattr(self.game_itf.game_state.states, "game_info_state", None) if self.game_itf.game_state else None
+            game_info = getattr(game_state.states, "game_info_state", None) if game_state else None
             if game_info and getattr(game_info, "game_ended", False):
                 logger.info("Game ended detected, stopping updates.")
                 return True
@@ -534,7 +535,7 @@ class Recorder:
                 self.game_itf = restored
         if self.game_itf is None:
             logger.error("No game interface available for update")
-            return
+            return None
 
         t0 = time()
         self.game_itf.update()
@@ -542,8 +543,10 @@ class Recorder:
         self.telemetry.record_update(elapsed_ms, 0)
         if elapsed_ms > 2000:
             self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms during recording")
+        state = self.game_itf.game_state
         if self.deload_between_updates:
             self.game_itf = None
+        return state
     
     def _get_army(self, action: dict):
         """Helper to get army from ID or number."""
