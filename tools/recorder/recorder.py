@@ -437,6 +437,7 @@ class Recorder:
         
         logger.info(f"Sleeping for {format_duration(duration_seconds)} without updates")
         sleep(duration_seconds)
+
         return True
     
     def _sleep_with_updates(self, action: dict) -> bool:
