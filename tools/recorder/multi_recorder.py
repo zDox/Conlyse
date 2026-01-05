@@ -9,7 +9,7 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from time import sleep
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, List, Optional, Set
 
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
@@ -88,7 +88,7 @@ class MultiRecorder:
         self.config = config
         self.account_pool = account_pool
 
-        self.scenario_ids: list[int] = config.get("scenario_ids", [])
+        self.scenario_ids: List[int] = config.get("scenario_ids", [])
         self.record_percentage: float = self._normalize_percentage(config.get("record_percentage", 1.0))
         self.max_parallel: int = int(config.get("max_parallel_recordings", 1))
         self.scan_interval: float = float(config.get("scan_interval", 30))
@@ -101,6 +101,7 @@ class MultiRecorder:
         self.executor = ThreadPoolExecutor(max_workers=self.max_parallel)
         self._listing_interface: Optional[HubInterface] = None
         self._running: Dict[Future, int] = {}
+        self._running_game_ids: Set[int] = set()
 
     @staticmethod
     def _normalize_percentage(value) -> float:
@@ -183,6 +184,7 @@ class MultiRecorder:
         self.registry.mark_recording(game_id, scenario_id, replay_file)
         future = self.executor.submit(self._run_single_recorder, game_id, recorder)
         self._running[future] = game_id
+        self._running_game_ids.add(game_id)
 
     def _run_single_recorder(self, game_id: int, recorder: Recorder) -> bool:
         try:
@@ -195,6 +197,7 @@ class MultiRecorder:
         done = [future for future in self._running if future.done()]
         for future in done:
             game_id = self._running.pop(future)
+            self._running_game_ids.discard(game_id)
             success = False
             try:
                 success = future.result()
@@ -207,7 +210,7 @@ class MultiRecorder:
 
     def _resume_active(self):
         for game_id, meta in self.registry.active().items():
-            if game_id in self._running.values():
+            if game_id in self._running_game_ids:
                 continue
             self._start_recording(game_id, meta.get("scenario_id"), meta.get("replay_path"))
 
@@ -240,4 +243,4 @@ class MultiRecorder:
         finally:
             self._process_finished()
             # Allow graceful shutdown
-            self.executor.shutdown(wait=False)
+            self.executor.shutdown(wait=True)

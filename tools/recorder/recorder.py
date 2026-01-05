@@ -584,7 +584,6 @@ class Recorder:
         Returns:
             bool: True if successful, False otherwise
         """
-        success = False
         try:
             # Setup storage
             self._setup_storage()
@@ -615,10 +614,8 @@ class Recorder:
                     logger.warning(f"Action {i+1} failed, continuing...")
             
             logger.info("Recording completed successfully")
-            success = True
             return True
         finally:
             # Always teardown logging, even if there was an error
             if self.storage:
                 self.storage.teardown_logging()
-        return success
