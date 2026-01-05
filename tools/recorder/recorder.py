@@ -46,6 +46,7 @@ class Recorder:
         self.record_as_replay: bool = bool(self.config.get("record_as_replay", False))
         self.join_as_guest: bool = bool(self.config.get("join_as_guest", False))
         self.replay_filepath: Optional[str] = None
+        self.record_requests: bool = bool(self.config.get("record_requests", True))
         
         # Track the last server request and response for recording
         self._last_request: Optional[dict] = None
@@ -212,7 +213,8 @@ class Recorder:
 
                 response = original_request_method(*args, **kwargs)
                 self._last_response = {**response, "game_api_request_id": game_interface.game_api.request_id}
-                self.storage.save_request_response(time(), self._last_request, self._last_response)
+                if self.record_requests and self.storage:
+                    self.storage.save_request_response(time(), self._last_request, self._last_response)
                 return response
 
             game_interface.game_api.make_game_server_request = patched_request

@@ -4,6 +4,7 @@ Storage management for recording sessions.
 import json
 import logging
 import pickle
+import threading
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -133,12 +134,15 @@ class RecordingStorage:
         library_logger = logging.getLogger("con_itf")
         recording_logger = logging.getLogger("rec")
 
+        thread_id = threading.get_ident()
+
         def add_file_handler(logger, filename, level=logging.DEBUG, formatter=None):
             file_handler = logging.FileHandler(filename)
             file_handler.setLevel(level)
             if formatter is None:
                 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             file_handler.setFormatter(formatter)
+            file_handler.addFilter(lambda record: record.thread == thread_id)
             logger.addHandler(file_handler)
             return file_handler
 

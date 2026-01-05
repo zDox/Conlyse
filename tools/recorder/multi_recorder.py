@@ -39,6 +39,7 @@ class MultiRecorder:
         self.record_percentage: float = self._normalize_percentage(config.get("record_percentage", 1.0))
         self.max_parallel: int = int(config.get("max_parallel_recordings", 1))
         self.scan_interval: float = float(config.get("scan_interval", 30))
+        self.max_guest_per_account: Optional[int] = config.get("max_guest_games_per_account")
 
         registry_path = config.get(
             "registry_path",
@@ -49,6 +50,7 @@ class MultiRecorder:
         self._listing_interface: Optional[HubInterface] = None
         self._running: Dict[Future, int] = {}
         self._running_game_ids: Set[int] = set()
+        self._account_guest_counts: Dict[str, int] = {}
 
     @staticmethod
     def _normalize_percentage(value) -> float:
@@ -86,7 +88,7 @@ class MultiRecorder:
             return None
 
     def _select_games(self, interface: HubInterface) -> Iterable[tuple[int, HubGameProperties]]:
-        logger.info(f"Scanning for games")
+        logger.info("Scanning for games")
         try:
             games = interface.get_global_games(state=HubGameState.READY_TO_JOIN)
         except Exception as exc:
@@ -96,11 +98,18 @@ class MultiRecorder:
         logger.info(f"Found {len(games)} games")
 
         for scenario_id in self.scenario_ids:
-            for game in games:
-                if game.scenario_id != scenario_id:
-                    continue
-                if self.registry.is_known(game.game_id):
-                    continue
+            new_candidates = [
+                game for game in games
+                if game.scenario_id == scenario_id and not self.registry.is_known(game.game_id)
+            ]
+            joinable = [g for g in new_candidates if g.open_slots >= 1]
+
+            logger.info(
+                f"Scenario {scenario_id}: {len(new_candidates)} new games, "
+                f"{len(joinable)} potentially joinable before sampling"
+            )
+
+            for game in joinable:
                 if random.random() > self.record_percentage:
                     continue
                 yield scenario_id, game
@@ -110,6 +119,7 @@ class MultiRecorder:
             per_game_config["username"] = account.username
             per_game_config["password"] = account.password
             per_game_config["proxy_url"] = account.proxy_url
+        per_game_config["record_requests"] = per_game_config.get("record_requests", False)
         return Recorder(per_game_config, account_pool=None, save_game_states=self.config.get("save_game_states", False))
 
     def _per_game_config(self, game_id: int, scenario_id: int, replay_path: Optional[str]) -> dict:
@@ -123,8 +133,29 @@ class MultiRecorder:
             cfg["replay_path"] = replay_path
         return cfg
 
+    def _pick_account(self) -> Optional[Account]:
+        if not self.account_pool:
+            return None
+        for account in self.account_pool.accounts:
+            current = self._account_guest_counts.get(account.username, 0)
+            if self.max_guest_per_account is not None and current >= self.max_guest_per_account:
+                continue
+            return account
+        return None
+
+    def _increment_account(self, account: Optional[Account]):
+        if not account:
+            return
+        self._account_guest_counts[account.username] = self._account_guest_counts.get(account.username, 0) + 1
+
+    def _decrement_account(self, account: Optional[Account]):
+        if not account:
+            return
+        if account.username in self._account_guest_counts:
+            self._account_guest_counts[account.username] = max(0, self._account_guest_counts[account.username] - 1)
+
     def _start_recording(self, game_id: int, scenario_id: int, replay_path: Optional[str] = None):
-        account = self.account_pool.next_free_account() if self.account_pool else None
+        account = self._pick_account()
         if self.account_pool and not account:
             logger.error("No free account available to start new recording")
             return
@@ -135,16 +166,19 @@ class MultiRecorder:
         replay_file = cfg.get("replay_path") or str(Path(cfg.get("output_dir", "./recordings")) / cfg.get("recording_name") / "replay.db")
 
         self.registry.mark_recording(game_id, scenario_id, replay_file)
-        future = self.executor.submit(self._run_single_recorder, game_id, recorder)
+        self._increment_account(account)
+        future = self.executor.submit(self._run_single_recorder, game_id, recorder, account)
         self._running[future] = game_id
         self._running_game_ids.add(game_id)
 
-    def _run_single_recorder(self, game_id: int, recorder: Recorder) -> bool:
+    def _run_single_recorder(self, game_id: int, recorder: Recorder, account: Optional[Account]) -> bool:
         try:
             return recorder.run()
         except Exception as exc:
             logger.error(f"Recording for game {game_id} failed: {exc}")
             return False
+        finally:
+            self._decrement_account(account)
 
     def _process_finished(self):
         done = [future for future in self._running if future.done()]
