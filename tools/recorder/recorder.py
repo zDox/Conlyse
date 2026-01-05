@@ -21,6 +21,7 @@ from tools.recorder.storage import RecordingStorage
 from tools.recorder.utils import format_duration
 from tools.recorder.utils import parse_duration
 from tools.recorder.telemetry import TelemetryRecorder
+from tools.recorder.resume import restore_online_interface_from_metadata
 
 logger = get_logger()
 
@@ -51,6 +52,7 @@ class Recorder:
         self.record_requests: bool = bool(self.config.get("record_requests", True))
         self.telemetry = telemetry or TelemetryRecorder()
         self.resume_info: dict = {}
+        self.deload_between_updates: bool = bool(self.config.get("deload_between_updates", False))
         
         # Track the last server request and response for recording
         self._last_request: Optional[dict] = None
@@ -525,12 +527,23 @@ class Recorder:
             sleep(update_interval)
 
     def _update_with_telemetry(self):
+        # Reload interface from disk if deloaded
+        if (self.game_itf is None or self.game_itf.game_state is None) and self.storage:
+            restored = restore_online_interface_from_metadata(str(self.storage.metadata_file))
+            if restored:
+                self.game_itf = restored
+        if self.game_itf is None:
+            logger.error("No game interface available for update")
+            return
+
         t0 = time()
         self.game_itf.update()
         elapsed_ms = (time() - t0) * 1000.0
         self.telemetry.record_update(elapsed_ms, 0)
         if elapsed_ms > 2000:
             self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms during recording")
+        if self.deload_between_updates:
+            self.game_itf = None
     
     def _get_army(self, action: dict):
         """Helper to get army from ID or number."""

@@ -182,6 +182,19 @@ class TestRecorder(unittest.TestCase):
         data = storage._load_metadata()
         self.assertEqual(data.get("resume", {}).get("game_id"), 1)
 
+    def test_update_with_deload_restores(self):
+        """Ensure deload flag restores interface via metadata."""
+        self.recorder.storage = MagicMock()
+        self.recorder.storage.metadata_file = __file__  # any path
+        self.recorder.deload_between_updates = True
+        fake_game = MagicMock()
+        fake_game.game_state = MagicMock()
+        with patch('tools.recorder.recorder.restore_online_interface_from_metadata', return_value=fake_game):
+            # drop current game_itf
+            self.recorder.game_itf = None
+            self.recorder._update_with_telemetry()
+            self.assertIsNone(self.recorder.game_itf)
+
 
 class TestRecorderAccountPool(unittest.TestCase):
     """Test Recorder with AccountPool integration."""
