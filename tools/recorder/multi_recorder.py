@@ -140,12 +140,16 @@ class MultiRecorder:
         accounts = self.account_pool.accounts
         if not accounts:
             return None
-        for _ in range(len(accounts)):
-            account = accounts[self._account_index % len(accounts)]
+        checked = 0
+        total = len(accounts)
+        while checked < total:
+            account = accounts[self._account_index % total]
             self._account_index += 1
             current = self._account_guest_counts.get(account.username, 0)
             if self.max_guest_per_account is not None and current >= self.max_guest_per_account:
+                checked += 1
                 continue
+            checked += 1
             return account
         return None
 
@@ -174,10 +178,10 @@ class MultiRecorder:
         self.registry.mark_recording(game_id, scenario_id, replay_file)
         try:
             future = self.executor.submit(self._run_single_recorder, game_id, recorder, account)
+            self._increment_account(account)
         except Exception:
             self.registry.mark_failed(game_id, "submission_failed")
             return
-        self._increment_account(account)
         self._running[future] = game_id
         self._running_game_ids.add(game_id)
 

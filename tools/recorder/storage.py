@@ -143,7 +143,10 @@ class RecordingStorage:
             if formatter is None:
                 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             file_handler.setFormatter(formatter)
-            file_handler.addFilter(lambda record: self.log_thread_id is None or record.thread == self.log_thread_id)
+            file_handler.addFilter(
+                lambda record: self.log_thread_id is None
+                or getattr(record, "thread", threading.get_ident()) == self.log_thread_id
+            )
             logger.addHandler(file_handler)
             return file_handler
 
