@@ -12,6 +12,7 @@ from conflict_interface.data_types.map_state.province_action_result import Updat
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
 from conflict_interface.utils.helper import datetime_to_unix_ms
+from conflict_interface.replay.replay import Replay
 from tools.recorder.account import Account
 from tools.recorder.account_pool import AccountPool
 from tools.recorder.find_game_logic import GameFinder
@@ -20,6 +21,7 @@ from tools.recorder.storage import RecordingStorage
 from tools.recorder.utils import format_duration
 from tools.recorder.utils import parse_duration
 from tools.recorder.telemetry import TelemetryRecorder
+from tools.recorder.resume import restore_online_interface_from_metadata
 
 logger = get_logger()
 
@@ -49,6 +51,8 @@ class Recorder:
         self.replay_filepath: Optional[str] = None
         self.record_requests: bool = bool(self.config.get("record_requests", True))
         self.telemetry = telemetry or TelemetryRecorder()
+        self.resume_info: dict = {}
+        self.deload_between_updates: bool = bool(self.config.get("deload_between_updates", False))
         
         # Track the last server request and response for recording
         self._last_request: Optional[dict] = None
@@ -71,6 +75,10 @@ class Recorder:
         # Set up log file recording
         self.storage.setup_logging()
         self.telemetry.on_start()
+        self.resume_info = {
+            "game_id": self.config.get("game_id"),
+            "replay_path": self.replay_filepath,
+        }
         
         logger.info(f"Recording storage initialized at: {output_path}")
 
@@ -168,6 +176,20 @@ class Recorder:
             guest=self.join_as_guest,
             replay_filename=self.replay_filepath if self.record_as_replay else None
         )
+        # store resume info
+        try:
+            self.resume_info.update({
+                "game_id": game_id,
+                "player_id": getattr(self.game_itf, "player_id", None),
+                "proxy": self.hub_itf.api.proxy,
+                "auth": getattr(self.hub_itf.api, "auth", None),
+                "cookies": self.hub_itf.api.session.cookies.get_dict(),
+                "replay_path": self.replay_filepath,
+            })
+            if self.storage:
+                self.storage.update_resume_metadata(self.resume_info)
+        except Exception as e:
+            logger.debug(f"Failed to write resume metadata: {e}")
 
         # Save initial game state and static map data
         self._save_static_map_data(self.game_itf.static_map_data)
@@ -437,7 +459,6 @@ class Recorder:
         
         logger.info(f"Sleeping for {format_duration(duration_seconds)} without updates")
         sleep(duration_seconds)
-
         return True
     
     def _sleep_with_updates(self, action: dict) -> bool:
@@ -506,12 +527,23 @@ class Recorder:
             sleep(update_interval)
 
     def _update_with_telemetry(self):
+        # Reload interface from disk if deloaded
+        if (self.game_itf is None or self.game_itf.game_state is None) and self.storage:
+            restored = restore_online_interface_from_metadata(str(self.storage.metadata_file))
+            if restored:
+                self.game_itf = restored
+        if self.game_itf is None:
+            logger.error("No game interface available for update")
+            return
+
         t0 = time()
         self.game_itf.update()
         elapsed_ms = (time() - t0) * 1000.0
         self.telemetry.record_update(elapsed_ms, 0)
         if elapsed_ms > 2000:
             self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms during recording")
+        if self.deload_between_updates:
+            self.game_itf = None
     
     def _get_army(self, action: dict):
         """Helper to get army from ID or number."""
@@ -639,6 +671,8 @@ class Recorder:
         finally:
             # Always teardown logging, even if there was an error
             if self.storage:
+                if self.resume_info:
+                    self.storage.update_resume_metadata(self.resume_info)
                 self.storage.teardown_logging()
             if self.telemetry:
                 self.telemetry.on_stop()
