@@ -176,6 +176,12 @@ class TestRecorder(unittest.TestCase):
         
         self.assertIsNone(army)
 
+    def test_resume_metadata_written(self,):
+        storage = RecordingStorage("/tmp/test_resume_meta")
+        storage.update_resume_metadata({"game_id": 1, "replay_path": "path"})
+        data = storage._load_metadata()
+        self.assertEqual(data.get("resume", {}).get("game_id"), 1)
+
 
 class TestRecorderAccountPool(unittest.TestCase):
     """Test Recorder with AccountPool integration."""
