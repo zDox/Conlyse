@@ -46,7 +46,7 @@ class AccountPool:
 
     def load_token(self) -> None:
         if not self.pool_path.exists():
-            raise Exception(f"File {self.pool_path} does not exist")
+            raise FileNotFoundError(f"File {self.pool_path} does not exist")
 
         with open(self.pool_path, 'r') as f:
             credentials = json.load(f)

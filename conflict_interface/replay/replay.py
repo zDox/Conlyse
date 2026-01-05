@@ -58,6 +58,9 @@ class Replay:
     def set_last_game_state(self, game_state: GameState):
         self.storage.last_game_state = game_state
 
+    def get_last_game_state(self) -> GameState:
+        return self.storage.last_game_state
+
     def set_max_patches(self, max_patches: int):
         self._max_patches = max_patches
 
@@ -202,7 +205,7 @@ class Replay:
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
-    def append_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
+    def append_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch], game: GameInterface = None):
         self.validate_game(game_id, player_id)
         self.validate_max_patches(len(replay_patches)*2)
 
@@ -225,8 +228,8 @@ class Replay:
             for node in new_nodes:
                 new_paths.append((node.index, node.parent.index if node.parent else 0, node.path_element))
 
-            forward = self.ops_to_lists(patch.forward_patch.operations, None)
-            backward = self.ops_to_lists(reversed(patch.backward_patch.operations), None)
+            forward = self.ops_to_lists(patch.forward_patch.operations, game)
+            backward = self.ops_to_lists(reversed(patch.backward_patch.operations), game)
 
             forward_node = PatchGraphNode(
                 from_timestamp=from_timestamp,

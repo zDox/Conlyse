@@ -111,11 +111,7 @@ For a complete list of action types and their parameters, see the documentation.
     account_pool = None
     account_pool_path = config.get('account_pool_path')
     if account_pool_path:
-        try:
-            account_pool = AccountPool(account_pool_path)
-        except Exception as e:
-            print(f"Error loading account pool from {account_pool_path}: {e}")
-            sys.exit(1)
+        account_pool = AccountPool(account_pool_path)
     
     # Create and run recorder
     try:

@@ -3,80 +3,27 @@ Coordinator for recording multiple games concurrently.
 """
 from __future__ import annotations
 
-import json
 import random
-import threading
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from time import sleep
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Set
 
+from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from tools.recorder.account import Account
 from tools.recorder.account_pool import AccountPool
 from tools.recorder.recorder import Recorder
 from tools.recorder.recorder_logger import get_logger
+from tools.recorder.recording_registry import RecordingRegistry
 
 logger = get_logger()
-
-
-class RecordingRegistry:
-    """Persisted registry of active and finished recordings to allow recovery."""
-
-    def __init__(self, registry_path: Path):
-        self.path = Path(registry_path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.Lock()
-        self.state: Dict[str, Dict[str, dict]] = {"recording": {}, "completed": {}, "failed": {}}
-        self._load()
-
-    def _load(self):
-        if not self.path.exists():
-            return
-        try:
-            with self.path.open("r") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    self.state.update({k: v for k, v in data.items() if k in self.state})
-        except Exception as exc:
-            logger.warning(f"Could not read registry at {self.path}: {exc}")
-
-    def _save(self):
-        with self.path.open("w") as f:
-            json.dump(self.state, f, indent=2)
-
-    def mark_recording(self, game_id: int, scenario_id: int, replay_path: Optional[str]):
-        with self._lock:
-            self.state["recording"][str(game_id)] = {
-                "scenario_id": scenario_id,
-                "replay_path": replay_path,
-            }
-            self._save()
-
-    def mark_completed(self, game_id: int):
-        with self._lock:
-            meta = self.state["recording"].pop(str(game_id), None)
-            if meta is None:
-                meta = {}
-            self.state["completed"][str(game_id)] = meta
-            self._save()
-
-    def mark_failed(self, game_id: int, reason: str = ""):
-        with self._lock:
-            meta = self.state["recording"].pop(str(game_id), None)
-            if meta is None:
-                meta = {}
-            meta["reason"] = reason
-            self.state["failed"][str(game_id)] = meta
-            self._save()
-
-    def is_known(self, game_id: int) -> bool:
-        sid = str(game_id)
-        return any(sid in bucket for bucket in self.state.values())
-
-    def active(self) -> Dict[int, dict]:
-        return {int(k): v for k, v in self.state["recording"].items()}
 
 
 class MultiRecorder:
@@ -138,15 +85,20 @@ class MultiRecorder:
             logger.error(f"Failed to prepare listing interface: {exc}")
             return None
 
-    def _select_games(self, interface: HubInterface) -> Iterable[tuple[int, object]]:
-        for scenario_id in self.scenario_ids:
-            try:
-                games = interface.get_global_games(scenario_id=scenario_id, state=HubGameState.RUNNING)
-            except Exception as exc:
-                logger.warning(f"Failed to list games for scenario {scenario_id}: {exc}")
-                continue
+    def _select_games(self, interface: HubInterface) -> Iterable[tuple[int, HubGameProperties]]:
+        logger.info(f"Scanning for games")
+        try:
+            games = interface.get_global_games(state=HubGameState.READY_TO_JOIN)
+        except Exception as exc:
+            logger.warning(f"Failed to list games {exc}")
+            return
 
+        logger.info(f"Found {len(games)} games")
+
+        for scenario_id in self.scenario_ids:
             for game in games:
+                if game.scenario_id != scenario_id:
+                    continue
                 if self.registry.is_known(game.game_id):
                     continue
                 if random.random() > self.record_percentage:
@@ -176,6 +128,7 @@ class MultiRecorder:
         if self.account_pool and not account:
             logger.error("No free account available to start new recording")
             return
+        logger.info(f"Starting recording for game {game_id} with scenario {scenario_id}")
 
         cfg = self._per_game_config(game_id, scenario_id, replay_path)
         recorder = self._build_recorder(cfg, account)
