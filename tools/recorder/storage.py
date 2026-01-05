@@ -137,6 +137,8 @@ class RecordingStorage:
 
         self.log_thread_id = threading.get_ident()
 
+        allowed_thread = self.log_thread_id
+
         def add_file_handler(logger, filename, level=logging.DEBUG, formatter=None):
             file_handler = logging.FileHandler(filename)
             file_handler.setLevel(level)
@@ -144,8 +146,8 @@ class RecordingStorage:
                 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             file_handler.setFormatter(formatter)
             file_handler.addFilter(
-                lambda record: self.log_thread_id is None
-                or getattr(record, "thread", threading.get_ident()) == self.log_thread_id
+                lambda record, allowed_thread=allowed_thread: allowed_thread is None
+                or getattr(record, "thread", threading.get_ident()) == allowed_thread
             )
             logger.addHandler(file_handler)
             return file_handler

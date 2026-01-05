@@ -146,11 +146,9 @@ class MultiRecorder:
             account = accounts[self._account_index % total]
             self._account_index += 1
             current = self._account_guest_counts.get(account.username, 0)
-            if self.max_guest_per_account is not None and current >= self.max_guest_per_account:
-                checked += 1
-                continue
+            if self.max_guest_per_account is None or current < self.max_guest_per_account:
+                return account
             checked += 1
-            return account
         return None
 
     def _increment_account(self, account: Optional[Account]):
@@ -179,8 +177,9 @@ class MultiRecorder:
         try:
             future = self.executor.submit(self._run_single_recorder, game_id, recorder, account)
             self._increment_account(account)
-        except Exception:
+        except RuntimeError as exc:
             self.registry.mark_failed(game_id, "submission_failed")
+            logger.error(f"Failed to submit recording for game {game_id}: {exc}")
             return
         self._running[future] = game_id
         self._running_game_ids.add(game_id)
