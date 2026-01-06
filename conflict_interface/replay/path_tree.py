@@ -316,44 +316,38 @@ class PathTree:
         relevant_nodes = set(steiner_tree.keys())
 
         # intersect hook_paths and relevant_nodes to get the hooks to keep
-        out = []
+        out = defaultdict(lambda: defaultdict(dict))
         for hook_path, hooks in hook_dict.items():
             for hook in hooks:
                 if hook_path not in relevant_nodes: continue
 
-                for child in steiner_tree[hook_path]:  # for prov in locations
-                    relevant_attribute_changed = False
-                    attribute_paths = steiner_tree.get(child)  # attribute nodes of a prov
-                    if not attribute_paths:  # no attributes found
-                        logger.warning(
-                            f"Skipping hook {hook_path} as no attributes were found (Maby full province changed)")
-                        continue
+                min_depth = hook.search_start_depth
+                max_depth = hook.search_end_depth
 
-                    changed_attributes = {}
-                    reference_to_child = None
-                    for attribute in attribute_paths:  # for attribute node in attribute nodes of a prov
-                        attribute_node = self.idx_to_node[attribute]  # actual node
-                        reference_to_child = attribute_node.reference  # ref to holder of attribute of prov aka a province
-                        if not reference_to_child:  # Important warning
-                            logger.warning(
-                                f"Skipping Attribute {attribute_node.path_element} because the reference was not set")
+                start = hook_path
+                visited: set[int] = {start}
+                q = deque([(start, 0)])
+
+                pop = q.popleft
+                add = q.append
+                visited_add = visited.add
+
+                while q:
+                    u, d = pop()
+                    for v in steiner_tree.get(u, []):
+                        if v not in visited:
+                            visited_add(v)
+
+                        add((v, d+1))
+
+                        if d < min_depth or (d > max_depth != -1):
                             continue
 
+                        attribute_node = self.idx_to_node[v]
                         if hook.attributes is None or attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
-                            old_ref = getattr(reference_to_child, attribute_node.path_element,
+                            old_ref = getattr(attribute_node.reference, attribute_node.path_element,
                                               None)  # copy the attribute by acesssing the province
-                            #TODO set_game to None before copying a possible GameObject
                             old_value = deepcopy(old_ref)
-                            changed_attributes[attribute_node.path_element] = [old_value, None]
-                            relevant_attribute_changed = True
-
-                    if not relevant_attribute_changed:
-                        continue
-
-                    assert reference_to_child
-                    assert len(changed_attributes) > 0
-                    assert hook_path
-
-                    out.append((hook_path, reference_to_child, changed_attributes))
+                            out[hook_path][attribute_node.reference][attribute_node.path_element] = [old_value, None]
 
         return out
