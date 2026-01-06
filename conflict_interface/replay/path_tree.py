@@ -342,7 +342,7 @@ class PathTree:
                         if hook.attributes is None or attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
                             old_ref = getattr(reference_to_child, attribute_node.path_element,
                                               None)  # copy the attribute by acesssing the province
-                            #TODO set_game to None before copying a possible GameObject
+              
                             old_value = deepcopy(old_ref)
                             changed_attributes[attribute_node.path_element] = [old_value, None]
                             relevant_attribute_changed = True
