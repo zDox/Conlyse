@@ -21,16 +21,17 @@ class AccountPoolStatus:
     open_game_slots: int
 
 class AccountPool:
-    def __init__(self, path: str):
+    def __init__(self, path: str, webshare_token: str | None = None):
         self.accounts: list[Account] = []
         self.proxies: dict[str, Proxy] = {}
-        self.web_share_token = None
+        self.web_share_token = webshare_token
         self.pool_path: Path = Path(path)
         self.free_account_pointer = 0
         self.guest_account_pointer = 0
         self.guest_join_counts: dict[str, int] = {}
 
-        self.load_token()
+        if self.web_share_token is None:
+            self.load_token()
         self.load_proxies()
         self.load_accounts()
 
