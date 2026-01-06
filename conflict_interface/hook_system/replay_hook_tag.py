@@ -7,3 +7,4 @@ class ReplayHookTag(Enum):
     PlayerChanged = auto()
     TeamChanged = auto()
     ArmyChanged = auto()
+    GameInfoChanged = auto()

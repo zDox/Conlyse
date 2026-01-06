@@ -4,6 +4,7 @@ from collections import deque
 from copy import deepcopy
 from logging import getLogger
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.replay.apply_replay_helper import get_child_reference
@@ -338,9 +339,10 @@ class PathTree:
                                 f"Skipping Attribute {attribute_node.path_element} because the reference was not set")
                             continue
 
-                        if attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
+                        if hook.attributes is None or attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
                             old_ref = getattr(reference_to_child, attribute_node.path_element,
                                               None)  # copy the attribute by acesssing the province
+              
                             old_value = deepcopy(old_ref)
                             changed_attributes[attribute_node.path_element] = [old_value, None]
                             relevant_attribute_changed = True
