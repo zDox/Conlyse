@@ -1,5 +1,6 @@
 from copy import deepcopy
-from typing import Any
+from time import time
+from typing import Any, Callable, Optional
 
 from cloudscraper25 import CloudScraper
 
@@ -21,6 +22,10 @@ class RecordingInterface:
     Does not parse game states and assumes a guest join.
     """
 
+    def __init_callbacks(self):
+        self._request_response_cb: Optional[Callable[[dict, dict, float], None]] = None
+        self._update_cb: Optional[Callable[[float], None]] = None
+
     def __init__(self, game_id: int,
                  session: CloudScraper,
                  auth_details: AuthDetails,
@@ -29,6 +34,8 @@ class RecordingInterface:
         self.game_api: GameApi = GameApi(session, auth_details, game_id, proxy=proxy)
         self.static_map_data: Any | None = None
         self.last_response: dict | None = None
+        self.__init_callbacks()
+        self._patch_game_api()
 
     def set_proxy(self, proxy: dict):
         self.game_api.set_proxy(proxy)
@@ -48,7 +55,15 @@ class RecordingInterface:
         """
         Request a game update and return the raw JSON response.
         """
-        return self._request_game_state(send_state_ids=True)
+        start = time()
+        response = self._request_game_state(send_state_ids=True)
+        elapsed_ms = (time() - start) * 1000.0
+        if self._update_cb:
+            try:
+                self._update_cb(elapsed_ms)
+            except Exception:
+                pass
+        return response
 
     def _request_game_state(self, send_state_ids: bool) -> dict:
         state_ids, time_stamps = (None, None)
@@ -72,6 +87,29 @@ class RecordingInterface:
         response = self.game_api.make_game_server_request(payload)
         self.last_response = deepcopy(response)
         return response
+
+    def _patch_game_api(self):
+        original_request = self.game_api.make_game_server_request
+
+        def patched_request(*args, **kwargs):
+            start_req = time()
+            request_payload = args[0] if args else kwargs.get("parameters", {})
+            response = original_request(*args, **kwargs)
+            elapsed_ms = (time() - start_req) * 1000.0
+            if self._request_response_cb:
+                try:
+                    self._request_response_cb(request_payload or {}, response, elapsed_ms)
+                except Exception:
+                    pass
+            return response
+
+        self.game_api.make_game_server_request = patched_request
+
+    def set_request_response_callback(self, cb: Optional[Callable[[dict, dict, float], None]]):
+        self._request_response_cb = cb
+
+    def set_update_callback(self, cb: Optional[Callable[[float], None]]):
+        self._update_cb = cb
 
     def _extract_state_metadata(self) -> tuple[HashMap | None, HashMap | None]:
         """

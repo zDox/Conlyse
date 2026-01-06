@@ -56,9 +56,10 @@ class StaticMapCache:
             path = self.cache_dir / f"map_{map_id}.bin"
             if map_id in self._saved_ids and path.exists():
                 return path
-            original_game = getattr(static_map_data, "game", None)
+            original_game = getattr(static_map_data, "game", None) if hasattr(static_map_data, "game") else None
             try:
-                static_map_data.set_game(None)
+                if hasattr(static_map_data, "set_game"):
+                    static_map_data.set_game(None)
                 data = pickle.dumps(static_map_data)
                 compressed = self._compressor.compress(data)
                 with path.open("wb") as f:
@@ -71,7 +72,8 @@ class StaticMapCache:
                 return None
             finally:
                 try:
-                    static_map_data.set_game(original_game)
+                    if hasattr(static_map_data, "set_game"):
+                        static_map_data.set_game(original_game)
                 except Exception:
                     pass
 
@@ -101,7 +103,7 @@ class ObservationSession:
         self.storage: Optional[RecordingStorage] = None
         self.game_id = config.get("game_id")
         self.update_interval: float = float(config.get("update_interval", 60.0))
-        self.save_game_states: bool = bool(config.get("save_game_states", False))
+        self.save_game_states: bool = False
         self.max_updates = config.get("max_updates")
         self.max_duration = config.get("max_duration")
 
@@ -130,44 +132,22 @@ class ObservationSession:
         hub_itf.login(username, password)
         return hub_itf
 
-    def _patch_game_api(self):
-        if not self.game_itf:
-            return
-        original_request = self.game_itf.game_api.make_game_server_request
-        storage = self.storage
-        telemetry = self.telemetry
-        game_id = self.game_id
-
-        def patched_request(*args, **kwargs):
-            start_req = time()
-            if args and isinstance(args[0], dict):
-                request_payload = args[0]
-            else:
-                request_payload = kwargs.get("parameters", {})
-            response = original_request(*args, **kwargs)
-            if storage:
-                ts = time()
-                storage.save_request_response(ts, request_payload or {}, response)
-                elapsed_ms = (ts - start_req) * 1000.0
-                approx_bytes = sys.getsizeof(request_payload or {}) + sys.getsizeof(response)
-                telemetry.record_update(elapsed_ms, approx_bytes)
-                if elapsed_ms > 2000:
-                    telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms for game {game_id}")
-            return response
-
-        self.game_itf.game_api.make_game_server_request = patched_request
+    def _on_request_response(self, request_payload: dict, response: dict, elapsed_ms: float):
+        if self.storage:
+            ts = time()
+            self.storage.save_request_response(ts, request_payload or {}, response)
+            approx_bytes = sys.getsizeof(request_payload or {}) + sys.getsizeof(response)
+            self.telemetry.record_update(elapsed_ms, approx_bytes)
+            if elapsed_ms > 2000:
+                self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms for game {self.game_id}")
 
     def _save_static_map_data(self):
-        if not self.game_itf or not self.game_itf.static_map_data:
+        if not self.game_itf or not getattr(self.game_itf, "static_map_data", None):
             return
-        map_id = None
-        try:
-            map_id = getattr(self.game_itf.game_state.states.game_info_state, "map_id", None)
-        except AttributeError:
-            map_id = None
+        map_id = getattr(self.game_itf.game_api, "map_id", None)
 
         self.map_cache.save(map_id, self.game_itf.static_map_data)
-        if self.storage:
+        if self.storage and hasattr(self.game_itf.static_map_data, "set_game"):
             self.storage.save_static_map_data(self.game_itf.static_map_data)
 
     def _prepare(self) -> bool:
@@ -189,7 +169,8 @@ class ObservationSession:
             replay_filepath=self.config.get("replay_path"),
         )
         self.game_itf.load_game()
-        self._patch_game_api()
+        self.game_itf.set_request_response_callback(self._on_request_response)
+        self.game_itf.set_update_callback(lambda elapsed_ms: self.telemetry.record_update(elapsed_ms, 0))
         self._save_static_map_data()
         return True
 
@@ -198,16 +179,7 @@ class ObservationSession:
             logger.error("No game interface available for observer update")
             return None
 
-        t0 = time()
-        self.game_itf.update()
-        elapsed_ms = (time() - t0) * 1000.0
-        self.telemetry.record_update(elapsed_ms, 0)
-        if elapsed_ms > 2000:
-            self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms during observation")
-        state = self.game_itf.game_state
-        if self.save_game_states and self.storage and state:
-            self.storage.save_game_state(time(), state)
-        return state
+        return self.game_itf.update()
 
     def _observe_until_end(self) -> bool:
         updates_done = 0
@@ -215,8 +187,7 @@ class ObservationSession:
         while True:
             state = self._update_once()
             updates_done += 1
-            game_info = getattr(state.states, "game_info_state", None) if state else None
-            if game_info and getattr(game_info, "game_ended", False):
+            if self._is_game_ended(state):
                 logger.info(f"Game {self.game_id} ended, stopping observation.")
                 return True
             if self.max_updates is not None and updates_done >= self.max_updates:
@@ -226,6 +197,21 @@ class ObservationSession:
                 logger.info("Reached configured maximum observation duration, stopping.")
                 return True
             sleep(self.update_interval)
+
+    @staticmethod
+    def _is_game_ended(response: Optional[dict]) -> bool:
+        if not isinstance(response, dict):
+            return False
+        result = response.get("result")
+        if not isinstance(result, dict):
+            return False
+        states = result.get("states", {})
+        if not isinstance(states, dict):
+            return False
+        for state in states.values():
+            if isinstance(state, dict) and state.get("gameEnded"):
+                return True
+        return False
 
     def run(self) -> bool:
         try:

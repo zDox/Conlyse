@@ -21,13 +21,8 @@ class TestObservationSession(unittest.TestCase):
         session = ObservationSession(config, account=None, telemetry=TelemetryRecorder(), map_cache=StaticMapCache(tmp_path))
         session.storage = None
 
-        game_info_state = SimpleNamespace(game_ended=True, map_id=99)
-        states = SimpleNamespace(game_info_state=game_info_state)
-        game_state = SimpleNamespace(states=states)
-
         session.game_itf = MagicMock()
-        session.game_itf.game_state = game_state
-        session.game_itf.update = MagicMock()
+        session.game_itf.update = MagicMock(return_value={"result": {"states": {"12": {"gameEnded": True}}}})
 
         self.assertTrue(session._observe_until_end())
         session.game_itf.update.assert_called_once()
