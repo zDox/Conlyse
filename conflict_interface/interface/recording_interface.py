@@ -90,18 +90,27 @@ class RecordingInterface:
             return None, None
 
         state_ids: HashMap[int, str] = HashMap()
-        time_stamps: HashMap[int, int | str] = HashMap()
+        time_stamps: HashMap[int, int] = HashMap()
 
         for state in states.values():
             if not isinstance(state, dict):
                 continue
-            state_type = state.get("stateType")
-            if state_type is None:
+            state_type_raw = state.get("stateType")
+            try:
+                state_type = int(state_type_raw)
+            except (TypeError, ValueError):
                 continue
-            if "stateID" in state:
-                state_ids[int(state_type)] = state["stateID"]
-            if "timeStamp" in state:
-                time_stamps[int(state_type)] = state["timeStamp"]
+
+            state_id = state.get("stateID")
+            if state_id is not None:
+                state_ids[state_type] = str(state_id)
+
+            time_stamp = state.get("timeStamp")
+            if time_stamp is not None:
+                try:
+                    time_stamps[state_type] = int(time_stamp)
+                except (TypeError, ValueError):
+                    continue
 
         if len(state_ids) == 0 or len(time_stamps) == 0:
             return None, None
