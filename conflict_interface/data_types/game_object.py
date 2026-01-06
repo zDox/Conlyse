@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import fields
 from dataclasses import is_dataclass
 from typing import Any
@@ -107,3 +108,23 @@ class GameObject:
                 stack.extend(current.values())
                 # Only add keys if they might be GameObjects
                 # stack.extend(current.keys())  # Consider if keys can be GameObjects
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+
+        # Check memo to avoid cycles
+        if id(self) in memo:
+            return memo[id(self)]
+
+        # Create uninitialized instance
+        new = cls.__new__(cls)
+        memo[id(self)] = new
+
+        # Copy attributes
+        for key, value in self.__dict__.items():
+            if key == "game":
+                setattr(new, key, None)
+            else:
+                setattr(new, key, deepcopy(value, memo))
+
+        return new

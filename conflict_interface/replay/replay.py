@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 from typing import Union
 
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_binary import GameObjectSerializer
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 
@@ -322,13 +321,7 @@ class Replay:
             idx = self.storage.path_tree.path_list_to_idx(op.path)
             paths.append(idx)
 
-            if game is not None:
-                GameObject.set_game_recursive(op.new_value, None)
-
             value = deepcopy(op.new_value)
-
-            if game is not None:
-                GameObject.set_game_recursive(op.new_value, game)
 
             if op.Key == 'a':
                 op_types.append(ADD_OPERATION)
