@@ -72,6 +72,10 @@ class StaticMapCache:
 class ObservationSession:
     """
     Per-game observer that records server responses until game end.
+
+    It patches the game API to persist responses via RecordingStorage, records
+    telemetry for each update, and optionally saves game states. Static map data
+    is cached once per map_id to avoid duplicate downloads during the session.
     """
 
     def __init__(
@@ -209,6 +213,10 @@ class ObservationSession:
 class ServerObserver:
     """
     Manage observation of multiple games concurrently, recording server responses.
+
+    Uses an AccountPool to select guest accounts, scans hub listings similar to
+    MultiRecorder, and schedules ObservationSessions on a thread pool. Intended
+    for lightweight response logging without executing complex Recorder actions.
     """
 
     def __init__(self, config: dict, account_pool: Optional[AccountPool] = None):
@@ -331,13 +339,13 @@ class ServerObserver:
     def _increment_account(self, account: Optional[Account]):
         if not account:
             return
-        if self.account_pool and hasattr(self.account_pool, "increment_guest_join"):
+        if self.account_pool:
             self.account_pool.increment_guest_join(account)
 
     def _decrement_account(self, account: Optional[Account]):
         if not account:
             return
-        if self.account_pool and hasattr(self.account_pool, "decrement_guest_join"):
+        if self.account_pool:
             self.account_pool.decrement_guest_join(account)
 
     def _start_observation(self, game_id: int, scenario_id: int):
