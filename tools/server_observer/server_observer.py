@@ -89,10 +89,12 @@ class ObservationSession:
         self,
         config: dict,
         account: Optional[Account],
+        telemetry: TelemetryRecorder,
         map_cache: StaticMapCache,
     ):
         self.config = config
         self.account = account
+        self.telemetry = telemetry
         self.map_cache = map_cache
         self.hub_itf: Optional[HubInterface] = None
         self.game_itf: Optional[RecordingInterface] = None
@@ -129,8 +131,10 @@ class ObservationSession:
 
     def _on_request_response(self, request_payload: dict, response: dict, elapsed_ms: float):
         ts = time()
-        self.storage.save_request_response(ts, request_payload or {}, response)
-        # Explicitly clear references to allow garbage collection
+        if self.storage:
+            self.storage.save_request_response(ts, request_payload or {}, response)
+        approx_bytes = sys.getsizeof(request_payload or {}) + sys.getsizeof(response)
+        self.telemetry.record_update(elapsed_ms, approx_bytes)
 
     def _save_static_map_data(self):
         if not self.game_itf or not getattr(self.game_itf, "static_map_data", None):
@@ -151,6 +155,7 @@ class ObservationSession:
         )
         self.game_itf.game_api.load_game_site()
         self.game_itf.set_request_response_callback(self._on_request_response)
+        self.game_itf.set_update_callback(lambda elapsed_ms: self.telemetry.record_update(elapsed_ms, 0))
         game_state = self.game_itf._request_game_state(send_state_ids=False)
         map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
         # Check if static map data is available locally
@@ -308,6 +313,7 @@ class ServerObserver:
         return ObservationSession(
             per_game_config,
             account=account,
+            telemetry=self.telemetry,
             map_cache=self._map_cache,
         )
 
@@ -444,11 +450,12 @@ class ServerObserver:
                 if interface:
                     available_slots = self.max_parallel - len(self._running)
                     if available_slots > 0:
-                        for scenario_id, game in self._select_games(interface) and self.enabled_scanning:
-                            if available_slots <= 0:
-                                break
-                            self._start_observation(game.game_id, scenario_id)
-                            available_slots -= 1
+                        if self.enabled_scanning:
+                            for scenario_id, game in self._select_games(interface):
+                                if available_slots <= 0:
+                                    break
+                                self._start_observation(game.game_id, scenario_id)
+                                available_slots -= 1
                 cycle += 1
                 if iterations is None or cycle < iterations:
                     sleep(self.scan_interval)

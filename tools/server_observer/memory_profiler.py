@@ -159,6 +159,41 @@ class MemoryProfiler:
             for name, stats in sorted_stats[:limit]
         ]
 
+    def get_top_memory_objects_filtered(
+        self,
+        module_prefix: str | tuple[str, ...],
+        limit: int = 20,
+    ) -> List[Tuple[str, int, int]]:
+        """
+        Get top memory-consuming objects filtered by module prefix.
+        """
+        gc.collect()
+        type_stats = defaultdict(lambda: {"count": 0, "size": 0})
+
+        for obj in gc.get_objects():
+            try:
+                obj_type = type(obj)
+                module = getattr(obj_type, "__module__", "")
+                if not module.startswith(module_prefix):
+                    continue
+                size = sys.getsizeof(obj)
+                name = f"{module}.{obj_type.__name__}"
+                type_stats[name]["count"] += 1
+                type_stats[name]["size"] += size
+            except Exception:
+                continue
+
+        sorted_stats = sorted(
+            type_stats.items(),
+            key=lambda x: x[1]["size"],
+            reverse=True
+        )
+
+        return [
+            (name, stats["count"], stats["size"] / 1024)
+            for name, stats in sorted_stats[:limit]
+        ]
+
     def print_top_objects(self, limit: int = 20):
         """Print the top memory-consuming object types."""
         print(f"\n{'=' * 80}")
@@ -247,6 +282,17 @@ class MemoryProfiler:
         # Top object types
         self.print_top_objects(20)
 
+        # ConflictInterface-heavy objects
+        filtered = self.get_top_memory_objects_filtered(("conflict_interface",), limit=10)
+        if filtered:
+            print(f"\n{'=' * 80}")
+            print("Top Memory-Consuming ConflictInterface Objects")
+            print(f"{'=' * 80}")
+            print(f"{'Type':<50} {'Count':>10} {'Total KB':>15}")
+            print(f"{'-' * 80}")
+            for obj_type, count, size_kb in filtered:
+                print(f"{obj_type:<50} {count:>10,} {size_kb:>15,.1f}")
+
         # Large individual objects
         self.print_large_objects(1)
 
@@ -320,6 +366,21 @@ class MonitoredServerObserver:
             if diff > 50:  # Significant increase
                 print(f"  ⚠️  WARNING: Large memory increase detected!")
 
+        # Take tracemalloc snapshot and show top diffs if available
+        self.profiler.take_snapshot(f"iter_{self.iteration_count}")
+        if len(self.profiler.snapshots) >= 2:
+            print("  Top alloc diffs since last check:")
+            for location, size_diff_kb, count_diff in self.profiler.compare_snapshots(-2, -1)[:5]:
+                sign = "+" if size_diff_kb > 0 else ""
+                print(f"    {sign}{size_diff_kb:>7.1f} KB | {sign}{count_diff:>5} | {location}")
+
+        # Surface largest conflict_interface object types
+        top_conflict = self.profiler.get_top_memory_objects_filtered(("conflict_interface",), limit=5)
+        if top_conflict:
+            print("  Top conflict_interface object types:")
+            for obj_type, count, size_kb in top_conflict:
+                print(f"    {obj_type:<50} {count:>8,} {size_kb:>10,.1f} KB")
+
     def run(self, iterations: int = None):
         """Run with memory monitoring."""
         # Initial snapshot
@@ -355,4 +416,3 @@ class MonitoredServerObserver:
                 print(f"  End:    {self.memory_history[-1]['rss_mb']:.1f} MB")
                 print(f"  Change: {self.memory_history[-1]['rss_mb'] - self.memory_history[0]['rss_mb']:+.1f} MB")
                 print(f"  Peak:   {max(m['rss_mb'] for m in self.memory_history):.1f} MB")
-
