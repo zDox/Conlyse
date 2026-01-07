@@ -4,10 +4,9 @@ from collections import deque
 from copy import deepcopy
 from logging import getLogger
 
-from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.hook_system.replay_hook import ReplayHook
-from conflict_interface.replay.apply_replay_helper import get_child_reference
+from conflict_interface.replay.apply_replay_helper import get_reference_from_direct_parent
 from conflict_interface.replay.path_tree_node import PathTreeNode
 
 logger = getLogger()
@@ -188,23 +187,20 @@ class PathTree:
         return dict(adj)
 
     def bfs_set_references(self, sub_tree: dict[int, list[int]], game_state: GameState):
-        start = self.root.index
-        q = deque([(start, game_state)])
-
+        q = deque([])
         pop = q.popleft
         add = q.append
 
+        for child in self.root.children.values():
+            child.set_reference(game_state)
+            add(child.index)
+
         while q:
-            u, ref = pop()
+            u = pop()
             for v in sub_tree.get(u, []):
                 node = self.idx_to_node[v]
-                node.set_reference(ref)
-                if len(sub_tree.get(v, [])) > 0:
-                    try:
-                        child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
-                    except Exception as e:
-                        raise Exception(e)
-                    add((v, child_ref))
+                node.set_reference(get_reference_from_direct_parent(node))
+                add(v)
 
     def reset_child_references(self, start_node_idx: int):
         stack = [start_node_idx]
