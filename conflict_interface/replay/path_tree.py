@@ -325,20 +325,15 @@ class PathTree:
                 max_depth = hook.search_end_depth
 
                 start = hook_path
-                visited: set[int] = {start}
                 q = deque([(start, 0)])
 
                 pop = q.popleft
                 add = q.append
-                visited_add = visited.add
 
                 while q:
                     u, d = pop()
                     for v in steiner_tree.get(u, []):
                         if d > max_depth != -1: continue
-
-                        if v not in visited:
-                            visited_add(v)
 
                         add((v, d+1))
 
