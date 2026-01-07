@@ -335,13 +335,14 @@ class PathTree:
                 while q:
                     u, d = pop()
                     for v in steiner_tree.get(u, []):
+                        if d > max_depth != -1: continue
+
                         if v not in visited:
                             visited_add(v)
 
                         add((v, d+1))
 
-                        if d < min_depth or (d > max_depth != -1):
-                            continue
+                        if d < min_depth: continue
 
                         attribute_node = self.idx_to_node[v]
                         if hook.attributes is None or attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
@@ -349,6 +350,6 @@ class PathTree:
                                               None)  # copy the attribute by acesssing the province
 
                             old_value = deepcopy(old_ref)
-                            out[hook_path][attribute_node.reference][attribute_node.path_element] = [old_value, None]
+                            out[hook_path][v][attribute_node.path_element] = [old_value, None]
 
         return out

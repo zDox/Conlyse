@@ -297,7 +297,8 @@ class Replay:
         # Get new values and que the hooks
         if hook_system:
             for hook_path, references in hook_data.items():
-                for reference, attributes in references.items():
+                for obj_path, attributes in references.items():
+                    reference = self.storage.path_tree.idx_to_node[obj_path]
                     for attribute, value in attributes.items():
                         value[1] = getattr(reference, attribute, None)
                     hook_system.que_hook_path(hook_path, reference, attributes)

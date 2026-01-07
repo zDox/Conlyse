@@ -328,6 +328,7 @@ class ReplayInterface(GameInterface):
             path=path,
             attributes=attributes
         )
+
     def unregister_team_trigger(self):
         path = ["states", "player_state", "teams"]
         self._hook_system.unregister_event_trigger(path)
@@ -339,6 +340,19 @@ class ReplayInterface(GameInterface):
             path=path,
             attributes=attributes
         )
+
     def unregister_army_trigger(self):
         path = ["states", "army_state", "armies"]
+        self._hook_system.unregister_event_trigger(path)
+
+    def register_game_info_state_trigger(self):
+        path = ["states", "game_info_state"]
+        self._hook_system.register_event_trigger(
+            tag=ReplayHookTag.GameInfoChanged,
+            path=path,
+            attributes=None
+        )
+
+    def unregister_game_info_state_trigger(self):
+        path = ["states", "game_info_state"]
         self._hook_system.unregister_event_trigger(path)
