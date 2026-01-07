@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import wraps
 from typing import Optional
+from typing import cast
 
 from conflict_interface.data_types.custom_types import ArrayList
 from conflict_interface.data_types.custom_types import HashSet
@@ -21,6 +22,7 @@ from conflict_interface.data_types.map_state.update_province_action import Updat
 from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionModes
 from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
+from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
@@ -153,6 +155,10 @@ class Province(GameObject):
 
     def is_owner(self):
         return self.owner_id == self.game.player_id
+
+    @property
+    def owner(self) -> PlayerProfile:
+        return self.game.get_player(self.owner_id)
 
     @property
     def properties(self) -> ProvinceProperty | None:
@@ -458,6 +464,17 @@ class Province(GameObject):
     def has_construction(self, slot: int) -> bool:
         return self.constructions[slot] is not None
 
+    @property
+    def population(self) -> int | None:
+        if self.constructions is None:
+            return None
+        if self.constructions[3] is None:
+            return None
+        upgrade = self.constructions[3].upgrade
+        if not isinstance(upgrade, ModableUpgrade):
+            return None
+        return upgrade.get_upgrade_type().tier - 1
+
     def has_upgrades(self, required_upgrades: list[int]) -> bool:
         for required_upgrade in required_upgrades:
             has_upgrade = False
@@ -468,9 +485,6 @@ class Province(GameObject):
             if not has_upgrade:
                 return False
         return True
-
-    def set_static_province(self, obj):
-        self.static_data = obj
 
     def update(self, other: "Province", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
         for updateable_key in Province.updateable_keys:

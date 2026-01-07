@@ -11,7 +11,6 @@ from typing import Optional
 from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
-from conflict_interface.utils.helper import datetime_to_unix_ms
 from tools.recorder.account import Account
 from tools.recorder.account_pool import AccountPool
 from tools.recorder.find_game_logic import GameFinder
