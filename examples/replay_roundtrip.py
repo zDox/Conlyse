@@ -47,8 +47,8 @@ class ReplayRoundtrip:
 
     def __init__(
             self,
-            recording_file_path: Path = TEST_DATA / "test006",
-            replay_file_path: Path = TEST_DATA / "test_replay_roundtrip.bin",
+            recording_file_path: Path,
+            replay_file_path: Path,
             player_id: int = 85,
             limit: int = 100,
             compare_start_index: int = 0,
@@ -471,10 +471,10 @@ def main():
 
     # Run verification test
     roundtrip = ReplayRoundtrip(
-        recording_file_path=TEST_DATA / "test006",
+        recording_file_path=TEST_DATA / "test008",
         replay_file_path=TEST_DATA / "test_replay_roundtrip.bin",
         player_id=85,
-        limit=100,
+        limit=None,
         compare_start_index=0,
         preconverted=False
     )
