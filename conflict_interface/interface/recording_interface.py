@@ -100,10 +100,7 @@ class RecordingInterface:
             response = original_request(*args, **kwargs)
             elapsed_ms = (time() - start_req) * 1000.0
             if self._request_response_cb:
-                try:
-                    self._request_response_cb(request_payload or {}, response, elapsed_ms)
-                except Exception:
-                    pass
+                self._request_response_cb(request_payload or {}, response, elapsed_ms)
             return response
 
         self.game_api.make_game_server_request = patched_request

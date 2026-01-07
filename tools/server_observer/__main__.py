@@ -8,10 +8,12 @@ import sys
 
 from conflict_interface.logger_config import setup_library_logger
 from tools.recorder.account_pool import AccountPool
-from tools.server_observer.memory_profiler import MemoryProfiler
-from tools.server_observer.memory_profiler import MonitoredServerObserver
+
 from tools.server_observer.server_observer import ServerObserver
 
+ENABLE_MEMORY_PROFILER = False
+if ENABLE_MEMORY_PROFILER:
+    from tools.server_observer.memory_profiler import MonitoredServerObserver
 
 def load_config_file(config_path: str) -> dict:
     try:
@@ -51,11 +53,12 @@ def main():
         account_pool = AccountPool(account_pool_path, webshare_token=config.get("WEBSHARE_API_TOKEN"))
 
     observer = ServerObserver(config, account_pool=account_pool)
-
-    profiler = MonitoredServerObserver(observer)
-    profiler.run()
     try:
-        success = observer.run()
+        if ENABLE_MEMORY_PROFILER:
+            monitored_observer = MonitoredServerObserver(observer)
+            success = monitored_observer.run(2)
+        else:
+            success = observer.run()
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
         print("\nObservation interrupted by user")

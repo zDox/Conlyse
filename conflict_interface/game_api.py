@@ -202,12 +202,12 @@ class GameApi:
         }
         logger.debug(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
         self.request_id += 1
-        response = self.session.post(self.game_server_address,
+        with self.session.post(self.game_server_address,
                                      headers=headers,
                                      data=dumps(data),
-                                     proxies=self.proxy)
-        response.raise_for_status()
-        response_json = response.json()
+                                     proxies=self.proxy) as response:
+            response.raise_for_status()
+            response_json = response.json()
 
         if not type(response_json["result"]) is int:
             if "timeStamp" in response_json["result"]:
@@ -218,7 +218,6 @@ class GameApi:
         if "result" in response_json and type(response_json["result"]) is dict:
             if response_json["result"].get("@c") == "ultshared.UltAuthentificationException":
                 raise Exception(f"Authentfication failed while sending parameters {dumps(data, indent=2)} to game server.")
-        del response
         gc.collect()
         return response_json
 

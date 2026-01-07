@@ -19,6 +19,7 @@ from typing import Optional
 from typing import Set
 
 import zstandard as zstd
+from pympler import asizeof
 
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
@@ -130,7 +131,6 @@ class ObservationSession:
         ts = time()
         self.storage.save_request_response(ts, request_payload or {}, response)
         # Explicitly clear references to allow garbage collection
-        del request_payload, response
 
     def _save_static_map_data(self):
         if not self.game_itf or not getattr(self.game_itf, "static_map_data", None):
@@ -149,8 +149,8 @@ class ObservationSession:
             auth_details=self.hub_itf.api.auth,
             proxy=self.hub_itf.api.proxy
         )
-        self.game_itf.set_request_response_callback(self._on_request_response)
         self.game_itf.game_api.load_game_site()
+        self.game_itf.set_request_response_callback(self._on_request_response)
         game_state = self.game_itf._request_game_state(send_state_ids=False)
         map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
         # Check if static map data is available locally
@@ -159,9 +159,6 @@ class ObservationSession:
             static_map_data = self.game_itf.game_api.get_static_map_data()
             self.map_cache.save(map_id, static_map_data)
         # print all gc references to game_state:
-        print(f"Game state has {len(gc.get_referrers(game_state))} referrers")
-        for ref in gc.get_referrers(game_state):
-            print(ref)
         del game_state
         return True
 
@@ -181,8 +178,6 @@ class ObservationSession:
             if self.max_duration is not None and (time() - start_time) >= self.max_duration:
                 logger.info("Reached configured maximum observation duration, stopping.")
                 return True
-            for ref in gc.get_referrers(state):
-                print(ref)
             del state
             gc.collect()
             sleep(self.update_interval)

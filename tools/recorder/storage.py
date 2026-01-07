@@ -4,14 +4,12 @@ Storage management for recording sessions.
 import json
 import logging
 import pickle
-import sys
 import threading
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
 import zstandard as zstd
-from orjson import orjson
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
@@ -152,13 +150,13 @@ class RecordingStorage:
         request_str = json.dumps(request_json)
         compressed_request = self._compressor.compress(request_str.encode("utf-8"))
         self.append_bytes_to_file(self.requests_file, timestamp_ms, compressed_request)
-        del request_str, compressed_request, request_json
+        del request_str, compressed_request
 
         # Process response
         response_str = json.dumps(response_json)
         compressed_response = self._compressor.compress(response_str.encode("utf-8"))
         self.append_bytes_to_file(self.responses_file, timestamp_ms, compressed_response)
-        del response_str, compressed_response, response_json
+        del response_str, compressed_response
 
         # MEMORY OPTIMIZATION: Batch metadata updates
         with self._metadata_lock:
