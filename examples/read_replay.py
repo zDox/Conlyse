@@ -15,6 +15,7 @@ if __name__ == "__main__":
         pass
     t1 = perf_counter()
     ritf.open(mode = 'r', max_patches=None)
+    print(ritf.game_state.states.map_state)
     t2 = perf_counter()
     # Test Operations --------------------------------
     for i in range(100):

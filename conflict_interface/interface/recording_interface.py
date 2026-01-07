@@ -1,4 +1,5 @@
 from copy import deepcopy
+from time import sleep
 from time import time
 from typing import Any, Callable, Optional
 
@@ -32,8 +33,8 @@ class RecordingInterface:
                  proxy: dict | None = None):
         self.game_id = game_id
         self.game_api: GameApi = GameApi(session, auth_details, game_id, proxy=proxy)
-        self.static_map_data: Any | None = None
-        self.last_response: dict | None = None
+        self.static_map_data: dict | None = None
+        self.state_ids, self.time_stamps = HashMap(), HashMap()
         self.__init_callbacks()
         self._patch_game_api()
 
@@ -69,9 +70,10 @@ class RecordingInterface:
         state_ids, time_stamps = (None, None)
         include_state_meta = False
 
-        if send_state_ids:
-            state_ids, time_stamps = self._extract_state_metadata()
-            include_state_meta = state_ids is not None and time_stamps is not None
+        if send_state_ids and self.state_ids and self.time_stamps:
+            state_ids = deepcopy(self.state_ids)
+            time_stamps = deepcopy(self.time_stamps)
+            include_state_meta = True
 
         action = GameStateAction(
             state_type=0,
@@ -85,7 +87,8 @@ class RecordingInterface:
 
         payload = dump_any(action)
         response = self.game_api.make_game_server_request(payload)
-        self.last_response = deepcopy(response)
+        self.game_api.clear_pools()
+        self._extract_state_metadata(response)
         return response
 
     def _patch_game_api(self):
@@ -111,24 +114,24 @@ class RecordingInterface:
     def set_update_callback(self, cb: Optional[Callable[[float], None]]):
         self._update_cb = cb
 
-    def _extract_state_metadata(self) -> tuple[HashMap | None, HashMap | None]:
+    def _extract_state_metadata(self, response) -> bool:
         """
         Extract state IDs and timestamps from the last raw response
         to enable incremental updates without parsing a GameState.
         """
-        if not self.last_response:
-            return None, None
+        if not response:
+            return False
 
-        result = self.last_response.get("result")
+        result = response.get("result")
         if not isinstance(result, dict):
-            return None, None
+            return False
 
         states = result.get("states")
         if not isinstance(states, dict):
-            return None, None
+            return False
 
-        state_ids: HashMap[int, str] = HashMap()
-        time_stamps: HashMap[int, int] = HashMap()
+        self.state_ids: HashMap[int, str] = HashMap()
+        self.time_stamps: HashMap[int, int] = HashMap()
 
         for state in states.values():
             if not isinstance(state, dict):
@@ -141,19 +144,19 @@ class RecordingInterface:
 
             state_id = state.get("stateID")
             if state_id is not None:
-                state_ids[state_type] = str(state_id)
+                self.state_ids[state_type] = str(state_id)
 
             time_stamp = state.get("timeStamp")
             if time_stamp is not None:
                 try:
-                    time_stamps[state_type] = int(time_stamp)
+                    self.time_stamps[state_type] = int(time_stamp)
                 except (TypeError, ValueError):
                     continue
 
-        if len(state_ids) == 0 or len(time_stamps) == 0:
-            return None, None
+        if len(self.state_ids) == 0 or len(self.time_stamps) == 0:
+            return False
 
-        return state_ids, time_stamps
+        return True
 
     def get_api(self) -> GameApi:
         return self.game_api

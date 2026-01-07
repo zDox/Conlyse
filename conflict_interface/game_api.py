@@ -1,3 +1,4 @@
+import gc
 import re
 from collections import defaultdict
 from dataclasses import dataclass
@@ -7,7 +8,6 @@ from datetime import timedelta
 from functools import wraps
 from hashlib import sha1
 from json import dumps
-from json import loads
 from time import time
 
 from cloudscraper25 import CloudScraper
@@ -128,7 +128,7 @@ class GameApi:
         response_html = html.fromstring(response.text)
 
         url = response_html.xpath(r'//iframe[@id="ifm"]/@src')[0]
-
+        del response_html
         self.index_html_url = url
 
         parameters = url.split('&')
@@ -218,8 +218,13 @@ class GameApi:
         if "result" in response_json and type(response_json["result"]) is dict:
             if response_json["result"].get("@c") == "ultshared.UltAuthentificationException":
                 raise Exception(f"Authentfication failed while sending parameters {dumps(data, indent=2)} to game server.")
+        del response
+        gc.collect()
         return response_json
 
+    def clear_pools(self):
+        for adapter in self.session.adapters.values():
+            adapter.close()  # closes all pooled connections
 
     def client_time(self, time_scale) -> datetime:
         """
@@ -267,7 +272,7 @@ class GameApi:
         )
 
         response.raise_for_status()
-        return loads(response.text)
+        return response.json()
 
     def get_image(self, path: str) -> bytes:
         response = self.session.get(

@@ -3,16 +3,20 @@ ServerObserver tool for lightweight recording of server responses across multipl
 """
 from __future__ import annotations
 
-import json
+import gc
 import pickle
 import random
 import threading
-import sys
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from time import sleep, time
-from typing import Dict, Iterable, List, Optional, Set
+from time import sleep
+from time import time
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Set
 
 import zstandard as zstd
 
@@ -25,7 +29,6 @@ from tools.recorder.account_pool import AccountPool
 from tools.recorder.recorder_logger import get_logger
 from tools.recorder.recording_registry import RecordingRegistry
 from tools.recorder.storage import RecordingStorage
-from tools.recorder.telemetry import TelemetryRecorder
 
 logger = get_logger()
 
@@ -49,6 +52,9 @@ class StaticMapCache:
             except ValueError:
                 continue
 
+    def is_cached(self, map_id: int) -> bool:
+        return map_id in self._saved_ids
+
     def save(self, map_id: Optional[int], static_map_data) -> Optional[Path]:
         if map_id is None or static_map_data is None:
             return None
@@ -56,10 +62,7 @@ class StaticMapCache:
             path = self.cache_dir / f"map_{map_id}.bin"
             if map_id in self._saved_ids and path.exists():
                 return path
-            original_game = getattr(static_map_data, "game", None) if hasattr(static_map_data, "game") else None
             try:
-                if hasattr(static_map_data, "set_game"):
-                    static_map_data.set_game(None)
                 data = pickle.dumps(static_map_data)
                 compressed = self._compressor.compress(data)
                 with path.open("wb") as f:
@@ -70,36 +73,28 @@ class StaticMapCache:
             except Exception as exc:
                 logger.warning(f"Failed to cache static map data for map_id {map_id}: {exc}")
                 return None
-            finally:
-                try:
-                    if hasattr(static_map_data, "set_game"):
-                        static_map_data.set_game(original_game)
-                except Exception:
-                    pass
 
 
 class ObservationSession:
     """
     Per-game observer that records server responses until game end.
 
-    It patches the game API to persist responses via RecordingStorage, records
-    telemetry for each update, and optionally saves game states. Static map data
-    is cached once per map_id to avoid duplicate downloads during the session.
+    It patches the game API to persist responses via RecordingStorage and
+    optionally saves game states. Static map data is cached once per map_id
+    to avoid duplicate downloads during the session.
     """
 
     def __init__(
         self,
         config: dict,
         account: Optional[Account],
-        telemetry: TelemetryRecorder,
         map_cache: StaticMapCache,
     ):
         self.config = config
         self.account = account
-        self.telemetry = telemetry
         self.map_cache = map_cache
         self.hub_itf: Optional[HubInterface] = None
-        self.game_itf = None
+        self.game_itf: Optional[RecordingInterface] = None
         self.storage: Optional[RecordingStorage] = None
         self.game_id = config.get("game_id")
         self.update_interval: float = float(config.get("update_interval", 60.0))
@@ -113,7 +108,6 @@ class ObservationSession:
         output_path = Path(output_dir) / recording_name
         self.storage = RecordingStorage(str(output_path), self.save_game_states)
         self.storage.setup_logging()
-        self.telemetry.on_start()
         logger.info(f"ServerObserver storage initialized at {output_path}")
 
     def _get_hub_interface(self) -> Optional[HubInterface]:
@@ -133,13 +127,10 @@ class ObservationSession:
         return hub_itf
 
     def _on_request_response(self, request_payload: dict, response: dict, elapsed_ms: float):
-        if self.storage:
-            ts = time()
-            self.storage.save_request_response(ts, request_payload or {}, response)
-            approx_bytes = sys.getsizeof(request_payload or {}) + sys.getsizeof(response)
-            self.telemetry.record_update(elapsed_ms, approx_bytes)
-            if elapsed_ms > 2000:
-                self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms for game {self.game_id}")
+        ts = time()
+        self.storage.save_request_response(ts, request_payload or {}, response)
+        # Explicitly clear references to allow garbage collection
+        del request_payload, response
 
     def _save_static_map_data(self):
         if not self.game_itf or not getattr(self.game_itf, "static_map_data", None):
@@ -147,45 +138,39 @@ class ObservationSession:
         map_id = getattr(self.game_itf.game_api, "map_id", None)
 
         self.map_cache.save(map_id, self.game_itf.static_map_data)
-        if self.storage and hasattr(self.game_itf.static_map_data, "set_game"):
-            self.storage.save_static_map_data(self.game_itf.static_map_data)
 
     def _prepare(self) -> bool:
         self.hub_itf = self._get_hub_interface()
         if not self.hub_itf:
             return False
-        guest = bool(self.config.get("join_as_guest", True))
-        if not guest and not self.hub_itf.is_in_game(self.game_id):
-            try:
-                self.hub_itf.api.request_first_join(self.game_id)
-            except Exception as exc:
-                logger.debug(f"request_first_join failed for game {self.game_id}: {exc}")
         self.game_itf = RecordingInterface(
             game_id=self.game_id,
             session=self.hub_itf.api.session,
             auth_details=self.hub_itf.api.auth,
-            proxy=self.hub_itf.api.proxy,
-            guest=guest,
-            replay_filepath=self.config.get("replay_path"),
+            proxy=self.hub_itf.api.proxy
         )
-        self.game_itf.load_game()
         self.game_itf.set_request_response_callback(self._on_request_response)
-        self.game_itf.set_update_callback(lambda elapsed_ms: self.telemetry.record_update(elapsed_ms, 0))
-        self._save_static_map_data()
+        self.game_itf.game_api.load_game_site()
+        game_state = self.game_itf._request_game_state(send_state_ids=False)
+        map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
+        # Check if static map data is available locally
+        if not self.map_cache.is_cached(map_id):
+            logger.info(f"Downloading static map data for map_id {map_id}")
+            static_map_data = self.game_itf.game_api.get_static_map_data()
+            self.map_cache.save(map_id, static_map_data)
+        # print all gc references to game_state:
+        print(f"Game state has {len(gc.get_referrers(game_state))} referrers")
+        for ref in gc.get_referrers(game_state):
+            print(ref)
+        del game_state
         return True
-
-    def _update_once(self):
-        if self.game_itf is None:
-            logger.error("No game interface available for observer update")
-            return None
-
-        return self.game_itf.update()
 
     def _observe_until_end(self) -> bool:
         updates_done = 0
         start_time = time()
         while True:
-            state = self._update_once()
+            logger.info(f"Sending update {updates_done} for game {self.game_id}")
+            state = self.game_itf.update()
             updates_done += 1
             if self._is_game_ended(state):
                 logger.info(f"Game {self.game_id} ended, stopping observation.")
@@ -196,6 +181,10 @@ class ObservationSession:
             if self.max_duration is not None and (time() - start_time) >= self.max_duration:
                 logger.info("Reached configured maximum observation duration, stopping.")
                 return True
+            for ref in gc.get_referrers(state):
+                print(ref)
+            del state
+            gc.collect()
             sleep(self.update_interval)
 
     @staticmethod
@@ -221,13 +210,16 @@ class ObservationSession:
             return self._observe_until_end()
         except Exception as exc:
             logger.error(f"Observation for game {self.game_id} failed: {exc}")
-            self.telemetry.on_failure(str(exc))
             return False
         finally:
+            # Clean up to free memory
             if self.storage:
                 self.storage.teardown_logging()
-            if self.telemetry:
-                self.telemetry.on_stop()
+            if self.game_itf:
+                self.game_itf = None
+            if self.hub_itf:
+                self.hub_itf = None
+            self.storage = None
 
 
 class ServerObserver:
@@ -250,6 +242,7 @@ class ServerObserver:
         self.max_guest_per_account: Optional[int] = config.get("max_guest_games_per_account")
         self.update_interval: float = float(config.get("update_interval", 60.0))
         self.output_dir = Path(config.get("output_dir", "./recordings"))
+        self.enabled_scanning = config.get("enabled_scanning", True)
 
         registry_path = config.get(
             "registry_path",
@@ -258,13 +251,12 @@ class ServerObserver:
         self.registry = RecordingRegistry(Path(registry_path))
         self.executor = ThreadPoolExecutor(max_workers=self.max_parallel)
         self._listing_interface: Optional[HubInterface] = None
+        self._listing_account: Optional[Account] = None
         self._running: Dict[Future, int] = {}
         self._running_game_ids: Set[int] = set()
-        self.telemetry = TelemetryRecorder()
         self._map_cache = StaticMapCache(self.output_dir / "static_maps")
         self._known_games: Set[int] = set()
         self._refresh_known_games_from_registry()
-        self._update_account_metrics()
 
     @staticmethod
     def _normalize_percentage(value) -> float:
@@ -279,35 +271,22 @@ class ServerObserver:
             return self._listing_interface
 
         try:
-            if self.account_pool:
-                account = self.account_pool.get_any_account() or self.account_pool.next_free_account()
-                if not account:
-                    logger.error("No accounts available for listing games")
-                    return None
-                self._listing_interface = account.get_interface()
-                return self._listing_interface
-
-            username = self.config.get("username")
-            password = self.config.get("password")
-            proxy_url = self.config.get("proxy_url")
-
-            hub_itf = HubInterface()
-            if proxy_url:
-                hub_itf.set_proxy({"http": proxy_url, "https": proxy_url})
-            hub_itf.login(username, password)
-            self._listing_interface = hub_itf
-            return hub_itf
+            if self.account_pool is None:
+                raise Exception("No account pool provided")
+            account = self.account_pool.get_any_account() or self.account_pool.next_free_account()
+            if not account:
+                logger.error("No accounts available for listing games")
+                return None
+            self._listing_account = account
+            self._listing_interface = account.get_interface()
+            return self._listing_interface
         except Exception as exc:
             logger.error(f"Failed to prepare listing interface: {exc}")
             return None
 
     def _select_games(self, interface: HubInterface) -> Iterable[tuple[int, HubGameProperties]]:
         logger.info("Scanning for games")
-        try:
-            games = interface.get_global_games(state=HubGameState.READY_TO_JOIN)
-        except Exception as exc:
-            logger.warning(f"Failed to list games {exc}")
-            return
+        games = interface.get_global_games(state=HubGameState.READY_TO_JOIN)
         seen_games: set[int] = set()
 
         for scenario_id in self.scenario_ids:
@@ -334,7 +313,6 @@ class ServerObserver:
         return ObservationSession(
             per_game_config,
             account=account,
-            telemetry=self.telemetry,
             map_cache=self._map_cache,
         )
 
@@ -363,7 +341,17 @@ class ServerObserver:
     def _pick_account(self) -> Optional[Account]:
         if not self.account_pool:
             return None
-        return self.account_pool.next_guest_account(self.max_guest_per_account)
+        tried = 0
+        total = len(self.account_pool.accounts)
+        while tried < total:
+            account = self.account_pool.next_guest_account(self.max_guest_per_account)
+            if account is None:
+                return None
+            if account != self._listing_account:
+                return account
+            tried += 1
+        logger.error("No non-listing account available to start new observation")
+        return None
 
     def _increment_account(self, account: Optional[Account]):
         if not account:
@@ -398,17 +386,20 @@ class ServerObserver:
             return
         self._running[future] = game_id
         self._running_game_ids.add(game_id)
-        self._update_account_metrics()
 
     def _run_single_observer(self, game_id: int, observer: ObservationSession, account: Optional[Account]) -> bool:
         try:
-            return observer.run()
+            result = observer.run()
+            # Force cleanup after each observation completes
+            gc.collect()
+            return result
         except Exception as exc:
             logger.error(f"Observation for game {game_id} failed: {exc}")
             return False
         finally:
             self._decrement_account(account)
-            self._update_account_metrics()
+            # Clear observer reference
+            observer = None
 
     def _process_finished(self):
         done = [future for future in self._running if future.done()]
@@ -425,16 +416,18 @@ class ServerObserver:
             else:
                 self.registry.mark_failed(game_id, "execution_failed")
             self._known_games.add(game_id)
-        if done:
-            self._update_account_metrics()
+            # Explicitly delete the future to free memory
+            del future
 
-    def _update_account_metrics(self):
-        total_accounts = len(self.account_pool.accounts) if self.account_pool else 0
-        accounts_in_use = len(self._running_game_ids)
-        self.telemetry.update_account_usage(accounts_in_use, total_accounts)
+        # Periodic garbage collection when games finish
+        if done:
+            gc.collect()
 
     def _resume_active(self):
+        available_slots = self.max_parallel - len(self._running)
         for game_id, meta in self.registry.active().items():
+            if available_slots <= 0:
+                break
             if game_id in self._running_game_ids:
                 continue
             scenario_id = meta.get("scenario_id")
@@ -443,19 +436,20 @@ class ServerObserver:
                 continue
             logger.info(f"Resuming observation for game {game_id}")
             self._start_observation(game_id, scenario_id)
+            available_slots -= 1
 
     def run(self, iterations: Optional[int] = None) -> bool:
         cycle = 0
         try:
+            interface = self._get_listing_interface()
             while iterations is None or cycle < iterations:
                 self._process_finished()
                 self._resume_active()
 
-                interface = self._get_listing_interface()
                 if interface:
                     available_slots = self.max_parallel - len(self._running)
                     if available_slots > 0:
-                        for scenario_id, game in self._select_games(interface):
+                        for scenario_id, game in self._select_games(interface) and self.enabled_scanning:
                             if available_slots <= 0:
                                 break
                             self._start_observation(game.game_id, scenario_id)

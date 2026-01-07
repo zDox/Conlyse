@@ -373,9 +373,6 @@ def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterfac
 
 
 def parse_game_object(cls: Type[GameObjectType], json_obj: dict, game: GameInterface) -> GameObjectType:
-    if game is None:
-        raise ValueError(f"GameObject {cls} requires a game instance")
-
     instance = parse_dataclass(cls, json_obj, game)
     instance = cast(GameObjectType, instance)
     instance.game = game

@@ -8,25 +8,22 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any
 from typing import Iterator
-
 from typing import Literal
 from typing import TYPE_CHECKING
 from typing import Union
 
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_binary import GameObjectSerializer
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
-
-from conflict_interface.replay.replay_patch import AddOperation
-from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import RemoveOperation
-from conflict_interface.replay.replay_patch import ReplaceOperation
 from conflict_interface.replay.apply_replay_helper import apply_operation
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
+from conflict_interface.replay.replay_patch import AddOperation
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
+from conflict_interface.replay.replay_patch import RemoveOperation
+from conflict_interface.replay.replay_patch import ReplaceOperation
 from conflict_interface.replay.replay_storage import ReplayStorage
 from conflict_interface.utils.helper import create_parent_dirs
 

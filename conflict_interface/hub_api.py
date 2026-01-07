@@ -224,7 +224,6 @@ class HubApi:
             proxies=self.proxy,
         )
         response.raise_for_status()
-
         result = json.loads(response.text)
         try:
             result_code = HubResultCode(result["resultCode"])

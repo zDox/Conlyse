@@ -206,6 +206,16 @@ class FromJsonResponsesUsingUpdateToReplay:
 
         if initial_idx != -1: return initial_idx
 
+        """
+        No GameActivation means we are a guest, hence we need to find the first game state
+        that has all states.
+        """
+        for i, (_, json_response) in enumerate(json_responses):
+            if "result" in json_response and json_response["result"].get("states"):
+                if len(json_response["result"].get("states").keys()) >= 10:
+                    logger.info(f"Found first full game state at index {i}")
+                    return i
+
         logger.error(f"{self.GAME_ACTIVATION_ACTION} not found in recording")
         return None
 

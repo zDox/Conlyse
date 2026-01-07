@@ -8,6 +8,7 @@ from typing import Tuple
 import zstandard as zstd
 from tqdm import tqdm
 
+from conflict_interface.data_types.game_object_json import parse_any
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from tools.recording_converter.recorder_logger import get_logger
@@ -77,6 +78,13 @@ class RecordingReader:
             # Decompress and unpickle
             decompressed = self._decompressor.decompress(compressed_data)
             static_map_data = pickle.loads(decompressed)
+            if isinstance(static_map_data, StaticMapData):
+                logger.info("Loaded static map data as StaticMapData object")
+            elif isinstance(static_map_data, dict):
+                logger.info("Loaded static map data as dict")
+                static_map_data = parse_any(StaticMapData, static_map_data, None)
+            else:
+                raise ValueError(f"Unexpected static map data type: {type(static_map_data)}")
 
             logger.info("Read static map data from recording")
             return static_map_data

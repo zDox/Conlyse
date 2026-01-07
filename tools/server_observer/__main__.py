@@ -8,6 +8,8 @@ import sys
 
 from conflict_interface.logger_config import setup_library_logger
 from tools.recorder.account_pool import AccountPool
+from tools.server_observer.memory_profiler import MemoryProfiler
+from tools.server_observer.memory_profiler import MonitoredServerObserver
 from tools.server_observer.server_observer import ServerObserver
 
 
@@ -49,6 +51,9 @@ def main():
         account_pool = AccountPool(account_pool_path, webshare_token=config.get("WEBSHARE_API_TOKEN"))
 
     observer = ServerObserver(config, account_pool=account_pool)
+
+    profiler = MonitoredServerObserver(observer)
+    profiler.run()
     try:
         success = observer.run()
         sys.exit(0 if success else 1)
