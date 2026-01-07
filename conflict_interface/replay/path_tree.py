@@ -25,6 +25,7 @@ class PathTree:
         self.log = None
         self.parent = None
         self.first = None
+        self.full_paths: dict[int, tuple[int, ...]] = {}
 
     def add_node(self, idx, parent: PathTreeNode, path_element: str | int) -> PathTreeNode:
         new_node = PathTreeNode(parent = parent, path_element=path_element, index=idx)
@@ -52,6 +53,7 @@ class PathTree:
     def precompute(self):
         self.precompute_euler_tour()
         self.precompute_rmq()
+        self.precompute_full_paths()
 
     def precompute_euler_tour(self):
         N = self.idx_counter
@@ -355,3 +357,12 @@ class PathTree:
                     out.append((hook_path, reference_to_child, changed_attributes))
 
         return out
+
+    def precompute_full_paths(self):
+        for idx, node in self.idx_to_node.items():
+            path = []
+            n = node
+            while n is not None:
+                path.append(n.index)
+                n = n.parent
+            self.full_paths[idx] = tuple(reversed(path))

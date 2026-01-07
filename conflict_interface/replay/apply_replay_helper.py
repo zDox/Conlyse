@@ -38,7 +38,7 @@ def apply_operation(op_type: int, value: Any, reference: GameObject | list | dic
         elif isinstance(reference, list) or isinstance(reference, dict):
             reference[pos] = value
         else:
-            raise ValueError(f"pos is not str or int it is: {type(pos)} for {pos}")
+            raise ValueError(f"Reference {str(reference)[:100]} is neither list, dict nor GameObject")
 
     # Add operation: Insert a new value
     if op_type == ADD_OPERATION:
