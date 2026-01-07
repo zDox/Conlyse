@@ -1,5 +1,6 @@
 import gc
 import re
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC
@@ -12,6 +13,7 @@ from time import time
 
 from cloudscraper25 import CloudScraper
 from lxml import html
+from requests import Session
 
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.logger_config import get_logger
@@ -178,6 +180,7 @@ class GameApi:
         headers = {
             'Accept': 'text/plain, */*; q=0.01',
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            "Accept-Encoding": "gzip, deflate, br"
         }
 
         hash_hex = sha1(("undefined" + str(int(time() * 1000)))
@@ -202,12 +205,19 @@ class GameApi:
         }
         logger.debug(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
         self.request_id += 1
-        with self.session.post(self.game_server_address,
-                                     headers=headers,
-                                     data=dumps(data),
-                                     proxies=self.proxy) as response:
-            response.raise_for_status()
-            response_json = response.json()
+        with Session() as session:
+            session.headers.update(self.session.headers)
+            session.proxies.update(self.session.proxies)
+            session.cookies.update(self.session.cookies)
+            with session.post(self.game_server_address,
+                                         headers=headers,
+                                         data=dumps(data),
+                                         proxies=self.proxy,
+                                        stream=True) as response:
+                response.raise_for_status()
+                response_json = response.json()
+        del session
+        del response
 
         if not type(response_json["result"]) is int:
             if "timeStamp" in response_json["result"]:
@@ -221,9 +231,21 @@ class GameApi:
         gc.collect()
         return response_json
 
-    def clear_pools(self):
-        for adapter in self.session.adapters.values():
-            adapter.close()  # closes all pooled connections
+    def reset(self):
+        print("Resetting session")
+        new_scraper = CloudScraper.create_scraper(disableCloudflareV2=True, stealth_options={
+            'min_delay': 0.01,
+            'max_delay': 1,
+            'human_like_delays': True,
+            'randomize_headers': True,
+            'browser_quirks': True
+        })
+        new_scraper.headers = self.session.headers
+        new_scraper.proxies = self.session.proxies
+        new_scraper.cookies = self.session.cookies
+        self.session.close()
+        del self.session
+        self.session = new_scraper
 
     def client_time(self, time_scale) -> datetime:
         """

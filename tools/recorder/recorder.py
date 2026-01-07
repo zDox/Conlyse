@@ -4,15 +4,13 @@ Main recorder class for game recording.
 import os
 from copy import deepcopy
 from datetime import datetime
-from time import time
 from time import sleep
+from time import time
 from typing import Optional
 
 from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
-from conflict_interface.utils.helper import datetime_to_unix_ms
-from conflict_interface.replay.replay import Replay
 from tools.recorder.account import Account
 from tools.recorder.account_pool import AccountPool
 from tools.recorder.find_game_logic import GameFinder
@@ -20,8 +18,6 @@ from tools.recorder.recorder_logger import get_logger
 from tools.recorder.storage import RecordingStorage
 from tools.recorder.utils import format_duration
 from tools.recorder.utils import parse_duration
-from tools.recorder.telemetry import TelemetryRecorder
-from tools.recorder.resume import restore_online_interface_from_metadata
 
 logger = get_logger()
 
@@ -31,7 +27,7 @@ class Recorder:
     Main recorder class that handles game recording independently of replay system.
     """
     
-    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None, save_game_states: bool = False, telemetry: TelemetryRecorder | None = None):
+    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None, save_game_states: bool = False):
         """
         Initialize recorder with configuration.
         
@@ -50,7 +46,6 @@ class Recorder:
         self.join_as_guest: bool = bool(self.config.get("join_as_guest", False))
         self.replay_filepath: Optional[str] = None
         self.record_requests: bool = bool(self.config.get("record_requests", True))
-        self.telemetry = telemetry or TelemetryRecorder()
         self.resume_info: dict = {}
         self.deload_between_updates: bool = bool(self.config.get("deload_between_updates", False))
         
@@ -74,11 +69,6 @@ class Recorder:
 
         # Set up log file recording
         self.storage.setup_logging()
-        self.telemetry.on_start()
-        self.resume_info = {
-            "game_id": self.config.get("game_id"),
-            "replay_path": self.replay_filepath,
-        }
         
         logger.info(f"Recording storage initialized at: {output_path}")
 
@@ -186,8 +176,6 @@ class Recorder:
                 "cookies": self.hub_itf.api.session.cookies.get_dict(),
                 "replay_path": self.replay_filepath,
             })
-            if self.storage:
-                self.storage.update_resume_metadata(self.resume_info)
         except Exception as e:
             logger.debug(f"Failed to write resume metadata: {e}")
 
@@ -242,11 +230,6 @@ class Recorder:
                 if self.record_requests and self.storage:
                     ts = time()
                     self.storage.save_request_response(ts, self._last_request, self._last_response)
-                    elapsed_ms = (ts - start_req) * 1000.0
-                    approx_bytes = len(str(self._last_request)) + len(str(self._last_response))
-                    self.telemetry.record_update(elapsed_ms, approx_bytes)
-                    if elapsed_ms > 2000:
-                        self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms for game {game_id}")
                 return response
 
             game_interface.game_api.make_game_server_request = patched_request
@@ -529,23 +512,13 @@ class Recorder:
 
     def _update_with_telemetry(self):
         # Reload interface from disk if deloaded
-        if (self.game_itf is None or self.game_itf.game_state is None) and self.storage:
-            restored = restore_online_interface_from_metadata(str(self.storage.metadata_file))
-            if restored:
-                self.game_itf = restored
         if self.game_itf is None:
             logger.error("No game interface available for update")
             return None
 
         t0 = time()
         self.game_itf.update()
-        elapsed_ms = (time() - t0) * 1000.0
-        self.telemetry.record_update(elapsed_ms, 0)
-        if elapsed_ms > 2000:
-            self.telemetry.log_anomaly(f"Slow update {elapsed_ms:.1f}ms during recording")
         state = self.game_itf.game_state
-        if self.deload_between_updates:
-            self.game_itf = None
         return state
     
     def _get_army(self, action: dict):
@@ -672,10 +645,4 @@ class Recorder:
             logger.info("Recording completed successfully")
             return True
         finally:
-            # Always teardown logging, even if there was an error
-            if self.storage:
-                if self.resume_info:
-                    self.storage.update_resume_metadata(self.resume_info)
-                self.storage.teardown_logging()
-            if self.telemetry:
-                self.telemetry.on_stop()
+            pass

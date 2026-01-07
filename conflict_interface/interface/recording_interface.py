@@ -1,3 +1,4 @@
+import sys
 from copy import deepcopy
 from time import sleep
 from time import time
@@ -33,7 +34,6 @@ class RecordingInterface:
                  proxy: dict | None = None):
         self.game_id = game_id
         self.game_api: GameApi = GameApi(session, auth_details, game_id, proxy=proxy)
-        self.static_map_data: dict | None = None
         self.state_ids, self.time_stamps = HashMap(), HashMap()
         self.__init_callbacks()
         self._patch_game_api()
@@ -43,14 +43,6 @@ class RecordingInterface:
 
     def unset_proxy(self):
         self.game_api.unset_proxy()
-
-    def load_game(self) -> dict:
-        """
-        Join the game as guest, fetch static map data and perform an initial update.
-        """
-        self.game_api.load_game_site()
-        self.static_map_data = self.game_api.get_static_map_data()
-        return self._request_game_state(send_state_ids=False)
 
     def update(self) -> dict:
         """
@@ -87,7 +79,6 @@ class RecordingInterface:
 
         payload = dump_any(action)
         response = self.game_api.make_game_server_request(payload)
-        self.game_api.clear_pools()
         self._extract_state_metadata(response)
         return response
 
@@ -127,8 +118,6 @@ class RecordingInterface:
         if not isinstance(states, dict):
             return False
 
-        self.state_ids: HashMap[int, str] = HashMap()
-        self.time_stamps: HashMap[int, int] = HashMap()
 
         for state in states.values():
             if not isinstance(state, dict):

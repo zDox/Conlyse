@@ -3,7 +3,9 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from tools.recorder.telemetry import TelemetryRecorder
-from tools.server_observer.server_observer import ObservationSession, ServerObserver, StaticMapCache
+from tools.server_observer.server_observer import ServerObserver
+from tools.server_observer import ObservationSession
+from tools.server_observer import StaticMapCache
 
 
 class DummyStaticMap:

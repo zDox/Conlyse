@@ -4,222 +4,29 @@ ServerObserver tool for lightweight recording of server responses across multipl
 from __future__ import annotations
 
 import gc
-import pickle
 import random
-import threading
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from time import sleep
-from time import time
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Set
 
-import zstandard as zstd
-from pympler import asizeof
+from tools.server_observer.observation_session import ObservationSession
+from tools.server_observer.static_map_cache import StaticMapCache
+from tools.server_observer.recording_registry import RecordingRegistry
 
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
-from conflict_interface.interface.recording_interface import RecordingInterface
-from tools.recorder.account import Account
-from tools.recorder.account_pool import AccountPool
-from tools.recorder.recorder_logger import get_logger
-from tools.recorder.recording_registry import RecordingRegistry
-from tools.recorder.storage import RecordingStorage
+from tools.server_observer.account import Account
+from tools.server_observer.account_pool import AccountPool
+from tools.server_observer.recorder_logger import get_logger
 
 logger = get_logger()
-
-
-class StaticMapCache:
-    """
-    Cache static map data per map_id to avoid duplicate downloads.
-    """
-
-    def __init__(self, cache_dir: Path):
-        self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self._saved_ids: Set[int] = set()
-        self._lock = threading.Lock()
-        self._compressor = zstd.ZstdCompressor(level=3)
-
-        for file in self.cache_dir.glob("map_*.bin"):
-            try:
-                map_id = int(file.stem.replace("map_", ""))
-                self._saved_ids.add(map_id)
-            except ValueError:
-                continue
-
-    def is_cached(self, map_id: int) -> bool:
-        return map_id in self._saved_ids
-
-    def save(self, map_id: Optional[int], static_map_data) -> Optional[Path]:
-        if map_id is None or static_map_data is None:
-            return None
-        with self._lock:
-            path = self.cache_dir / f"map_{map_id}.bin"
-            if map_id in self._saved_ids and path.exists():
-                return path
-            try:
-                data = pickle.dumps(static_map_data)
-                compressed = self._compressor.compress(data)
-                with path.open("wb") as f:
-                    f.write(compressed)
-                self._saved_ids.add(map_id)
-                logger.info(f"Cached static map data for map_id {map_id} at {path}")
-                return path
-            except Exception as exc:
-                logger.warning(f"Failed to cache static map data for map_id {map_id}: {exc}")
-                return None
-
-
-class ObservationSession:
-    """
-    Per-game observer that records server responses until game end.
-
-    It patches the game API to persist responses via RecordingStorage and
-    optionally saves game states. Static map data is cached once per map_id
-    to avoid duplicate downloads during the session.
-    """
-
-    def __init__(
-        self,
-        config: dict,
-        account: Optional[Account],
-        telemetry: TelemetryRecorder,
-        map_cache: StaticMapCache,
-    ):
-        self.config = config
-        self.account = account
-        self.telemetry = telemetry
-        self.map_cache = map_cache
-        self.hub_itf: Optional[HubInterface] = None
-        self.game_itf: Optional[RecordingInterface] = None
-        self.storage: Optional[RecordingStorage] = None
-        self.game_id = config.get("game_id")
-        self.update_interval: float = float(config.get("update_interval", 60.0))
-        self.save_game_states: bool = False
-        self.max_updates = config.get("max_updates")
-        self.max_duration = config.get("max_duration")
-
-    def _setup_storage(self):
-        output_dir = self.config.get("output_dir", "./recordings")
-        recording_name = self.config.get("recording_name") or f"game_{self.game_id}"
-        output_path = Path(output_dir) / recording_name
-        self.storage = RecordingStorage(str(output_path), self.save_game_states)
-        self.storage.setup_logging()
-        logger.info(f"ServerObserver storage initialized at {output_path}")
-
-    def _get_hub_interface(self) -> Optional[HubInterface]:
-        if self.account:
-            return self.account.get_interface()
-
-        username = self.config.get("username")
-        password = self.config.get("password")
-        proxy_url = self.config.get("proxy_url")
-        if not username or not password:
-            logger.error("Username and password are required when no account pool is provided")
-            return None
-        hub_itf = HubInterface()
-        if proxy_url:
-            hub_itf.set_proxy({"http": proxy_url, "https": proxy_url})
-        hub_itf.login(username, password)
-        return hub_itf
-
-    def _on_request_response(self, request_payload: dict, response: dict, elapsed_ms: float):
-        ts = time()
-        if self.storage:
-            self.storage.save_request_response(ts, request_payload or {}, response)
-        approx_bytes = sys.getsizeof(request_payload or {}) + sys.getsizeof(response)
-        self.telemetry.record_update(elapsed_ms, approx_bytes)
-
-    def _save_static_map_data(self):
-        if not self.game_itf or not getattr(self.game_itf, "static_map_data", None):
-            return
-        map_id = getattr(self.game_itf.game_api, "map_id", None)
-
-        self.map_cache.save(map_id, self.game_itf.static_map_data)
-
-    def _prepare(self) -> bool:
-        self.hub_itf = self._get_hub_interface()
-        if not self.hub_itf:
-            return False
-        self.game_itf = RecordingInterface(
-            game_id=self.game_id,
-            session=self.hub_itf.api.session,
-            auth_details=self.hub_itf.api.auth,
-            proxy=self.hub_itf.api.proxy
-        )
-        self.game_itf.game_api.load_game_site()
-        self.game_itf.set_request_response_callback(self._on_request_response)
-        self.game_itf.set_update_callback(lambda elapsed_ms: self.telemetry.record_update(elapsed_ms, 0))
-        game_state = self.game_itf._request_game_state(send_state_ids=False)
-        map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
-        # Check if static map data is available locally
-        if not self.map_cache.is_cached(map_id):
-            logger.info(f"Downloading static map data for map_id {map_id}")
-            static_map_data = self.game_itf.game_api.get_static_map_data()
-            self.map_cache.save(map_id, static_map_data)
-        # print all gc references to game_state:
-        del game_state
-        return True
-
-    def _observe_until_end(self) -> bool:
-        updates_done = 0
-        start_time = time()
-        while True:
-            logger.info(f"Sending update {updates_done} for game {self.game_id}")
-            state = self.game_itf.update()
-            updates_done += 1
-            if self._is_game_ended(state):
-                logger.info(f"Game {self.game_id} ended, stopping observation.")
-                return True
-            if self.max_updates is not None and updates_done >= self.max_updates:
-                logger.info("Reached configured maximum number of updates, stopping observation.")
-                return True
-            if self.max_duration is not None and (time() - start_time) >= self.max_duration:
-                logger.info("Reached configured maximum observation duration, stopping.")
-                return True
-            del state
-            gc.collect()
-            sleep(self.update_interval)
-
-    @staticmethod
-    def _is_game_ended(response: Optional[dict]) -> bool:
-        if not isinstance(response, dict):
-            return False
-        result = response.get("result")
-        if not isinstance(result, dict):
-            return False
-        states = result.get("states", {})
-        if not isinstance(states, dict):
-            return False
-        for state in states.values():
-            if isinstance(state, dict) and state.get("gameEnded"):
-                return True
-        return False
-
-    def run(self) -> bool:
-        try:
-            self._setup_storage()
-            if not self._prepare():
-                return False
-            return self._observe_until_end()
-        except Exception as exc:
-            logger.error(f"Observation for game {self.game_id} failed: {exc}")
-            return False
-        finally:
-            # Clean up to free memory
-            if self.storage:
-                self.storage.teardown_logging()
-            if self.game_itf:
-                self.game_itf = None
-            if self.hub_itf:
-                self.hub_itf = None
-            self.storage = None
 
 
 class ServerObserver:
@@ -243,6 +50,8 @@ class ServerObserver:
         self.update_interval: float = float(config.get("update_interval", 60.0))
         self.output_dir = Path(config.get("output_dir", "./recordings"))
         self.enabled_scanning = config.get("enabled_scanning", True)
+
+        self.observer_sessions: Dict[int, ObservationSession] = {}
 
         registry_path = config.get(
             "registry_path",
@@ -313,7 +122,6 @@ class ServerObserver:
         return ObservationSession(
             per_game_config,
             account=account,
-            telemetry=self.telemetry,
             map_cache=self._map_cache,
         )
 
@@ -350,6 +158,8 @@ class ServerObserver:
                 return None
             if account != self._listing_account:
                 return account
+            else:
+                self.account_pool.guest_account_pointer += 1
             tried += 1
         logger.error("No non-listing account available to start new observation")
         return None
@@ -386,6 +196,7 @@ class ServerObserver:
             logger.error(f"Failed to submit observation for game {game_id}: {exc}")
             return
         self._running[future] = game_id
+        self.observer_sessions[game_id] = observer
         self._running_game_ids.add(game_id)
 
     def _run_single_observer(self, game_id: int, observer: ObservationSession, account: Optional[Account]) -> bool:
@@ -412,8 +223,10 @@ class ServerObserver:
                 success = future.result()
             except Exception as exc:
                 logger.error(f"Observation for game {game_id} raised: {exc}")
-            if success:
+            if success and not self.observer_sessions[game_id].fat_session:
                 self.registry.mark_completed(game_id)
+            elif success and self.observer_sessions[game_id].fat_session:
+                pass
             else:
                 self.registry.mark_failed(game_id, "execution_failed")
             self._known_games.add(game_id)
@@ -449,13 +262,12 @@ class ServerObserver:
 
                 if interface:
                     available_slots = self.max_parallel - len(self._running)
-                    if available_slots > 0:
-                        if self.enabled_scanning:
-                            for scenario_id, game in self._select_games(interface):
-                                if available_slots <= 0:
-                                    break
-                                self._start_observation(game.game_id, scenario_id)
-                                available_slots -= 1
+                    if available_slots > 0 and self.enabled_scanning:
+                        for scenario_id, game in self._select_games(interface):
+                            if available_slots <= 0:
+                                break
+                            self._start_observation(game.game_id, scenario_id)
+                            available_slots -= 1
                 cycle += 1
                 if iterations is None or cycle < iterations:
                     sleep(self.scan_interval)

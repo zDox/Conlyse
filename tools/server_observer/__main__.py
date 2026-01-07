@@ -7,13 +7,10 @@ import logging
 import sys
 
 from conflict_interface.logger_config import setup_library_logger
-from tools.recorder.account_pool import AccountPool
+from tools.server_observer.account_pool import AccountPool
 
 from tools.server_observer.server_observer import ServerObserver
 
-ENABLE_MEMORY_PROFILER = False
-if ENABLE_MEMORY_PROFILER:
-    from tools.server_observer.memory_profiler import MonitoredServerObserver
 
 def load_config_file(config_path: str) -> dict:
     try:
@@ -37,7 +34,7 @@ def main():
 
     # Setup logging similar to recorder: console info for observer logger.
     setup_library_logger(logging.INFO)
-    recording_logger = logging.getLogger("rec")
+    recording_logger = logging.getLogger("sro")
     recording_logger.setLevel(logging.DEBUG)
     recording_logger.propagate = False
     console_handler = logging.StreamHandler()
@@ -54,11 +51,7 @@ def main():
 
     observer = ServerObserver(config, account_pool=account_pool)
     try:
-        if ENABLE_MEMORY_PROFILER:
-            monitored_observer = MonitoredServerObserver(observer)
-            success = monitored_observer.run(2)
-        else:
-            success = observer.run()
+        success = observer.run()
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
         print("\nObservation interrupted by user")
