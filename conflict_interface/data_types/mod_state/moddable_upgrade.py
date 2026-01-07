@@ -1,10 +1,15 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
+from typing import TYPE_CHECKING
 
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object_binary import SerializationCategory
 from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.point import Point
+
+if TYPE_CHECKING:
+    from conflict_interface.data_types.mod_state.upgrade_type import UpgradeType
 
 @binary_serializable(SerializationCategory.DATACLASS)
 @dataclass
@@ -29,3 +34,6 @@ class ModableUpgrade(GameObject):
     }
 
     __hash__ = GameObject.__hash__
+
+    def get_upgrade_type(self) -> UpgradeType:
+        return self.game.get_upgrade_type(self.id)

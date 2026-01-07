@@ -13,6 +13,8 @@ from conflict_interface.data_types.game_info_state.game_info_state import GameIn
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.map_state.map import ProvinceType
 from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
+from conflict_interface.data_types.map_state.province import Province
+from conflict_interface.data_types.map_state.sea_province import SeaProvince
 from conflict_interface.data_types.mod_state.mod_state_enums import ModGameFeatures
 from conflict_interface.data_types.mod_state.unit_type import UnitType
 from conflict_interface.data_types.mod_state.upgrade_type import UpgradeType
@@ -133,7 +135,19 @@ class GameInterface:
 
     def get_provinces(self, **filters) -> dict[int, ProvinceType]:
         res = {}
+        if not filters:
+            return self.game_state.states.map_state.map.provinces
         for province in self.game_state.states.map_state.map.provinces.values():
+            if all([hasattr(province, key) and getattr(province, key) == val
+                    for key, val in filters.items()]):
+                res[province.id] = province
+        return res
+
+    def get_land_provinces(self, **filters) -> dict[int, Province]:
+        res = {}
+        for province in self.game_state.states.map_state.map.provinces.values():
+            if isinstance(province, SeaProvince):
+                continue
             if all([hasattr(province, key) and getattr(province, key) == val
                     for key, val in filters.items()]):
                 res[province.id] = province
@@ -566,10 +580,10 @@ class GameInterface:
     def client_time(self) -> datetime:
         pass
 
-    def game_day(self, timestamp: datetime | None):
+    def game_day(self, timestamp: datetime | None = None) -> int:
         # Returns the current in-game day based on the provided ingame timestamp.
         if timestamp is None:
-            timestamp = self.game_state.states.game_info_state.day_of_game
+            return self.game_state.states.game_info_state.day_of_game
         seconds_per_day = 86400
         ingame_duration = timestamp - self.start_of_game
         return int(ingame_duration.total_seconds() // seconds_per_day) + 1

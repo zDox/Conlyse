@@ -106,25 +106,34 @@ class ReplayHookSystem:
     A single event trigger can be registered per path. 
     """
 
-    def register_event_trigger(self, tag: ReplayHookTag, path: list[str], attributes: list[str]):
+    def register_event_trigger(self, tag: ReplayHookTag, path: list[str], attributes: list[str] | None = None, search_start_depth: int = 0, search_end_depth: int = -1):
         """
-        Register an event trigger for a specific path and attributes.
-
-        The event trigger will queue events when the specified attributes
-        at the given path change.
+        Registers an event trigger for a specific tag and path within the replay storage. The event
+        trigger listens for specific change types (add, replace, or remove) at the specified path
+        and associates them with the provided tag. If an event trigger with the same tag already
+        exists, a ValueError is raised. If an event trigger already exists at the given path, it
+        will be removed before registering the new one.
 
         Args:
+            tag (ReplayHookTag): The unique identifier for the event trigger being registered.
+            path (list[str]): A list of strings representing a path in the replay storage structure.
+            attributes (list[str] | None): A list of attribute names to monitor for changes.
+                Defaults to None. If None, all attributes are monitored.
+
+        Raises:
+            ValueError: If an event trigger with the same tag has already been registered.
         """
         if tag in self._tags:
             raise ValueError(f"Event trigger with tag '{tag}' is already registered.")
         self._tags.add(tag)
         path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
-
         hook = ReplayHook(
             tag=tag,
             change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
             attributes=attributes,
-            path=path_idx
+            path=path_idx,
+            search_start_depth = search_start_depth,
+            search_end_depth = search_end_depth
         )
         # Remove any existing event trigger at this path
         self.unregister_hook(path_idx, None)

@@ -7,6 +7,8 @@ import hashlib
 
 import msgspec
 
+from conflict_interface.data_types.game_object import GameObject
+
 logger = getLogger()
 
 class SerializationCategory(Enum):
@@ -72,6 +74,16 @@ class GameObjectSerializer:
     def serialize(self, obj: Any) -> bytes:
         raw = self._to_raw(obj)
         obj =  self._encoder.encode(raw)
+        return obj
+
+    def serialize_game_object(self, obj: GameObject) -> bytes:
+        game = obj.game
+        if game is not None:
+            GameObject.set_game_recursive(obj, None)
+        raw = self._to_raw(obj)
+        obj = self._encoder.encode(raw)
+        if game is not None:
+            GameObject.set_game_recursive(obj, game)
         return obj
 
     def _to_raw(self, obj: Any):

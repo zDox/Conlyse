@@ -4,6 +4,7 @@ from collections import deque
 from copy import deepcopy
 from logging import getLogger
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.replay.apply_replay_helper import get_child_reference
@@ -188,27 +189,22 @@ class PathTree:
 
     def bfs_set_references(self, sub_tree: dict[int, list[int]], game_state: GameState):
         start = self.root.index
-        visited: set[int] = {start}
         q = deque([(start, game_state)])
 
         pop = q.popleft
         add = q.append
-        visited_add = visited.add
 
         while q:
             u, ref = pop()
             for v in sub_tree.get(u, []):
-                if v not in visited:
-                    visited_add(v)
-
-                    node = self.idx_to_node[v]
-                    node.set_reference(ref)
-                    if len(sub_tree.get(v, [])) > 0:
-                        try:
-                            child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
-                        except Exception as e:
-                            raise Exception(e)
-                        add((v, child_ref))
+                node = self.idx_to_node[v]
+                node.set_reference(ref)
+                if len(sub_tree.get(v, [])) > 0:
+                    try:
+                        child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
+                    except Exception as e:
+                        raise Exception(e)
+                    add((v, child_ref))
 
     def reset_child_references(self, start_node_idx: int):
         stack = [start_node_idx]
@@ -317,44 +313,36 @@ class PathTree:
         relevant_nodes = set(steiner_tree.keys())
 
         # intersect hook_paths and relevant_nodes to get the hooks to keep
-        out = []
+        out = defaultdict(lambda: defaultdict(dict))
         for hook_path, hooks in hook_dict.items():
             for hook in hooks:
                 if hook_path not in relevant_nodes: continue
 
-                for child in steiner_tree[hook_path]:  # for prov in locations
-                    relevant_attribute_changed = False
-                    attribute_paths = steiner_tree.get(child)  # attribute nodes of a prov
-                    if not attribute_paths:  # no attributes found
-                        logger.warning(
-                            f"Skipping hook {hook_path} as no attributes were found (Maby full province changed)")
-                        continue
+                min_depth = hook.search_start_depth
+                max_depth = hook.search_end_depth
 
-                    changed_attributes = {}
-                    reference_to_child = None
-                    for attribute in attribute_paths:  # for attribute node in attribute nodes of a prov
-                        attribute_node = self.idx_to_node[attribute]  # actual node
-                        reference_to_child = attribute_node.reference  # ref to holder of attribute of prov aka a province
-                        if not reference_to_child:  # Important warning
-                            logger.warning(
-                                f"Skipping Attribute {attribute_node.path_element} because the reference was not set")
-                            continue
+                start = hook_path
+                q = deque([(start, 0)])
 
-                        if attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
-                            old_ref = getattr(reference_to_child, attribute_node.path_element,
+                pop = q.popleft
+                add = q.append
+
+                while q:
+                    u, d = pop()
+                    for v in steiner_tree.get(u, []):
+                        if d > max_depth != -1: continue
+
+                        add((v, d+1))
+
+                        if d < min_depth: continue
+
+                        attribute_node = self.idx_to_node[v]
+                        if hook.attributes is None or attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
+                            old_ref = getattr(attribute_node.reference, attribute_node.path_element,
                                               None)  # copy the attribute by acesssing the province
+
                             old_value = deepcopy(old_ref)
-                            changed_attributes[attribute_node.path_element] = [old_value, None]
-                            relevant_attribute_changed = True
-
-                    if not relevant_attribute_changed:
-                        continue
-
-                    assert reference_to_child
-                    assert len(changed_attributes) > 0
-                    assert hook_path
-
-                    out.append((hook_path, reference_to_child, changed_attributes))
+                            out[hook_path][v][attribute_node.path_element] = [old_value, None]
 
         return out
 
