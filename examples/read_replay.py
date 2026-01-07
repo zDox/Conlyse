@@ -15,17 +15,18 @@ if __name__ == "__main__":
         pass
     t1 = perf_counter()
     ritf.open(mode = 'r', max_patches=None)
-    ritf.register_game_info_trigger()
+    ritf.register_game_info_state_trigger()
+
+
 
     t2 = perf_counter()
     # Test Operations --------------------------------
     for i in range(100):
         for j in range(1000):
             ritf.jump_to_next_patch()
-            for event_tag, events in ritf.poll_events().items():
-                for event in events:
-                    print(event)
+
         ritf.jump_to(ritf.start_time)
+
     # End --------------------------------------------
     t3 = perf_counter()
     ritf.close()

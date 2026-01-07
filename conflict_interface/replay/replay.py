@@ -296,13 +296,13 @@ class Replay:
 
         # Get new values and que the hooks
         if hook_system:
-            # Set new values in hook data
-            for hook_path, reference_to_child, changed_attributes in hook_data:
-                for attribute, value in changed_attributes.items():
-                    value[1] = getattr(reference_to_child, attribute, None)
-            # Queuing the hooks
-            for hook_path, reference_to_child, data in hook_data:
-                hook_system.que_hook_path(hook_path, reference_to_child, data)
+            for hook_path, references in hook_data.items():
+                for obj_path, attributes in references.items():
+                    reference = self.storage.path_tree.idx_to_node[obj_path]
+                    for attribute, value in attributes.items():
+                        value[1] = getattr(reference, attribute, None)
+                    hook_system.que_hook_path(hook_path, reference, attributes)
+
 
     def get_start_time(self) -> datetime:
         start_timestamp = self.storage.metadata.start_time

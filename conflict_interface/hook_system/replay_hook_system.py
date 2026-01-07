@@ -106,7 +106,7 @@ class ReplayHookSystem:
     A single event trigger can be registered per path. 
     """
 
-    def register_event_trigger(self, tag: ReplayHookTag, path: list[str], attributes: list[str] | None = None):
+    def register_event_trigger(self, tag: ReplayHookTag, path: list[str], attributes: list[str] | None = None, search_start_depth: int = 0, search_end_depth: int = -1):
         """
         Registers an event trigger for a specific tag and path within the replay storage. The event
         trigger listens for specific change types (add, replace, or remove) at the specified path
@@ -127,12 +127,13 @@ class ReplayHookSystem:
             raise ValueError(f"Event trigger with tag '{tag}' is already registered.")
         self._tags.add(tag)
         path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
-
         hook = ReplayHook(
             tag=tag,
             change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
             attributes=attributes,
-            path=path_idx
+            path=path_idx,
+            search_start_depth = search_start_depth,
+            search_end_depth = search_end_depth
         )
         # Remove any existing event trigger at this path
         self.unregister_hook(path_idx, None)
