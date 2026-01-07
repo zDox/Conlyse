@@ -187,27 +187,22 @@ class PathTree:
 
     def bfs_set_references(self, sub_tree: dict[int, list[int]], game_state: GameState):
         start = self.root.index
-        visited: set[int] = {start}
         q = deque([(start, game_state)])
 
         pop = q.popleft
         add = q.append
-        visited_add = visited.add
 
         while q:
             u, ref = pop()
             for v in sub_tree.get(u, []):
-                if v not in visited:
-                    visited_add(v)
-
-                    node = self.idx_to_node[v]
-                    node.set_reference(ref)
-                    if len(sub_tree.get(v, [])) > 0:
-                        try:
-                            child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
-                        except Exception as e:
-                            raise Exception(e)
-                        add((v, child_ref))
+                node = self.idx_to_node[v]
+                node.set_reference(ref)
+                if len(sub_tree.get(v, [])) > 0:
+                    try:
+                        child_ref = get_child_reference(ref, node.path_element) # TODO optimize reuse set references
+                    except Exception as e:
+                        raise Exception(e)
+                    add((v, child_ref))
 
     def reset_child_references(self, start_node_idx: int):
         stack = [start_node_idx]
