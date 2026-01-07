@@ -13,7 +13,7 @@ import zstandard as zstd
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
-from tools.recorder.recorder_logger import get_logger
+from tools.server_observer.recorder_logger import get_logger
 
 logger = get_logger()
 
