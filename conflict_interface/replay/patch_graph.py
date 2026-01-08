@@ -12,6 +12,10 @@ class PatchGraph:
         self._time_stamps: set[int] = set() # For precomputation and later sorting
         self.adj: dict[int, list[int]] = {}
 
+    @staticmethod
+    def cost(patch_path: list[PatchGraphNode]):
+        return sum(x.cost for x in patch_path)
+
     def add_patch_node(self, patch_node: PatchGraphNode):
         key = (patch_node.from_timestamp, patch_node.to_timestamp)
         self.patches[key] = patch_node
