@@ -26,6 +26,7 @@ from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameS
 from conflict_interface.interface.hub_interface import HubInterface
 from tools.server_observer.account import Account
 from tools.server_observer.account_pool import AccountPool
+from tools.server_observer.observation_session import ObservationSession
 from tools.server_observer.observation_session import ObservationWorker
 from tools.server_observer.recorder_logger import get_logger
 from tools.server_observer.recording_registry import RecordingRegistry
@@ -58,7 +59,7 @@ class ServerObserver:
         self.output_dir = Path(config.get("output_dir", "./recordings"))
         self.enabled_scanning = config.get("enabled_scanning", True)
 
-        self.observer_sessions: Dict[int, ObservationWorker] = {}
+        self.observer_sessions: Dict[int, ObservationSession] = {}
 
         registry_path = config.get(
             "registry_path",
@@ -70,7 +71,7 @@ class ServerObserver:
         self._active_threads: Set[Thread] = set()
         self._threads_lock = Lock()
         self._stop_event = Event()
-        self._update_queue: Queue[ObservationWorker] = Queue()
+        self._update_queue: Queue[ObservationSession] = Queue()
         self._scan_thread: Optional[Thread] = None
         self._map_cache = StaticMapCache(self.output_dir / "static_maps")
         self._known_games: Set[int] = set()
@@ -127,8 +128,8 @@ class ServerObserver:
                 seen_games.add(game.game_id)
                 yield scenario_id, game
 
-    def _build_observer(self, per_game_config: dict, account: Optional[Account]) -> ObservationWorker:
-        return ObservationWorker(
+    def _build_observer(self, per_game_config: dict, account: Optional[Account]) -> ObservationSession:
+        return ObservationSession(
             per_game_config,
             transport=self.http_transport,
             account=account,
@@ -217,24 +218,28 @@ class ServerObserver:
                 continue
             self._queue_observation(game_id, scenario_id)
 
-    def _run_single_update(self, observer: ObservationWorker):
-        game_id = observer.game_id
+    def _run_single_update(self, session: ObservationSession):
+        game_id = session.game_id
         try:
-            keep_running = observer.perform_update()
+            worker = session.create_worker()
+            if worker is None:
+                self.registry.mark_failed(game_id, "execution_failed")
+                return
+            keep_running = worker.run()
             if keep_running:
-                self._update_queue.put(observer)
+                self._update_queue.put(session)
             else:
-                if not observer.fat_session:
+                if not session.fat_session:
                     self.registry.mark_completed(game_id)
-                self._decrement_account(observer.account)
-                observer.close()
+                self._decrement_account(session.account)
+                session.close()
                 self.observer_sessions.pop(game_id, None)
                 self._known_games.add(game_id)
         except Exception as exc:
             self.registry.mark_failed(game_id, "execution_failed")
             logger.error(f"Observation for game {game_id} failed: {exc}")
-            self._decrement_account(observer.account)
-            observer.close()
+            self._decrement_account(session.account)
+            session.close()
             self.observer_sessions.pop(game_id, None)
             self._known_games.add(game_id)
         finally:
@@ -244,7 +249,7 @@ class ServerObserver:
 
     def _start_due_updates(self):
         now = time()
-        deferred: List[ObservationWorker] = []
+        deferred: List[ObservationSession] = []
         while True:
             with self._threads_lock:
                 if len(self._active_threads) >= self.max_parallel:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import gc
 from pathlib import Path
-from time import sleep
 from time import time
 from typing import Optional
 
@@ -21,13 +20,10 @@ from tools.server_observer.storage import RecordingStorage
 logger = get_logger()
 
 
-class ObservationWorker:
+class ObservationSession:
     """
-    Per-game observer that records server responses until game end.
-
-    It patches the game API to persist responses via RecordingStorage and
-    optionally saves game states. Static map data is cached once per map_id
-    to avoid duplicate downloads during the session.
+    Holds per-game session context (cookies, headers, proxy, auth) and schedules updates.
+    Spawns short-lived ObservationWorker instances to perform individual update requests.
     """
 
     def __init__(
@@ -35,28 +31,40 @@ class ObservationWorker:
         config: dict,
         account: Optional[Account],
         map_cache: StaticMapCache,
-        transport: HTTPTransport
+        transport: HTTPTransport,
     ):
         self.config = config
         self.account = account
         self.map_cache = map_cache
-        self.hub_itf: Optional[HubInterface] = None
-        self.game_itf: Optional[RecordingInterface] = None
-        self.storage: Optional[RecordingStorage] = None
+        self.transport = transport
         self.game_id = config.get("game_id")
         self.update_interval: float = float(config.get("update_interval", 60.0))
         self.save_game_states: bool = False
         self.max_updates = config.get("max_updates")
         self.max_duration = config.get("max_duration")
+        self.scenario_id = config.get("scenario_id")
+
+        self.hub_itf: Optional[HubInterface] = None
+        self.game_itf: Optional[RecordingInterface] = None
+        self.storage: Optional[RecordingStorage] = None
+
+        # captured connection data
+        self.headers = None
+        self.cookies = None
+        self.proxy = None
+        self.auth = None
+        self.client_version = None
+        self.game_server_address = None
+
         self.fat_session = False
-        self.transport = transport
         self._prepared = False
         self._start_time: Optional[float] = None
         self._updates_done = 0
         self.next_update_at: float = time()
-        self.scenario_id = config.get("scenario_id")
 
     def _setup_storage(self):
+        if self.storage:
+            return
         output_dir = self.config.get("output_dir", "./recordings")
         recording_name = self.config.get("recording_name") or f"game_{self.game_id}"
         output_path = Path(output_dir) / recording_name
@@ -68,19 +76,17 @@ class ObservationWorker:
             return self.account.get_interface()
         raise Exception("No account provided")
 
-    def _on_request_response(self, request_payload: dict, response: dict, elapsed_ms: float):
-        ts = time()
-        self.storage.save_request_response(ts, request_payload, response)
-        if asizeof.asizeof(response) >= 1024 * 300:
-            logger.warning(f"Large response size detected for game {self.game_id} ({asizeof.asizeof(response)} bytes)")
+    def _capture_connection_details(self):
+        self.headers = dict(self.game_itf.game_api.session.headers)
+        self.cookies = dict(self.game_itf.game_api.session.cookies)
+        self.proxy = self.hub_itf.api.proxy if self.hub_itf else None
+        self.auth = self.game_itf.game_api.auth
+        self.client_version = self.game_itf.game_api.client_version
+        self.game_server_address = self.game_itf.game_api.game_server_address
 
-        self.storage.update_resume_metadata({
-            "time_stamps": self.game_itf.time_stamps,
-            "state_ids": self.game_itf.state_ids,
-        })
-        del response
-
-    def _prepare(self) -> bool:
+    def _prepare_interfaces(self) -> bool:
+        if self.hub_itf and self.game_itf:
+            return True
         self.hub_itf = self._get_hub_interface()
         if not self.hub_itf:
             return False
@@ -90,18 +96,39 @@ class ObservationWorker:
             auth_details=self.hub_itf.api.auth,
         )
         self.game_itf.game_api.load_game_site()
+        self._capture_connection_details()
+        return True
 
-        game_api = ObservationApi(
+    def _attach_observation_api(self):
+        self.game_itf.game_api = ObservationApi(
             self.transport,
-            dict(self.game_itf.game_api.session.headers),
-            dict(self.game_itf.game_api.session.cookies),
-            self.game_itf.game_api.auth,
-            self.game_itf.game_api.game_id,
-            self.game_itf.game_api.game_server_address,
-            self.game_itf.game_api.client_version,
-            self.hub_itf.api.proxy
+            self.headers,
+            self.cookies,
+            self.auth,
+            self.game_id,
+            self.game_server_address,
+            self.client_version,
+            self.proxy,
         )
-        self.game_itf.game_api = game_api
+
+    def _on_request_response(self, request_payload: dict, response: dict, elapsed_ms: float):
+        ts = time()
+        self.storage.save_request_response(ts, request_payload, response)
+        if asizeof.asizeof(response) >= 1024 * 300:
+            logger.warning(f"Large response size detected for game {self.game_id} ({asizeof.asizeof(response)} bytes)")
+            self.fat_session = True
+
+        self.storage.update_resume_metadata({
+            "time_stamps": self.game_itf.time_stamps,
+            "state_ids": self.game_itf.state_ids,
+        })
+        del response
+
+    def _prepare(self) -> bool:
+        self._setup_storage()
+        if not self._prepare_interfaces():
+            return False
+        self._attach_observation_api()
 
         if self.storage.get_resume_metadata() and False:
             self.game_itf.time_stamps = HashMap(self.storage.resume_metadata.get("time_stamps", {}))
@@ -112,20 +139,17 @@ class ObservationWorker:
             game_state = self.game_itf._request_game_state(send_state_ids=False)
             self._on_request_response({}, game_state, 0.0)
             map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
-            # Check if static map data is available locally
             if not self.map_cache.is_cached(map_id):
                 logger.info(f"Downloading static map data for map_id {map_id}")
                 static_map_data = self.game_itf.game_api.get_static_map_data()
                 self.map_cache.save(map_id, static_map_data)
             del game_state
         gc.collect()
-
         return True
 
     def ensure_prepared(self) -> bool:
         if self._prepared:
             return True
-        self._setup_storage()
         if not self._prepare():
             return False
         self._prepared = True
@@ -176,7 +200,6 @@ class ObservationWorker:
         return False
 
     def close(self):
-        # Clean up to free memory
         if self.storage:
             self.storage.teardown_logging()
         if self.game_itf:
@@ -185,6 +208,19 @@ class ObservationWorker:
             self.hub_itf = None
         self.storage = None
 
+    def create_worker(self) -> Optional["ObservationWorker"]:
+        if not self.ensure_prepared():
+            return None
+        return ObservationWorker(self)
 
-# Backwards compatibility alias
-ObservationSession = ObservationWorker
+
+class ObservationWorker:
+    """
+    Lightweight worker that performs a single update using the owning ObservationSession.
+    """
+
+    def __init__(self, session: ObservationSession):
+        self.session = session
+
+    def run(self) -> bool:
+        return self.session.perform_update()
