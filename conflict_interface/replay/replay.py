@@ -272,8 +272,6 @@ class Replay:
                 unknown_paths.append(path_idx)
 
         """ Note this code has an issue: When in a list a object is removed the references of all trailing elements is not made invalid"""
-        # TODO fix this or note that its not allowed to delete from anywhere but the end of a list
-
 
         # Resolve unknown references using Steiner tree + BFS
         steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_paths)
