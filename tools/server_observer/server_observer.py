@@ -35,6 +35,7 @@ from tools.server_observer.account_pool import AccountPool
 from tools.server_observer.recorder_logger import get_logger
 
 logger = get_logger()
+THREAD_JOIN_TIMEOUT = 0.01
 
 
 class ServerObserver:
@@ -255,14 +256,16 @@ class ServerObserver:
             if not observer.needs_update(now):
                 deferred.append(observer)
                 continue
-            thread = Thread(target=self._run_single_update, args=(observer,), name=f"observer-{observer.game_id}", daemon=True)
+            thread_name = f"observer-{observer.game_id if observer.game_id is not None else 'unknown'}"
+            thread = Thread(target=self._run_single_update, args=(observer,), name=thread_name, daemon=True)
             with self._threads_lock:
                 self._active_threads.add(thread)
             thread.start()
         for observer in deferred:
             self._update_queue.put(observer)
         if deferred:
-            wait_time = min(max(0.0, obs.next_update_at - now) for obs in deferred)
+            wait_times = [max(0.0, obs.next_update_at - now) for obs in deferred]
+            wait_time = min(wait_times) if wait_times else 0.0
             if wait_time:
                 self._stop_event.wait(min(wait_time, self.scan_interval))
 
@@ -270,7 +273,7 @@ class ServerObserver:
         with self._threads_lock:
             finished = [t for t in self._active_threads if not t.is_alive()]
             for thread in finished:
-                thread.join(timeout=0.01)
+                thread.join(timeout=THREAD_JOIN_TIMEOUT)
                 self._active_threads.discard(thread)
 
     def _scan_loop(self):
