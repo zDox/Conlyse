@@ -243,6 +243,7 @@ class ServerObserver:
 
     def _start_due_updates(self):
         now = time()
+        deferred: List[ObservationWorker] = []
         while True:
             with self._threads_lock:
                 if len(self._active_threads) >= self.max_parallel:
@@ -252,15 +253,18 @@ class ServerObserver:
             except Empty:
                 break
             if not observer.needs_update(now):
-                self._update_queue.put(observer)
-                wait_time = max(0.0, observer.next_update_at - now)
-                if wait_time:
-                    self._stop_event.wait(min(wait_time, self.scan_interval))
-                break
+                deferred.append(observer)
+                continue
             thread = Thread(target=self._run_single_update, args=(observer,), name=f"observer-{observer.game_id}", daemon=True)
             with self._threads_lock:
                 self._active_threads.add(thread)
             thread.start()
+        for observer in deferred:
+            self._update_queue.put(observer)
+        if deferred:
+            wait_time = min(max(0.0, obs.next_update_at - now) for obs in deferred)
+            if wait_time:
+                self._stop_event.wait(min(wait_time, self.scan_interval))
 
     def _clean_finished_threads(self):
         with self._threads_lock:

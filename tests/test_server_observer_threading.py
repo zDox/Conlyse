@@ -1,6 +1,6 @@
-import tempfile
 import threading
 import time
+from tempfile import TemporaryDirectory
 
 from tools.server_observer.server_observer import ServerObserver
 
@@ -42,59 +42,59 @@ def _observer_for_tests(tmp_path: str, max_parallel: int = 1) -> ServerObserver:
 
 
 def test_single_worker_runs_and_closes():
-    tmp_path = tempfile.mkdtemp()
-    observer = _observer_for_tests(tmp_path)
+    with TemporaryDirectory() as tmp_path:
+        observer = _observer_for_tests(tmp_path)
 
-    workers = {}
+        workers = {}
 
-    def build(cfg, account):
-        worker = DummyWorker(cfg["game_id"])
-        workers[worker.game_id] = worker
-        return worker
+        def build(cfg, account):
+            worker = DummyWorker(cfg["game_id"])
+            workers[worker.game_id] = worker
+            return worker
 
-    observer._build_observer = build
-    observer._queue_observation(10, 1)
+        observer._build_observer = build
+        observer._queue_observation(10, 1)
 
-    observer.run(iterations=5)
+        observer.run(iterations=5)
 
-    worker = workers[10]
-    assert worker.closed
-    assert worker._updates == 1
-    assert "10" in observer.registry.state["completed"]
+        worker = workers[10]
+        assert worker.closed
+        assert worker._updates == 1
+        assert "10" in observer.registry.state["completed"]
 
 
 def test_max_parallel_is_respected():
-    tmp_path = tempfile.mkdtemp()
-    observer = _observer_for_tests(tmp_path, max_parallel=1)
+    with TemporaryDirectory() as tmp_path:
+        observer = _observer_for_tests(tmp_path, max_parallel=1)
 
-    running = 0
-    max_seen = 0
-    lock = threading.Lock()
-    workers = {}
+        running = 0
+        max_seen = 0
+        lock = threading.Lock()
+        workers = {}
 
-    class SlowWorker(DummyWorker):
-        def perform_update(self) -> bool:
-            nonlocal running, max_seen
-            with lock:
-                running += 1
-                max_seen = max(max_seen, running)
-            time.sleep(0.05)
-            with lock:
-                running -= 1
-            self.next_update_at = time.time() + 100
-            return False
+        class SlowWorker(DummyWorker):
+            def perform_update(self) -> bool:
+                nonlocal running, max_seen
+                with lock:
+                    running += 1
+                    max_seen = max(max_seen, running)
+                time.sleep(0.05)
+                with lock:
+                    running -= 1
+                self.next_update_at = time.time() + 100
+                return False
 
-    def build(cfg, account):
-        worker = SlowWorker(cfg["game_id"])
-        workers[worker.game_id] = worker
-        return worker
+        def build(cfg, account):
+            worker = SlowWorker(cfg["game_id"])
+            workers[worker.game_id] = worker
+            return worker
 
-    observer._build_observer = build
-    observer._queue_observation(20, 1)
-    observer._queue_observation(21, 1)
+        observer._build_observer = build
+        observer._queue_observation(20, 1)
+        observer._queue_observation(21, 1)
 
-    observer.run(iterations=20)
+        observer.run(iterations=20)
 
-    assert max_seen == 1
-    assert workers[20].closed
-    assert workers[21].closed
+        assert max_seen == 1
+        assert workers[20].closed
+        assert workers[21].closed
