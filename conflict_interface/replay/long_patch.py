@@ -12,10 +12,34 @@ from conflict_interface.replay.path_tree import PathTree
 
 def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
     """
-    This is the function you want to optimize.
-    Edit this, save, run the script, and immediately see timing results.
-    """
+    Build an operation tree indexed by path-tree node indices.
 
+    This function walks the path tree (restricted to the Steiner tree `adj`)
+    and accumulates all patch operations along `patch_path` into a single
+    operation per path index.
+
+    Multiple operations affecting the same path are merged according to
+    semantic rules (e.g. REMOVE + ADD → REPLACE, ADD + REMOVE → NO-OP).
+    Invalid operation sequences violate invariants and are assumed not
+    to occur.
+
+    Each stored operation is represented as a tuple:
+        (op_type, path_index, value, time)
+
+    where `time` is a monotonically increasing counter used to preserve
+    relative ordering across merged operations.
+
+    Args:
+        patch_path: Ordered list of PatchGraphNode objects representing
+            the patch sequence from source to target.
+        adj: Adjacency list representing the Steiner subtree of the path tree
+            containing all modified paths.
+        root: Index of the root node in the path tree.
+
+    Returns:
+        A dictionary mapping path-tree node indices to their final merged
+        operation tuple, or None if no operation applies.
+    """
     idx_to_opnode = {}
     q = deque([root])
     pop = q.popleft
@@ -32,13 +56,14 @@ def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
         for op_type, path, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
             t += 1
             old_value = idx_to_opnode[path]
+            old_op_type = old_value[0]
 
             # REMOVE + ADD = REPLACE
-            if old_value is not None and old_value[0] == REMOVE_OPERATION and op_type == ADD_OPERATION:
+            if old_value is not None and old_op_type == REMOVE_OPERATION and op_type == ADD_OPERATION:
                 idx_to_opnode[path] = (REPLACE_OPERATION, path, value, t)
 
             # ADD + REMOVE = NO OP
-            elif old_value is not None and old_value[0] == ADD_OPERATION and op_type == REMOVE_OPERATION:
+            elif old_value is not None and old_op_type == ADD_OPERATION and op_type == REMOVE_OPERATION:
                 idx_to_opnode[path] = (-1, -1, -1, t)  # If a newly added value gets removed then nothing happened
 
             # All other cases
@@ -66,6 +91,30 @@ def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
 
 
 def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
+    """
+    Collapse an operation tree into a linearized patch representation.
+
+    This function traverses the path tree and extracts all effective
+    operations, applying parent operations to children where necessary
+    to preserve correctness (e.g. replacing a parent object must update
+    descendant operations).
+
+    NO-OP entries are discarded. Remaining operations are sorted by
+    their original time index to maintain causal ordering.
+
+    Args:
+        idx_to_opnode: Mapping from path-tree node indices to operation
+            tuples produced by `build_op_tree`.
+        adj: Adjacency list of the Steiner subtree.
+        path_tree: The PathTree describing path hierarchy and structure.
+
+    Returns:
+        A tuple of three lists:
+            - op_types: List of operation types
+            - paths: Corresponding list of path indices
+            - values: Corresponding list of operation values
+        ordered by original operation time.
+    """
     paths = []
     op_types = []
     values = []
@@ -101,6 +150,24 @@ def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
 
 
 def dfs_apply_ops(u, adj, value, idx_to_opnode, path_tree):
+    """
+    Propagate a parent operation's value down the path tree.
+
+    When an operation applies to a parent path, its effects may need
+    to be applied to child operations that occur later in time.
+    This function performs a depth-first traversal to update
+    descendant operations accordingly.
+
+    Operations on children that occurred before the parent operation
+    are left untouched.
+
+    Args:
+        u: Current path-tree node index.
+        adj: Adjacency list of the path tree.
+        value: The value associated with the parent operation.
+        idx_to_opnode: Mapping of path indices to operation tuples.
+        path_tree: PathTree used to resolve path elements and hierarchy.
+    """
     children = adj.get(u, [])
     if not children: return
     if value is None: return
@@ -114,14 +181,33 @@ def dfs_apply_ops(u, adj, value, idx_to_opnode, path_tree):
     node_time = node_value[3]
 
     for v in children:
-        child_value = idx_to_opnode[v]
+        child_opnode = idx_to_opnode[v]
+        child_op_type, _, child_value, child_time = child_opnode
 
-        if child_value is None or child_value[3] < node_time: continue
+        if child_opnode is None or child_time < node_time: continue
 
-        apply_operation(child_value[0], child_value[2], value, path_tree.idx_to_node[v].path_element)
+        apply_operation(child_op_type, child_value, value, path_tree.idx_to_node[v].path_element)
 
 
 def get_child(v, value, path_tree: PathTree):
+    """
+    Retrieve the child value corresponding to a path-tree edge.
+
+    Given a parent value and a child node index, this function extracts
+    the appropriate sub-value based on the path element stored in
+    the path tree.
+
+    Supports both attribute-based access (for GameObject instances)
+    and index/key-based access (for dicts or lists).
+
+    Args:
+        v: Path-tree node index of the child.
+        value: Parent value.
+        path_tree: PathTree containing path metadata.
+
+    Returns:
+        The child value corresponding to the path element.
+    """
     idx = path_tree.idx_to_node[v].path_element
     if isinstance(value, GameObject):
         return getattr(value, idx)
@@ -129,6 +215,22 @@ def get_child(v, value, path_tree: PathTree):
         return value[idx]
 
 def create_adj_list(patch_path: list[PatchGraphNode], path_tree: PathTree):
+    """
+    Construct the Steiner subtree adjacency list for modified paths.
+
+    This function collects all paths modified by the patch sequence
+    and builds the minimal subtree of the path tree that connects them.
+    This limits subsequent traversals to only relevant nodes.
+
+    Args:
+        patch_path: List of PatchGraphNode objects whose operations
+            define the modified paths.
+        path_tree: The full PathTree.
+
+    Returns:
+        An adjacency list representing the Steiner subtree containing
+        all changed paths.
+    """
     changed_paths = set()
     for patch_node in patch_path:
         changed_paths.update(patch_node.paths)
@@ -137,6 +239,26 @@ def create_adj_list(patch_path: list[PatchGraphNode], path_tree: PathTree):
     return adj
 
 def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: PatchGraph, path_tree: PathTree) -> PatchGraphNode:
+    """
+    Create a single consolidated patch spanning a time interval.
+
+    This function finds the shortest patch path between two timestamps,
+    merges all intermediate patches into a single equivalent patch,
+    and collapses redundant operations while preserving semantics.
+
+    The resulting PatchGraphNode represents the net effect of all
+    changes between `from_time` and `to_time`.
+
+    Args:
+        from_time: Start time of the interval.
+        to_time: End time of the interval.
+        patch_graph: PatchGraph containing temporal patch relationships.
+        path_tree: PathTree describing path hierarchy.
+
+    Returns:
+        A PatchGraphNode representing the consolidated patch over
+        the given time range.
+    """
     shortest_path = patch_graph.find_patch_path(from_time, to_time)
     adj = create_adj_list(shortest_path, path_tree)
     op_tree = build_op_tree(shortest_path, adj, path_tree.root.index)
