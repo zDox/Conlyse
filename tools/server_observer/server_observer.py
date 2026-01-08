@@ -5,10 +5,15 @@ from __future__ import annotations
 
 import gc
 import random
-from concurrent.futures import Future
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from queue import Empty
+from queue import Queue
+from threading import Event
+from threading import Lock
+from threading import Thread
+from threading import current_thread
 from time import sleep
+from time import time
 from typing import Dict
 from typing import Iterable
 from typing import List
@@ -18,7 +23,7 @@ from typing import Set
 from httpx import HTTPTransport
 from memory_profiler import profile
 
-from tools.server_observer.observation_session import ObservationSession
+from tools.server_observer.observation_session import ObservationWorker
 from tools.server_observer.static_map_cache import StaticMapCache
 from tools.server_observer.recording_registry import RecordingRegistry
 
@@ -55,18 +60,20 @@ class ServerObserver:
         self.output_dir = Path(config.get("output_dir", "./recordings"))
         self.enabled_scanning = config.get("enabled_scanning", True)
 
-        self.observer_sessions: Dict[int, ObservationSession] = {}
+        self.observer_sessions: Dict[int, ObservationWorker] = {}
 
         registry_path = config.get(
             "registry_path",
             self.output_dir / "server_observer_registry.json",
         )
         self.registry = RecordingRegistry(Path(registry_path))
-        self.executor = ThreadPoolExecutor(max_workers=self.max_parallel)
         self._listing_interface: Optional[HubInterface] = None
         self._listing_account: Optional[Account] = None
-        self._running: Dict[Future, int] = {}
-        self._running_game_ids: Set[int] = set()
+        self._active_threads: Set[Thread] = set()
+        self._threads_lock = Lock()
+        self._stop_event = Event()
+        self._update_queue: Queue[ObservationWorker] = Queue()
+        self._scan_thread: Optional[Thread] = None
         self._map_cache = StaticMapCache(self.output_dir / "static_maps")
         self._known_games: Set[int] = set()
         self._refresh_known_games_from_registry()
@@ -122,8 +129,8 @@ class ServerObserver:
                 seen_games.add(game.game_id)
                 yield scenario_id, game
 
-    def _build_observer(self, per_game_config: dict, account: Account) -> ObservationSession:
-        return ObservationSession(
+    def _build_observer(self, per_game_config: dict, account: Optional[Account]) -> ObservationWorker:
+        return ObservationWorker(
             per_game_config,
             transport=self.http_transport,
             account=account,
@@ -181,7 +188,7 @@ class ServerObserver:
         if self.account_pool:
             self.account_pool.decrement_guest_join(account)
 
-    def _start_observation(self, game_id: int, scenario_id: int):
+    def _queue_observation(self, game_id: int, scenario_id: int):
         account = self._pick_account()
         if self.account_pool and not account:
             logger.error("No free account available to start new observation")
@@ -193,90 +200,98 @@ class ServerObserver:
 
         self.registry.mark_recording(game_id, scenario_id, None)
         self._known_games.add(game_id)
-        try:
-            future = self.executor.submit(self._run_single_observer, game_id, observer, account)
-            self._increment_account(account)
-        except RuntimeError as exc:
-            self.registry.mark_failed(game_id, "submission_failed")
-            logger.error(f"Failed to submit observation for game {game_id}: {exc}")
-            return
-        self._running[future] = game_id
+        self._increment_account(account)
         self.observer_sessions[game_id] = observer
-        self._running_game_ids.add(game_id)
-
-    def _run_single_observer(self, game_id: int, observer: ObservationSession, account: Optional[Account]) -> bool:
-        try:
-            result = observer.run()
-            # Force cleanup after each observation completes
-            gc.collect()
-            return result
-        except Exception as exc:
-            logger.error(f"Observation for game {game_id} failed: {exc}")
-            return False
-        finally:
-            self._decrement_account(account)
-            # Clear observer reference
-            observer = None
-
-    def _process_finished(self):
-        done = [future for future in self._running if future.done()]
-        for future in done:
-            game_id = self._running.pop(future)
-            self._running_game_ids.discard(game_id)
-            success = False
-            try:
-                success = future.result()
-            except Exception as exc:
-                logger.error(f"Observation for game {game_id} raised: {exc}")
-            if success and not self.observer_sessions[game_id].fat_session:
-                self.registry.mark_completed(game_id)
-            elif success and self.observer_sessions[game_id].fat_session:
-                pass
-            else:
-                self.registry.mark_failed(game_id, "execution_failed")
-            self._known_games.add(game_id)
-            # Explicitly delete the future to free memory
-            del future
-
-        # Periodic garbage collection when games finish
-        if done:
-            gc.collect()
+        observer.next_update_at = time()
+        self._update_queue.put(observer)
 
     def _resume_active(self):
-        available_slots = self.max_parallel - len(self._running)
         for game_id, meta in self.registry.active().items():
-            if available_slots <= 0:
-                break
-            if game_id in self._running_game_ids:
-                continue
             scenario_id = meta.get("scenario_id")
             if scenario_id is None:
                 logger.warning(f"Skipping resume for game {game_id} without scenario metadata")
                 continue
+            if game_id in self.observer_sessions:
+                continue
             logger.info(f"Resuming observation for game {game_id}")
-            self._start_observation(game_id, scenario_id)
-            available_slots -= 1
+            self._queue_observation(game_id, scenario_id)
+
+    def _run_single_update(self, observer: ObservationWorker):
+        game_id = observer.game_id
+        try:
+            keep_running = observer.perform_update()
+            if keep_running:
+                self._update_queue.put(observer)
+            else:
+                if not observer.fat_session:
+                    self.registry.mark_completed(game_id)
+                self._decrement_account(observer.account)
+                observer.close()
+        except Exception as exc:
+            self.registry.mark_failed(game_id, "execution_failed")
+            logger.error(f"Observation for game {game_id} failed: {exc}")
+            self._decrement_account(observer.account)
+            observer.close()
+        finally:
+            with self._threads_lock:
+                self._active_threads.discard(current_thread())
+            gc.collect()
+
+    def _start_due_updates(self):
+        now = time()
+        while True:
+            with self._threads_lock:
+                if len(self._active_threads) >= self.max_parallel:
+                    break
+            try:
+                observer = self._update_queue.get_nowait()
+            except Empty:
+                break
+            if not observer.needs_update(now):
+                self._update_queue.put(observer)
+                break
+            thread = Thread(target=self._run_single_update, args=(observer,), name=f"observer-{observer.game_id}", daemon=True)
+            with self._threads_lock:
+                self._active_threads.add(thread)
+            thread.start()
+
+    def _clean_finished_threads(self):
+        with self._threads_lock:
+            finished = [t for t in self._active_threads if not t.is_alive()]
+            for thread in finished:
+                thread.join(timeout=0.01)
+                self._active_threads.discard(thread)
+
+    def _scan_loop(self):
+        interface = self._get_listing_interface()
+        while not self._stop_event.is_set():
+            if interface and self.enabled_scanning:
+                for scenario_id, game in self._select_games(interface):
+                    if game.game_id in self.observer_sessions:
+                        continue
+                    self._queue_observation(game.game_id, scenario_id)
+            self._stop_event.wait(self.scan_interval)
 
     def run(self, iterations: Optional[int] = None) -> bool:
         cycle = 0
+        self._stop_event.clear()
+        self._resume_active()
+        self._scan_thread = Thread(target=self._scan_loop, name="observer-scan", daemon=True)
+        self._scan_thread.start()
         try:
-            interface = self._get_listing_interface()
-            while iterations is None or cycle < iterations:
-                self._process_finished()
-                self._resume_active()
-
-                if interface:
-                    available_slots = self.max_parallel - len(self._running)
-                    if available_slots > 0 and self.enabled_scanning:
-                        for scenario_id, game in self._select_games(interface):
-                            if available_slots <= 0:
-                                break
-                            self._start_observation(game.game_id, scenario_id)
-                            available_slots -= 1
+            while not self._stop_event.is_set() and (iterations is None or cycle < iterations):
+                self._clean_finished_threads()
+                self._start_due_updates()
                 cycle += 1
                 if iterations is None or cycle < iterations:
-                    sleep(self.scan_interval)
+                    self._stop_event.wait(0.1)
             return True
         finally:
-            self._process_finished()
-            self.executor.shutdown(wait=True)
+            self._stop_event.set()
+            if self._scan_thread:
+                self._scan_thread.join(timeout=self.scan_interval)
+            with self._threads_lock:
+                threads = list(self._active_threads)
+            for thread in threads:
+                thread.join()
+            self._clean_finished_threads()

@@ -21,7 +21,7 @@ from tools.server_observer.storage import RecordingStorage
 logger = get_logger()
 
 
-class ObservationSession:
+class ObservationWorker:
     """
     Per-game observer that records server responses until game end.
 
@@ -33,7 +33,7 @@ class ObservationSession:
     def __init__(
         self,
         config: dict,
-        account: Account,
+        account: Optional[Account],
         map_cache: StaticMapCache,
         transport: HTTPTransport
     ):
@@ -50,6 +50,11 @@ class ObservationSession:
         self.max_duration = config.get("max_duration")
         self.fat_session = False
         self.transport = transport
+        self._prepared = False
+        self._start_time: Optional[float] = None
+        self._updates_done = 0
+        self.next_update_at: float = time()
+        self.scenario_id = config.get("scenario_id")
 
     def _setup_storage(self):
         output_dir = self.config.get("output_dir", "./recordings")
@@ -120,29 +125,43 @@ class ObservationSession:
 
         return True
 
-    def _observe_until_end(self) -> bool:
-        updates_done = 0
-        start_time = time()
-        while True:
-            logger.info(f"Sending update {updates_done} for game {self.game_id}")
-            state = self.game_itf._request_game_state(True)
-            self._on_request_response({}, state, 0.0)
-            updates_done += 1
-            if self._is_game_ended(state):
-                logger.info(f"Game {self.game_id} ended, stopping observation.")
-                return True
-            if self.max_updates is not None and updates_done >= self.max_updates:
-                logger.info("Reached configured maximum number of updates, stopping observation.")
-                return True
-            if self.max_duration is not None and (time() - start_time) >= self.max_duration:
-                logger.info("Reached configured maximum observation duration, stopping.")
-                return True
-            del state
-            gc.collect()
-            if self.fat_session:
-                logger.info(f"Restarting session {self.game_id} due to large response size.")
-                return True
-            sleep(self.update_interval)
+    def ensure_prepared(self) -> bool:
+        if self._prepared:
+            return True
+        self._setup_storage()
+        if not self._prepare():
+            return False
+        self._prepared = True
+        self._start_time = time()
+        self.next_update_at = self._start_time
+        return True
+
+    def needs_update(self, now: float) -> bool:
+        return now >= self.next_update_at
+
+    def perform_update(self) -> bool:
+        if not self.ensure_prepared():
+            return False
+        logger.info(f"Sending update {self._updates_done} for game {self.game_id}")
+        state = self.game_itf._request_game_state(True)
+        self._on_request_response({}, state, 0.0)
+        self._updates_done += 1
+        if self._is_game_ended(state):
+            logger.info(f"Game {self.game_id} ended, stopping observation.")
+            return False
+        if self.max_updates is not None and self._updates_done >= self.max_updates:
+            logger.info("Reached configured maximum number of updates, stopping observation.")
+            return False
+        if self.max_duration is not None and self._start_time is not None and (time() - self._start_time) >= self.max_duration:
+            logger.info("Reached configured maximum observation duration, stopping.")
+            return False
+        del state
+        gc.collect()
+        if self.fat_session:
+            logger.info(f"Restarting session {self.game_id} due to large response size.")
+            return False
+        self.next_update_at = time() + self.update_interval
+        return True
 
     @staticmethod
     def _is_game_ended(response: Optional[dict]) -> bool:
@@ -161,20 +180,31 @@ class ObservationSession:
 
     def run(self) -> bool:
         try:
-            self._setup_storage()
-            if not self._prepare():
+            if not self.ensure_prepared():
                 return False
 
-            return self._observe_until_end()
+            keep_running = True
+            while keep_running:
+                keep_running = self.perform_update()
+                if keep_running:
+                    sleep(self.update_interval)
+            return True
         except Exception as exc:
             logger.error(f"Observation for game {self.game_id} failed: {exc}")
             return False
         finally:
-            # Clean up to free memory
-            if self.storage:
-                self.storage.teardown_logging()
-            if self.game_itf:
-                self.game_itf = None
-            if self.hub_itf:
-                self.hub_itf = None
-            self.storage = None
+            self.close()
+
+    def close(self):
+        # Clean up to free memory
+        if self.storage:
+            self.storage.teardown_logging()
+        if self.game_itf:
+            self.game_itf = None
+        if self.hub_itf:
+            self.hub_itf = None
+        self.storage = None
+
+
+# Backwards compatibility alias
+ObservationSession = ObservationWorker
