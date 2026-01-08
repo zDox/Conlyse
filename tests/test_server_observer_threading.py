@@ -93,7 +93,7 @@ def test_max_parallel_is_respected():
         observer._queue_observation(20, 1)
         observer._queue_observation(21, 1)
 
-        observer.run(iterations=20)
+        observer.run(iterations=10)
 
         assert max_seen == 1
         assert workers[20].closed

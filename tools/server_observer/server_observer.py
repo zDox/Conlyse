@@ -35,7 +35,7 @@ from tools.server_observer.account_pool import AccountPool
 from tools.server_observer.recorder_logger import get_logger
 
 logger = get_logger()
-THREAD_JOIN_TIMEOUT = 0.01
+THREAD_JOIN_TIMEOUT = 1.0
 
 
 class ServerObserver:
@@ -256,8 +256,7 @@ class ServerObserver:
             if not observer.needs_update(now):
                 deferred.append(observer)
                 continue
-            thread_name = f"observer-{observer.game_id if observer.game_id is not None else 'unknown'}"
-            thread = Thread(target=self._run_single_update, args=(observer,), name=thread_name, daemon=True)
+            thread = Thread(target=self._run_single_update, args=(observer,), name=f"observer-{observer.game_id}", daemon=True)
             with self._threads_lock:
                 self._active_threads.add(thread)
             thread.start()
