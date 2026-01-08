@@ -18,7 +18,15 @@ from tests.helper_functions import compare_dicts
 class Node:
     __slots__ = ("value", "children")
 
+
+# ============================================================================
+# EDIT THIS FUNCTION TO TEST YOUR OPTIMIZATIONS
+# ============================================================================
 def build_op_tree_v2(patch_path: list[PatchGraphNode], path_tree: PathTree):
+    """
+    This is the function you want to optimize.
+    Edit this, save, run the script, and immediately see timing results.
+    """
     changed_paths = set()
     for patch_node in patch_path:
         changed_paths.update(patch_node.paths)
@@ -46,23 +54,13 @@ def build_op_tree_v2(patch_path: list[PatchGraphNode], path_tree: PathTree):
             idx_to_opnode[v] = new_node
 
             add((v, new_node))
+
     t = -1
     for patch_node in patch_path:
         for op_type, path, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
             t += 1
             old_value = idx_to_opnode[path].value
             idx_to_opnode[path].value = (op_type, path, value, t)
-            # Reset values of all children
-            q = deque([path])
-            pop = q.popleft
-            add = q.append
-
-            while q:
-                u = pop()
-
-                for v in adj.get(u, []):
-                    idx_to_opnode[v].value = None
-                    add(v)
 
             # REMOVE + ADD = REPLACE
             if old_value is not None and old_value[0] == REMOVE_OPERATION and op_type == ADD_OPERATION:
@@ -70,18 +68,22 @@ def build_op_tree_v2(patch_path: list[PatchGraphNode], path_tree: PathTree):
 
             # ADD + REMOVE = NO OP
             if old_value is not None and old_value[0] == ADD_OPERATION and op_type == REMOVE_OPERATION:
-                idx_to_opnode[path].value = None # If a newly added value gets removed then nothing happened
+                idx_to_opnode[path].value = (-1, -1, -1, t)  # If a newly added value gets removed then nothing happened
 
     op_types, paths, values = collapse_op_tree(idx_to_opnode, adj, path_tree)
+    #print_op_tree(op_tree, path_tree)
 
     return op_types, paths, values
+
+
+# ============================================================================
+
 
 def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
     paths = []
     op_types = []
     values = []
     times = []
-
 
     q = deque([path_tree.root.index])
     pop = q.popleft
@@ -92,11 +94,13 @@ def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
 
         node = idx_to_opnode[u]
         if node.value is not None:
+            if node.value[0] == -1: continue
             for v in adj.get(u, []):
                 child_node = idx_to_opnode[v]
-                if child_node.value is not None:
+                if child_node.value is not None and child_node.value[3] > node.value[3]:
                     assert child_node.value[1] == v
-                    apply_operation(child_node.value[0], child_node.value[2], node.value[2], path_tree.idx_to_node[v].path_element)
+                    apply_operation(child_node.value[0], child_node.value[2], node.value[2],
+                                    path_tree.idx_to_node[v].path_element)
 
             op_types.append(node.value[0])
             paths.append(node.value[1])
@@ -112,54 +116,133 @@ def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
     )
     return list(sorted_op_types), list(sorted_paths), list(sorted_values)
 
-if __name__ == "__main__":
+
+# ============================================================================
+# SIMPLE BENCHMARK - Just run and see results
+# ============================================================================
+def quick_bench(target_idx=6000, runs=20):
+    """Quick benchmark - just change code above and run this."""
+    import gc
+
     replay = Replay(TEST_DATA / "test_replay.bin", 'r')
     replay.open()
-    target_time = datetime.fromtimestamp(replay.storage.patch_graph.time_stamps_cache[1000], tz= timezone.utc)
-    patch_path = replay.storage.patch_graph.find_patch_path(replay.get_start_time(), target_time)
-    game_state = replay.storage.initial_game_state
-    amount_patches = len(patch_path)
-    amount_ops_before = cost(patch_path)
 
-    t1 = time.perf_counter()
+    target_time = datetime.fromtimestamp(
+        replay.storage.patch_graph.time_stamps_cache[target_idx],
+        tz=timezone.utc
+    )
+
+    patch_path = replay.storage.patch_graph.find_patch_path(
+        replay.get_start_time(),
+        target_time
+    )
+
+    # Warmup
+    _ = build_op_tree_v2(patch_path, replay.storage.path_tree)
+    gc.collect()
+
+    # Time it
+    times = []
+    for _ in range(runs):
+        t1 = time.perf_counter()
+        op_tree = build_op_tree_v2(patch_path, replay.storage.path_tree)
+        t2 = time.perf_counter()
+        times.append((t2 - t1) * 1000)
+        gc.collect()
+
+    min_time = min(times)
+    avg_time = sum(times) / len(times)
+    ops_before = cost(patch_path)
+    ops_after = len(op_tree[0])
+
+    print(f"Time: {min_time:.2f}ms (min) | {avg_time:.2f}ms (avg)")
+    print(f"Ops:  {ops_before:,} → {ops_after:,} ({(ops_before - ops_after) / ops_before * 100:.1f}% saved)")
+    print(f"Rate: {ops_before / min_time * 1000:,.0f} ops/sec")
+
+    return min_time, op_tree
+
+def print_op_tree(root: Node, path_tree: PathTree):
+    print("=" * 80)
+    print(f"OPERATION TREE")
+    print("=" * 80)
+
+    op_names = {
+        ADD_OPERATION: "ADD",
+        REMOVE_OPERATION: "REMOVE",
+        REPLACE_OPERATION: "REPLACE",
+        -1: "NO OP",
+    }
+    stack = [(root, 0, None)]  # (node, depth, path_idx)
+
+    while stack:
+        node, depth, idx = stack.pop()
+
+        indent = "   " * depth
+
+        if node.value is None:
+            print(f"{indent}{idx}")
+        else:
+            if node.value[0] == -1:
+                print(f"{indent}{idx} t: {node.value[3]} {op_names[node.value[0]]}")
+            else:
+                print(f"{indent}{idx} t: {node.value[3]} {op_names[node.value[0]]} {path_tree.idx_to_node[node.value[1]].path_element} = {str(node.value[2])[:100]} ")
+        for child_idx, child in reversed(node.children.items()):
+            stack.append((child, depth + 1, child_idx))
+
+
+
+def verify(target_idx=6000):
+    """Quick verification that results are correct."""
+    replay = Replay(TEST_DATA / "test_replay.bin", 'r')
+    replay.open()
+
+    target_time = datetime.fromtimestamp(
+        replay.storage.patch_graph.time_stamps_cache[target_idx],
+        tz=timezone.utc
+    )
+
+    patch_path = replay.storage.patch_graph.find_patch_path(
+        replay.get_start_time(),
+        target_time
+    )
+
     op_tree = build_op_tree_v2(patch_path, replay.storage.path_tree)
-    t2 = time.perf_counter()
 
-    build_time = t2 - t1
-    print(f"Build Tree in {build_time * 1000} ms")
-    print(f"Build ops / sec = {amount_ops_before / build_time}")
-
-    t3 = time.perf_counter()
-
-    amount_ops_after = len(op_tree[0])
-    print(
-        f"Ops before {amount_ops_before}, Ops After {amount_ops_after} Saved in %: {(amount_ops_before - amount_ops_after) / amount_ops_before * 100}%")
-
-    # Test if it was actually correct
+    # Get original state
     ritf = ReplayInterface(TEST_DATA / "test_replay.bin", player_id=1, game_id=12345)
     ritf.open('r')
     ritf.jump_to(ritf.start_time)
-    state_before = dump_any(ritf.game_state)
-    tn1 = time.perf_counter()
     ritf.jump_to(target_time)
-    tn2 = time.perf_counter()
-    default_jump_time = tn2 - tn1
-    print(f"Default jump time {(default_jump_time)*1000} ms")
-    state_after_original = dump_any(ritf.game_state)
-    ritf.jump_to(ritf.start_time)
+    state_original = dump_any(ritf.game_state)
 
-    # build node
-    t4 = time.perf_counter()
-    long_patch_node = PatchGraphNode(int(ritf.start_time.timestamp()), int(target_time.timestamp()), *op_tree)
+    # Get optimized state
+    ritf.jump_to(ritf.start_time)
+    t1 = time.perf_counter()
+    long_patch_node = PatchGraphNode(
+        int(ritf.start_time.timestamp()),
+        int(target_time.timestamp()),
+        *op_tree
+    )
     ritf._apply_patches_and_update_state([long_patch_node], target_time)
     ritf.current_timestamp_index = bisect.bisect_left(ritf._time_stamps_cache, target_time)
-    t5 = time.perf_counter()
+    t2 = time.perf_counter()
+    print(f"Additional Jump Time: {(t2 - t1)*1000}ms")
+    state_optimized = dump_any(ritf.game_state)
 
-    total_jump_time = t5 - t4 + build_time
-    print(f"Total jump time: {total_jump_time * 1000} ms")
-    print(f"Total ops / sec: " + str(amount_ops_before / total_jump_time))
-    print(f"Speedup: {default_jump_time / total_jump_time}")
 
-    state_after_new = dump_any(ritf.game_state)
+    try:
+        compare_dicts(state_original, state_optimized)
+        print("✓ Correct")
+        return True
+    except AssertionError as e:
+        print(f"✗ FAILED: {e}")
+        return False
 
-    compare_dicts(state_after_original, state_after_new)
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("QUICK BENCHMARK")
+    print("=" * 60)
+    quick_bench(target_idx=1000, runs=20)
+    print()
+    verify(target_idx=1000)
