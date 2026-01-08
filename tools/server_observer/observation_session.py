@@ -74,7 +74,8 @@ class ObservationWorker:
         self.storage.save_request_response(ts, request_payload, response)
         if asizeof.asizeof(response) >= 1024 * 300:
             logger.warning(f"Large response size detected for game {self.game_id} ({asizeof.asizeof(response)} bytes)")
-            self.fat_session = False
+            # Flag the session so the observer can restart with a fresh context
+            self.fat_session = True
 
         self.storage.update_resume_metadata({
             "time_stamps": self.game_itf.time_stamps,
