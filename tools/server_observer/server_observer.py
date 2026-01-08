@@ -15,6 +15,9 @@ from typing import List
 from typing import Optional
 from typing import Set
 
+from httpx import HTTPTransport
+from memory_profiler import profile
+
 from tools.server_observer.observation_session import ObservationSession
 from tools.server_observer.static_map_cache import StaticMapCache
 from tools.server_observer.recording_registry import RecordingRegistry
@@ -41,6 +44,7 @@ class ServerObserver:
     def __init__(self, config: dict, account_pool: Optional[AccountPool] = None):
         self.config = config
         self.account_pool = account_pool
+        self.http_transport = HTTPTransport(retries=3)
 
         self.scenario_ids: List[int] = config.get("scenario_ids", [])
         self.record_percentage: float = self._normalize_percentage(config.get("record_percentage", 1.0))
@@ -118,9 +122,10 @@ class ServerObserver:
                 seen_games.add(game.game_id)
                 yield scenario_id, game
 
-    def _build_observer(self, per_game_config: dict, account: Optional[Account]) -> ObservationSession:
+    def _build_observer(self, per_game_config: dict, account: Account) -> ObservationSession:
         return ObservationSession(
             per_game_config,
+            transport=self.http_transport,
             account=account,
             map_cache=self._map_cache,
         )

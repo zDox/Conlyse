@@ -8,6 +8,7 @@ import threading
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from memory_profiler import profile
 
 import zstandard as zstd
 
@@ -126,6 +127,8 @@ class RecordingStorage:
             f.write(timestamp_ms.to_bytes(8, 'big'))
             f.write(len(data).to_bytes(4, 'big'))
             f.write(data)
+            f.flush()
+        del data
 
     def save_game_state(self, timestamp: float, game_state: GameState):
         if not self.save_game_states:
@@ -150,21 +153,22 @@ class RecordingStorage:
 
         logger.info(f"Saved game state at timestamp {timestamp}")
 
+    @profile
     def save_request_response(self, timestamp: float, request_json: dict, response_json: dict):
         # MEMORY OPTIMIZATION: Process and write immediately without holding references
         timestamp_ms = int(timestamp * 1000)
 
         # Process request
         request_str = json.dumps(request_json)
-        compressed_request = self._compressor.compress(request_str.encode("utf-8"))
-        self.append_bytes_to_file(self.requests_file, timestamp_ms, compressed_request)
-        del request_str, compressed_request
+        # compressed_request = zstd.ZstdCompressor(level=3).compress(request_str.encode("utf-8"))
+        self.append_bytes_to_file(self.requests_file, timestamp_ms, request_str.encode("utf-8"))
+        del request_str
 
         # Process response
         response_str = json.dumps(response_json)
-        compressed_response = self._compressor.compress(response_str.encode("utf-8"))
-        self.append_bytes_to_file(self.responses_file, timestamp_ms, compressed_response)
-        del response_str, compressed_response
+        # compressed_response = zstd.ZstdCompressor(level=3).compress(response_str.encode("utf-8"))
+        self.append_bytes_to_file(self.responses_file, timestamp_ms, response_str.encode("utf-8"))
+        del response_str
 
         # MEMORY OPTIMIZATION: Batch metadata updates
         with self._metadata_lock:

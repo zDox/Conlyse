@@ -1,6 +1,5 @@
 import gc
 import re
-import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC
@@ -83,22 +82,6 @@ class GameApi:
         else:
             self.proxy = defaultdict()
 
-    @classmethod
-    def from_static(cls) -> "GameApi":
-        instance = cls(session=CloudScraper.create_scraper(disableCloudflareV2=True,
-                                                           stealth_options={
-                                                               'min_delay': 0.01,
-                                                               'max_delay': 1,
-                                                               'human_like_delays': True,
-                                                               'randomize_headers': True,
-                                                               'browser_quirks': True
-                                                           }
-                                                           ),
-                       auth_details=None,
-                       game_id=0,
-                       proxy=None)
-        return instance
-
     def set_proxy(self, proxy: dict):
         self.proxy = proxy
 
@@ -175,7 +158,6 @@ class GameApi:
         self.load_game_php()
         self.load_index_html()
 
-
     def make_game_server_request(self, parameters):
         headers = {
             'Accept': 'text/plain, */*; q=0.01',
@@ -206,18 +188,17 @@ class GameApi:
         logger.debug(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
         self.request_id += 1
         with Session() as session:
-            session.headers.update(self.session.headers)
-            session.proxies.update(self.session.proxies)
-            session.cookies.update(self.session.cookies)
             with session.post(self.game_server_address,
-                                         headers=headers,
-                                         data=dumps(data),
-                                         proxies=self.proxy,
-                                        stream=True) as response:
+                                             headers=headers,
+                                            cookies=self.session.cookies,
+                                             data=dumps(data),
+                                             proxies=self.proxy,
+                                            stream=True) as response:
+
                 response.raise_for_status()
                 response_json = response.json()
+            del response
         del session
-        del response
 
         if not type(response_json["result"]) is int:
             if "timeStamp" in response_json["result"]:

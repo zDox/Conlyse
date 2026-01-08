@@ -70,7 +70,6 @@ setup(
         "lxml",
         "numpy",
         "shapely",
-        "jsonpatch",
         "cloudscraper25",
         "msgpack",
         "zstandard",

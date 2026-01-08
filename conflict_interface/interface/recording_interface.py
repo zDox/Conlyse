@@ -36,7 +36,6 @@ class RecordingInterface:
         self.game_api: GameApi = GameApi(session, auth_details, game_id, proxy=proxy)
         self.state_ids, self.time_stamps = HashMap(), HashMap()
         self.__init_callbacks()
-        self._patch_game_api()
 
     def set_proxy(self, proxy: dict):
         self.game_api.set_proxy(proxy)
@@ -82,25 +81,6 @@ class RecordingInterface:
         self._extract_state_metadata(response)
         return response
 
-    def _patch_game_api(self):
-        original_request = self.game_api.make_game_server_request
-
-        def patched_request(*args, **kwargs):
-            start_req = time()
-            request_payload = args[0] if args else kwargs.get("parameters", {})
-            response = original_request(*args, **kwargs)
-            elapsed_ms = (time() - start_req) * 1000.0
-            if self._request_response_cb:
-                self._request_response_cb(request_payload or {}, response, elapsed_ms)
-            return response
-
-        self.game_api.make_game_server_request = patched_request
-
-    def set_request_response_callback(self, cb: Optional[Callable[[dict, dict, float], None]]):
-        self._request_response_cb = cb
-
-    def set_update_callback(self, cb: Optional[Callable[[float], None]]):
-        self._update_cb = cb
 
     def _extract_state_metadata(self, response) -> bool:
         """

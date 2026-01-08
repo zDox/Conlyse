@@ -6,16 +6,17 @@ from time import sleep
 from time import time
 from typing import Optional
 
+from httpx import HTTPTransport
 from pympler import asizeof
 
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.interface import HubInterface
 from conflict_interface.interface import RecordingInterface
-from tools.server_observer.static_map_cache import StaticMapCache
 from tools.server_observer.account import Account
-from tools.server_observer.storage import RecordingStorage
-
+from tools.server_observer.oberservation_api import ObservationApi
 from tools.server_observer.recorder_logger import get_logger
+from tools.server_observer.static_map_cache import StaticMapCache
+from tools.server_observer.storage import RecordingStorage
 
 logger = get_logger()
 
@@ -32,8 +33,9 @@ class ObservationSession:
     def __init__(
         self,
         config: dict,
-        account: Optional[Account],
+        account: Account,
         map_cache: StaticMapCache,
+        transport: HTTPTransport
     ):
         self.config = config
         self.account = account
@@ -47,6 +49,7 @@ class ObservationSession:
         self.max_updates = config.get("max_updates")
         self.max_duration = config.get("max_duration")
         self.fat_session = False
+        self.transport = transport
 
     def _setup_storage(self):
         output_dir = self.config.get("output_dir", "./recordings")
@@ -59,29 +62,20 @@ class ObservationSession:
     def _get_hub_interface(self) -> Optional[HubInterface]:
         if self.account:
             return self.account.get_interface()
-
-        username = self.config.get("username")
-        password = self.config.get("password")
-        proxy_url = self.config.get("proxy_url")
-        if not username or not password:
-            logger.error("Username and password are required when no account pool is provided")
-            return None
-        hub_itf = HubInterface()
-        if proxy_url:
-            hub_itf.set_proxy({"http": proxy_url, "https": proxy_url})
-        hub_itf.login(username, password)
-        return hub_itf
+        raise Exception("No account provided")
 
     def _on_request_response(self, request_payload: dict, response: dict, elapsed_ms: float):
         ts = time()
-        self.storage.save_request_response(ts, request_payload or {}, response)
+        self.storage.save_request_response(ts, request_payload, response)
         if asizeof.asizeof(response) >= 1024 * 300:
-            self.fat_session = True
+            logger.warning(f"Large response size detected for game {self.game_id} ({asizeof.asizeof(response)} bytes)")
+            self.fat_session = False
 
         self.storage.update_resume_metadata({
             "time_stamps": self.game_itf.time_stamps,
             "state_ids": self.game_itf.state_ids,
         })
+        del response
 
     def _prepare(self) -> bool:
         self.hub_itf = self._get_hub_interface()
@@ -91,23 +85,37 @@ class ObservationSession:
             game_id=self.game_id,
             session=self.hub_itf.api.session,
             auth_details=self.hub_itf.api.auth,
-            proxy=self.hub_itf.api.proxy
+
         )
         self.game_itf.game_api.load_game_site()
-        self.game_itf.set_request_response_callback(self._on_request_response)
 
-        if self.storage.get_resume_metadata():
+        game_api = ObservationApi(
+            self.transport,
+            dict(self.game_itf.game_api.session.headers),
+            dict(self.game_itf.game_api.session.cookies),
+            self.game_itf.game_api.auth,
+            self.game_itf.game_api.game_id,
+            self.game_itf.game_api.game_server_address,
+            self.game_itf.game_api.client_version,
+            self.hub_itf.api.proxy
+        )
+        self.game_itf.game_api = game_api
+
+        if self.storage.get_resume_metadata() and False:
             self.game_itf.time_stamps = HashMap(self.storage.resume_metadata.get("time_stamps", {}))
             self.game_itf.state_ids = HashMap(self.storage.resume_metadata.get("state_ids", {}))
             game_state = self.game_itf._request_game_state(send_state_ids=True)
+            self._on_request_response({}, game_state, 0.0)
         else:
             game_state = self.game_itf._request_game_state(send_state_ids=False)
+            self._on_request_response({}, game_state, 0.0)
             map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
             # Check if static map data is available locally
             if not self.map_cache.is_cached(map_id):
                 logger.info(f"Downloading static map data for map_id {map_id}")
                 static_map_data = self.game_itf.game_api.get_static_map_data()
                 self.map_cache.save(map_id, static_map_data)
+            del game_state
         gc.collect()
 
         return True
@@ -117,7 +125,8 @@ class ObservationSession:
         start_time = time()
         while True:
             logger.info(f"Sending update {updates_done} for game {self.game_id}")
-            state = self.game_itf.update()
+            state = self.game_itf._request_game_state(True)
+            self._on_request_response({}, state, 0.0)
             updates_done += 1
             if self._is_game_ended(state):
                 logger.info(f"Game {self.game_id} ended, stopping observation.")

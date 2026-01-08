@@ -3,6 +3,8 @@ from dataclasses import fields
 from functools import wraps
 from typing import cast
 
+from memory_profiler import profile
+
 from conflict_interface.data_types.game_object_json import parse_any
 from conflict_interface.data_types.hub_types.hub_game import HubGame
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
@@ -25,7 +27,7 @@ def protected(func):
     return wrapper
 
 
-
+@profile
 class HubInterface:
     def __init__(self, proxy: dict = None):
         self.api: HubApi = HubApi(proxy)
