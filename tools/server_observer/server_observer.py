@@ -227,11 +227,15 @@ class ServerObserver:
                     self.registry.mark_completed(game_id)
                 self._decrement_account(observer.account)
                 observer.close()
+                self.observer_sessions.pop(game_id, None)
+                self._known_games.add(game_id)
         except Exception as exc:
             self.registry.mark_failed(game_id, "execution_failed")
             logger.error(f"Observation for game {game_id} failed: {exc}")
             self._decrement_account(observer.account)
             observer.close()
+            self.observer_sessions.pop(game_id, None)
+            self._known_games.add(game_id)
         finally:
             with self._threads_lock:
                 self._active_threads.discard(current_thread())
@@ -249,6 +253,9 @@ class ServerObserver:
                 break
             if not observer.needs_update(now):
                 self._update_queue.put(observer)
+                wait_time = max(0.0, observer.next_update_at - now)
+                if wait_time:
+                    self._stop_event.wait(min(wait_time, self.scan_interval))
                 break
             thread = Thread(target=self._run_single_update, args=(observer,), name=f"observer-{observer.game_id}", daemon=True)
             with self._threads_lock:
@@ -289,7 +296,7 @@ class ServerObserver:
         finally:
             self._stop_event.set()
             if self._scan_thread:
-                self._scan_thread.join(timeout=self.scan_interval)
+                self._scan_thread.join()
             with self._threads_lock:
                 threads = list(self._active_threads)
             for thread in threads:
