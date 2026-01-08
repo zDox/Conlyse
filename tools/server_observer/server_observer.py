@@ -12,7 +12,6 @@ from threading import Event
 from threading import Lock
 from threading import Thread
 from threading import current_thread
-from time import sleep
 from time import time
 from typing import Dict
 from typing import Iterable
@@ -21,18 +20,16 @@ from typing import Optional
 from typing import Set
 
 from httpx import HTTPTransport
-from memory_profiler import profile
-
-from tools.server_observer.observation_session import ObservationWorker
-from tools.server_observer.static_map_cache import StaticMapCache
-from tools.server_observer.recording_registry import RecordingRegistry
 
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from tools.server_observer.account import Account
 from tools.server_observer.account_pool import AccountPool
+from tools.server_observer.observation_session import ObservationWorker
 from tools.server_observer.recorder_logger import get_logger
+from tools.server_observer.recording_registry import RecordingRegistry
+from tools.server_observer.static_map_cache import StaticMapCache
 
 logger = get_logger()
 THREAD_JOIN_TIMEOUT = 1.0
@@ -215,6 +212,9 @@ class ServerObserver:
             if game_id in self.observer_sessions:
                 continue
             logger.info(f"Resuming observation for game {game_id}")
+            if len(self.observer_sessions) >= self.max_parallel:
+                logger.warning(f"Skipping resume for game {game_id} due to max parallel limit")
+                continue
             self._queue_observation(game_id, scenario_id)
 
     def _run_single_update(self, observer: ObservationWorker):
@@ -257,6 +257,7 @@ class ServerObserver:
                 deferred.append(observer)
                 continue
             thread = Thread(target=self._run_single_update, args=(observer,), name=f"observer-{observer.game_id}", daemon=True)
+            logger.info(f"Starting ObserverWorker thread for game {observer.game_id}")
             with self._threads_lock:
                 self._active_threads.add(thread)
             thread.start()

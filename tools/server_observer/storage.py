@@ -153,7 +153,6 @@ class RecordingStorage:
 
         logger.info(f"Saved game state at timestamp {timestamp}")
 
-    @profile
     def save_request_response(self, timestamp: float, request_json: dict, response_json: dict):
         # MEMORY OPTIMIZATION: Process and write immediately without holding references
         timestamp_ms = int(timestamp * 1000)
@@ -215,9 +214,6 @@ class RecordingStorage:
         # Add file handlers when ready
         self.library_log_file_handler = add_file_handler(library_logger, self.library_log_file)
         self.recorder_log_file_handler = add_file_handler(recording_logger, self.recorder_log_file)
-
-        logger.info(f"Log recording started to: {self.recorder_log_file}")
-        library_logger.info(f"Library log recording started to: {self.library_log_file}")
 
     def save_static_map_data(self, static_map_data: StaticMapData):
         """

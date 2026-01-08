@@ -62,7 +62,6 @@ class ObservationWorker:
         output_path = Path(output_dir) / recording_name
         self.storage = RecordingStorage(str(output_path), self.save_game_states)
         self.storage.setup_logging()
-        logger.info(f"ServerObserver storage initialized at {output_path}")
 
     def _get_hub_interface(self) -> Optional[HubInterface]:
         if self.account:
@@ -74,8 +73,6 @@ class ObservationWorker:
         self.storage.save_request_response(ts, request_payload, response)
         if asizeof.asizeof(response) >= 1024 * 300:
             logger.warning(f"Large response size detected for game {self.game_id} ({asizeof.asizeof(response)} bytes)")
-            # Flag the session so the observer can restart with a fresh context
-            self.fat_session = True
 
         self.storage.update_resume_metadata({
             "time_stamps": self.game_itf.time_stamps,
@@ -91,7 +88,6 @@ class ObservationWorker:
             game_id=self.game_id,
             session=self.hub_itf.api.session,
             auth_details=self.hub_itf.api.auth,
-
         )
         self.game_itf.game_api.load_game_site()
 
@@ -178,23 +174,6 @@ class ObservationWorker:
             if isinstance(state, dict) and state.get("gameEnded"):
                 return True
         return False
-
-    def run(self) -> bool:
-        try:
-            if not self.ensure_prepared():
-                return False
-
-            keep_running = True
-            while keep_running:
-                keep_running = self.perform_update()
-                if keep_running:
-                    sleep(self.update_interval)
-            return True
-        except Exception as exc:
-            logger.error(f"Observation for game {self.game_id} failed: {exc}")
-            return False
-        finally:
-            self.close()
 
     def close(self):
         # Clean up to free memory

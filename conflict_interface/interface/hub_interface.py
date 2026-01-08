@@ -27,7 +27,6 @@ def protected(func):
     return wrapper
 
 
-@profile
 class HubInterface:
     def __init__(self, proxy: dict = None):
         self.api: HubApi = HubApi(proxy)
