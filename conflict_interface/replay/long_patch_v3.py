@@ -3,6 +3,7 @@ import time
 from collections import deque
 from datetime import timezone, datetime
 
+from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object_json import dump_any
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.replay.apply_replay_helper import apply_operation
@@ -13,10 +14,6 @@ from conflict_interface.replay.path_tree import PathTree
 from conflict_interface.replay.replay import Replay
 from paths import TEST_DATA
 from tests.helper_functions import compare_dicts
-
-
-class Node:
-    __slots__ = ("value", "children")
 
 
 # ============================================================================
@@ -31,47 +28,37 @@ def build_op_tree_v2(patch_path: list[PatchGraphNode], path_tree: PathTree):
     for patch_node in patch_path:
         changed_paths.update(patch_node.paths)
 
-    op_tree = Node.__new__(Node)
-    op_tree.children = {}
-    op_tree.value = None
-    idx_to_opnode = {path_tree.root.index: op_tree}
+    idx_to_opnode = {}
 
     adj = path_tree.build_steiner_tree(list(changed_paths))
 
-    q = deque([(path_tree.root.index, op_tree)])
+    q = deque([path_tree.root.index])
     pop = q.popleft
     add = q.append
 
     while q:
-        u, parent = pop()
-
+        u = pop()
+        idx_to_opnode[u] = None
         for v in adj.get(u, []):
-            new_node = Node.__new__(Node)
-            new_node.children = {}
-            new_node.value = None
-
-            parent.children[v] = new_node
-            idx_to_opnode[v] = new_node
-
-            add((v, new_node))
+            add(v)
 
     t = -1
     for patch_node in patch_path:
         for op_type, path, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
             t += 1
-            old_value = idx_to_opnode[path].value
-            idx_to_opnode[path].value = (op_type, path, value, t)
+            old_value = idx_to_opnode[path]
+            idx_to_opnode[path] = (op_type, path, value, t)
 
             # REMOVE + ADD = REPLACE
             if old_value is not None and old_value[0] == REMOVE_OPERATION and op_type == ADD_OPERATION:
-                idx_to_opnode[path].value = (REPLACE_OPERATION, path, value, t)
+                idx_to_opnode[path] = (REPLACE_OPERATION, path, value, t)
 
             # ADD + REMOVE = NO OP
             if old_value is not None and old_value[0] == ADD_OPERATION and op_type == REMOVE_OPERATION:
-                idx_to_opnode[path].value = (-1, -1, -1, t)  # If a newly added value gets removed then nothing happened
+                idx_to_opnode[path] = (-1, -1, -1, t)  # If a newly added value gets removed then nothing happened
 
     op_types, paths, values = collapse_op_tree(idx_to_opnode, adj, path_tree)
-    #print_op_tree(op_tree, path_tree)
+    #print_op_tree(adj, idx_to_opnode, path_tree)
 
     return op_types, paths, values
 
@@ -92,20 +79,16 @@ def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
     while q:
         u = pop()
 
-        node = idx_to_opnode[u]
-        if node.value is not None:
-            if node.value[0] == -1: continue
-            for v in adj.get(u, []):
-                child_node = idx_to_opnode[v]
-                if child_node.value is not None and child_node.value[3] > node.value[3]:
-                    assert child_node.value[1] == v
-                    apply_operation(child_node.value[0], child_node.value[2], node.value[2],
-                                    path_tree.idx_to_node[v].path_element)
+        value = idx_to_opnode[u]
+        if value is not None:
+            if value[0] == -1: continue
 
-            op_types.append(node.value[0])
-            paths.append(node.value[1])
-            values.append(node.value[2])
-            times.append(node.value[3])
+            dfs_apply_ops(u, adj, value[2], idx_to_opnode, path_tree)
+
+            op_types.append(value[0])
+            paths.append(value[1])
+            values.append(value[2])
+            times.append(value[3])
 
         else:
             for v in adj.get(u, []):
@@ -115,6 +98,32 @@ def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
         *sorted(zip(times, op_types, paths, values))
     )
     return list(sorted_op_types), list(sorted_paths), list(sorted_values)
+
+def dfs_apply_ops(u, adj, value, idx_to_opnode, path_tree):
+    children = adj.get(u, [])
+    if not children: return
+
+    for v in children:
+        dfs_apply_ops(v, adj, get_child(v, value, path_tree), idx_to_opnode, path_tree)
+
+    node_value = idx_to_opnode[u]
+    if node_value is None: return
+
+    node_time = node_value[3]
+
+    for v in children:
+        child_value = idx_to_opnode[v]
+
+        if child_value is None or child_value[3] < node_time: continue
+
+        apply_operation(child_value[0], child_value[2], value, path_tree.idx_to_node[v].path_element)
+
+def get_child(v, value, path_tree:PathTree):
+    idx = path_tree.idx_to_node[v].path_element
+    if isinstance(value, GameObject):
+        return getattr(value, idx)
+    else:
+        return value[idx]
 
 
 # ============================================================================
@@ -161,7 +170,7 @@ def quick_bench(target_idx=6000, runs=20):
 
     return min_time, op_tree
 
-def print_op_tree(root: Node, path_tree: PathTree):
+def print_op_tree(adj, idx_to_opnode, path_tree: PathTree):
     print("=" * 80)
     print(f"OPERATION TREE")
     print("=" * 80)
@@ -172,22 +181,22 @@ def print_op_tree(root: Node, path_tree: PathTree):
         REPLACE_OPERATION: "REPLACE",
         -1: "NO OP",
     }
-    stack = [(root, 0, None)]  # (node, depth, path_idx)
+    stack = [(path_tree.root.index, 0)]  # (node, depth, path_idx)
 
     while stack:
-        node, depth, idx = stack.pop()
+        idx, depth = stack.pop()
 
         indent = "   " * depth
-
-        if node.value is None:
+        value = idx_to_opnode[idx]
+        if value is None:
             print(f"{indent}{idx}")
         else:
-            if node.value[0] == -1:
-                print(f"{indent}{idx} t: {node.value[3]} {op_names[node.value[0]]}")
+            if value[0] == -1:
+                print(f"{indent}{idx} t: {value[3]} {op_names[value[0]]}")
             else:
-                print(f"{indent}{idx} t: {node.value[3]} {op_names[node.value[0]]} {path_tree.idx_to_node[node.value[1]].path_element} = {str(node.value[2])[:100]} ")
-        for child_idx, child in reversed(node.children.items()):
-            stack.append((child, depth + 1, child_idx))
+                print(f"{indent}{idx} t: {value[3]} {op_names[value[0]]} {path_tree.idx_to_node[value[1]].path_element} = {str(value[2])[:100]} ")
+        for child_idx in reversed(adj.get(idx, [])):
+            stack.append((child_idx, depth + 1))
 
 
 
