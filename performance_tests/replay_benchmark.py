@@ -103,7 +103,7 @@ class ReplayBenchmark:
 
         self.print_summary()
 
-    def test_next_patch(self, iterations=10):
+    def test_next_patch(self, iterations=1):
         print(f"Running Next Patch Test ({iterations} iterations)...")
         metrics_list = []
 
@@ -144,7 +144,7 @@ class ReplayBenchmark:
         self.results.append(results)
         self.print_results(results)
 
-    def test_random_jump(self, iterations=10):
+    def test_random_jump(self, iterations=10000):
         print(f"\nRunning Random Jump Test ({iterations} iterations)...")
         metrics_list = []
 
@@ -153,7 +153,7 @@ class ReplayBenchmark:
             random_ts = self.get_random_timestamp()
             patches_applied = len(
                 self.replay_interface._replay.storage.patch_graph.find_patch_path(
-                    self.replay_interface.last_patch_time, random_ts
+                    self.replay_interface.last_time, random_ts
                 )
             )
 

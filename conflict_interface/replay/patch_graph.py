@@ -20,7 +20,7 @@ class PatchGraph:
         self.time_to_dense_idx: dict[int, int] = {}
         self.dense_idx_to_time: dict[int, int] = {}
         self.graph_lil = None
-        self.graph = None
+        self.graph_csr = None
         self.graph_is_up_to_date = False
 
     @staticmethod
@@ -80,7 +80,7 @@ class PatchGraph:
 
     def update_graph(self):
         if self.graph_is_up_to_date: return
-        self.graph = self.graph_lil.tocsr()
+        self.graph_csr = self.graph_lil.tocsr()
         self.graph_is_up_to_date = True
 
     def create_dense_indices(self):
@@ -121,7 +121,7 @@ class PatchGraph:
         dst = self.time_to_dense_idx[to_time]
 
         p = dijkstra(
-            self.graph,
+            self.graph_csr,
             directed=True,
             indices=src,
             return_predecessors=True,
