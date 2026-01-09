@@ -597,6 +597,8 @@ class HubApi:
                                          "global": "1",
                                          "page": str(page)},
                                         "getInternationalGames")
+            if isinstance(res, str):
+                break
             last_page = res["lastPage"]
             page += 1
             for game in res["games"]:

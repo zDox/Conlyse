@@ -5,10 +5,10 @@ import json
 import logging
 import pickle
 import threading
+import time
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from memory_profiler import profile
 
 import zstandard as zstd
 
@@ -24,7 +24,6 @@ class RecordingStorage:
     Handles storage of recorded game data.
 
     Files generated:
-    - game_states.bin: Compressed pickle dumps of GameState objects with timestamps
     - requests.jsonl.zst: Compressed JSON lines of request parameters sent to server
     - responses.jsonl.zst: Compressed JSON lines of responses from server
     - static_map_data.bin: Compressed pickle dump of StaticMapData
@@ -33,7 +32,7 @@ class RecordingStorage:
     - library.log: ConflictInterface library log
     """
 
-    def __init__(self, output_path: str, save_game_states: bool = False, overwrite: bool = False):
+    def __init__(self, output_path: str, overwrite: bool = False):
         """
         Initialize recording storage.
         
@@ -60,14 +59,6 @@ class RecordingStorage:
         self.log_thread_id: int | None = None
         self.resume_metadata: dict = {}
 
-        self.save_game_states = save_game_states
-
-        # MEMORY OPTIMIZATION: Cache metadata in memory and batch writes
-        self._metadata_cache = None
-        self._metadata_lock = threading.Lock()
-        self._pending_updates = []
-        self._metadata_batch_size = 100  # Write metadata every N updates
-
         # Initialize files
         if overwrite or not self.metadata_file.exists():
             self._init_files()
@@ -81,7 +72,6 @@ class RecordingStorage:
             "created_at": datetime.now().isoformat(),
             "updates": [],
         }
-        self._metadata_cache = metadata
         self._save_metadata(metadata)
 
     def _save_metadata(self, metadata: dict):
@@ -91,14 +81,11 @@ class RecordingStorage:
 
     def _load_metadata(self) -> dict:
         """Load metadata from file or cache."""
-        if self._metadata_cache is not None:
-            return self._metadata_cache
-
         if self.metadata_file.exists():
             with open(self.metadata_file, 'r') as f:
-                self._metadata_cache = json.load(f)
-                self.resume_metadata = self._metadata_cache.get("resume", {})
-                return self._metadata_cache
+                metadata_cache = json.load(f)
+                self.resume_metadata = metadata_cache.get("resume", {})
+                return metadata_cache
         else:
             logger.warning(f"Metadata file not found: {self.metadata_file}")
         return {"version": "1.0", "updates": []}
@@ -107,18 +94,13 @@ class RecordingStorage:
         """
         Persist resume information (auth, cookies, replay path, etc.) to metadata.json.
         """
-        with self._metadata_lock:
-            metadata = self._load_metadata()
-            metadata["resume"] = resume
-            self._metadata_cache = metadata
-            self._save_metadata(metadata)
-            self.resume_metadata = resume
+        metadata = self._load_metadata()
+        metadata["resume"] = resume
+        self._save_metadata(metadata)
+        self.resume_metadata = resume
 
     def get_resume_metadata(self) -> dict:
         return self.resume_metadata
-
-    def reset_compressor(self):
-        self._compressor = zstd.ZstdCompressor(level=3)
 
     @staticmethod
     def append_bytes_to_file(file_path: Path, timestamp_ms: int, data: bytes):
@@ -127,68 +109,18 @@ class RecordingStorage:
             f.write(timestamp_ms.to_bytes(8, 'big'))
             f.write(len(data).to_bytes(4, 'big'))
             f.write(data)
-            f.flush()
-        del data
 
-    def save_game_state(self, timestamp: float, game_state: GameState):
-        if not self.save_game_states:
-            return
-
-        # MEMORY OPTIMIZATION: Minimize time holding references
-        ritf = game_state.game
-        game_state.set_game(None)
-        try:
-            game_state_bytes = pickle.dumps(game_state)
-            compressed_state = self._compressor.compress(game_state_bytes)
-            # Clear the bytes immediately after compression
-            del game_state_bytes
-        finally:
-            game_state.set_game(ritf)
-
-        timestamp_ms = int(timestamp * 1000)
-        self.append_bytes_to_file(self.game_states_file, timestamp_ms, compressed_state)
-
-        # Clear compressed data
-        del compressed_state
-
-        logger.info(f"Saved game state at timestamp {timestamp}")
-
-    def save_request_response(self, timestamp: float, request_json: dict, response_json: dict):
-        # MEMORY OPTIMIZATION: Process and write immediately without holding references
-        timestamp_ms = int(timestamp * 1000)
-
-        # Process request
-        request_str = json.dumps(request_json)
-        # compressed_request = zstd.ZstdCompressor(level=3).compress(request_str.encode("utf-8"))
-        self.append_bytes_to_file(self.requests_file, timestamp_ms, request_str.encode("utf-8"))
-        del request_str
-
-        # Process response
-        response_str = json.dumps(response_json)
-        # compressed_response = zstd.ZstdCompressor(level=3).compress(response_str.encode("utf-8"))
-        self.append_bytes_to_file(self.responses_file, timestamp_ms, response_str.encode("utf-8"))
-        del response_str
-
-        # MEMORY OPTIMIZATION: Batch metadata updates
-        with self._metadata_lock:
-            self._pending_updates.append({
-                "timestamp": timestamp,
-                "datetime": datetime.fromtimestamp(timestamp, tz=UTC).isoformat()
-            })
-
-            # Only write metadata periodically to reduce I/O and memory churn
-            if len(self._pending_updates) >= self._metadata_batch_size:
-                self._flush_metadata_updates()
-
-    def _flush_metadata_updates(self):
-        """Flush pending metadata updates to disk."""
-        if not self._pending_updates:
-            return
+    def save_response(self, response: dict):
+        """Save response to file."""
+        response_str = json.dumps(response)
+        response_compressed = zstd.ZstdCompressor(level=3).compress(response_str.encode("utf-8"))
+        self.append_bytes_to_file(self.responses_file, int(time.time()), response_compressed)
 
         metadata = self._load_metadata()
-        metadata["updates"].extend(self._pending_updates)
-        self._pending_updates.clear()
-        self._metadata_cache = metadata
+        metadata["updates"].append({
+            "timestamp": time.time(),
+            "datetime": datetime.now(UTC).isoformat()
+        })
         self._save_metadata(metadata)
 
     def setup_logging(self):
@@ -245,9 +177,6 @@ class RecordingStorage:
     def teardown_logging(self):
         """Remove the file logging handler and flush remaining metadata."""
         # MEMORY OPTIMIZATION: Flush any remaining metadata updates
-        with self._metadata_lock:
-            self._flush_metadata_updates()
-
         if self.recorder_log_file_handler:
             logger.info("Log recording completed")
             logger.removeHandler(self.recorder_log_file_handler)
@@ -260,7 +189,3 @@ class RecordingStorage:
             library_logger.removeHandler(self.library_log_file_handler)
             self.library_log_file_handler.close()
             self.library_log_file_handler = None
-
-        # Clear caches
-        self._metadata_cache = None
-        self._pending_updates = None

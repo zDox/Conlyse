@@ -4,7 +4,6 @@ ServerObserver tool for lightweight recording of server responses across multipl
 from __future__ import annotations
 
 import gc
-import random
 from pathlib import Path
 from queue import Empty
 from queue import Queue
@@ -19,15 +18,12 @@ from typing import List
 from typing import Optional
 from typing import Set
 
-from httpx import HTTPTransport
-
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from tools.server_observer.account import Account
 from tools.server_observer.account_pool import AccountPool
 from tools.server_observer.observation_session import ObservationSession
-from tools.server_observer.observation_session import ObservationWorker
 from tools.server_observer.recorder_logger import get_logger
 from tools.server_observer.recording_registry import RecordingRegistry
 from tools.server_observer.static_map_cache import StaticMapCache
@@ -45,14 +41,13 @@ class ServerObserver:
     for lightweight response logging without executing complex Recorder actions.
     """
 
-    def __init__(self, config: dict, account_pool: Optional[AccountPool] = None):
+    def __init__(self, config: dict, account_pool: AccountPool):
         self.config = config
         self.account_pool = account_pool
-        self.http_transport = HTTPTransport(retries=3)
 
         self.scenario_ids: List[int] = config.get("scenario_ids", [])
-        self.record_percentage: float = self._normalize_percentage(config.get("record_percentage", 1.0))
-        self.max_parallel: int = int(config.get("max_parallel_recordings", 1))
+        self.max_parallel_recordings: int = int(config.get("max_parallel_recordings", 1))
+        self.max_parallel_updates: int = int(config.get("max_parallel_updates", 1))
         self.scan_interval: float = float(config.get("scan_interval", 30))
         self.max_guest_per_account: Optional[int] = config.get("max_guest_games_per_account")
         self.update_interval: float = float(config.get("update_interval", 60.0))
@@ -76,14 +71,6 @@ class ServerObserver:
         self._map_cache = StaticMapCache(self.output_dir / "static_maps")
         self._known_games: Set[int] = set()
         self._refresh_known_games_from_registry()
-
-    @staticmethod
-    def _normalize_percentage(value) -> float:
-        try:
-            pct = float(value)
-        except (TypeError, ValueError):
-            return 1.0
-        return pct / 100.0 if pct > 1 else max(0.0, min(1.0, pct))
 
     def _get_listing_interface(self) -> Optional[HubInterface]:
         if self._listing_interface:
@@ -123,18 +110,8 @@ class ServerObserver:
             for game in joinable:
                 if game.game_id in seen_games:
                     continue
-                if random.random() >= self.record_percentage:
-                    continue
                 seen_games.add(game.game_id)
                 yield scenario_id, game
-
-    def _build_observer(self, per_game_config: dict, account: Optional[Account]) -> ObservationSession:
-        return ObservationSession(
-            per_game_config,
-            transport=self.http_transport,
-            account=account,
-            map_cache=self._map_cache,
-        )
 
     def _refresh_known_games_from_registry(self):
         self._known_games = {
@@ -142,21 +119,6 @@ class ServerObserver:
             for bucket in self.registry.state.values()
             for gid in bucket.keys()
         }
-
-    def _per_game_config(self, game_id: int, scenario_id: int) -> dict:
-        cfg = {
-            k: v
-            for k, v in self.config.items()
-            if k not in ("scenario_ids", "registry_path", "record_percentage", "max_parallel_recordings")
-        }
-        cfg["game_id"] = game_id
-        cfg["scenario_id"] = scenario_id
-        cfg["join_as_guest"] = True
-        cfg["recording_name"] = cfg.get("recording_name") or f"game_{game_id}"
-        cfg["update_interval"] = cfg.get("update_interval", self.update_interval)
-        cfg["record_requests"] = True
-        cfg.setdefault("output_dir", str(self.output_dir))
-        return cfg
 
     def _pick_account(self) -> Optional[Account]:
         if not self.account_pool:
@@ -175,31 +137,21 @@ class ServerObserver:
         logger.error("No non-listing account available to start new observation")
         return None
 
-    def _increment_account(self, account: Optional[Account]):
-        if not account:
-            return
-        if self.account_pool:
-            self.account_pool.increment_guest_join(account)
-
-    def _decrement_account(self, account: Optional[Account]):
-        if not account:
-            return
-        if self.account_pool:
-            self.account_pool.decrement_guest_join(account)
-
-    def _queue_observation(self, game_id: int, scenario_id: int):
+    def _start_observation_session(self, game_id: int, scenario_id: int):
         account = self._pick_account()
         if self.account_pool and not account:
             logger.error("No free account available to start new observation")
             return
-        logger.info(f"Starting observation for game {game_id} with scenario {scenario_id}")
+        logger.info(f"Starting observation session for game {game_id} with scenario {scenario_id}")
 
-        cfg = self._per_game_config(game_id, scenario_id)
-        observer = self._build_observer(cfg, account)
-
+        observer = ObservationSession(
+            game_id,
+            account,
+            self._map_cache
+        )
         self.registry.mark_recording(game_id, scenario_id, None)
         self._known_games.add(game_id)
-        self._increment_account(account)
+        self.account_pool.increment_guest_join(account)
         self.observer_sessions[game_id] = observer
         observer.next_update_at = time()
         self._update_queue.put(observer)
@@ -213,33 +165,28 @@ class ServerObserver:
             if game_id in self.observer_sessions:
                 continue
             logger.info(f"Resuming observation for game {game_id}")
-            if len(self.observer_sessions) >= self.max_parallel:
+            if len(self.observer_sessions) >= self.max_parallel_recordings:
                 logger.warning(f"Skipping resume for game {game_id} due to max parallel limit")
                 continue
-            self._queue_observation(game_id, scenario_id)
+            self._start_observation_session(game_id, scenario_id)
 
     def _run_single_update(self, session: ObservationSession):
         game_id = session.game_id
         try:
             worker = session.create_worker()
-            if worker is None:
-                self.registry.mark_failed(game_id, "execution_failed")
-                return
             keep_running = worker.run()
             if keep_running:
+                session.next_update_at = time() + self.update_interval
                 self._update_queue.put(session)
             else:
-                if not session.fat_session:
-                    self.registry.mark_completed(game_id)
-                self._decrement_account(session.account)
-                session.close()
+                self.registry.mark_completed(game_id)
+                self.account_pool.decrement_guest_join(session.account)
                 self.observer_sessions.pop(game_id, None)
                 self._known_games.add(game_id)
         except Exception as exc:
             self.registry.mark_failed(game_id, "execution_failed")
             logger.error(f"Observation for game {game_id} failed: {exc}")
-            self._decrement_account(session.account)
-            session.close()
+            self.account_pool.decrement_guest_join(session.account)
             self.observer_sessions.pop(game_id, None)
             self._known_games.add(game_id)
         finally:
@@ -252,7 +199,7 @@ class ServerObserver:
         deferred: List[ObservationSession] = []
         while True:
             with self._threads_lock:
-                if len(self._active_threads) >= self.max_parallel:
+                if len(self._active_threads) >= self.max_parallel_updates:
                     break
             try:
                 observer = self._update_queue.get_nowait()
@@ -288,22 +235,20 @@ class ServerObserver:
                 for scenario_id, game in self._select_games(interface):
                     if game.game_id in self.observer_sessions:
                         continue
-                    self._queue_observation(game.game_id, scenario_id)
+                    if len(self.observer_sessions) >= self.max_parallel_recordings:
+                        continue
+                    self._start_observation_session(game.game_id, scenario_id)
             self._stop_event.wait(self.scan_interval)
 
-    def run(self, iterations: Optional[int] = None) -> bool:
-        cycle = 0
+    def run(self) -> bool:
         self._stop_event.clear()
         self._resume_active()
         self._scan_thread = Thread(target=self._scan_loop, name="observer-scan", daemon=True)
         self._scan_thread.start()
         try:
-            while not self._stop_event.is_set() and (iterations is None or cycle < iterations):
+            while not self._stop_event.is_set():
                 self._clean_finished_threads()
                 self._start_due_updates()
-                cycle += 1
-                if iterations is None or cycle < iterations:
-                    self._stop_event.wait(0.1)
             return True
         finally:
             self._stop_event.set()

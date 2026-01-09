@@ -1,25 +1,24 @@
 import gc
 import re
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from functools import wraps
 from hashlib import sha1
 from json import dumps
 from time import time
 
 import httpx
-from cloudscraper25 import CloudScraper
 from httpx import HTTPTransport
-from lxml import html
-from requests import Session
 
 from conflict_interface.data_types.authentication import AuthDetails
-from conflict_interface.logger_config import get_logger
-from conflict_interface.utils.exceptions import CountryUnselectedException
-from conflict_interface.utils.exceptions import GameJoinException
+from conflict_interface.data_types.custom_types import HashMap
+from conflict_interface.data_types.custom_types import LinkedList
+from conflict_interface.data_types.game_api_types.game_state_action import GameStateAction
+from conflict_interface.data_types.game_object_json import dump_any
+from tools.server_observer.recorder_logger import get_logger
 from conflict_interface.utils.helper import unix_to_datetime
 
 logger = get_logger()
@@ -107,7 +106,7 @@ class ObservationApi:
             "userAuth": self.auth.auth,
             "lastCallDuration": 0,
         }
-        logger.debug(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
+        logger.info(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
         self.request_id += 1
         response = self.client.post(self.game_server_address,
                                          headers=headers,
@@ -175,3 +174,71 @@ class ObservationApi:
 
         response.raise_for_status()
         return response.json()
+
+    def request_game_state(self, state_ids: dict, time_stamps: dict) -> tuple[dict, dict, dict]:
+        if state_ids and time_stamps:
+            include_state_meta = True
+            state_ids = HashMap(state_ids)
+            time_stamps = HashMap(time_stamps)
+        else:
+            include_state_meta = False
+            state_ids = HashMap()
+            time_stamps = HashMap()
+
+        logger.info(f"Requesting game state with {len(state_ids) if state_ids is not None else 'None'} state IDs and {len(time_stamps) if time_stamps is not None else 'None'} timestamps, including state meta: {include_state_meta}")
+
+        action = GameStateAction(
+            state_type=0,
+            state_id="0",
+            add_state_ids_on_sent=include_state_meta,
+            option=None,
+            state_ids=state_ids if include_state_meta else None,
+            time_stamps=time_stamps if include_state_meta else None,
+            actions=LinkedList()
+        )
+
+        payload = dump_any(action)
+        response = self.make_game_server_request(payload)
+        extraction_result = self._extract_state_metadata(response, state_ids, time_stamps)
+        if not extraction_result:
+            raise Exception(f"Game state extraction failed for {response}")
+        return response, state_ids, time_stamps
+
+
+    def _extract_state_metadata(self, response, state_ids, time_stamps) -> bool:
+        """
+        Extract state IDs and timestamps from the last raw response
+        to enable incremental updates without parsing a GameState.
+        """
+        result = response.get("result")
+        if not isinstance(result, dict):
+            return False
+
+        states = result.get("states")
+        if not isinstance(states, dict):
+            return False
+
+        for state in states.values():
+            if not isinstance(state, dict):
+                continue
+            state_type_raw = state.get("stateType")
+            try:
+                state_type = int(state_type_raw)
+            except (TypeError, ValueError):
+                continue
+
+            state_id = state.get("stateID")
+            if state_id is not None:
+                state_ids[state_type] = str(state_id)
+
+            time_stamp = state.get("timeStamp")
+            if time_stamp is not None:
+                try:
+                    time_stamps[state_type] = int(time_stamp)
+                except (TypeError, ValueError):
+                    continue
+
+        if len(state_ids) == 0 or len(time_stamps) == 0:
+            return False
+
+        return True

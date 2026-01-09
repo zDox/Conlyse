@@ -55,8 +55,14 @@ class Account:
             "https": proxy_url,
         })
 
+    def login(self) -> bool:
+        if not self.hub_itf.auth:
+            return self.hub_itf.login(self.username, self.password)
+        return True
+
     def get_interface(self) -> HubInterface:
-        self.login()
+        if not self.hub_itf.auth:
+            self.hub_itf.login(self.username, self.password)
         return self.hub_itf
 
     def set_proxy(self, proxy: Proxy):
@@ -67,12 +73,6 @@ class Account:
             "http": self.proxy_url,
             "https": self.proxy_url,
         })
-
-    def login(self) -> bool:
-        if not self.hub_itf.auth:
-            return self.hub_itf.login(self.username, self.password)
-        else:
-            return True
 
     @ensure_games_loaded
     def has_maximum_games(self) -> bool:

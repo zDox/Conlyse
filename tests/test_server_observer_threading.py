@@ -61,7 +61,7 @@ def test_single_worker_runs_and_closes():
             return session
 
         observer._build_observer = build
-        observer._queue_observation(10, 1)
+        observer._start_observation_session(10, 1)
 
         observer.run(iterations=5)
 
@@ -102,8 +102,8 @@ def test_max_parallel_is_respected():
             return session
 
         observer._build_observer = build
-        observer._queue_observation(20, 1)
-        observer._queue_observation(21, 1)
+        observer._start_observation_session(20, 1)
+        observer._start_observation_session(21, 1)
 
         observer.run(iterations=10)
 

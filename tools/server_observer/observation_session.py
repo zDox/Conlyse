@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-import gc
-from pathlib import Path
+from dataclasses import asdict
+from dataclasses import dataclass
+from dataclasses import field
+from time import sleep
 from time import time
 from typing import Optional
 
 from httpx import HTTPTransport
 from pympler import asizeof
 
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.interface import HubInterface
-from conflict_interface.interface import RecordingInterface
+from conflict_interface.data_types.authentication import AuthDetails
+from conflict_interface.game_api import GameApi
 from tools.server_observer.account import Account
 from tools.server_observer.oberservation_api import ObservationApi
 from tools.server_observer.recorder_logger import get_logger
@@ -19,6 +20,18 @@ from tools.server_observer.storage import RecordingStorage
 
 logger = get_logger()
 
+@dataclass
+class ObservationPackage:
+    game_id: int = None
+    headers: dict = None
+    cookies: dict = None
+    proxy: dict = None
+    auth: AuthDetails = None
+    client_version: int = None
+    game_server_address: str = None
+
+    time_stamps: dict = field(default_factory=dict)
+    state_ids: dict = field(default_factory=dict)
 
 class ObservationSession:
     """
@@ -28,144 +41,84 @@ class ObservationSession:
 
     def __init__(
         self,
-        config: dict,
-        account: Optional[Account],
-        map_cache: StaticMapCache,
-        transport: HTTPTransport,
-    ):
-        self.config = config
+            game_id: int,
+            account: Account,
+            map_cache: StaticMapCache,
+        ):
         self.account = account
         self.map_cache = map_cache
-        self.transport = transport
-        self.game_id = config.get("game_id")
-        self.update_interval: float = float(config.get("update_interval", 60.0))
-        self.save_game_states: bool = False
-        self.max_updates = config.get("max_updates")
-        self.max_duration = config.get("max_duration")
-        self.scenario_id = config.get("scenario_id")
+        self.game_id = game_id
 
-        self.hub_itf: Optional[HubInterface] = None
-        self.storage: Optional[RecordingStorage] = None
+        self.storage_path: str = f"/recordings/game_{self.game_id}"
+        self.package = None
 
-        # captured connection data
-        self.headers = None
-        self.cookies = None
-        self.proxy = None
-        self.auth = None
-        self.client_version = None
-        self.game_server_address = None
-
-        self.fat_session = False
-        self._prepared = False
         self._start_time: Optional[float] = None
         self._updates_done = 0
         self.next_update_at: float = time()
 
-    def _setup_storage(self):
-        if self.storage:
-            return
-        output_dir = self.config.get("output_dir", "./recordings")
-        recording_name = self.config.get("recording_name") or f"game_{self.game_id}"
-        output_path = Path(output_dir) / recording_name
-        self.storage = RecordingStorage(str(output_path), self.save_game_states)
-        self.storage.setup_logging()
-
-    def _get_hub_interface(self) -> Optional[HubInterface]:
-        if self.account:
-            return self.account.get_interface()
-        raise Exception("No account provided")
-
-    def _capture_connection_details(self, game_itf: RecordingInterface):
-        self.headers = dict(game_itf.game_api.session.headers)
-        self.cookies = dict(game_itf.game_api.session.cookies)
-        self.proxy = self.hub_itf.api.proxy if self.hub_itf else None
-        self.auth = game_itf.game_api.auth
-        self.client_version = game_itf.game_api.client_version
-        self.game_server_address = game_itf.game_api.game_server_address
-
-    def _prepare_interfaces(self) -> Optional[RecordingInterface]:
-        self.hub_itf = self._get_hub_interface()
-        if not self.hub_itf:
-            return None
-        game_itf = RecordingInterface(
-            game_id=self.game_id,
-            session=self.hub_itf.api.session,
-            auth_details=self.hub_itf.api.auth,
-        )
-        game_itf.game_api.load_game_site()
-        self._capture_connection_details(game_itf)
-        return game_itf
-
-    def _attach_observation_api(self, game_itf: RecordingInterface):
-        game_itf.game_api = ObservationApi(
-            self.transport,
-            self.headers,
-            self.cookies,
-            self.auth,
-            self.game_id,
-            self.game_server_address,
-            self.client_version,
-            self.proxy,
-        )
-
-    def _on_request_response(self, game_itf: RecordingInterface, request_payload: dict, response: dict, elapsed_ms: float):
-        ts = time()
-        self.storage.save_request_response(ts, request_payload, response)
-        if asizeof.asizeof(response) >= 1024 * 300:
-            logger.warning(f"Large response size detected for game {self.game_id} ({asizeof.asizeof(response)} bytes)")
-            self.fat_session = True
-
-        self.storage.update_resume_metadata({
-            "time_stamps": game_itf.time_stamps,
-            "state_ids": game_itf.state_ids,
-        })
-        del response
-
-    def _prepare(self) -> bool:
-        self._setup_storage()
-        game_itf = self._prepare_interfaces()
-        if not game_itf:
-            return False
-        self._attach_observation_api(game_itf)
-
-        if self.storage.get_resume_metadata() and False:
-            game_itf.time_stamps = HashMap(self.storage.resume_metadata.get("time_stamps", {}))
-            game_itf.state_ids = HashMap(self.storage.resume_metadata.get("state_ids", {}))
-            game_state = game_itf._request_game_state(send_state_ids=True)
-            self._on_request_response(game_itf, {}, game_state, 0.0)
-        else:
-            game_state = game_itf._request_game_state(send_state_ids=False)
-            self._on_request_response(game_itf, {}, game_state, 0.0)
-            map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
-            if not self.map_cache.is_cached(map_id):
-                logger.info(f"Downloading static map data for map_id {map_id}")
-                static_map_data = game_itf.game_api.get_static_map_data()
-                self.map_cache.save(map_id, static_map_data)
-            del game_state
-        gc.collect()
-        game_itf = None
-        return True
-
-    def ensure_prepared(self) -> bool:
-        if self._prepared:
-            return True
-        if not self._prepare():
-            return False
-        self._prepared = True
-        self._start_time = time()
-        self.next_update_at = self._start_time
-        return True
 
     def needs_update(self, now: float) -> bool:
         return now >= self.next_update_at
 
-    def perform_update(self) -> bool:
-        if not self.ensure_prepared():
+    def create_worker(self) -> ObservationWorker:
+        return ObservationWorker(self.account, self.game_id, self.package)
+
+    def update_package(self, other: ObservationPackage):
+        self.package = other
+
+
+class ObservationWorker:
+    """
+    Lightweight worker that performs a single update using the owning ObservationSession.
+    """
+
+    def __init__(self, account: Account, game_id: int, package: ObservationPackage = None):
+        self.account = account
+        self.game_id = game_id
+        self.storage = RecordingStorage(f"./recordings/game_{self.game_id}")
+        self.storage.setup_logging()
+        self.package: ObservationPackage = package
+        self.recording_itf = None
+
+
+    def _on_request_response(self, response: dict):
+        self.storage.save_response(response)
+        if asizeof.asizeof(response) >= 1024 * 300:
+            logger.warning(f"Large response size detected for game {self.game_id} ({asizeof.asizeof(response) / 1024} KB)")
+        del response
+        self.storage.update_resume_metadata(asdict(self.package))
+
+    def ensure_observation_package(self) -> bool:
+        if self.package is not None:
+            return True
+        if self.storage.get_resume_metadata():
+            resume_metadata = self.storage.get_resume_metadata()
+            auth = AuthDetails(**resume_metadata.pop("auth"))
+            resume_metadata["auth"] = auth
+            self.package = ObservationPackage(**resume_metadata)
+            return True
+
+        logger.info(f"Observation package not yet created, building package for game {self.game_id}")
+        hub_itf = self.account.get_interface()
+        if hub_itf is None:
             return False
-        worker = self.create_worker()
-        if worker is None:
-            return False
-        return worker.run()
+        game_api = GameApi(
+            session=hub_itf.api.session,
+            proxy=hub_itf.api.proxy,
+            game_id=self.game_id,
+            auth_details=hub_itf.api.auth
+        )
+        game_api.load_game_site()
+        self.package = ObservationPackage(
+            game_id = game_api.game_id,
+            headers = dict(game_api.session.headers),
+            cookies = dict(game_api.session.cookies),
+            proxy = dict(game_api.session.proxies),
+            auth = game_api.auth,
+            client_version = game_api.client_version,
+            game_server_address = game_api.game_server_address,
+        )
+        return True
 
     @staticmethod
     def _is_game_ended(response: Optional[dict]) -> bool:
@@ -182,54 +135,32 @@ class ObservationSession:
                 return True
         return False
 
-    def close(self):
-        if self.storage:
-            self.storage.teardown_logging()
-        if self.game_itf:
-            self.game_itf = None
-        if self.hub_itf:
-            self.hub_itf = None
-        self.storage = None
-
-    def create_worker(self) -> Optional["ObservationWorker"]:
-        if not self.ensure_prepared():
-            return None
-        return ObservationWorker(self)
-
-
-class ObservationWorker:
-    """
-    Lightweight worker that performs a single update using the owning ObservationSession.
-    """
-
-    def __init__(self, session: ObservationSession):
-        self.session = session
-        self.game_itf = RecordingInterface(
-            game_id=session.game_id,
-            session=session.hub_itf.api.session if session.hub_itf else None,
-            auth_details=session.hub_itf.api.auth if session.hub_itf else None,
-        )
-        session._attach_observation_api(self.game_itf)
-
     def run(self) -> bool:
-        sess = self.session
-        logger.info(f"Sending update {sess._updates_done} for game {sess.game_id}")
-        state = self.game_itf._request_game_state(True)
-        sess._on_request_response(self.game_itf, {}, state, 0.0)
-        sess._updates_done += 1
-        if sess._is_game_ended(state):
-            logger.info(f"Game {sess.game_id} ended, stopping observation.")
+        t1 = time()
+        self.storage.setup_logging()
+        logger.info(f"Starting update for game {self.game_id}")
+        self.ensure_observation_package()
+        t2 = time()
+        observation_api = ObservationApi(
+            HTTPTransport(),
+            headers=self.package.headers,
+            cookies=self.package.cookies,
+            proxy=self.package.proxy,
+            auth_details=self.package.auth,
+            game_id=self.game_id,
+            game_server_address=self.package.game_server_address,
+        )
+        t3 = time()
+        game_state, self.package.state_ids, self.package.time_stamps = observation_api.request_game_state(
+            self.package.state_ids,
+            self.package.time_stamps,
+        )
+        t4 = time()
+        self._on_request_response(game_state)
+        map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
+        t5 = time()
+        logger.info(f"Worker run took {t5 - t1:.2f} seconds for game {self.game_id} \n"
+                    f"Request: {t4 - t3:.2f}s, Response Saving: {(t5 - t4) * 1000:.2f} ms, Observation API Creation: {(t3 - t2) * 1000:.2f} ms, Package Creation: {(t2 - t1) * 1000:.2f} ms")
+        if self._is_game_ended(response=game_state):
             return False
-        if sess.max_updates is not None and sess._updates_done >= sess.max_updates:
-            logger.info("Reached configured maximum number of updates, stopping observation.")
-            return False
-        if sess.max_duration is not None and (time() - sess._start_time) >= sess.max_duration:
-            logger.info("Reached configured maximum observation duration, stopping.")
-            return False
-        del state
-        gc.collect()
-        if sess.fat_session:
-            logger.info(f"Restarting session {sess.game_id} due to large response size.")
-            return False
-        sess.next_update_at = time() + sess.update_interval
         return True
