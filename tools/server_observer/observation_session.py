@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import field
@@ -7,11 +8,14 @@ from time import sleep
 from time import time
 from typing import Optional
 
+import httpx
 from httpx import HTTPTransport
+from httpx import NetworkError
 from pympler import asizeof
 
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.game_api import GameApi
+from conflict_interface.utils.exceptions import AuthenticationException
 from tools.server_observer.account import Account
 from tools.server_observer.oberservation_api import ObservationApi
 from tools.server_observer.recorder_logger import get_logger
@@ -19,6 +23,9 @@ from tools.server_observer.static_map_cache import StaticMapCache
 from tools.server_observer.storage import RecordingStorage
 
 logger = get_logger()
+
+MAX_RETRIES = 3
+TIME_TILL_RETRY = 10
 
 @dataclass
 class ObservationPackage:
@@ -92,6 +99,7 @@ class ObservationWorker:
         if self.package is not None:
             return True
         if self.storage.get_resume_metadata():
+            logger.info(f"Resuming from Storage for game {self.game_id}")
             resume_metadata = self.storage.get_resume_metadata()
             auth = AuthDetails(**resume_metadata.pop("auth"))
             resume_metadata["auth"] = auth
@@ -99,6 +107,10 @@ class ObservationWorker:
             return True
 
         logger.info(f"Observation package not yet created, building package for game {self.game_id}")
+        self.package = self.create_observation_package()
+        return True
+
+    def create_observation_package(self) -> ObservationPackage:
         hub_itf = self.account.get_interface()
         if hub_itf is None:
             return False
@@ -109,16 +121,19 @@ class ObservationWorker:
             auth_details=hub_itf.api.auth
         )
         game_api.load_game_site()
-        self.package = ObservationPackage(
-            game_id = game_api.game_id,
-            headers = dict(game_api.session.headers),
-            cookies = dict(game_api.session.cookies),
-            proxy = dict(game_api.session.proxies),
-            auth = game_api.auth,
-            client_version = game_api.client_version,
-            game_server_address = game_api.game_server_address,
+        return ObservationPackage(
+            game_id=game_api.game_id,
+            headers=deepcopy(dict(game_api.session.headers)),
+            cookies=deepcopy(dict(game_api.session.cookies)),
+            proxy=deepcopy(dict(game_api.session.proxies)),
+            auth=deepcopy(game_api.auth),
+            client_version=game_api.client_version,
+            game_server_address=game_api.game_server_address,
         )
-        return True
+
+    def reset_package(self):
+        self.account.reset_interface()
+        self.package = self.create_observation_package()
 
     @staticmethod
     def _is_game_ended(response: Optional[dict]) -> bool:
@@ -136,31 +151,56 @@ class ObservationWorker:
         return False
 
     def run(self) -> bool:
-        t1 = time()
-        self.storage.setup_logging()
-        logger.info(f"Starting update for game {self.game_id}")
-        self.ensure_observation_package()
-        t2 = time()
-        observation_api = ObservationApi(
-            HTTPTransport(),
-            headers=self.package.headers,
-            cookies=self.package.cookies,
-            proxy=self.package.proxy,
-            auth_details=self.package.auth,
-            game_id=self.game_id,
-            game_server_address=self.package.game_server_address,
-        )
-        t3 = time()
-        game_state, self.package.state_ids, self.package.time_stamps = observation_api.request_game_state(
-            self.package.state_ids,
-            self.package.time_stamps,
-        )
-        t4 = time()
-        self._on_request_response(game_state)
-        map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
-        t5 = time()
-        logger.info(f"Worker run took {t5 - t1:.2f} seconds for game {self.game_id} \n"
-                    f"Request: {t4 - t3:.2f}s, Response Saving: {(t5 - t4) * 1000:.2f} ms, Observation API Creation: {(t3 - t2) * 1000:.2f} ms, Package Creation: {(t2 - t1) * 1000:.2f} ms")
-        if self._is_game_ended(response=game_state):
-            return False
-        return True
+        attempt = 1
+        while True:
+            t1 = time()
+            self.storage.setup_logging()
+            logger.info(f"Starting update for game {self.game_id}")
+            self.ensure_observation_package()
+            t2 = time()
+            observation_api = ObservationApi(
+                HTTPTransport(),
+                headers=self.package.headers,
+                cookies=self.package.cookies,
+                proxy=self.package.proxy,
+                auth_details=self.package.auth,
+                game_id=self.game_id,
+                game_server_address=self.package.game_server_address,
+            )
+            t3 = time()
+            try:
+                game_state, self.package.state_ids, self.package.time_stamps = observation_api.request_game_state(
+                    self.package.state_ids,
+                    self.package.time_stamps,
+                )
+            except AuthenticationException:
+                if attempt >= MAX_RETRIES:
+                    return False
+                logger.info(f"Authentication failed, resetting package and retrying...")
+                attempt += 1
+                self.reset_package()
+                continue
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 401:
+                    logger.info(f"Authentication failed, resetting package and retrying...")
+                    attempt += 1
+                    self.reset_package()
+                    continue
+                elif e.response.status_code >= 500:
+                    logger.warning(f"GameServer returned HTTP {e.response.status_code}, retrying in {TIME_TILL_RETRY} seconds...")
+                    sleep(TIME_TILL_RETRY)
+                    continue
+            except httpx.NetworkError or httpx.ReadTimeout:
+                logger.info(f"GameServer is not responding, retrying in {TIME_TILL_RETRY} seconds...")
+                sleep(TIME_TILL_RETRY)
+                continue
+
+            t4 = time()
+            self._on_request_response(game_state)
+            map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
+            t5 = time()
+            logger.info(f"Worker run took {t5 - t1:.2f} seconds for game {self.game_id} \n"
+                        f"Request: {t4 - t3:.2f}s, Response Saving: {(t5 - t4) * 1000:.2f} ms, Observation API Creation: {(t3 - t2) * 1000:.2f} ms, Package Creation: {(t2 - t1) * 1000:.2f} ms")
+            if self._is_game_ended(response=game_state):
+                return False
+            return True

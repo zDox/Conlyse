@@ -1,7 +1,6 @@
 import gc
 import re
 from collections import defaultdict
-from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
@@ -18,11 +17,13 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import LinkedList
 from conflict_interface.data_types.game_api_types.game_state_action import GameStateAction
 from conflict_interface.data_types.game_object_json import dump_any
-from tools.server_observer.recorder_logger import get_logger
+from conflict_interface.utils.exceptions import AuthenticationException
 from conflict_interface.utils.helper import unix_to_datetime
+from tools.server_observer.recorder_logger import get_logger
 
 logger = get_logger()
 SUPPORTED_CLIENT_VERSION = 207
+MAX_RETRIES = 3
 
 @dataclass
 class DeviceDetails:
@@ -80,53 +81,69 @@ class ObservationApi:
         self.proxy = defaultdict()
 
     def make_game_server_request(self, parameters):
-        headers = {
-            'Accept': 'text/plain, */*; q=0.01',
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            "Accept-Encoding": "gzip, deflate, br"
-        }
+        attempt = 0
 
-        hash_hex = sha1(("undefined" + str(int(time() * 1000)))
-                        .encode()).hexdigest()
+        while True:
+            headers = {
+                'Accept': 'text/plain, */*; q=0.01',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                "Accept-Encoding": "gzip, deflate, br"
+            }
 
-        payload = {
-            "requestID": self.request_id,
-            "language": "en",
-            **parameters,
-            "version": self.client_version,
-            "tstamp": str(self.auth.auth_tstamp),
-            "client": "con-client",
-            "hash": hash_hex,
-            "sessionTstamp": 0,
-            "gameID": str(self.game_id),
-            "playerID": self.player_id,
-            "siteUserID": str(self.auth.user_id),
-            "adminLevel": None,
-            "rights": self.auth.rights,
-            "userAuth": self.auth.auth,
-            "lastCallDuration": 0,
-        }
-        logger.info(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
-        self.request_id += 1
-        response = self.client.post(self.game_server_address,
-                                         headers=headers,
-                                        content=dumps(payload))
-        response.raise_for_status()
-        response_json = response.json()
-        response.close()
-        del response
+            hash_hex = sha1(("undefined" + str(int(time() * 1000))).encode()).hexdigest()
 
-        if not type(response_json["result"]) is int:
-            if "timeStamp" in response_json["result"]:
-                self.update_server_time(response_json["result"]["timeStamp"])
-        else:
-            self.update_server_time(0)
+            payload = {
+                "requestID": self.request_id,
+                "language": "en",
+                **parameters,
+                "version": self.client_version,
+                "tstamp": str(self.auth.auth_tstamp),
+                "client": "con-client",
+                "hash": hash_hex,
+                "sessionTstamp": 0,
+                "gameID": str(self.game_id),
+                "playerID": self.player_id,
+                "siteUserID": str(self.auth.user_id),
+                "adminLevel": None,
+                "rights": self.auth.rights,
+                "userAuth": self.auth.auth,
+                "lastCallDuration": 0,
+            }
+            logger.info(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
+            self.request_id += 1
 
-        if "result" in response_json and type(response_json["result"]) is dict:
-            if response_json["result"].get("@c") == "ultshared.UltAuthentificationException":
-                raise Exception(f"Authentfication failed while sending parameters {dumps(payload, indent=2)} to game server.")
-        gc.collect()
-        return response_json
+            response = self.client.post(self.game_server_address, headers=headers, content=dumps(payload))
+            response.raise_for_status()
+            response_json = response.json()
+            response.close()
+            del response
+
+            if not isinstance(response_json.get("result"), int):
+                if "timeStamp" in response_json["result"]:
+                    self.update_server_time(response_json["result"]["timeStamp"])
+            else:
+                self.update_server_time(0)
+
+            # Handle errors and recoverable switch
+            if isinstance(response_json.get("result"), dict):
+                err_class = response_json["result"].get("@c")
+                if err_class == "ultshared.UltAuthentificationException":
+                    raise AuthenticationException(
+                        f"Authentfication failed while sending parameters {dumps(payload, indent=2)} to game server.")
+                if err_class == "ultshared.rpc.UltSwitchServerException":
+                    # Update server address provided by server
+                    new_server = response_json["result"].get("newHostName")
+                    if new_server:
+                        logger.info(f"Switching game server to {new_server}")
+                        self.game_server_address = new_server
+
+                    # Retry
+                    if attempt >= MAX_RETRIES:
+                        raise Exception("Exceeded retries after server switch suggestion.")
+                    attempt += 1
+                    logger.info(f"Retrying after UltSwitchServerException (attempt {attempt}/{MAX_RETRIES})")
+                    continue  # re-issue the request
+            return response_json
 
     def client_time(self, time_scale) -> datetime:
         """
@@ -185,7 +202,7 @@ class ObservationApi:
             state_ids = HashMap()
             time_stamps = HashMap()
 
-        logger.info(f"Requesting game state with {len(state_ids) if state_ids is not None else 'None'} state IDs and {len(time_stamps) if time_stamps is not None else 'None'} timestamps, including state meta: {include_state_meta}")
+        logger.debug(f"Requesting game state with {len(state_ids) if state_ids is not None else 'None'} state IDs and {len(time_stamps) if time_stamps is not None else 'None'} timestamps, including state meta: {include_state_meta}")
 
         action = GameStateAction(
             state_type=0,

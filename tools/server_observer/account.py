@@ -65,6 +65,15 @@ class Account:
             self.hub_itf.login(self.username, self.password)
         return self.hub_itf
 
+    def reset_interface(self):
+        self.hub_itf = HubInterface({
+            "http": self.proxy_url,
+            "https": self.proxy_url,
+        })
+        self.games = None
+        self.hub_itf.login(self.username, self.password)
+
+
     def set_proxy(self, proxy: Proxy):
         self.proxy_id = proxy.id
         self.proxy_url = proxy.proxy_url

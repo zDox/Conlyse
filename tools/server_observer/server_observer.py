@@ -4,6 +4,7 @@ ServerObserver tool for lightweight recording of server responses across multipl
 from __future__ import annotations
 
 import gc
+from copy import deepcopy
 from pathlib import Path
 from queue import Empty
 from queue import Queue
@@ -175,6 +176,7 @@ class ServerObserver:
         try:
             worker = session.create_worker()
             keep_running = worker.run()
+            session.update_package(deepcopy(worker.package))
             if keep_running:
                 session.next_update_at = time() + self.update_interval
                 self._update_queue.put(session)
