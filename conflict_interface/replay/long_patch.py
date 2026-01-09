@@ -241,7 +241,7 @@ def create_adj_list(patch_path: list[PatchGraphNode], path_tree: PathTree):
     adj = path_tree.build_steiner_tree(list(changed_paths))
     return adj
 
-def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: PatchGraph, path_tree: PathTree) -> PatchGraphNode:
+def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: PatchGraph, path_tree: PathTree) -> PatchGraphNode | None:
     """
     Create a single consolidated patch spanning a time interval.
 
@@ -262,6 +262,7 @@ def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: Patch
         A PatchGraphNode representing the consolidated patch over
         the given time range.
     """
+    if from_time == to_time: return None
     shortest_path = patch_graph.find_patch_path(from_time, to_time)
     adj = create_adj_list(shortest_path, path_tree)
     op_tree = build_op_tree(shortest_path, adj, path_tree.root.index)
