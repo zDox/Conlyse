@@ -5,6 +5,7 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
+from conflict_interface.replay.path_tree_node import PathTreeNode
 
 logger = get_logger()
 
@@ -38,7 +39,7 @@ def apply_operation(op_type: int, value: Any, reference: GameObject | list | dic
         elif isinstance(reference, list) or isinstance(reference, dict):
             reference[pos] = value
         else:
-            raise ValueError(f"pos is not str or int it is: {type(pos)} for {pos}")
+            raise ValueError(f"Reference {str(reference)[:100]} is neither list, dict nor GameObject")
 
     # Add operation: Insert a new value
     if op_type == ADD_OPERATION:
@@ -63,32 +64,35 @@ def apply_operation(op_type: int, value: Any, reference: GameObject | list | dic
         else:
             reference.pop(pos)
 
-def get_child_reference(parent: GameObject | list | dict, path_element: str | int) -> GameObject | list | dict | None:
+def get_reference_from_direct_parent(node: PathTreeNode) -> GameObject | list | dict | None:
     """
     Get the child reference from a parent object based on the path element.
 
     Args:
-        parent: The parent object (GameObject, list, or dict)
-        path_element: The key/index to access the child
+        node: the node for which the reference is to be found
     Returns:
         The child reference or None if not found
     """
-    if isinstance(parent, GameObject):
-        if hasattr(parent, path_element):
-            return getattr(parent, path_element)
+    parent_reference = node.parent.reference
+    path_element = node.parent.path_element
+    if parent_reference is None:
+        raise ValueError(f"The parent node of node {node.path_element} has no reference set")
+    if isinstance(parent_reference, GameObject):
+        if hasattr(parent_reference, path_element):
+            return getattr(parent_reference, path_element)
         else:
-            raise ValueError(f"Parent object of type {type(parent)} has no attribute '{path_element}'")
-    elif isinstance(parent, list):
-        if not isinstance(path_element, int) or path_element < 0 or path_element >= len(parent):
-            raise IndexError(f"List index out of range: {path_element} for list of length {len(parent)}, parent is {parent}")
-        return parent[path_element]
-    elif isinstance(parent, dict):
+            raise ValueError(f"Parent object of type {type(parent_reference)} has no attribute '{path_element}'")
+    elif isinstance(parent_reference, list):
+        if not isinstance(path_element, int) or path_element < 0 or path_element >= len(parent_reference):
+            raise IndexError(f"List index out of range: {path_element} for list of length {len(parent_reference)}, parent is {node.parent.reference}")
+        return parent_reference[path_element]
+    elif isinstance(parent_reference, dict):
         if not isinstance(path_element, (str, int)):
             raise KeyError(f"Dict key must be a string or int but got {type(path_element)}")
-        if path_element not in parent:
-            raise KeyError(f"Dict has no key '{path_element}' Parent is {parent}")
+        if path_element not in parent_reference:
+            raise KeyError(f"Dict has no key '{path_element}' Parent is {parent_reference}")
 
-        return parent[path_element]
+        return parent_reference[path_element]
     else:
         return None
 

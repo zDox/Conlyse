@@ -53,6 +53,7 @@ test_extras = [
 
 extras_require["tests"] = tools_extras + test_extras
 
+
 # This call to setup() does all the work
 # noinspection PyPackageRequirements
 setup(
