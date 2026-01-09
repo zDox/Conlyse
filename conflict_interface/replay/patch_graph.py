@@ -1,5 +1,6 @@
 import bisect
 import heapq
+import time
 from datetime import datetime
 
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
@@ -66,7 +67,8 @@ class PatchGraph:
         if from_index < len(self.time_stamps_cache) and to_index < len(self.time_stamps_cache):
             from_time_exact = self.time_stamps_cache[from_index]
             to_time_exact = self.time_stamps_cache[to_index]
-            return self._find_patch_path_exact(from_time_exact, to_time_exact)
+            path = self._find_patch_path_exact(from_time_exact, to_time_exact)
+            return path
 
         raise ValueError("No exact patch timestamps found for the given time range.")
 

@@ -55,6 +55,10 @@ def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
         for op_type, path, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
             t += 1
             old_value = idx_to_opnode[path]
+            if old_value is None:
+                idx_to_opnode[path] = (op_type, path, value, t)
+                continue
+
             old_op_type = old_value[0]
 
             # REMOVE + ADD = REPLACE
