@@ -45,7 +45,11 @@ class PatchGraph:
 
         u = self.time_to_dense_idx[patch_node.from_timestamp]
         v = self.time_to_dense_idx[patch_node.to_timestamp]
-        self.graph_lil[u,v] = patch_node.cost
+
+        if self.graph_lil is None:
+            raise RuntimeError("Graph has not been initialized; call finalize() before add_edge")
+
+        self.graph_lil[u, v] = patch_node.cost
         self.graph_is_up_to_date = False
 
     def add_edge_and_vertices(self, patch_node: PatchGraphNode):
