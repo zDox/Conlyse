@@ -217,6 +217,8 @@ class ReplayInterface(GameInterface):
         path_tree = self._replay.storage.path_tree
         patch_graph = self._replay.storage.patch_graph
         long_patch_node = create_long_patch(from_time, to_time, patch_graph, path_tree)
+        if long_patch_node is None:
+            return []
         self._replay.storage.patch_graph.add_edge(long_patch_node)
         return [long_patch_node]
 
