@@ -23,7 +23,7 @@ from conflict_interface.replay.replay import Replay
 
 logger = get_logger()
 
-LONG_PATCH_THRESHOLD = 1000
+LONG_PATCH_THRESHOLD = 100
 
 class ReplayInterface(GameInterface):
     def __init__(self, file_path: Path | str, player_id: int | None = None, game_id: int | None = None):
@@ -142,7 +142,7 @@ class ReplayInterface(GameInterface):
             return
 
         patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, time_stamp)
-        if PatchGraph.cost(patches) > LONG_PATCH_THRESHOLD and create_long_patches:
+        if PatchGraph.cost(patches) > LONG_PATCH_THRESHOLD and len(patches) > 1 and create_long_patches:
             patches = self.create_and_save_long_patch(self.current_time, time_stamp)
 
         self._apply_patches_and_update_state(patches, time_stamp)
