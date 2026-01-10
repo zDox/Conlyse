@@ -12,7 +12,6 @@ from pathlib import Path
 
 import zstandard as zstd
 
-from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from tools.server_observer.recorder_logger import get_logger
 
@@ -124,8 +123,7 @@ class RecordingStorage:
         self._save_metadata(metadata)
 
     def setup_logging(self):
-        library_logger = logging.getLogger("con_itf")
-        recording_logger = logging.getLogger("rec")
+        recording_logger = logging.getLogger("sro")
 
         self.log_thread_id = threading.get_ident()
         allowed_thread = self.log_thread_id
@@ -144,7 +142,6 @@ class RecordingStorage:
             return file_handler
 
         # Add file handlers when ready
-        self.library_log_file_handler = add_file_handler(library_logger, self.library_log_file)
         self.recorder_log_file_handler = add_file_handler(recording_logger, self.recorder_log_file)
 
     def save_static_map_data(self, static_map_data: StaticMapData):

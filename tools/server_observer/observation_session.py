@@ -10,7 +10,6 @@ from typing import Optional
 
 import httpx
 from httpx import HTTPTransport
-from httpx import NetworkError
 from pympler import asizeof
 
 from conflict_interface.data_types.authentication import AuthDetails
@@ -153,11 +152,8 @@ class ObservationWorker:
     def run(self) -> bool:
         attempt = 1
         while True:
-            t1 = time()
-            self.storage.setup_logging()
             logger.info(f"Starting update for game {self.game_id}")
             self.ensure_observation_package()
-            t2 = time()
             observation_api = ObservationApi(
                 HTTPTransport(),
                 headers=self.package.headers,
@@ -167,12 +163,16 @@ class ObservationWorker:
                 game_id=self.game_id,
                 game_server_address=self.package.game_server_address,
             )
-            t3 = time()
             try:
                 game_state, self.package.state_ids, self.package.time_stamps = observation_api.request_game_state(
                     self.package.state_ids,
                     self.package.time_stamps,
                 )
+                self._on_request_response(game_state)
+                map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
+                if self._is_game_ended(response=game_state):
+                    return False
+                return True
             except AuthenticationException:
                 if attempt >= MAX_RETRIES:
                     return False
@@ -194,13 +194,4 @@ class ObservationWorker:
                 logger.info(f"GameServer is not responding, retrying in {TIME_TILL_RETRY} seconds...")
                 sleep(TIME_TILL_RETRY)
                 continue
-
-            t4 = time()
-            self._on_request_response(game_state)
-            map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
-            t5 = time()
-            logger.info(f"Worker run took {t5 - t1:.2f} seconds for game {self.game_id} \n"
-                        f"Request: {t4 - t3:.2f}s, Response Saving: {(t5 - t4) * 1000:.2f} ms, Observation API Creation: {(t3 - t2) * 1000:.2f} ms, Package Creation: {(t2 - t1) * 1000:.2f} ms")
-            if self._is_game_ended(response=game_state):
-                return False
-            return True
+        return False
