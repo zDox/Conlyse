@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
+from time import sleep
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QMetaObject
@@ -54,7 +55,7 @@ class ReplayManager:
         :return: Replay object if opened successfully, None otherwise
         """
         ritf = self.replays[file_path]
-        ritf.open("r")
+        ritf.open('r')
         self.active_replay_path = file_path
 
     def open_replay_async(self, file_path: str):
@@ -80,7 +81,6 @@ class ReplayManager:
             try:
                 replay = fut.result()  # raises if _open_replay failed
                 self.active_replay_path = file_path
-                logger.info(f"Opened replay successfully from {file_path}")
                 self.app.event_handler.publish(ReplayOpenCompleteEvent(file_path))
             except Exception as e:
                 logger.error(f"Failed to open replay: {e}")
