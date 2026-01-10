@@ -17,11 +17,11 @@ class PatchGraph:
         self.adj: dict[int, list[int]] = {}
 
         self.N: int = 0
-        self.time_to_dense_idx: dict[int, int] = {}
-        self.dense_idx_to_time: dict[int, int] = {}
-        self.graph_lil = None
-        self.graph_csr = None
-        self.graph_is_up_to_date = False
+        self.time_to_dense_idx: dict[int, int] = {} # Lookup table from a timestamp to a dense idx
+        self.dense_idx_to_time: dict[int, int] = {} # Lookup table from a dense idx to a timestamp
+        self.graph_lil = None # Graph in List to List format
+        self.graph_csr = None # Graph in Compressed Sparse row format
+        self.graph_is_up_to_date = False # graph csr == graph lil
 
     @staticmethod
     def cost(patch_path: list[PatchGraphNode]):
