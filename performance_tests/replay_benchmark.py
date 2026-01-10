@@ -1,225 +1,291 @@
+import gc
 import random
 import time
-from dataclasses import dataclass
-from typing import List
-import statistics
+import matplotlib.pyplot as plt
+import numpy as np
 
 from conflict_interface.interface.replay_interface import ReplayInterface
+from conflict_interface.replay.patch_graph import PatchGraph
 from paths import TEST_DATA
-from tools.recording_converter import RecordingConverter
-from tools.recording_converter.enums import OperatingMode
 
 
-@dataclass
-class BenchmarkMetrics:
-    """Stores metrics for a single benchmark run"""
-    duration_ms: float
-    patches_applied: int
-    operations_applied: int
-    ops_per_second: float
-    ops_per_patch: float
-    patches_per_second: float
+def benchmark_jump(ritf, from_time, to_time, create_long_patches=True):
+    """Benchmark a single jump operation."""
+    # Warmup
+    ritf.jump_to(from_time, create_long_patches=False)
+
+    # Calculate operations
+    ops = PatchGraph.cost(ritf._replay.storage.patch_graph.find_patch_path(from_time, to_time))
+
+    gc.collect()
+
+    # Measure jump time
+    t1 = time.perf_counter()
+    ritf.jump_to(to_time, create_long_patches=create_long_patches)
+    t2 = time.perf_counter()
+
+    jump_time = t2 - t1
+    ops_per_sec = ops / jump_time if jump_time > 0 else 0
+
+    return ops, jump_time, ops_per_sec
 
 
-@dataclass
-class BenchmarkResults:
-    """Aggregated results for multiple benchmark runs"""
-    test_name: str
-    iterations: int
-    metrics: List[BenchmarkMetrics]
+def benchmark_next_jump(ritf, from_time):
+    """Benchmark a jump to next patch."""
+    # Warmup
+    ritf.jump_to(from_time, create_long_patches=False)
 
-    @property
-    def avg_duration_ms(self) -> float:
-        return statistics.mean(m.duration_ms for m in self.metrics)
+    next_time = ritf.get_next_timestamp()
+    if next_time is None:
+        return None, None, None
 
-    @property
-    def avg_ops_per_second(self) -> float:
-        return statistics.mean(m.ops_per_second for m in self.metrics)
+    ops = PatchGraph.cost(ritf._replay.storage.patch_graph.find_patch_path(from_time, next_time))
 
-    @property
-    def avg_patches_per_second(self) -> float:
-        return statistics.mean(m.patches_per_second for m in self.metrics)
+    gc.collect()
 
-    @property
-    def avg_ops_per_patch(self) -> float:
-        return statistics.mean(m.ops_per_patch for m in self.metrics)
+    t1 = time.perf_counter()
+    ritf.jump_to_next_patch()
+    t2 = time.perf_counter()
 
-    @property
-    def median_duration_ms(self) -> float:
-        return statistics.median(m.duration_ms for m in self.metrics)
+    jump_time = t2 - t1
+    ops_per_sec = ops / jump_time if jump_time > 0 else 0
 
-    @property
-    def std_duration_ms(self) -> float:
-        return statistics.stdev(m.duration_ms for m in self.metrics) if len(self.metrics) > 1 else 0.0
-
-    @property
-    def min_duration_ms(self) -> float:
-        return min(m.duration_ms for m in self.metrics)
-
-    @property
-    def max_duration_ms(self) -> float:
-        return max(m.duration_ms for m in self.metrics)
+    return ops, jump_time, ops_per_sec
 
 
-class ReplayBenchmark:
-    def __init__(self):
-        self.replay_interface: ReplayInterface | None = None
-        self.recording_file_path = TEST_DATA / "test004"
-        self.results: List[BenchmarkResults] = []
+def benchmark_prev_jump(ritf, from_time):
+    """Benchmark a jump to previous patch."""
+    # Warmup
+    ritf.jump_to(from_time, create_long_patches=False)
 
-    def set_up(self):
-        #self.start_converter()
-        self.replay_interface = ReplayInterface(TEST_DATA / "test_replay.bin")
-        self.replay_interface.open(mode = 'r')
+    prev_time = ritf.get_previous_timestamp()
+    if prev_time is None:
+        return None, None, None
 
-    def start_converter(self):
-        # Create converter for replay conversion (gmr mode)
-        converter = RecordingConverter(
-            self.recording_file_path,
-            OperatingMode.rur
-        )
+    ops = PatchGraph.cost(ritf._replay.storage.patch_graph.find_patch_path(from_time, prev_time))
 
-        # Convert to replay
-        success = converter.convert(
-            output=TEST_DATA / "test_replay.bin",
-            overwrite=True,
-            game_id=1,  # optional
-            player_id=1,  # optional
-        )
+    gc.collect()
 
-        assert success
+    t1 = time.perf_counter()
+    ritf.jump_to_previous_patch()
+    t2 = time.perf_counter()
 
-    def tear_down(self):
-        # close
-        self.replay_interface.close()
+    jump_time = t2 - t1
+    ops_per_sec = ops / jump_time if jump_time > 0 else 0
 
-    def run_test(self):
-        print("\n" + "=" * 80)
-        print("REPLAY BENCHMARK SUITE")
-        print("=" * 80 + "\n")
+    return ops, jump_time, ops_per_sec
 
-        self.test_next_patch()
-        self.test_random_jump()
 
-        self.print_summary()
+def main():
+    num_samples = 50  # Number of random samples to collect
 
-    def test_next_patch(self, iterations=10):
-        print(f"Running Next Patch Test ({iterations} iterations)...")
-        metrics_list = []
+    # Data storage
+    random_long_data = {'ops': [], 'time': [], 'ops_per_sec': []}
+    random_data = {'ops': [], 'time': [], 'ops_per_sec': []}
+    next_data = {'ops': [], 'time': [], 'ops_per_sec': []}
+    prev_data = {'ops': [], 'time': [], 'ops_per_sec': []}
 
-        for i in range(iterations):
-            self.replay_interface.jump_to(self.get_random_timestamp())
-            self.replay_interface._replay.reset_op_counter()
+    ritf = ReplayInterface(file_path=TEST_DATA / "test_replay.bin", player_id=1, game_id=12345)
 
-            patches_applied = 0
-            start_time = time.perf_counter()
+    print("Collecting random jump samples (with long patches)...")
+    for i in range(num_samples):
+        ritf.close()
+        ritf.open(mode="r")
 
-            while self.replay_interface.jump_to_next_patch():
-                patches_applied += 1
+        timestamps = ritf.get_timestamps()
+        from_time = random.choice(timestamps)
+        to_time = random.choice(timestamps)
 
-            end_time = time.perf_counter()
-            duration_ms = (end_time - start_time) * 1000
+        ops, jump_time, ops_per_sec = benchmark_jump(ritf, from_time, to_time, create_long_patches=True)
 
-            operations_applied = self.replay_interface._replay.get_op_counter()
+        random_long_data['ops'].append(ops)
+        random_long_data['time'].append(jump_time * 1000)  # Convert to ms
+        random_long_data['ops_per_sec'].append(ops_per_sec)
 
-            # Calculate metrics
-            ops_per_second = (operations_applied / duration_ms * 1000) if duration_ms > 0 else 0
-            ops_per_patch = operations_applied / patches_applied if patches_applied > 0 else 0
-            patches_per_second = (patches_applied / duration_ms * 1000) if duration_ms > 0 else 0
+        if (i + 1) % 10 == 0:
+            print(f"  {i + 1}/{num_samples} samples collected")
 
-            metrics = BenchmarkMetrics(
-                duration_ms=duration_ms,
-                patches_applied=patches_applied,
-                operations_applied=operations_applied,
-                ops_per_second=ops_per_second,
-                ops_per_patch=ops_per_patch,
-                patches_per_second=patches_per_second
-            )
-            metrics_list.append(metrics)
+    print("\nCollecting random jump samples (without long patches)...")
+    for i in range(num_samples):
+        ritf.close()
+        ritf.open(mode="r")
 
-            print(f"  Iteration {i + 1}/{iterations}: {duration_ms:.2f}ms, "
-                  f"{patches_applied} patches, {operations_applied} ops")
+        timestamps = ritf.get_timestamps()
+        from_time = random.choice(timestamps)
+        to_time = random.choice(timestamps)
 
-        results = BenchmarkResults("Next Patch Test", iterations, metrics_list)
-        self.results.append(results)
-        self.print_results(results)
+        ops, jump_time, ops_per_sec = benchmark_jump(ritf, from_time, to_time, create_long_patches=False)
 
-    def test_random_jump(self, iterations=10):
-        print(f"\nRunning Random Jump Test ({iterations} iterations)...")
-        metrics_list = []
+        random_data['ops'].append(ops)
+        random_data['time'].append(jump_time * 1000)  # Convert to ms
+        random_data['ops_per_sec'].append(ops_per_sec)
 
-        for i in range(iterations):
-            self.replay_interface._replay.reset_op_counter()
-            random_ts = self.get_random_timestamp()
-            patches_applied = len(
-                self.replay_interface._replay.storage.patch_graph.find_patch_path(
-                    self.replay_interface.last_patch_time, random_ts
-                )
-            )
+        if (i + 1) % 10 == 0:
+            print(f"  {i + 1}/{num_samples} samples collected")
 
-            start_time = time.perf_counter()
-            self.replay_interface.jump_to(random_ts)
-            end_time = time.perf_counter()
+    print("\nCollecting next jump samples...")
+    ritf.close()
+    ritf.open(mode="r")
+    timestamps = ritf.get_timestamps()
+    for i in range(min(num_samples, len(timestamps) - 1)):
+        from_time = random.choice(timestamps[:-1])  # Ensure there's a next timestamp
 
-            duration_ms = (end_time - start_time) * 1000
-            operations_applied = self.replay_interface._replay.get_op_counter()
+        ops, jump_time, ops_per_sec = benchmark_next_jump(ritf, from_time)
 
-            # Calculate metrics
-            ops_per_second = (operations_applied / duration_ms * 1000) if duration_ms > 0 else 0
-            ops_per_patch = operations_applied / patches_applied if patches_applied > 0 else 0
-            patches_per_second = (patches_applied / duration_ms * 1000) if duration_ms > 0 else 0
+        if ops is not None:
+            next_data['ops'].append(ops)
+            next_data['time'].append(jump_time * 1_000_000)  # Convert to µs
+            next_data['ops_per_sec'].append(ops_per_sec)
 
-            metrics = BenchmarkMetrics(
-                duration_ms=duration_ms,
-                patches_applied=patches_applied,
-                operations_applied=operations_applied,
-                ops_per_second=ops_per_second,
-                ops_per_patch=ops_per_patch,
-                patches_per_second=patches_per_second
-            )
-            metrics_list.append(metrics)
+        if (i + 1) % 10 == 0:
+            print(f"  {i + 1}/{num_samples} samples collected")
 
-            print(f"  Iteration {i + 1}/{iterations}: {duration_ms:.2f}ms, "
-                  f"{patches_applied} patches, {operations_applied} ops")
+    print("\nCollecting previous jump samples...")
+    for i in range(min(num_samples, len(timestamps) - 1)):
+        from_time = random.choice(timestamps[1:])  # Ensure there's a previous timestamp
 
-        results = BenchmarkResults("Random Jump Test", iterations, metrics_list)
-        self.results.append(results)
-        self.print_results(results)
+        ops, jump_time, ops_per_sec = benchmark_prev_jump(ritf, from_time)
 
-    def print_results(self, results: BenchmarkResults):
-        print(f"\n{results.test_name} Results:")
-        print("-" * 60)
-        print(f"  Iterations:              {results.iterations}")
-        print(f"  Average Duration:        {results.avg_duration_ms:.2f} ms")
-        print(f"  Median Duration:         {results.median_duration_ms:.2f} ms")
-        print(f"  Std Deviation:           {results.std_duration_ms:.2f} ms")
-        print(f"  Min Duration:            {results.min_duration_ms:.2f} ms")
-        print(f"  Max Duration:            {results.max_duration_ms:.2f} ms")
-        print(f"  Avg Ops/Second:          {results.avg_ops_per_second:,.0f}")
-        print(f"  Avg Patches/Second:      {results.avg_patches_per_second:.1f}")
-        print(f"  Avg Ops/Patch:           {results.avg_ops_per_patch:.1f}")
-        print("-" * 60)
+        if ops is not None:
+            prev_data['ops'].append(ops)
+            prev_data['time'].append(jump_time * 1_000_000)  # Convert to µs
+            prev_data['ops_per_sec'].append(ops_per_sec)
 
-    def print_summary(self):
-        print("\n" + "=" * 80)
-        print("BENCHMARK SUMMARY")
-        print("=" * 80)
+        if (i + 1) % 10 == 0:
+            print(f"  {i + 1}/{num_samples} samples collected")
 
-        for results in self.results:
-            print(f"\n{results.test_name}:")
-            print(f"  ⏱️  Average: {results.avg_duration_ms:.2f} ms "
-                  f"(min: {results.min_duration_ms:.2f}, max: {results.max_duration_ms:.2f})")
-            print(f"  ⚡ Throughput: {results.avg_ops_per_second:,.0f} ops/sec, "
-                  f"{results.avg_patches_per_second:.1f} patches/sec")
-            print(f"  📊 Efficiency: {results.avg_ops_per_patch:.1f} ops/patch")
+    ritf.close()
 
-        print("\n" + "=" * 80 + "\n")
+    # Create visualizations
+    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    fig.suptitle('Replay Interface Performance Analysis', fontsize=16, fontweight='bold')
 
-    def get_random_timestamp(self):
-        return random.choice(self.replay_interface.get_timestamps())
+    # Random jumps with long patches - Time
+    ax = axes[0, 0]
+    ax.scatter(random_long_data['ops'], random_long_data['time'], alpha=0.6, s=50)
+    ax.set_xlabel('Operations')
+    ax.set_ylabel('Time (ms)')
+    ax.set_title('Random Jump Time (with long patches)')
+    ax.grid(True, alpha=0.3)
+    z = np.polyfit(random_long_data['ops'], random_long_data['time'], 1)
+    p = np.poly1d(z)
+    ax.plot(sorted(random_long_data['ops']), p(sorted(random_long_data['ops'])),
+            "r--", alpha=0.8, label=f'Trend: {z[0]:.2e}x + {z[1]:.2f}')
+    ax.legend()
+
+    # Random jumps without long patches - Time
+    ax = axes[0, 1]
+    ax.scatter(random_data['ops'], random_data['time'], alpha=0.6, s=50, color='orange')
+    ax.set_xlabel('Operations')
+    ax.set_ylabel('Time (ms)')
+    ax.set_title('Random Jump Time (without long patches)')
+    ax.grid(True, alpha=0.3)
+    z = np.polyfit(random_data['ops'], random_data['time'], 1)
+    p = np.poly1d(z)
+    ax.plot(sorted(random_data['ops']), p(sorted(random_data['ops'])),
+            "r--", alpha=0.8, label=f'Trend: {z[0]:.2e}x + {z[1]:.2f}')
+    ax.legend()
+
+    # Next jump - Time
+    ax = axes[1, 0]
+    ax.scatter(next_data['ops'], next_data['time'], alpha=0.6, s=50, color='green')
+    ax.set_xlabel('Operations')
+    ax.set_ylabel('Time (µs)')
+    ax.set_title('Next Patch Jump Time')
+    ax.grid(True, alpha=0.3)
+    if len(next_data['ops']) > 1:
+        z = np.polyfit(next_data['ops'], next_data['time'], 1)
+        p = np.poly1d(z)
+        ax.plot(sorted(next_data['ops']), p(sorted(next_data['ops'])),
+                "r--", alpha=0.8, label=f'Trend: {z[0]:.2e}x + {z[1]:.2f}')
+        ax.legend()
+
+    # Previous jump - Time
+    ax = axes[1, 1]
+    ax.scatter(prev_data['ops'], prev_data['time'], alpha=0.6, s=50, color='purple')
+    ax.set_xlabel('Operations')
+    ax.set_ylabel('Time (µs)')
+    ax.set_title('Previous Patch Jump Time')
+    ax.grid(True, alpha=0.3)
+    if len(prev_data['ops']) > 1:
+        z = np.polyfit(prev_data['ops'], prev_data['time'], 1)
+        p = np.poly1d(z)
+        ax.plot(sorted(prev_data['ops']), p(sorted(prev_data['ops'])),
+                "r--", alpha=0.8, label=f'Trend: {z[0]:.2e}x + {z[1]:.2f}')
+        ax.legend()
+
+    plt.tight_layout()
+    plt.savefig('replay_performance_time.png', dpi=300, bbox_inches='tight')
+    print("\nSaved: replay_performance_time.png")
+
+    # Create throughput visualization
+    fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+    fig.suptitle('Replay Interface Throughput Analysis', fontsize=16, fontweight='bold')
+
+    # Random jumps with long patches - Ops/sec
+    ax = axes[0, 0]
+    ax.scatter(random_long_data['ops'], random_long_data['ops_per_sec'], alpha=0.6, s=50)
+    ax.set_xlabel('Operations')
+    ax.set_ylabel('Operations per Second')
+    ax.set_title('Random Jump Throughput (with long patches)')
+    ax.grid(True, alpha=0.3)
+
+    # Random jumps without long patches - Ops/sec
+    ax = axes[0, 1]
+    ax.scatter(random_data['ops'], random_data['ops_per_sec'], alpha=0.6, s=50, color='orange')
+    ax.set_xlabel('Operations')
+    ax.set_ylabel('Operations per Second')
+    ax.set_title('Random Jump Throughput (without long patches)')
+    ax.grid(True, alpha=0.3)
+
+    # Next jump - Ops/sec
+    ax = axes[1, 0]
+    ax.scatter(next_data['ops'], next_data['ops_per_sec'], alpha=0.6, s=50, color='green')
+    ax.set_xlabel('Operations')
+    ax.set_ylabel('Operations per Second')
+    ax.set_title('Next Patch Jump Throughput')
+    ax.grid(True, alpha=0.3)
+
+    # Previous jump - Ops/sec
+    ax = axes[1, 1]
+    ax.scatter(prev_data['ops'], prev_data['ops_per_sec'], alpha=0.6, s=50, color='purple')
+    ax.set_xlabel('Operations')
+    ax.set_ylabel('Operations per Second')
+    ax.set_title('Previous Patch Jump Throughput')
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig('replay_performance_throughput.png', dpi=300, bbox_inches='tight')
+    print("Saved: replay_performance_throughput.png")
+
+    # Print summary statistics
+    print("\n" + "=" * 60)
+    print("SUMMARY STATISTICS")
+    print("=" * 60)
+
+    print("\nRandom Jump (with long patches):")
+    print(f"  Ops range: {min(random_long_data['ops'])} - {max(random_long_data['ops'])}")
+    print(f"  Time range: {min(random_long_data['time']):.2f} - {max(random_long_data['time']):.2f} ms")
+    print(f"  Avg throughput: {np.mean(random_long_data['ops_per_sec']):.0f} ops/sec")
+
+    print("\nRandom Jump (without long patches):")
+    print(f"  Ops range: {min(random_data['ops'])} - {max(random_data['ops'])}")
+    print(f"  Time range: {min(random_data['time']):.2f} - {max(random_data['time']):.2f} ms")
+    print(f"  Avg throughput: {np.mean(random_data['ops_per_sec']):.0f} ops/sec")
+
+    print("\nNext Patch Jump:")
+    print(f"  Ops range: {min(next_data['ops'])} - {max(next_data['ops'])}")
+    print(f"  Time range: {min(next_data['time']):.2f} - {max(next_data['time']):.2f} µs")
+    print(f"  Avg throughput: {np.mean(next_data['ops_per_sec']):.0f} ops/sec")
+
+    print("\nPrevious Patch Jump:")
+    print(f"  Ops range: {min(prev_data['ops'])} - {max(prev_data['ops'])}")
+    print(f"  Time range: {min(prev_data['time']):.2f} - {max(prev_data['time']):.2f} µs")
+    print(f"  Avg throughput: {np.mean(prev_data['ops_per_sec']):.0f} ops/sec")
+
 
 if __name__ == "__main__":
-    b = ReplayBenchmark()
-    b.set_up()
-    b.run_test()
-    b.print_summary()
+    test_start = time.perf_counter()
+    main()
+    test_end = time.perf_counter()
+    print(f"\nTotal time: {test_end - test_start:.2f}s")

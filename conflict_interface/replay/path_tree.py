@@ -298,11 +298,14 @@ class PathTree:
                 return False
         return True
 
-    def get_old_values(self, changed_paths: list[int], hook_dict: dict[int, list[ReplayHook]]):
+    def get_old_values(self, changed_paths: list[int], hook_dict: dict[int, list[ReplayHook]]) -> dict:
         # Here we use a trick.
         # By creating the smallest subtree that contains all paths from the root to each of the changed paths we get a list of nodes
         # that lie before / are parents to changed nodes. now if a hook points to any of these parents one of his children has been updated
         # therefore the hook needs to be queued given that the operation type fits
+        if hook_dict == {}:
+            return {}
+
         steiner_tree = self.build_steiner_tree(changed_paths)
         relevant_nodes = set(steiner_tree.keys())
 
