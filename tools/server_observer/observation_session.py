@@ -55,19 +55,23 @@ class ObservationSession:
         self.map_cache = map_cache
         self.game_id = game_id
 
-        self.storage_path: str = f"/recordings/game_{self.game_id}"
+        self.storage_path: str = f"./recordings/game_{self.game_id}"
         self.package = None
 
         self._start_time: Optional[float] = None
         self._updates_done = 0
         self.next_update_at: float = time()
 
+    def reset(self):
+        self.package = None
+        storage = RecordingStorage(self.storage_path)
+        storage.update_resume_metadata({})
 
     def needs_update(self, now: float) -> bool:
         return now >= self.next_update_at
 
     def create_worker(self) -> ObservationWorker:
-        return ObservationWorker(self.account, self.game_id, self.package)
+        return ObservationWorker(self.account, self.game_id, self.package, self.map_cache)
 
     def update_package(self, other: ObservationPackage):
         self.package = other
@@ -78,12 +82,13 @@ class ObservationWorker:
     Lightweight worker that performs a single update using the owning ObservationSession.
     """
 
-    def __init__(self, account: Account, game_id: int, package: ObservationPackage = None):
+    def __init__(self, account: Account, game_id: int, package: ObservationPackage = None, map_cache: StaticMapCache = None):
         self.account = account
         self.game_id = game_id
         self.storage = RecordingStorage(f"./recordings/game_{self.game_id}")
         self.storage.setup_logging()
         self.package: ObservationPackage = package
+        self.map_cache = map_cache
         self.recording_itf = None
 
 
@@ -112,7 +117,7 @@ class ObservationWorker:
     def create_observation_package(self) -> ObservationPackage:
         hub_itf = self.account.get_interface()
         if hub_itf is None:
-            return False
+            return None
         game_api = GameApi(
             session=hub_itf.api.session,
             proxy=hub_itf.api.proxy,
@@ -133,6 +138,13 @@ class ObservationWorker:
     def reset_package(self):
         self.account.reset_interface()
         self.package = self.create_observation_package()
+
+    def ensure_static_map_data(self, observation_api: ObservationApi, map_id: int) -> bool:
+        if self.map_cache.is_cached(map_id):
+            return True
+        static_map_data = observation_api.get_static_map_data()
+        self.map_cache.save(map_id, static_map_data)
+        return True
 
     @staticmethod
     def _is_game_ended(response: Optional[dict]) -> bool:
@@ -169,7 +181,9 @@ class ObservationWorker:
                     self.package.time_stamps,
                 )
                 self._on_request_response(game_state)
-                map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
+                if "result" in game_state and "states" in game_state["result"] and "3" in game_state["result"]["states"] and "map" in game_state["result"]["states"]["3"]:
+                    map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
+                    self.ensure_static_map_data(observation_api, map_id)
                 if self._is_game_ended(response=game_state):
                     return False
                 return True
