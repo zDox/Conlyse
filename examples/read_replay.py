@@ -3,6 +3,8 @@ from time import perf_counter
 
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
+from conflict_interface.replay.constants import INT_TO_OP
+from conflict_interface.replay.patch_graph import PatchGraph
 from paths import TEST_DATA
 
 if __name__ == "__main__":
@@ -21,12 +23,11 @@ if __name__ == "__main__":
 
     t2 = perf_counter()
     # Test Operations --------------------------------
-    for i in range(100):
-        for j in range(1000):
-            ritf.jump_to_next_patch()
-
-        ritf.jump_to(ritf.start_time)
-
+    from_ts = 1767737657
+    to_ts = 1767737670
+    patch = ritf._replay.storage.patch_graph.patches[from_ts, to_ts]
+    for i, op_type in enumerate(patch.op_types):
+        print(f"{INT_TO_OP[op_type]} {ritf._replay.storage.path_tree.idx_to_path_list(patch.paths[i])} {str(patch.values[i])[:200]}")
     # End --------------------------------------------
     t3 = perf_counter()
     ritf.close()

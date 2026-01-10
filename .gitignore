@@ -47,3 +47,4 @@ tests/test_data/full_test_data_1_v206.json
 /tools/recorder/credentials.json
 /tools/recording_converter/recording-json/
 /tests/test_data/
+/performance_tests/*.png

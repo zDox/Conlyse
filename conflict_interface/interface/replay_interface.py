@@ -1,4 +1,5 @@
 import bisect
+
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -177,12 +178,10 @@ class ReplayInterface(GameInterface):
             True if successfully jumped to next patch, False if at end of replay.
         """
         next_timestamp = self.get_next_timestamp()
-
         if next_timestamp is None:
             return False
 
-        patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, next_timestamp)
-
+        patches = [self._replay.storage.patch_graph.patches[(int(self.current_time.timestamp()), int(next_timestamp.timestamp()))]]
         if patches:
             self._apply_patches_and_update_state(patches, next_timestamp)
             self.current_timestamp_index += 1
@@ -202,7 +201,7 @@ class ReplayInterface(GameInterface):
         if prev_ts is None:
             return False
 
-        patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, prev_ts)
+        patches = [self._replay.storage.patch_graph.patches[(int(self.current_time.timestamp()), int(prev_ts.timestamp()))]]
 
         if patches:
             self._apply_patches_and_update_state(patches, prev_ts)
