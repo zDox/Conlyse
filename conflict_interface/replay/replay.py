@@ -191,8 +191,9 @@ class Replay:
             values=backward['values']
         )
 
-        self.storage.patch_graph.add_patch_node(forward_node)
-        self.storage.patch_graph.add_patch_node(backward_node)
+        self.storage.patch_graph.add_edge_and_vertices(forward_node)
+        self.storage.patch_graph.add_edge_and_vertices(backward_node)
+        self.storage.patch_graph.finalize()
         self.storage.metadata.current_patches += 2
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
@@ -342,7 +343,6 @@ class Replay:
             raise ValueError("Replay file is not open.")
 
     def validate_structure(self):
-        self.storage.patch_graph.validate_cached_time_stamps()
         self.storage.path_tree.validate_idx_to_node_mapping()
         self.storage.path_tree.validate_tree_structure()
 

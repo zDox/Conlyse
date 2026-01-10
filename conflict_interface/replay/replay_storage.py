@@ -475,7 +475,7 @@ class ReplayStorage:
                 break  # Reached end of valid patches
             patch_data = data_pool[offset:offset + size]
             patch, _ = PatchGraphNode.deserialize(patch_data, game, self.serializer)
-            self.patch_graph.add_patch_node_fast(patch)
+            self.patch_graph.add_edge_and_vertices(patch)
 
         return self.patch_graph
 
