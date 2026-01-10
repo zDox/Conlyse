@@ -86,7 +86,8 @@ setup(
         "msgpack",
         "zstandard",
         "lz4",
-        "msgspec"
+        "msgspec",
+        "scipy"
     ],
     extras_require=extras_require,
     entry_points={

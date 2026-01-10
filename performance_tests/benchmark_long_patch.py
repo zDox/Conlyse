@@ -87,7 +87,7 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
 
         ops_before = PatchGraph.cost(patch_path)
         ops_after = len(node.op_types)
-        ops_per_sec = (ops_before / min_build_time) * 1000 if min_build_time > 0 else 0
+        ops_per_sec = (ops_before / min_total_time) * 1000 if min_build_time > 0 else 0
 
         results['indices'].append(target_idx)
         results['ops_per_sec'].append(ops_per_sec)
@@ -98,7 +98,7 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
         results['apply_time_ms'].append(min_apply_time)
         results['total_time_ms'].append(min_total_time)
 
-        print(f"{ops_per_sec:,.0f} ops/sec ({min_build_time:.2f}ms total)")
+        print(f"{ops_per_sec:,.0f} ops/sec ({min_total_time:.2f}ms total)")
 
     # Create visualization
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10))
@@ -140,4 +140,4 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     return results
 
 if __name__ == '__main__':
-    benchmark_across_indices(step=500, runs=1)
+    benchmark_across_indices(start_idx=1, end_idx=7500, step=100, runs=1)

@@ -23,7 +23,7 @@ def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
     to occur.
 
     Each stored operation is represented as a tuple:
-        (op_type, path_index, value, time)
+        (op_type, path_index, value, creation_time, last_changed_time)
 
     where `time` is a monotonically increasing counter used to preserve
     relative ordering across merged operations.
@@ -55,19 +55,28 @@ def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
         for op_type, path, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
             t += 1
             old_value = idx_to_opnode[path]
+            if old_value is None:
+                idx_to_opnode[path] = (op_type, path, value, t, t)
+                continue
+
             old_op_type = old_value[0]
+            creation_time = old_value[3]
 
             # REMOVE + ADD = REPLACE
-            if old_value is not None and old_op_type == REMOVE_OPERATION and op_type == ADD_OPERATION:
-                idx_to_opnode[path] = (REPLACE_OPERATION, path, value, t)
+            if old_op_type == REMOVE_OPERATION and op_type == ADD_OPERATION:
+                idx_to_opnode[path] = (REPLACE_OPERATION, path, value, creation_time, t)
 
             # ADD + REMOVE = NO OP
-            elif old_value is not None and old_op_type == ADD_OPERATION and op_type == REMOVE_OPERATION:
-                idx_to_opnode[path] = (-1, -1, -1, t)  # If a newly added value gets removed then nothing happened
+            elif old_op_type == ADD_OPERATION and op_type == REMOVE_OPERATION:
+                idx_to_opnode[path] = (-1, -1, -1, creation_time, t)  # If a newly added value gets removed then nothing happened
+
+            # ADD + REPLACE = ADD
+            elif old_op_type == ADD_OPERATION and op_type == REPLACE_OPERATION:
+                idx_to_opnode[path] = (ADD_OPERATION, path, value, creation_time, t)
 
             # All other cases
             else:
-                idx_to_opnode[path] = (op_type, path, value, t)
+                idx_to_opnode[path] = (op_type, path, value, creation_time, t)
 
 
             # NONE + ADD -> ADD
@@ -80,7 +89,7 @@ def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
             # REMOVE + REPLACE -> Error: Invariant Violated. You cannot replace a value that is not there
             # REMOVE + REMOVE -> Error: Invariant Violated. You cannot remove a value that is not there
             # ADD + REMOVE = NO OP
-            # ADD + REPLACE = REPLACE; Technically this is an ADD. But since we cannot guarantee that the element is still the last in the list this would violate the "only add to end of list variant" therefore we handle it as a replace
+            # ADD + REPLACE = ADD;
             # ADD + ADD -> Error: Invariant Violated. You cannot add a value if there is already a value present
             # REPLACE + ADD -> Error: Invariant Violated. You cannot add a value if there is already a value present
             # REPLACE + REMOVE -> REMOVE
@@ -117,7 +126,7 @@ def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
     paths = []
     op_types = []
     values = []
-    times = []
+    creation_times = []
 
     q = deque([path_tree.root.index])
     pop = q.popleft
@@ -128,7 +137,7 @@ def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
 
         op_node = idx_to_opnode[u]
         if op_node is not None:
-            op_type, path, value, time = op_node
+            op_type, path, value, creation_time, last_change_time = op_node
             if op_type == -1: continue # NO OP -> Disregard
 
             dfs_apply_ops(u, adj, value, idx_to_opnode, path_tree)
@@ -136,14 +145,14 @@ def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
             op_types.append(op_type)
             paths.append(path)
             values.append(value)
-            times.append(time)
+            creation_times.append(creation_time)
 
         else:
             for v in adj.get(u, []):
                 add(v)
 
     sorted_times, sorted_op_types, sorted_paths, sorted_values = zip(
-        *sorted(zip(times, op_types, paths, values))
+        *sorted(zip(creation_times, op_types, paths, values))
     )
     return list(sorted_op_types), list(sorted_paths), list(sorted_values)
 
@@ -177,13 +186,13 @@ def dfs_apply_ops(u, adj, value, idx_to_opnode, path_tree):
     node_value = idx_to_opnode[u]
     if node_value is None: return
 
-    node_time = node_value[3]
+    node_last_changed_time = node_value[4]
 
     for v in children:
         child_opnode = idx_to_opnode[v]
-        child_op_type, _, child_value, child_time = child_opnode
+        child_op_type, _, child_value, _, child_last_changed_time = child_opnode
 
-        if child_opnode is None or child_time < node_time: continue
+        if child_opnode is None or child_last_changed_time < node_last_changed_time: continue
 
         apply_operation(child_op_type, child_value, value, path_tree.idx_to_node[v].path_element)
 
@@ -237,7 +246,7 @@ def create_adj_list(patch_path: list[PatchGraphNode], path_tree: PathTree):
     adj = path_tree.build_steiner_tree(list(changed_paths))
     return adj
 
-def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: PatchGraph, path_tree: PathTree) -> PatchGraphNode:
+def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: PatchGraph, path_tree: PathTree) -> PatchGraphNode | None:
     """
     Create a single consolidated patch spanning a time interval.
 
