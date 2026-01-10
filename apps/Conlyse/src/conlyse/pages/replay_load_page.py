@@ -5,7 +5,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtWidgets import QVBoxLayout
-
 from conlyse.logger import get_logger
 from conlyse.managers.events.event import Event
 from conlyse.managers.events.replay_load_complete_event import ReplayOpenCompleteEvent
@@ -45,10 +44,8 @@ class ReplayLoadPage(Page):
             logger.error(f"Invalid replay path provided to ReplayLoadPage: {self.replay_path}")
             self.app.page_manager.switch_to(PageType.ReplayListPage, error_message="Invalid replay file selected.")
             return
-
         self.app.event_handler.subscribe(ReplayOpenCompleteEvent, self.on_replay_load_complete)
         self.app.event_handler.subscribe(ReplayOpenFailedEvent, self.on_replay_load_failed)
-        self.app.replay_manager.open_replay_async(self.replay_path)
 
         if not self._ui_initialized:
             self.setup_ui()
@@ -61,6 +58,7 @@ class ReplayLoadPage(Page):
         # Start animation timer
         if self.animation_timer:
             self.animation_timer.start(80)  # Update every 80ms for smooth animation
+        self.app.replay_manager.open_replay_async(self.replay_path)
 
     def setup_ui(self):
         """One-time UI initialization"""

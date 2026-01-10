@@ -92,7 +92,7 @@ class MapPage(ReplayPage):
         """Create dock widgets based on type."""
         match dock_type:
             case DockType.GAME_INFO:
-                return GameInfoDock()
+                return GameInfoDock(self.ritf)
             case DockType.PROVINCE_INFO:
                 return ProvinceInfoDock(self.ritf)
             case DockType.ARMY_INFO:

@@ -46,9 +46,12 @@ class CityListDock(Dock):
         content_layout = QVBoxLayout(content)
         content_layout.setSpacing(8)
 
-        for city in self.ritf.get_my_cities().values():
-            city_widget = self._create_city_item(city)
-            content_layout.addWidget(city_widget)
+        if not self.ritf.is_country_selected():
+            layout.addWidget(QLabel("No country selected!"))
+        else:
+            for city in self.ritf.get_my_cities().values():
+                city_widget = self._create_city_item(city)
+                content_layout.addWidget(city_widget)
 
         content_layout.addStretch()
         scroll.setWidget(content)
