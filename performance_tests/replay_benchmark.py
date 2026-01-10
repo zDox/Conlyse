@@ -85,7 +85,7 @@ def main():
     next_data = {'ops': [], 'time': [], 'ops_per_sec': []}
     prev_data = {'ops': [], 'time': [], 'ops_per_sec': []}
 
-    ritf = ReplayInterface(file_path=TEST_DATA / "test_replay.bin", player_id=1, game_id=12345)
+    ritf = ReplayInterface(file_path=TEST_DATA / "test_replay_10626166.bin", player_id=1, game_id=12345)
 
     print("Collecting random jump samples (with long patches)...")
     for i in range(num_samples):
