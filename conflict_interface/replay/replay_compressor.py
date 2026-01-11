@@ -62,14 +62,14 @@ class ReplayCompressor:
         return compress_file(self.uncompressed_path, self.compressed_path, level = level)
 
     def decompress(self):
-        if not self.uncompressed_path:
+        if not self.compressed_path:
             logger.warning("No file_path given")
             return
 
-        if not self.compressed_path:
-            self.compressed_path = self.uncompressed_path
+        if not self.uncompressed_path:
+            self.uncompressed_path = self.compressed_path
 
-        decompress_file(self.uncompressed_path, self.compressed_path)
+        decompress_file(self.compressed_path, self.uncompressed_path)
 
 
 if __name__ == "__main__":
