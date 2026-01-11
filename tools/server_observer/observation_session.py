@@ -16,7 +16,7 @@ from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.game_api import GameApi
 from conflict_interface.utils.exceptions import AuthenticationException
 from tools.server_observer.account import Account
-from tools.server_observer.oberservation_api import ObservationApi
+from tools.server_observer.observation_api import ObservationApi
 from tools.server_observer.recorder_logger import get_logger
 from tools.server_observer.static_map_cache import StaticMapCache
 from tools.server_observer.storage import RecordingStorage
