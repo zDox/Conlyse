@@ -102,7 +102,7 @@ class ObservationWorker:
     def ensure_observation_package(self) -> bool:
         if self.package is not None:
             return True
-        if self.storage.get_resume_metadata():
+        if self.storage.has_resume_metadata():
             logger.info(f"Resuming from Storage for game {self.game_id}")
             resume_metadata = self.storage.get_resume_metadata()
             auth = AuthDetails(**resume_metadata.pop("auth"))

@@ -50,6 +50,7 @@ class ServerObserver:
         self.scenario_ids: List[int] = config.get("scenario_ids", [])
         self.max_parallel_recordings: int = int(config.get("max_parallel_recordings", 1))
         self.max_parallel_updates: int = int(config.get("max_parallel_updates", 1))
+        self.max_parallel_first_updates: int = int(config.get("max_parallel_first_updates", 1))
         self.scan_interval: float = float(config.get("scan_interval", 30))
         self.max_guest_per_account: Optional[int] = config.get("max_guest_games_per_account")
         self.update_interval: float = float(config.get("update_interval", 60.0))
@@ -66,6 +67,7 @@ class ServerObserver:
         self._listing_interface: Optional[HubInterface] = None
         self._listing_account: Optional[Account] = None
         self._active_threads: Set[Thread] = set()
+        self._sessions_pending_first_update: Set[int] = set()
         self._threads_lock = Lock()
         self._stop_event = Event()
         self._update_queue: Queue[ObservationSession] = Queue()
@@ -156,6 +158,7 @@ class ServerObserver:
         self.account_pool.increment_guest_join(account)
         self.observer_sessions[game_id] = observer
         observer.next_update_at = time()
+        self._sessions_pending_first_update.add(game_id)
         self._update_queue.put(observer)
 
     def _resume_active(self):
@@ -188,6 +191,7 @@ class ServerObserver:
                     self.account_pool.decrement_guest_join(session.account)
                     self.observer_sessions.pop(game_id, None)
                     self._known_games.add(game_id)
+                self._sessions_pending_first_update.discard(game_id)
             except Exception:
                 if attempt < MAX_UPDATE_RETRIES:
                     logger.exception(f"Observation for game {game_id} failed, retrying attempt {attempt}/{MAX_UPDATE_RETRIES}...")
@@ -199,6 +203,7 @@ class ServerObserver:
                 self.account_pool.decrement_guest_join(session.account)
                 self.observer_sessions.pop(game_id, None)
                 self._known_games.add(game_id)
+                self._sessions_pending_first_update.discard(game_id)
             finally:
                 with self._threads_lock:
                     self._active_threads.discard(current_thread())
@@ -218,6 +223,13 @@ class ServerObserver:
             if not observer.needs_update(now):
                 deferred.append(observer)
                 continue
+
+            # Check if this is a first-update and if we've hit the first-update limit
+            is_first_update = observer.game_id in self._sessions_pending_first_update
+            if is_first_update and len([gid for gid in self._sessions_pending_first_update if self.observer_sessions.get(gid) and any(t.name == f"observer-{gid}" for t in self._active_threads)]) >= self.max_parallel_first_updates:
+                deferred.append(observer)
+                continue
+
             thread = Thread(target=self._run_single_update, args=(observer,), name=f"observer-{observer.game_id}", daemon=True)
             logger.info(f"Starting ObserverWorker thread for game {observer.game_id}")
             with self._threads_lock:
