@@ -102,7 +102,7 @@ class RecordingStorage:
         return self.resume_metadata
 
     def has_resume_metadata(self) -> bool:
-        return "resume" in self._load_metadata()
+        return "resume" in self._load_metadata() and self.resume_metadata != {}
 
     @staticmethod
     def append_bytes_to_file(file_path: Path, timestamp_ms: int, data: bytes):
