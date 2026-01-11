@@ -109,7 +109,7 @@ class ObservationApi:
                 "userAuth": self.auth.auth,
                 "lastCallDuration": 0,
             }
-            logger.info(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
+            logger.debug(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
             self.request_id += 1
 
             response = self.client.post(self.game_server_address, headers=headers, content=dumps(payload))
