@@ -181,19 +181,20 @@ class ServerObserver:
         attempt = 1
         while True:
             try:
-                worker = session.create_worker()
-                keep_running = worker.run()
-                session.update_package(deepcopy(worker.package))
-                if keep_running:
-                    session.next_update_at = time() + self.update_interval
-                    self._update_queue.put(session)
-                else:
-                    self.registry.mark_completed(game_id)
-                    self.account_pool.decrement_guest_join(session.account)
-                    self.observer_sessions.pop(game_id, None)
-                    self._known_games.add(game_id)
+                with session.create_worker() as worker:
+                    keep_running = worker.run()
+                    session.update_package(deepcopy(worker.package))
+                    if keep_running:
+                        session.next_update_at = time() + self.update_interval
+                        self._update_queue.put(session)
+                    else:
+                        self.registry.mark_completed(game_id)
+                        self.account_pool.decrement_guest_join(session.account)
+                        self.observer_sessions.pop(game_id, None)
+                        self._known_games.add(game_id)
                 with self._threads_lock:
                     self._first_update_sessions.discard(game_id)
+                break  # Success, exit the retry loop
             except Exception:
                 if attempt < MAX_UPDATE_RETRIES:
                     logger.exception(f"Observation for game {game_id} failed, retrying attempt {attempt}/{MAX_UPDATE_RETRIES}...")
@@ -207,6 +208,7 @@ class ServerObserver:
                 self._known_games.add(game_id)
                 with self._threads_lock:
                     self._first_update_sessions.discard(game_id)
+                break  # Exit the retry loop
             finally:
                 with self._threads_lock:
                     self._active_threads.discard(current_thread())

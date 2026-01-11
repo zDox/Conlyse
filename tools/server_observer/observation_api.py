@@ -1,4 +1,3 @@
-import gc
 import re
 from collections import defaultdict
 from dataclasses import dataclass
@@ -73,6 +72,21 @@ class ObservationApi:
             self.proxy = proxy
         else:
             self.proxy = defaultdict()
+
+    def close(self):
+        """Close the HTTP client and release resources."""
+        if self.client:
+            self.client.close()
+            self.client = None
+
+    def __enter__(self):
+        """Support context manager protocol."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Ensure client is closed when exiting context."""
+        self.close()
+        return False
 
     def set_proxy(self, proxy: dict):
         self.proxy = proxy

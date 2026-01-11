@@ -91,6 +91,21 @@ class ObservationWorker:
         self.map_cache = map_cache
         self.recording_itf = None
 
+    def cleanup(self):
+        """Clean up resources used by this worker."""
+        if self.storage:
+            self.storage.teardown_logging()
+            self.storage = None
+
+    def __enter__(self):
+        """Support context manager protocol."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Ensure cleanup happens when exiting context."""
+        self.cleanup()
+        return False
+
 
     def _on_request_response(self, response: dict):
         self.storage.save_response(response)
@@ -166,7 +181,7 @@ class ObservationWorker:
         while True:
             logger.info(f"Starting update for game {self.game_id}")
             self.ensure_observation_package()
-            observation_api = ObservationApi(
+            with ObservationApi(
                 HTTPTransport(),
                 headers=self.package.headers,
                 cookies=self.package.cookies,
@@ -174,38 +189,38 @@ class ObservationWorker:
                 auth_details=self.package.auth,
                 game_id=self.game_id,
                 game_server_address=self.package.game_server_address,
-            )
-            try:
-                game_state, self.package.state_ids, self.package.time_stamps = observation_api.request_game_state(
-                    self.package.state_ids,
-                    self.package.time_stamps,
-                )
-                self._on_request_response(game_state)
-                if "result" in game_state and "states" in game_state["result"] and "3" in game_state["result"]["states"] and "map" in game_state["result"]["states"]["3"]:
-                    map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
-                    self.ensure_static_map_data(observation_api, map_id)
-                if self._is_game_ended(response=game_state):
-                    return False
-                return True
-            except AuthenticationException:
-                if attempt >= MAX_RETRIES:
-                    return False
-                logger.info(f"Authentication failed, resetting package and retrying...")
-                attempt += 1
-                self.reset_package()
-                continue
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 401:
+            ) as observation_api:
+                try:
+                    game_state, self.package.state_ids, self.package.time_stamps = observation_api.request_game_state(
+                        self.package.state_ids,
+                        self.package.time_stamps,
+                    )
+                    self._on_request_response(game_state)
+                    if "result" in game_state and "states" in game_state["result"] and "3" in game_state["result"]["states"] and "map" in game_state["result"]["states"]["3"]:
+                        map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
+                        self.ensure_static_map_data(observation_api, map_id)
+                    if self._is_game_ended(response=game_state):
+                        return False
+                    return True
+                except AuthenticationException:
+                    if attempt >= MAX_RETRIES:
+                        return False
                     logger.info(f"Authentication failed, resetting package and retrying...")
                     attempt += 1
                     self.reset_package()
                     continue
-                elif e.response.status_code >= 500:
-                    logger.warning(f"GameServer returned HTTP {e.response.status_code}, retrying in {TIME_TILL_RETRY} seconds...")
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 401:
+                        logger.info(f"Authentication failed, resetting package and retrying...")
+                        attempt += 1
+                        self.reset_package()
+                        continue
+                    elif e.response.status_code >= 500:
+                        logger.warning(f"GameServer returned HTTP {e.response.status_code}, retrying in {TIME_TILL_RETRY} seconds...")
+                        sleep(TIME_TILL_RETRY)
+                        continue
+                except httpx.NetworkError or httpx.ReadTimeout:
+                    logger.info(f"GameServer is not responding, retrying in {TIME_TILL_RETRY} seconds...")
                     sleep(TIME_TILL_RETRY)
                     continue
-            except httpx.NetworkError or httpx.ReadTimeout:
-                logger.info(f"GameServer is not responding, retrying in {TIME_TILL_RETRY} seconds...")
-                sleep(TIME_TILL_RETRY)
-                continue
         return False

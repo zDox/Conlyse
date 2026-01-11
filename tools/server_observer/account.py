@@ -66,6 +66,13 @@ class Account:
         return self.hub_itf
 
     def reset_interface(self):
+        # Close old interface if it exists
+        if self.hub_itf and hasattr(self.hub_itf, 'api') and hasattr(self.hub_itf.api, 'session'):
+            try:
+                self.hub_itf.api.session.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+
         self.hub_itf = HubInterface({
             "http": self.proxy_url,
             "https": self.proxy_url,
