@@ -20,8 +20,9 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     print("BENCHMARKING ACROSS INDICES")
     print("=" * 80)
 
-    ritf = ReplayInterface(TEST_DATA / "test_replay.bin", player_id=1, game_id=12345)
+    ritf = ReplayInterface(TEST_DATA / "test_replay_10626234.bin", player_id=1, game_id=12345)
     ritf.open('r')
+    ritf.register_game_info_state_trigger()
 
     indices = list(range(start_idx, end_idx + 1, step))
     results = {
@@ -89,7 +90,7 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
         ops_after = len(node.op_types)
         ops_per_sec = (ops_before / min_total_time) * 1000 if min_build_time > 0 else 0
 
-        results['indices'].append(target_idx)
+        results['indices'].append(ops_before)
         results['ops_per_sec'].append(ops_per_sec)
         results['ops_before'].append(ops_before)
         results['ops_after'].append(ops_after)
@@ -140,4 +141,4 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     return results
 
 if __name__ == '__main__':
-    benchmark_across_indices(start_idx=1, end_idx=7500, step=100, runs=1)
+    benchmark_across_indices(start_idx=1, end_idx=1000, step=50, runs=1)

@@ -49,6 +49,16 @@ class Replay:
         self._game: ReplayInterface | None = None
         self._max_patches = max_patches
 
+    def is_open(self) -> bool:
+        return self._is_open
+
+    def set_mode(self, mode: Literal['r', 'w', 'a', 'rw']):
+        if self.is_open():
+            logger.error("Replay is open -> Cannot set Mode")
+            return
+
+        self.mode = mode
+
     def set_game(self, game: ReplayInterface):
         self._game = game
 
@@ -71,6 +81,10 @@ class Replay:
         self._op_counter = 0
 
     def open(self):
+        if self._is_open:
+            logger.warning("Replay is already open")
+            return None
+
         if self.mode == 'r':
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
@@ -119,6 +133,10 @@ class Replay:
         self.storage.patch_graph.finalize()
 
     def close(self):
+        if not self._is_open:
+            logger.warning("Replay is already closed")
+            return
+
         self.validate_max_patches()
 
         if self.mode in ['w', 'rw']:
