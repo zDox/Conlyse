@@ -183,12 +183,20 @@ class ReplayRoundtrip:
             if json_response.get("action") == self.GAME_ACTIVATION_ACTION:
                 initial_idx = i + 1
 
-        if initial_idx == -1:
-            logger.error(f"{self.GAME_ACTIVATION_ACTION} not found")
-            return None
+        if initial_idx != -1:
+            logger.info(f"Initial game state found at index {initial_idx}")
+            return initial_idx
 
-        logger.info(f"Initial game state found at index {initial_idx}")
-        return initial_idx
+        for i, (_, json_response) in enumerate(json_responses):
+            if "result" in json_response and json_response["result"].get("states"):
+                if len(json_response["result"].get("states").keys()) >= 10:
+                    logger.info(f"Found first full game state at index {i}")
+                    return i
+
+        logger.error(f"{self.GAME_ACTIVATION_ACTION} not found")
+        return None
+
+
 
     def _initialize_recorder_state(
             self,
@@ -471,7 +479,7 @@ def main():
 
     # Run verification test
     roundtrip = ReplayRoundtrip(
-        recording_file_path=TEST_DATA / "test008",
+        recording_file_path=TEST_DATA / "test_recording",
         replay_file_path=TEST_DATA / "test_replay_roundtrip.bin",
         player_id=85,
         limit=100,
