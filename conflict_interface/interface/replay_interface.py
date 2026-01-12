@@ -1,4 +1,5 @@
 import bisect
+
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -16,9 +17,14 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
+from conflict_interface.replay.long_patch import create_long_patch
+from conflict_interface.replay.patch_graph import PatchGraph
+from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay import Replay
 
 logger = get_logger()
+
+LONG_PATCH_THRESHOLD = 100
 
 class ReplayInterface(GameInterface):
     def __init__(self, file_path: Path | str, player_id: int | None = None, game_id: int | None = None):
@@ -122,7 +128,7 @@ class ReplayInterface(GameInterface):
     def last_time(self) -> datetime:
         return self._replay.get_last_time()
 
-    def jump_to(self, time_stamp: datetime) -> None:
+    def jump_to(self, time_stamp: datetime, create_long_patches = True) -> None:
         """
         Jumps to the specified timestamp in the replay.
 
@@ -137,6 +143,9 @@ class ReplayInterface(GameInterface):
             return
 
         patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, time_stamp)
+        if PatchGraph.cost(patches) > LONG_PATCH_THRESHOLD and len(patches) > 1 and create_long_patches:
+            patches = self.create_and_save_long_patch(self.current_time, time_stamp)
+
         self._apply_patches_and_update_state(patches, time_stamp)
 
         # Update the current timestamp index for O(1) next/previous operations
@@ -169,12 +178,10 @@ class ReplayInterface(GameInterface):
             True if successfully jumped to next patch, False if at end of replay.
         """
         next_timestamp = self.get_next_timestamp()
-
         if next_timestamp is None:
             return False
 
-        patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, next_timestamp)
-
+        patches = [self._replay.storage.patch_graph.patches[(int(self.current_time.timestamp()), int(next_timestamp.timestamp()))]]
         if patches:
             self._apply_patches_and_update_state(patches, next_timestamp)
             self.current_timestamp_index += 1
@@ -194,7 +201,7 @@ class ReplayInterface(GameInterface):
         if prev_ts is None:
             return False
 
-        patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, prev_ts)
+        patches = [self._replay.storage.patch_graph.patches[(int(self.current_time.timestamp()), int(prev_ts.timestamp()))]]
 
         if patches:
             self._apply_patches_and_update_state(patches, prev_ts)
@@ -202,10 +209,15 @@ class ReplayInterface(GameInterface):
 
         return True
 
-
-
     def jump_to_last_time(self):
         self.jump_to(self._replay.get_last_time())
+
+    def create_and_save_long_patch(self, from_time: datetime, to_time: datetime) -> list[PatchGraphNode]:
+        path_tree = self._replay.storage.path_tree
+        patch_graph = self._replay.storage.patch_graph
+        long_patch_node = create_long_patch(from_time, to_time, patch_graph, path_tree)
+        self._replay.storage.patch_graph.add_edge(long_patch_node)
+        return [long_patch_node]
 
     def get_timestamps(self) -> list[datetime]:
         """
@@ -328,6 +340,7 @@ class ReplayInterface(GameInterface):
             path=path,
             attributes=attributes
         )
+
     def unregister_team_trigger(self):
         path = ["states", "player_state", "teams"]
         self._hook_system.unregister_event_trigger(path)
@@ -339,6 +352,7 @@ class ReplayInterface(GameInterface):
             path=path,
             attributes=attributes
         )
+
     def unregister_army_trigger(self):
         path = ["states", "army_state", "armies"]
         self._hook_system.unregister_event_trigger(path)

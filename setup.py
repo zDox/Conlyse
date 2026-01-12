@@ -31,6 +31,9 @@ extras_require = {
     "tools-recorder": [
         # Add dependencies for recorder tool here
     ],
+    "test-long-patches":[
+        "deepdiff"
+    ]
 }
 
 # Create a meta-extra that installs all tools dynamically
@@ -41,7 +44,15 @@ tools_extras = [
     for dep in deps
 ]
 
-extras_require["tests"] = tools_extras
+test_extras = [
+    dep
+    for key, deps in extras_require.items()
+    if key.startswith("test-")
+    for dep in deps
+]
+
+extras_require["tests"] = tools_extras + test_extras
+
 
 # This call to setup() does all the work
 # noinspection PyPackageRequirements
@@ -74,7 +85,8 @@ setup(
         "msgpack",
         "zstandard",
         "lz4",
-        "msgspec"
+        "msgspec",
+        "scipy"
     ],
     extras_require=extras_require,
     entry_points={

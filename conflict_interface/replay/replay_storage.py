@@ -475,7 +475,7 @@ class ReplayStorage:
                 break  # Reached end of valid patches
             patch_data = data_pool[offset:offset + size]
             patch, _ = PatchGraphNode.deserialize(patch_data, game, self.serializer)
-            self.patch_graph.add_patch_node_fast(patch)
+            self.patch_graph.add_edge_and_vertices(patch)
 
         return self.patch_graph
 
@@ -490,12 +490,7 @@ class ReplayStorage:
         Temporarily removes game references to avoid circular serialization,
         then restores them after pickling.
         """
-        game = game_state.game
-        if game is not None:
-            GameObject.set_game_recursive(game_state, None)
-        self._initial_game_state_b = self.serializer.serialize(game_state)
-        if game is not None:
-            GameObject.set_game_recursive(game_state, game)
+        self._initial_game_state_b = self.serializer.serialize_game_object(game_state)
         self.initial_game_state = game_state
 
     def unload_last_game_state(self):
@@ -510,15 +505,7 @@ class ReplayStorage:
 
         Temporarily removes game references before serialization.
         """
-        game = static_map_data.game
-        if game is not None:
-            GameObject.set_game_recursive(static_map_data, None)
-
-        self._static_map_data_b = self.serializer.serialize(static_map_data)
-
-        if game is not None:
-            GameObject.set_game_recursive(static_map_data, game)
-
+        self._static_map_data_b = self.serializer.serialize_game_object(static_map_data)
         self.static_map_data = static_map_data
 
     def unload_path_tree(self):

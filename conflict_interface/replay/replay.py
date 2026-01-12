@@ -8,6 +8,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any
 from typing import Iterator
+
 from typing import Literal
 from typing import TYPE_CHECKING
 from typing import Union
@@ -196,8 +197,9 @@ class Replay:
             values=backward['values']
         )
 
-        self.storage.patch_graph.add_patch_node(forward_node)
-        self.storage.patch_graph.add_patch_node(backward_node)
+        self.storage.patch_graph.add_edge_and_vertices(forward_node)
+        self.storage.patch_graph.add_edge_and_vertices(backward_node)
+        self.storage.patch_graph.finalize()
         self.storage.metadata.current_patches += 2
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
@@ -273,8 +275,6 @@ class Replay:
                 unknown_paths.append(path_idx)
 
         """ Note this code has an issue: When in a list a object is removed the references of all trailing elements is not made invalid"""
-        # TODO fix this or note that its not allowed to delete from anywhere but the end of a list
-
 
         # Resolve unknown references using Steiner tree + BFS
         steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_paths)
@@ -297,13 +297,13 @@ class Replay:
 
         # Get new values and que the hooks
         if hook_system:
-            # Set new values in hook data
-            for hook_path, reference_to_child, changed_attributes in hook_data:
-                for attribute, value in changed_attributes.items():
-                    value[1] = getattr(reference_to_child, attribute, None)
-            # Queuing the hooks
-            for hook_path, reference_to_child, data in hook_data:
-                hook_system.que_hook_path(hook_path, reference_to_child, data)
+            for hook_path, references in hook_data.items():
+                for obj_path, attributes in references.items():
+                    reference = self.storage.path_tree.idx_to_node[obj_path]
+                    for attribute, value in attributes.items():
+                        value[1] = getattr(reference, attribute, None)
+                    hook_system.que_hook_path(hook_path, reference, attributes)
+
 
     def get_start_time(self) -> datetime:
         start_timestamp = self.storage.metadata.start_time
@@ -322,13 +322,7 @@ class Replay:
             idx = self.storage.path_tree.path_list_to_idx(op.path)
             paths.append(idx)
 
-            if game is not None:
-                GameObject.set_game_recursive(op.new_value, None)
-
             value = deepcopy(op.new_value)
-
-            if game is not None:
-                GameObject.set_game_recursive(op.new_value, game)
 
             if op.Key == 'a':
                 op_types.append(ADD_OPERATION)
@@ -355,7 +349,6 @@ class Replay:
             raise ValueError("Replay file is not open.")
 
     def validate_structure(self):
-        self.storage.patch_graph.validate_cached_time_stamps()
         self.storage.path_tree.validate_idx_to_node_mapping()
         self.storage.path_tree.validate_tree_structure()
 
