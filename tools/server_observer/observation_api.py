@@ -39,6 +39,47 @@ class DeviceDetails:
 
 
 class ObservationApi:
+    """
+    Handles interactions with the game server API.
+
+    Provides functionality to send authenticated requests, manage proxies,
+    fetch game state, calculate client times, and update server time based
+    on received data. The class is responsible for maintaining necessary
+    details such as game ID, player ID, and server configuration.
+
+    Attributes:
+        auth (AuthDetails): Authentication details of the user.
+        client_version (int): Client version supported by the server.
+        device_details (DeviceDetails): Detailed information about the device,
+            derived from the headers.
+        proxy (dict): Proxy configuration for the client.
+        game_id (int): Identifier for the game being interacted with.
+        game_server_address (str): URL of the game server.
+        player_id (int): Current player's unique identifier.
+        request_id (int): The ID of the current request, starting from 0.
+        map_id (int or None): Identifier for the current map (default is None).
+        last_update_time (datetime or None): Time of the last server update
+            (default is None).
+        server_time_offset (timedelta or None): Offset between the server time
+            and client time (default is None).
+
+    Methods:
+        close(): Close the HTTP client and release resources.
+        __enter__(): Support context manager protocol.
+        __exit__(): Ensure client is closed when exiting context.
+        set_proxy(proxy: dict): Set the proxy configuration.
+        unset_proxy(): Clear the current proxy configuration.
+        make_game_server_request(parameters): Send a request to the game server
+            using the given parameters.
+        client_time(time_scale) -> datetime: Calculate the client's adjusted
+            time based on a given time scale.
+        update_server_time(t_stamp_now): Update the server time offset based
+            on the current timestamp.
+        get_static_map_data(): Retrieve static map data from the server.
+        request_game_state(state_ids: dict, time_stamps: dict) -> tuple[dict,
+            dict, dict]: Request and process the game's state based on its IDs
+            and timestamps.
+    """
     def __init__(self,
                  transport: HTTPTransport,
                  headers: dict,

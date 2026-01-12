@@ -195,6 +195,10 @@ class ObservationWorker:
                         self.package.state_ids,
                         self.package.time_stamps,
                     )
+                    self.package.auth = deepcopy(observation_api.auth)
+                    self.package.cookies = deepcopy(dict(observation_api.client.cookies))
+                    self.package.headers = deepcopy(dict(observation_api.client.headers))
+                    self.package.game_server_address = observation_api.game_server_address
                     self._on_request_response(game_state)
                     if "result" in game_state and "states" in game_state["result"] and "3" in game_state["result"]["states"] and "map" in game_state["result"]["states"]["3"]:
                         map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
