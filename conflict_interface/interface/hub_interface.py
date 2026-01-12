@@ -8,7 +8,6 @@ from conflict_interface.data_types.hub_types.hub_game import HubGame
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
 from conflict_interface.hub_api import HubApi
 from conflict_interface.interface.online_interface import OnlineInterface
-from conflict_interface.interface.recording_interface import RecordingInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import AuthenticationException
 
@@ -174,21 +173,6 @@ class HubInterface:
                                          replay_filepath= replay_filename)
         game_interface.load_game()
         return game_interface
-
-    @protected
-    def record_game(self, game_id: int) -> RecordingInterface:
-        """
-        Join a game as guest and return a RecordingInterface that yields raw update responses.
-        """
-        logger.info(f"Recording game {game_id} as guest...")
-        recording_interface = RecordingInterface(
-            game_id=game_id,
-            session=self.api.session,
-            auth_details=deepcopy(self.api.auth),
-            proxy=self.api.proxy,
-        )
-        recording_interface.load_game()
-        return recording_interface
 
     def is_in_game(self, game_id: int) -> bool:
         return any(game.game_id == game_id for game in self.get_my_games())
