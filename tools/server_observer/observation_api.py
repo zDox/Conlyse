@@ -9,6 +9,7 @@ from json import dumps
 from time import time
 
 import httpx
+from fake_useragent import UserAgent
 from httpx import HTTPTransport
 
 from conflict_interface.data_types.authentication import AuthDetails
@@ -102,7 +103,12 @@ class ObservationApi:
         self.game_id = game_id
         self.player_id = 0
         self.auth = auth_details
-        self.device_details = DeviceDetails.from_user_agent(headers.get("User-Agent"))
+        if headers.get("user-agent") is None:
+            if headers.get("User-Agent") is not None:
+                headers["user-agent"] = headers.get("User-Agent")
+            else:
+                headers["user-agent"] = UserAgent(platforms='desktop').random
+        self.device_details = DeviceDetails.from_user_agent(headers.get("user-agent"))
         self.request_id = 0
         self.client_version = client_version
         self.game_server_address = game_server_address
