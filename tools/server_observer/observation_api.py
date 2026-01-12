@@ -193,7 +193,7 @@ class ObservationApi:
                         f"Authentfication failed while sending parameters {dumps(payload, indent=2)} to game server.")
                 if err_class == "ultshared.rpc.UltSwitchServerException":
                     # Update server address provided by server
-                    new_server = response_json["result"].get("newHostName")
+                    new_server = "https://" + response_json["result"].get("newHostName")
                     if new_server:
                         logger.info(f"Switching game server to {new_server}")
                         self.game_server_address = new_server
