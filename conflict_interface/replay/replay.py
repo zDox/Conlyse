@@ -8,12 +8,10 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any
 from typing import Iterator
-
 from typing import Literal
 from typing import TYPE_CHECKING
 from typing import Union
 
-from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.replay.apply_replay_helper import apply_operation
@@ -29,7 +27,6 @@ from conflict_interface.replay.replay_storage import ReplayStorage
 from conflict_interface.utils.helper import create_parent_dirs
 
 if TYPE_CHECKING:
-    from conflict_interface.interface.game_interface import GameInterface
     from conflict_interface.interface.replay_interface import ReplayInterface
 
 logger = getLogger()
@@ -165,8 +162,7 @@ class Replay:
             time_stamp: datetime,
             game_id: int,
             player_id: int,
-            replay_patch: BidirectionalReplayPatch,
-            game: GameInterface
+            replay_patch: BidirectionalReplayPatch
     ):
         self.validate_game(game_id, player_id)
         self.validate_max_patches(2)
@@ -179,8 +175,8 @@ class Replay:
 
         self.storage.path_tree.fill_with_paths(forward_operations)
 
-        forward = self.ops_to_lists(forward_operations, game)
-        backward = self.ops_to_lists(backward_operations, game)
+        forward = self.ops_to_lists(forward_operations)
+        backward = self.ops_to_lists(backward_operations)
 
         forward_node = PatchGraphNode(
             from_timestamp=from_timestamp,
@@ -204,7 +200,7 @@ class Replay:
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
-    def append_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch], game: GameInterface = None):
+    def append_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
         self.validate_game(game_id, player_id)
         self.validate_max_patches(len(replay_patches)*2)
 
@@ -227,8 +223,8 @@ class Replay:
             for node in new_nodes:
                 new_paths.append((node.index, node.parent.index if node.parent else 0, node.path_element))
 
-            forward = self.ops_to_lists(patch.forward_patch.operations, game)
-            backward = self.ops_to_lists(reversed(patch.backward_patch.operations), game)
+            forward = self.ops_to_lists(patch.forward_patch.operations)
+            backward = self.ops_to_lists(reversed(patch.backward_patch.operations))
 
             forward_node = PatchGraphNode(
                 from_timestamp=from_timestamp,
@@ -313,7 +309,7 @@ class Replay:
         last_timestamp = self.storage.metadata.last_time
         return datetime.fromtimestamp(last_timestamp, tz=UTC)
 
-    def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]] | Iterator[Any], game: GameInterface | None) -> dict[str, list]:
+    def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]] | Iterator[Any]) -> dict[str, list]:
         op_types = []
         paths = []
         values = []
