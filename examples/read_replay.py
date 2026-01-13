@@ -1,3 +1,4 @@
+import datetime
 import logging
 from time import perf_counter
 
@@ -19,15 +20,8 @@ if __name__ == "__main__":
     ritf.open(mode = 'r', max_patches=None)
     ritf.register_game_info_state_trigger()
 
-
-
     t2 = perf_counter()
     # Test Operations --------------------------------
-    from_ts = 1767737657
-    to_ts = 1767737670
-    patch = ritf._replay.storage.patch_graph.patches[from_ts, to_ts]
-    for i, op_type in enumerate(patch.op_types):
-        print(f"{INT_TO_OP[op_type]} {ritf._replay.storage.path_tree.idx_to_path_list(patch.paths[i])} {str(patch.values[i])[:200]}")
     # End --------------------------------------------
     t3 = perf_counter()
     ritf.close()

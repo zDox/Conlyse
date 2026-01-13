@@ -23,7 +23,7 @@ class TestLongPatchCreation(unittest.TestCase):
 
         # Get optimized state
         ritf.jump_to(ritf.start_time)
-        patches = ritf.create_and_save_long_patch(ritf.start_time, target_time)
+        patches = [ritf.create_and_save_long_patch(ritf.start_time, target_time)]
         ritf._apply_patches_and_update_state(patches, target_time)
         state_optimized = dump_any(ritf.game_state)
 
