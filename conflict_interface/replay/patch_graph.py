@@ -29,9 +29,19 @@ class PatchGraph:
 
     def find_prev_timestamp(self, target):
         """
-        timestamps: sorted list of datetime (UTC)
-        target: datetime (UTC)
-        returns: closest timestamp <= target, or None if none exists
+        Find the closest cached Unix timestamp less than or equal to the target.
+
+        Parameters
+        ----------
+        target : int
+            Unix timestamp (e.g. seconds since the Unix epoch).
+
+        Returns
+        -------
+        int | None
+            The closest Unix timestamp in ``self.time_stamps_cache`` that is
+            less than or equal to ``target``, or ``None`` if no such timestamp
+            exists.
         """
         i = bisect_right(self.time_stamps_cache, target)
         return self.time_stamps_cache[i - 1] if i > 0 else None
