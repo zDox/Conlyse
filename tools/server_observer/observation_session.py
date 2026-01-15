@@ -66,18 +66,20 @@ class ObservationSession:
     def reset(self):
         self.package = None
         self._shared_transport = None
-        if self._storage is None:
-            self._storage = RecordingStorage(self.storage_path)
-        self._storage.update_resume_metadata({})
+        self._ensure_storage().update_resume_metadata({})
 
     def needs_update(self, now: float) -> bool:
         return now >= self.next_update_at
+    
+    def _ensure_storage(self) -> RecordingStorage:
+        """Ensure storage instance is initialized and return it."""
+        if self._storage is None:
+            self._storage = RecordingStorage(self.storage_path)
+        return self._storage
 
     def create_worker(self) -> ObservationWorker:
         # Check if resume data exists to decide on transport reuse
-        if self._storage is None:
-            self._storage = RecordingStorage(self.storage_path)
-        has_resume_data = self._storage.has_resume_metadata()
+        has_resume_data = self._ensure_storage().has_resume_metadata()
         
         # For sessions with resume data, reuse the transport to reduce overhead
         if has_resume_data:
