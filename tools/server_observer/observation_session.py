@@ -57,6 +57,7 @@ class ObservationSession:
         self.storage_path: str = f"./recordings/game_{self.game_id}"
         self.package = None
         self._shared_transport: Optional[HTTPTransport] = None
+        self._storage: Optional[RecordingStorage] = None
 
         self._start_time: Optional[float] = None
         self._updates_done = 0
@@ -64,18 +65,19 @@ class ObservationSession:
 
     def reset(self):
         self.package = None
-        if self._shared_transport:
-            self._shared_transport = None
-        storage = RecordingStorage(self.storage_path)
-        storage.update_resume_metadata({})
+        self._shared_transport = None
+        if self._storage is None:
+            self._storage = RecordingStorage(self.storage_path)
+        self._storage.update_resume_metadata({})
 
     def needs_update(self, now: float) -> bool:
         return now >= self.next_update_at
 
     def create_worker(self) -> ObservationWorker:
         # Check if resume data exists to decide on transport reuse
-        storage = RecordingStorage(self.storage_path)
-        has_resume_data = storage.has_resume_metadata()
+        if self._storage is None:
+            self._storage = RecordingStorage(self.storage_path)
+        has_resume_data = self._storage.has_resume_metadata()
         
         # For sessions with resume data, reuse the transport to reduce overhead
         if has_resume_data:
@@ -231,7 +233,7 @@ class ObservationWorker:
 
     def _create_observation_api(self) -> ObservationApi:
         # Use provided transport (reused) or create a new one (first update)
-        transport = self._transport if self._transport is not None else HTTPTransport()
+        transport = self._transport or HTTPTransport()
         return ObservationApi(
             transport,
             headers=self.package.headers,
