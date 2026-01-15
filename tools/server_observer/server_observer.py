@@ -195,14 +195,14 @@ class ServerObserver:
                 with self._threads_lock:
                     self._first_update_sessions.discard(game_id)
                 break  # Success, exit the retry loop
-            except Exception:
+            except Exception as e:
                 if attempt < MAX_UPDATE_RETRIES:
                     logger.exception(f"Observation for game {game_id} failed, retrying attempt {attempt}/{MAX_UPDATE_RETRIES}...")
                     attempt += 1
                     continue
 
                 logger.exception(f"Observation for game {game_id} failed after {MAX_UPDATE_RETRIES} retries, marking as failed.")
-                self.registry.mark_failed(game_id, "execution_failed")
+                self.registry.mark_failed(game_id, str(e))
                 self.account_pool.decrement_guest_join(session.account)
                 self.observer_sessions.pop(game_id, None)
                 self._known_games.add(game_id)

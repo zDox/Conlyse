@@ -10,7 +10,6 @@ from typing import Optional
 
 import httpx
 from httpx import HTTPTransport
-from pympler import asizeof
 
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.game_api import GameApi
@@ -109,8 +108,6 @@ class ObservationWorker:
 
     def _on_request_response(self, response: dict):
         self.storage.save_response(response)
-        if asizeof.asizeof(response) >= 1024 * 300:
-            logger.warning(f"Large response size detected for game {self.game_id} ({asizeof.asizeof(response) / 1024} KB)")
         del response
         self.storage.update_resume_metadata(asdict(self.package))
 
@@ -181,50 +178,93 @@ class ObservationWorker:
         while True:
             logger.info(f"Starting update for game {self.game_id}")
             self.ensure_observation_package()
-            with ObservationApi(
-                HTTPTransport(),
-                headers=self.package.headers,
-                cookies=self.package.cookies,
-                proxy=self.package.proxy,
-                auth_details=self.package.auth,
-                game_id=self.game_id,
-                game_server_address=self.package.game_server_address,
-            ) as observation_api:
+
+            with self._create_observation_api() as observation_api:
                 try:
-                    game_state, self.package.state_ids, self.package.time_stamps = observation_api.request_game_state(
-                        self.package.state_ids,
-                        self.package.time_stamps,
-                    )
-                    self.package.auth = deepcopy(observation_api.auth)
-                    self.package.cookies = deepcopy(dict(observation_api.client.cookies))
-                    self.package.headers = deepcopy(dict(observation_api.client.headers))
-                    self.package.game_server_address = observation_api.game_server_address
-                    self._on_request_response(game_state)
-                    if "result" in game_state and "states" in game_state["result"] and "3" in game_state["result"]["states"] and "map" in game_state["result"]["states"]["3"]:
-                        map_id = int(game_state.get("result").get("states").get("3").get("map").get("mapID"))
-                        self.ensure_static_map_data(observation_api, map_id)
+                    game_state = self._fetch_and_update_game_state(observation_api)
+                    self._process_map_data(observation_api, game_state)
+
                     if self._is_game_ended(response=game_state):
                         return False
+
                     return True
+
                 except AuthenticationException:
-                    if attempt >= MAX_RETRIES:
+                    if not self._handle_auth_failure(attempt):
                         return False
-                    logger.info(f"Authentication failed, resetting package and retrying...")
                     attempt += 1
-                    self.reset_package()
-                    continue
+
                 except httpx.HTTPStatusError as e:
                     if e.response.status_code == 401:
-                        logger.info(f"Authentication failed, resetting package and retrying...")
+                        if not self._handle_auth_failure(attempt):
+                            return False
                         attempt += 1
-                        self.reset_package()
-                        continue
                     elif e.response.status_code >= 500:
-                        logger.warning(f"GameServer returned HTTP {e.response.status_code}, retrying in {TIME_TILL_RETRY} seconds...")
-                        sleep(TIME_TILL_RETRY)
-                        continue
-                except httpx.NetworkError or httpx.ReadTimeout:
-                    logger.info(f"GameServer is not responding, retrying in {TIME_TILL_RETRY} seconds...")
-                    sleep(TIME_TILL_RETRY)
-                    continue
-        return False
+                        self._handle_server_error(e.response.status_code)
+
+                except (httpx.NetworkError, httpx.ReadTimeout):
+                    self._handle_network_error()
+
+    def _create_observation_api(self) -> ObservationApi:
+        return ObservationApi(
+            HTTPTransport(),
+            headers=self.package.headers,
+            cookies=self.package.cookies,
+            proxy=self.package.proxy,
+            auth_details=self.package.auth,
+            game_id=self.game_id,
+            game_server_address=self.package.game_server_address,
+        )
+
+    def _fetch_and_update_game_state(self, observation_api: ObservationApi) -> dict:
+        game_state, self.package.state_ids, self.package.time_stamps = (
+            observation_api.request_game_state(
+                self.package.state_ids,
+                self.package.time_stamps,
+            )
+        )
+
+        self.package.auth = deepcopy(observation_api.auth)
+        self.package.cookies = deepcopy(dict(observation_api.client.cookies))
+        self.package.headers = deepcopy(dict(observation_api.client.headers))
+        self.package.game_server_address = observation_api.game_server_address
+
+        self._on_request_response(game_state)
+        return game_state
+
+    def _process_map_data(self, observation_api: ObservationApi, game_state: dict) -> None:
+        try:
+            map_id = (
+                game_state.get("result", {})
+                .get("states", {})
+                .get("3", {})
+                .get("map", {})
+                .get("mapID")
+            )
+
+            if map_id is not None:
+                self.ensure_static_map_data(observation_api, int(map_id))
+        except (ValueError, TypeError):
+            pass  # Map data not available or invalid
+
+    def _handle_auth_failure(self, attempt: int) -> bool:
+        if attempt >= MAX_RETRIES:
+            return False
+
+        logger.warning("Authentication failed, resetting package and retrying...")
+        self.reset_package()
+        return True
+
+    def _handle_server_error(self, status_code: int) -> None:
+        logger.warning(
+            f"GameServer returned HTTP {status_code}, "
+            f"retrying in {TIME_TILL_RETRY} seconds..."
+        )
+        sleep(TIME_TILL_RETRY)
+
+    def _handle_network_error(self) -> None:
+        logger.warning(
+            f"GameServer is not responding, "
+            f"retrying in {TIME_TILL_RETRY} seconds..."
+        )
+        sleep(TIME_TILL_RETRY)

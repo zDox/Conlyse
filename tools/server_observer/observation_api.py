@@ -93,7 +93,7 @@ class ObservationApi:
         self.client = httpx.Client(transport=transport,
                                    headers=headers,
                                    cookies=cookies,
-                                   proxy=proxy.get("http"),
+                                   proxy=proxy.get("http") if proxy else None,
                                    timeout=httpx.Timeout(
                                        connect=10.0,  # seconds to establish connection
                                        read=60.0,  # seconds to wait for a server response
@@ -190,7 +190,7 @@ class ObservationApi:
                 err_class = response_json["result"].get("@c")
                 if err_class == "ultshared.UltAuthentificationException":
                     raise AuthenticationException(
-                        f"Authentfication failed while sending parameters {dumps(payload, indent=2)} to game server.")
+                        f"Authentication failed while sending parameters {dumps(payload, indent=2)} to game server.")
                 if err_class == "ultshared.rpc.UltSwitchServerException":
                     # Update server address provided by server
                     new_server = "https://" + response_json["result"].get("newHostName")
@@ -213,10 +213,10 @@ class ObservationApi:
         :param time_scale: The time_scale of the game
         """
         current_time = datetime.now(UTC)
-        if not time_scale in (0.25, 1, 0.1):
+        if time_scale not in (0.25, 1, 0.1):
             raise ValueError(f"Time scale cannot be {time_scale}. Must be 0.1, 0.25 or 1")
         if time_scale != 1:
-            time_elapsed = timedelta(seconds = (current_time -self.last_update_time).total_seconds() / time_scale)
+            time_elapsed = timedelta(seconds = (current_time - self.last_update_time).total_seconds() / time_scale)
             return self.last_update_time + self.server_time_offset + time_elapsed
         return current_time + self.server_time_offset
 

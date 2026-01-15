@@ -105,17 +105,17 @@ class RecordingStorage:
         return "resume" in self._load_metadata() and self.resume_metadata != {}
 
     @staticmethod
-    def append_bytes_to_file(file_path: Path, timestamp_ms: int, data: bytes):
+    def append_bytes_to_file(file_path: Path, timestamp: int, data: bytes):
         with open(file_path, 'ab') as f:
             # Write timestamp and length, then compressed data
-            f.write(timestamp_ms.to_bytes(8, 'big'))
+            f.write(timestamp.to_bytes(8, 'big'))
             f.write(len(data).to_bytes(4, 'big'))
             f.write(data)
 
     def save_response(self, response: dict):
         """Save response to file."""
         response_str = json.dumps(response)
-        response_compressed = zstd.ZstdCompressor(level=3).compress(response_str.encode("utf-8"))
+        response_compressed = self._compressor.compress(response_str.encode("utf-8"))
         self.append_bytes_to_file(self.responses_file, int(time.time()), response_compressed)
 
         metadata = self._load_metadata()
@@ -131,7 +131,7 @@ class RecordingStorage:
         self.log_thread_id = threading.get_ident()
         allowed_thread = self.log_thread_id
 
-        def add_file_handler(logger, filename, level=logging.DEBUG, formatter=None):
+        def add_file_handler(logger, filename, level=logging.INFO, formatter=None):
             file_handler = logging.FileHandler(filename)
             file_handler.setLevel(level)
             if formatter is None:
@@ -178,14 +178,12 @@ class RecordingStorage:
         """Remove the file logging handler and flush remaining metadata."""
         # MEMORY OPTIMIZATION: Flush any remaining metadata updates
         if self.recorder_log_file_handler:
-            logger.info("Log recording completed")
             logger.removeHandler(self.recorder_log_file_handler)
             self.recorder_log_file_handler.close()
             self.recorder_log_file_handler = None
 
         if self.library_log_file_handler:
             library_logger = logging.getLogger("con_itf")
-            library_logger.info("Library log recording completed")
             library_logger.removeHandler(self.library_log_file_handler)
             self.library_log_file_handler.close()
             self.library_log_file_handler = None
