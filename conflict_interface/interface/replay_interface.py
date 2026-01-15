@@ -251,12 +251,29 @@ class ReplayInterface(GameInterface):
 
     def find_closest_prev_timestamp(self, target: datetime):
         """
-        timestamps: sorted list of datetime (UTC)
-        target: datetime (UTC)
-        returns: closest timestamp <= target, or None if none exists
+        Find the closest cached timestamp less than or equal to the target.
+
+        Parameters
+        ----------
+        target : datetime
+            Target datetime (UTC).
+
+        Returns
+        -------
+        datetime | None
+            The closest datetime in ``self._time_stamps_cache`` that is
+            less than or equal to ``target``, or ``None`` if no such timestamp
+            exists.
         """
-        i = bisect_right(self._time_stamps_cache, target)
-        return self._time_stamps_cache[i - 1] if i > 0 else None
+        # Convert datetime to Unix timestamp and delegate to PatchGraph
+        target_unix = int(target.timestamp())
+        prev_unix = self._replay.storage.patch_graph.find_prev_timestamp(target_unix)
+        
+        if prev_unix is None:
+            return None
+        
+        # Convert back to datetime
+        return datetime.fromtimestamp(prev_unix, tz=UTC)
 
     def get_previous_timestamp(self, timestamp = None) -> datetime | None:
         """

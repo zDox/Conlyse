@@ -1,4 +1,3 @@
-import datetime
 import logging
 from time import perf_counter
 
