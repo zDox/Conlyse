@@ -56,6 +56,7 @@ class ObservationSession:
 
         self.storage_path: str = f"./recordings/game_{self.game_id}"
         self.package = None
+        self._shared_transport: Optional[HTTPTransport] = None
 
         self._start_time: Optional[float] = None
         self._updates_done = 0
@@ -63,6 +64,8 @@ class ObservationSession:
 
     def reset(self):
         self.package = None
+        if self._shared_transport:
+            self._shared_transport = None
         storage = RecordingStorage(self.storage_path)
         storage.update_resume_metadata({})
 
@@ -70,7 +73,27 @@ class ObservationSession:
         return now >= self.next_update_at
 
     def create_worker(self) -> ObservationWorker:
-        return ObservationWorker(self.account, self.game_id, self.package, self.map_cache)
+        # Check if resume data exists to decide on transport reuse
+        storage = RecordingStorage(self.storage_path)
+        has_resume_data = storage.has_resume_metadata()
+        
+        # For sessions with resume data, reuse the transport to reduce overhead
+        if has_resume_data:
+            if self._shared_transport is None:
+                self._shared_transport = HTTPTransport()
+            transport = self._shared_transport
+        else:
+            # For first updates (no resume data), create a new transport
+            # This isolates the large initial response in thread memory
+            transport = None
+        
+        return ObservationWorker(
+            self.account, 
+            self.game_id, 
+            self.package, 
+            self.map_cache,
+            transport=transport
+        )
 
     def update_package(self, other: ObservationPackage):
         self.package = other
@@ -81,7 +104,7 @@ class ObservationWorker:
     Lightweight worker that performs a single update using the owning ObservationSession.
     """
 
-    def __init__(self, account: Account, game_id: int, package: ObservationPackage = None, map_cache: StaticMapCache = None):
+    def __init__(self, account: Account, game_id: int, package: ObservationPackage = None, map_cache: StaticMapCache = None, transport: Optional[HTTPTransport] = None):
         self.account = account
         self.game_id = game_id
         self.storage = RecordingStorage(f"./recordings/game_{self.game_id}")
@@ -89,6 +112,7 @@ class ObservationWorker:
         self.package: ObservationPackage = package
         self.map_cache = map_cache
         self.recording_itf = None
+        self._transport = transport
 
     def cleanup(self):
         """Clean up resources used by this worker."""
@@ -206,8 +230,10 @@ class ObservationWorker:
                     self._handle_network_error()
 
     def _create_observation_api(self) -> ObservationApi:
+        # Use provided transport (reused) or create a new one (first update)
+        transport = self._transport if self._transport is not None else HTTPTransport()
         return ObservationApi(
-            HTTPTransport(),
+            transport,
             headers=self.package.headers,
             cookies=self.package.cookies,
             proxy=self.package.proxy,
