@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -357,24 +358,22 @@ class FromJsonResponsesUsingUpdateToReplay:
                 new_state: GameState = parse_any(
                     GameState, json_response["result"], mock_game
                 )
-
                 current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
 
                 # Create appropriate patch based on response type
                 bipatch = self._create_patch(
                     json_response, current_state, new_state, i, current_timestamp
                 )
-
                 # Update current state if full replacement
                 if json_response["result"]["@c"] == self.FULL_STATE_TYPE:
                     current_state = new_state
 
                 # Record patch to replay
-                replay.append_patches(
+                replay.que_append_patch(
                     time_stamp=current_timestamp,
                     game_id=game_id,
                     player_id=player_id,
-                    replay_patches=[bipatch],
+                    replay_patch=bipatch,
                 )
 
             return True
@@ -412,6 +411,10 @@ class FromJsonResponsesUsingUpdateToReplay:
     def _finalize_replay(self, replay: Replay, final_state: GameState) -> None:
         """Finalize replay by recording final state and closing."""
         logger.info("Finalizing replay...")
+        t1 = time.perf_counter()
+        replay.execute_append_que()
+        t2 = time.perf_counter()
+        print(f"execution append que took {(t2-t1)*1000} ms")
         GameObject.set_game_recursive(final_state, None)
         replay.set_last_game_state(final_state)
         replay.close()

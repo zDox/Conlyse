@@ -12,7 +12,7 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
-    ritf = ReplayInterface(TEST_DATA / "test_replay.bin", game_id= 12345, player_id=1)
+    ritf = ReplayInterface(TEST_DATA / "test_replay_10626234_1.bin", game_id= 12345, player_id=1)
 
     for i in range(10000000):
         pass
