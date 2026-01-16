@@ -281,8 +281,9 @@ class ObservationWorker:
                 game_id=self.game_id,
                 game_server_address=self.package.game_server_address,
             )
-            # Store the created client for potential reuse
-            if self._transport is not None:  # Only store if using shared transport
+            # Store the created client for potential reuse only if using shared transport
+            # This indicates we have resume data and want to optimize subsequent requests
+            if self._transport is not None and self._shared_client is None:
                 self._created_client = api.client
         
         return api
