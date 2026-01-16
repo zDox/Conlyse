@@ -51,7 +51,7 @@ class ObservationSession:
             account: Account,
             map_cache: StaticMapCache,
             storage_path: Path,
-            metadata_path: Path = None
+            metadata_path: Optional[Path] = None
         ):
         self.account = account
         self.map_cache = map_cache
@@ -121,7 +121,7 @@ class ObservationWorker:
                  package: ObservationPackage = None,
                  map_cache: StaticMapCache = None,
                  transport: Optional[HTTPTransport] = None,
-                 metadata_path: Path = None):
+                 metadata_path: Optional[Path] = None):
         self.account = account
         self.game_id = game_id
         self.storage = RecordingStorage(storage_path, metadata_path=metadata_path)
