@@ -60,7 +60,6 @@ class ObservationSession:
         self.package = None
         self._shared_transport: Optional[HTTPTransport] = None
         self._storage: Optional[RecordingStorage] = None
-        self._shared_client: Optional[httpx.Client] = None  # Reuse httpx.Client for sessions with resume data
 
         self._start_time: Optional[float] = None
         self._updates_done = 0
@@ -69,9 +68,6 @@ class ObservationSession:
     def reset(self):
         self.package = None
         self._shared_transport = None
-        if self._shared_client:
-            self._shared_client.close()
-            self._shared_client = None
         self._ensure_storage().update_resume_metadata({})
 
     def needs_update(self, now: float) -> bool:
@@ -92,13 +88,10 @@ class ObservationSession:
             if self._shared_transport is None:
                 self._shared_transport = HTTPTransport()
             transport = self._shared_transport
-            # Also pass the shared client if available for further optimization
-            client = self._shared_client
         else:
             # For first updates (no resume data), create a new transport
             # This isolates the large initial response in thread memory
             transport = None
-            client = None
 
         return ObservationWorker(
             self.account,
@@ -107,14 +100,7 @@ class ObservationSession:
             self.package, 
             self.map_cache,
             transport=transport,
-            shared_client=client
         )
-
-    def update_shared_client(self, client: httpx.Client):
-        """Update the shared client after a successful update with resume data."""
-        if self._shared_client and self._shared_client != client:
-            self._shared_client.close()
-        self._shared_client = client
 
     def update_package(self, other: ObservationPackage):
         self.package = other
@@ -131,8 +117,7 @@ class ObservationWorker:
                  game_id: int,
                  package: ObservationPackage = None,
                  map_cache: StaticMapCache = None,
-                 transport: Optional[HTTPTransport] = None,
-                 shared_client: Optional[httpx.Client] = None):
+                 transport: Optional[HTTPTransport] = None):
         self.account = account
         self.game_id = game_id
         self.storage = RecordingStorage(storage_path)
@@ -141,18 +126,12 @@ class ObservationWorker:
         self.map_cache = map_cache
         self.recording_itf = None
         self._transport = transport
-        self._shared_client = shared_client
-        self._created_client = None  # Track if we created a new client to close it later
 
     def cleanup(self):
         """Clean up resources used by this worker."""
         if self.storage:
             self.storage.teardown_logging()
             self.storage = None
-        # Only close the client if we created it (not shared)
-        if self._created_client:
-            self._created_client.close()
-            self._created_client = None
 
     def __enter__(self):
         """Support context manager protocol."""
@@ -165,9 +144,9 @@ class ObservationWorker:
 
 
     def _on_request_response(self, response: dict):
+        self.storage.update_resume_metadata(asdict(self.package))
         self.storage.save_response(response)
         del response
-        self.storage.update_resume_metadata(asdict(self.package))
 
     def ensure_observation_package(self) -> bool:
         if self.package is not None:
@@ -266,33 +245,15 @@ class ObservationWorker:
     def _create_observation_api(self) -> ObservationApi:
         # Use provided transport (reused) or create a new one (first update)
         transport = self._transport or HTTPTransport()
-
-        # Use shared client if available for maximum performance
-        if self._shared_client is not None:
-            api = ObservationApi(
-                transport,
-                headers=self.package.headers,
-                cookies=self.package.cookies,
-                proxy=self.package.proxy,
-                auth_details=self.package.auth,
-                game_id=self.game_id,
-                game_server_address=self.package.game_server_address,
-                client=self._shared_client
-            )
-        else:
-            api = ObservationApi(
-                transport,
-                headers=self.package.headers,
-                cookies=self.package.cookies,
-                proxy=self.package.proxy,
-                auth_details=self.package.auth,
-                game_id=self.game_id,
-                game_server_address=self.package.game_server_address,
-            )
-            # Store the created client for potential reuse only if using shared transport
-            # This indicates we have resume data and want to optimize subsequent requests
-            if self._transport is not None and self._shared_client is None:
-                self._created_client = api.client
+        api = ObservationApi(
+            transport,
+            headers=self.package.headers,
+            cookies=self.package.cookies,
+            proxy=self.package.proxy,
+            auth_details=self.package.auth,
+            game_id=self.game_id,
+            game_server_address=self.package.game_server_address,
+        )
 
         return api
 
