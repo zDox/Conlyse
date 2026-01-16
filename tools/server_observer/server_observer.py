@@ -185,6 +185,10 @@ class ServerObserver:
                 with session.create_worker() as worker:
                     keep_running = worker.run()
                     session.update_package(deepcopy(worker.package))
+                    # Update shared client only if one was created and we're using shared transport
+                    # (worker._transport indicates we're optimizing with resume data)
+                    if worker._created_client and worker._transport is not None:
+                        session.update_shared_client(worker._created_client)
                     if keep_running:
                         session.next_update_at = time() + self.update_interval
                         self._update_queue.put(session)
