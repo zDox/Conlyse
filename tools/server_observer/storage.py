@@ -31,14 +31,14 @@ class RecordingStorage:
     - library.log: ConflictInterface library log
     """
 
-    def __init__(self, output_path: str, overwrite: bool = False):
+    def __init__(self, output_path: Path, overwrite: bool = False):
         """
         Initialize recording storage.
         
         Args:
             output_path: Path to the output directory for recordings
         """
-        self.output_path = Path(output_path)
+        self.output_path = output_path
         self.output_path.mkdir(parents=True, exist_ok=True)
         
         # Create compressor

@@ -151,7 +151,8 @@ class ServerObserver:
         observer = ObservationSession(
             game_id,
             account,
-            self._map_cache
+            self._map_cache,
+            self.output_dir/f"game_{game_id}"
         )
         self.registry.mark_recording(game_id, scenario_id, None)
         self._known_games.add(game_id)

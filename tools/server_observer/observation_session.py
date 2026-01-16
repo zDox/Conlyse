@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import field
+from pathlib import Path
 from time import sleep
 from time import time
 from typing import Optional
@@ -49,12 +50,13 @@ class ObservationSession:
             game_id: int,
             account: Account,
             map_cache: StaticMapCache,
+            storage_path: Path
         ):
         self.account = account
         self.map_cache = map_cache
         self.game_id = game_id
 
-        self.storage_path: str = f"./recordings/game_{self.game_id}"
+        self.storage_path = storage_path
         self.package = None
         self._shared_transport: Optional[HTTPTransport] = None
         self._storage: Optional[RecordingStorage] = None
@@ -92,7 +94,8 @@ class ObservationSession:
             transport = None
         
         return ObservationWorker(
-            self.account, 
+            self.account,
+            self.storage_path,
             self.game_id, 
             self.package, 
             self.map_cache,
@@ -108,10 +111,16 @@ class ObservationWorker:
     Lightweight worker that performs a single update using the owning ObservationSession.
     """
 
-    def __init__(self, account: Account, game_id: int, package: ObservationPackage = None, map_cache: StaticMapCache = None, transport: Optional[HTTPTransport] = None):
+    def __init__(self,
+                 account: Account,
+                 storage_path: Path,
+                 game_id: int,
+                 package: ObservationPackage = None,
+                 map_cache: StaticMapCache = None,
+                 transport: Optional[HTTPTransport] = None):
         self.account = account
         self.game_id = game_id
-        self.storage = RecordingStorage(f"./recordings/game_{self.game_id}")
+        self.storage = RecordingStorage(storage_path)
         self.storage.setup_logging()
         self.package: ObservationPackage = package
         self.map_cache = map_cache
@@ -205,12 +214,18 @@ class ObservationWorker:
         attempt = 1
         while True:
             logger.info(f"Starting update for game {self.game_id}")
+            t1 = time()
             self.ensure_observation_package()
-
+            t2 = time()
             with self._create_observation_api() as observation_api:
                 try:
+                    t3 = time()
                     game_state = self._fetch_and_update_game_state(observation_api)
+                    t4 = time()
                     self._process_map_data(observation_api, game_state)
+                    t5 = time()
+                    logger.info(
+                        f"Package Ensuration {t5 - t4}s, Api Creation {t3 - t2}s, Fetching {t4 - t3}s, Processing {t5 - t4}s")
 
                     if self._is_game_ended(response=game_state):
                         return False
