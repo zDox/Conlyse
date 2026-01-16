@@ -89,17 +89,24 @@ class ObservationApi:
                  game_id: int,
                  game_server_address: str,
                  client_version: int = SUPPORTED_CLIENT_VERSION,
-                 proxy: dict = None):
-        self.client = httpx.Client(transport=transport,
-                                   headers=headers,
-                                   cookies=cookies,
-                                   proxy=proxy.get("http") if proxy else None,
-                                   timeout=httpx.Timeout(
-                                       connect=10.0,  # seconds to establish connection
-                                       read=60.0,  # seconds to wait for a server response
-                                       write=30.0,
-                                       pool=5.0
-                                   ))
+                 proxy: dict = None,
+                 client: httpx.Client = None):
+        # Use provided client if available (for reuse), otherwise create new one
+        if client is not None:
+            self.client = client
+            self._owns_client = False  # Don't close shared client
+        else:
+            self.client = httpx.Client(transport=transport,
+                                       headers=headers,
+                                       cookies=cookies,
+                                       proxy=proxy.get("http") if proxy else None,
+                                       timeout=httpx.Timeout(
+                                           connect=10.0,  # seconds to establish connection
+                                           read=60.0,  # seconds to wait for a server response
+                                           write=30.0,
+                                           pool=5.0
+                                       ))
+            self._owns_client = True
         self.game_id = game_id
         self.player_id = 0
         self.auth = auth_details
@@ -122,7 +129,8 @@ class ObservationApi:
 
     def close(self):
         """Close the HTTP client and release resources."""
-        if self.client:
+        # Only close if we own the client (not shared)
+        if self.client and self._owns_client:
             self.client.close()
             self.client = None
 

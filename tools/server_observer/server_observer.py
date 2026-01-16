@@ -184,6 +184,9 @@ class ServerObserver:
                 with session.create_worker() as worker:
                     keep_running = worker.run()
                     session.update_package(deepcopy(worker.package))
+                    # Update shared client if one was created during this run
+                    if worker._created_client:
+                        session.update_shared_client(worker._created_client)
                     if keep_running:
                         session.next_update_at = time() + self.update_interval
                         self._update_queue.put(session)

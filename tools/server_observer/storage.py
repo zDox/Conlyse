@@ -57,6 +57,7 @@ class RecordingStorage:
         self.library_log_file_handler = None
         self.log_thread_id: int | None = None
         self.resume_metadata: dict = {}
+        self._metadata_cache: dict = None  # Cache metadata to avoid repeated file reads
 
         # Initialize files
         if overwrite or not self.metadata_file.exists():
@@ -77,17 +78,25 @@ class RecordingStorage:
         """Save metadata to file."""
         with open(self.metadata_file, 'w') as f:
             json.dump(metadata, f, indent=2)
+        # Update cache when saving
+        self._metadata_cache = metadata
 
     def _load_metadata(self) -> dict:
         """Load metadata from file or cache."""
+        # Return cached metadata if available to avoid repeated file I/O
+        if self._metadata_cache is not None:
+            return self._metadata_cache
+            
         if self.metadata_file.exists():
             with open(self.metadata_file, 'r') as f:
-                metadata_cache = json.load(f)
-                self.resume_metadata = metadata_cache.get("resume", {})
-                return metadata_cache
+                self._metadata_cache = json.load(f)
+                self.resume_metadata = self._metadata_cache.get("resume", {})
+                return self._metadata_cache
         else:
             logger.warning(f"Metadata file not found: {self.metadata_file}")
-        return {"version": "1.0", "updates": []}
+        
+        self._metadata_cache = {"version": "1.0", "updates": []}
+        return self._metadata_cache
 
     def update_resume_metadata(self, resume: dict):
         """

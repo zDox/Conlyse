@@ -58,6 +58,7 @@ class ObservationSession:
         self.package = None
         self._shared_transport: Optional[HTTPTransport] = None
         self._storage: Optional[RecordingStorage] = None
+        self._shared_client: Optional[httpx.Client] = None  # Reuse httpx.Client for sessions with resume data
 
         self._start_time: Optional[float] = None
         self._updates_done = 0
@@ -66,6 +67,9 @@ class ObservationSession:
     def reset(self):
         self.package = None
         self._shared_transport = None
+        if self._shared_client:
+            self._shared_client.close()
+            self._shared_client = None
         self._ensure_storage().update_resume_metadata({})
 
     def needs_update(self, now: float) -> bool:
@@ -86,18 +90,28 @@ class ObservationSession:
             if self._shared_transport is None:
                 self._shared_transport = HTTPTransport()
             transport = self._shared_transport
+            # Also pass the shared client if available for further optimization
+            client = self._shared_client
         else:
             # For first updates (no resume data), create a new transport
             # This isolates the large initial response in thread memory
             transport = None
+            client = None
         
         return ObservationWorker(
             self.account, 
             self.game_id, 
             self.package, 
             self.map_cache,
-            transport=transport
+            transport=transport,
+            shared_client=client
         )
+    
+    def update_shared_client(self, client: httpx.Client):
+        """Update the shared client after a successful update with resume data."""
+        if self._shared_client and self._shared_client != client:
+            self._shared_client.close()
+        self._shared_client = client
 
     def update_package(self, other: ObservationPackage):
         self.package = other
@@ -108,7 +122,7 @@ class ObservationWorker:
     Lightweight worker that performs a single update using the owning ObservationSession.
     """
 
-    def __init__(self, account: Account, game_id: int, package: ObservationPackage = None, map_cache: StaticMapCache = None, transport: Optional[HTTPTransport] = None):
+    def __init__(self, account: Account, game_id: int, package: ObservationPackage = None, map_cache: StaticMapCache = None, transport: Optional[HTTPTransport] = None, shared_client: Optional[httpx.Client] = None):
         self.account = account
         self.game_id = game_id
         self.storage = RecordingStorage(f"./recordings/game_{self.game_id}")
@@ -117,12 +131,18 @@ class ObservationWorker:
         self.map_cache = map_cache
         self.recording_itf = None
         self._transport = transport
+        self._shared_client = shared_client
+        self._created_client = None  # Track if we created a new client to close it later
 
     def cleanup(self):
         """Clean up resources used by this worker."""
         if self.storage:
             self.storage.teardown_logging()
             self.storage = None
+        # Only close the client if we created it (not shared)
+        if self._created_client:
+            self._created_client.close()
+            self._created_client = None
 
     def __enter__(self):
         """Support context manager protocol."""
@@ -165,11 +185,13 @@ class ObservationWorker:
             auth_details=hub_itf.api.auth
         )
         game_api.load_game_site()
+        # Optimize: reduce deepcopy operations - only deepcopy auth which is complex
+        # Simple dicts can use dict() constructor which is faster
         return ObservationPackage(
             game_id=game_api.game_id,
-            headers=deepcopy(dict(game_api.session.headers)),
-            cookies=deepcopy(dict(game_api.session.cookies)),
-            proxy=deepcopy(dict(game_api.session.proxies)),
+            headers=dict(game_api.session.headers),
+            cookies=dict(game_api.session.cookies),
+            proxy=dict(game_api.session.proxies),
             auth=deepcopy(game_api.auth),
             client_version=game_api.client_version,
             game_server_address=game_api.game_server_address,
@@ -236,15 +258,34 @@ class ObservationWorker:
     def _create_observation_api(self) -> ObservationApi:
         # Use provided transport (reused) or create a new one (first update)
         transport = self._transport or HTTPTransport()
-        return ObservationApi(
-            transport,
-            headers=self.package.headers,
-            cookies=self.package.cookies,
-            proxy=self.package.proxy,
-            auth_details=self.package.auth,
-            game_id=self.game_id,
-            game_server_address=self.package.game_server_address,
-        )
+        
+        # Use shared client if available for maximum performance
+        if self._shared_client is not None:
+            api = ObservationApi(
+                transport,
+                headers=self.package.headers,
+                cookies=self.package.cookies,
+                proxy=self.package.proxy,
+                auth_details=self.package.auth,
+                game_id=self.game_id,
+                game_server_address=self.package.game_server_address,
+                client=self._shared_client
+            )
+        else:
+            api = ObservationApi(
+                transport,
+                headers=self.package.headers,
+                cookies=self.package.cookies,
+                proxy=self.package.proxy,
+                auth_details=self.package.auth,
+                game_id=self.game_id,
+                game_server_address=self.package.game_server_address,
+            )
+            # Store the created client for potential reuse
+            if self._transport is not None:  # Only store if using shared transport
+                self._created_client = api.client
+        
+        return api
 
     def _fetch_and_update_game_state(self, observation_api: ObservationApi) -> dict:
         game_state, self.package.state_ids, self.package.time_stamps = (
@@ -254,9 +295,11 @@ class ObservationWorker:
             )
         )
 
+        # Update auth and connection details - only deepcopy auth as it's a complex object
+        # Cookies and headers are simple dicts that can be shallow copied
         self.package.auth = deepcopy(observation_api.auth)
-        self.package.cookies = deepcopy(dict(observation_api.client.cookies))
-        self.package.headers = deepcopy(dict(observation_api.client.headers))
+        self.package.cookies = dict(observation_api.client.cookies)
+        self.package.headers = dict(observation_api.client.headers)
         self.package.game_server_address = observation_api.game_server_address
 
         self._on_request_response(game_state)
