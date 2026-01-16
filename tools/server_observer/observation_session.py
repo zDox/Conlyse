@@ -50,13 +50,15 @@ class ObservationSession:
             game_id: int,
             account: Account,
             map_cache: StaticMapCache,
-            storage_path: Path
+            storage_path: Path,
+            metadata_path: Path = None
         ):
         self.account = account
         self.map_cache = map_cache
         self.game_id = game_id
 
         self.storage_path = storage_path
+        self.metadata_path = metadata_path
         self.package = None
         self._shared_transport: Optional[HTTPTransport] = None
         self._storage: Optional[RecordingStorage] = None
@@ -76,7 +78,7 @@ class ObservationSession:
     def _ensure_storage(self) -> RecordingStorage:
         """Ensure storage instance is initialized and return it."""
         if self._storage is None:
-            self._storage = RecordingStorage(self.storage_path)
+            self._storage = RecordingStorage(self.storage_path, metadata_path=self.metadata_path)
         return self._storage
 
     def create_worker(self) -> ObservationWorker:
@@ -100,6 +102,7 @@ class ObservationSession:
             self.package, 
             self.map_cache,
             transport=transport,
+            metadata_path=self.metadata_path,
         )
 
     def update_package(self, other: ObservationPackage):
@@ -117,10 +120,11 @@ class ObservationWorker:
                  game_id: int,
                  package: ObservationPackage = None,
                  map_cache: StaticMapCache = None,
-                 transport: Optional[HTTPTransport] = None):
+                 transport: Optional[HTTPTransport] = None,
+                 metadata_path: Path = None):
         self.account = account
         self.game_id = game_id
-        self.storage = RecordingStorage(storage_path)
+        self.storage = RecordingStorage(storage_path, metadata_path=metadata_path)
         self.storage.setup_logging()
         self.package: ObservationPackage = package
         self.map_cache = map_cache

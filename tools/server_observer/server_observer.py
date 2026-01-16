@@ -55,13 +55,19 @@ class ServerObserver:
         self.max_guest_per_account: Optional[int] = config.get("max_guest_games_per_account")
         self.update_interval: float = float(config.get("update_interval", 60.0))
         self.output_dir = Path(config.get("output_dir", "./recordings"))
+        # Optional separate directory for metadata
+        self.output_metadata_dir = config.get("output_metadata_dir")
+        if self.output_metadata_dir is not None:
+            self.output_metadata_dir = Path(self.output_metadata_dir)
         self.enabled_scanning = config.get("enabled_scanning", True)
 
         self.observer_sessions: Dict[int, ObservationSession] = {}
 
+        # Use metadata directory for registry if configured
+        registry_default_dir = self.output_metadata_dir if self.output_metadata_dir else self.output_dir
         registry_path = config.get(
             "registry_path",
-            self.output_dir / "server_observer_registry.json",
+            registry_default_dir / "server_observer_registry.json",
         )
         self.registry = RecordingRegistry(Path(registry_path))
         self._listing_interface: Optional[HubInterface] = None
@@ -148,11 +154,17 @@ class ServerObserver:
             return
         logger.info(f"Starting observation session for game {game_id} with scenario {scenario_id}")
 
+        # Determine metadata path for this game
+        metadata_path = None
+        if self.output_metadata_dir is not None:
+            metadata_path = self.output_metadata_dir / f"game_{game_id}"
+
         observer = ObservationSession(
             game_id,
             account,
             self._map_cache,
-            self.output_dir/f"game_{game_id}"
+            self.output_dir/f"game_{game_id}",
+            metadata_path=metadata_path
         )
         self.registry.mark_recording(game_id, scenario_id, None)
         self._known_games.add(game_id)

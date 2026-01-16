@@ -31,28 +31,36 @@ class RecordingStorage:
     - library.log: ConflictInterface library log
     """
 
-    def __init__(self, output_path: Path, overwrite: bool = False):
+    def __init__(self, output_path: Path, overwrite: bool = False, metadata_path: Path = None):
         """
         Initialize recording storage.
         
         Args:
-            output_path: Path to the output directory for recordings
+            output_path: Path to the output directory for recordings (responses)
+            overwrite: Whether to overwrite existing files
+            metadata_path: Optional separate path for metadata files. If None, uses output_path.
         """
         self.output_path = output_path
         self.output_path.mkdir(parents=True, exist_ok=True)
         
+        # Metadata path can be separate from responses path
+        self.metadata_path = metadata_path if metadata_path is not None else output_path
+        self.metadata_path.mkdir(parents=True, exist_ok=True)
+        
         # Create compressor
         self._compressor = zstd.ZstdCompressor(level=3)
         
-        # Storage for game states and responses
+        # Storage for game states and responses (in output_path)
         self.game_states_file = self.output_path / "game_states.bin"
         self.requests_file = self.output_path / "requests.jsonl.zst"
         self.responses_file = self.output_path / "responses.jsonl.zst"
         self.static_map_data_file = self.output_path / "static_map_data.bin"
-        self.metadata_file = self.output_path / "metadata.json"
-
-        self.recorder_log_file = self.output_path / "recording.log"
-        self.library_log_file = self.output_path / "library.log"
+        
+        # Metadata files (in metadata_path)
+        self.metadata_file = self.metadata_path / "metadata.json"
+        self.recorder_log_file = self.metadata_path / "recording.log"
+        self.library_log_file = self.metadata_path / "library.log"
+        
         self.recorder_log_file_handler = None
         self.library_log_file_handler = None
         self.log_thread_id: int | None = None
