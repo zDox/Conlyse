@@ -96,7 +96,7 @@ class ServerObserver:
 
     def _select_games(self, interface: HubInterface) -> Iterable[tuple[int, HubGameProperties]]:
         logger.info("Scanning for games")
-        games = interface.get_global_games(state=HubGameState.READY_TO_JOIN)
+        games = interface.get_global_games()
         seen_games: set[int] = set()
 
         for scenario_id in self.scenario_ids:
