@@ -11,7 +11,7 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
-    ritf = ReplayInterface(TEST_DATA / "test_replay.bin", game_id= 12345, player_id=1)
+    ritf = ReplayInterface(TEST_DATA / "test_replay_10626234_1.bin", game_id= 12345, player_id=1)
 
     for i in range(10000000):
         pass
@@ -19,15 +19,8 @@ if __name__ == "__main__":
     ritf.open(mode = 'r', max_patches=None)
     ritf.register_game_info_state_trigger()
 
-
-
     t2 = perf_counter()
     # Test Operations --------------------------------
-    from_ts = 1767737657
-    to_ts = 1767737670
-    patch = ritf._replay.storage.patch_graph.patches[from_ts, to_ts]
-    for i, op_type in enumerate(patch.op_types):
-        print(f"{INT_TO_OP[op_type]} {ritf._replay.storage.path_tree.idx_to_path_list(patch.paths[i])} {str(patch.values[i])[:200]}")
     # End --------------------------------------------
     t3 = perf_counter()
     ritf.close()
