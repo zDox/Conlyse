@@ -20,8 +20,8 @@ struct ObservationPackage {
     AuthDetails auth;
     int client_version = 0;
     std::string game_server_address;
-    std::map<int, int> time_stamps;
-    std::map<int, std::string> state_ids;
+    std::map<std::string, std::string> time_stamps;
+    std::map<std::string, std::string> state_ids;
     
     json to_json() const;
     static ObservationPackage from_json(const json& j);

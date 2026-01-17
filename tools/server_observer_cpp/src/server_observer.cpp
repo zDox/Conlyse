@@ -365,29 +365,35 @@ void ServerObserver::start_due_updates() {
         }
 
         // Check first-update limit
-        bool is_first_update;
-        int active_first_updates = 0;
-
         {
             std::lock_guard<std::mutex> lock(threads_lock_);
-            is_first_update = first_update_sessions_.find(observer->game_id) !=
-                             first_update_sessions_.end();
+            const bool is_first_update = first_update_sessions_.find(observer->game_id) !=
+                                   first_update_sessions_.end();
 
             if (is_first_update) {
-                // Count active first updates
-                for (int gid : first_update_sessions_) {
-                    std::lock_guard<std::mutex> sessions_lock(sessions_lock_);
-                    if (observer_sessions_.find(gid) != observer_sessions_.end()) {
-                        active_first_updates++;
+                // Count currently running first updates
+                int running_first_updates = 0;
+                for (int gid: first_update_sessions_) {
+                    // Check if there's an active thread for this game
+                    // Since threads clean up when done, being in active_threads_ means running
+                    if (!active_threads_.empty()) {
+                        // At least one thread exists
+                        std::lock_guard<std::mutex> sessions_lock(sessions_lock_);
+                        auto it = observer_sessions_.find(gid);
+                        // If session exists and was recently accessed, it's likely running
+                        if (it != observer_sessions_.end()) {
+                            running_first_updates++;
+                        }
                     }
+                }
+
+                if (running_first_updates >= max_parallel_first_updates_) {
+                    deferred.push_back(observer);
+                    continue;
                 }
             }
         }
 
-        if (is_first_update && active_first_updates >= max_parallel_first_updates_) {
-            deferred.push_back(observer);
-            continue;
-        }
 
         // Start update thread
         std::thread thread([this, observer]() {

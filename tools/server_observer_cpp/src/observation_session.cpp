@@ -20,14 +20,14 @@ json ObservationPackage::to_json() const {
     // Convert time_stamps map to JSON
     json ts = json::object();
     for (const auto& [key, value] : time_stamps) {
-        ts[std::to_string(key)] = value;
+        ts[key] = value;
     }
     j["time_stamps"] = ts;
     
     // Convert state_ids map to JSON
     json si = json::object();
     for (const auto& [key, value] : state_ids) {
-        si[std::to_string(key)] = value;
+        si[key] = value;
     }
     j["state_ids"] = si;
     
@@ -51,8 +51,7 @@ ObservationPackage ObservationPackage::from_json(const json& j) {
     if (j.contains("time_stamps") && j["time_stamps"].is_object()) {
         for (const auto& [key, value] : j["time_stamps"].items()) {
             try {
-                int k = std::stoi(key);
-                pkg.time_stamps[k] = value.get<int>();
+                pkg.time_stamps[key] = value.get<std::string>();
             } catch (...) {}
         }
     }
@@ -61,8 +60,7 @@ ObservationPackage ObservationPackage::from_json(const json& j) {
     if (j.contains("state_ids") && j["state_ids"].is_object()) {
         for (const auto& [key, value] : j["state_ids"].items()) {
             try {
-                int k = std::stoi(key);
-                pkg.state_ids[k] = value.get<std::string>();
+                pkg.state_ids[key] = value.get<std::string>();
             } catch (...) {}
         }
     }

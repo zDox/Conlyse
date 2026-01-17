@@ -21,8 +21,8 @@ public:
     
     ~ObservationApi();
     
-    json request_game_state(std::map<int, std::string>& state_ids,
-                           std::map<int, int>& time_stamps);
+    json request_game_state(std::map<std::string, std::string> &state_ids,
+                            std::map<std::string, std::string> &time_stamps);
     
     json get_static_map_data(int map_id);
     
@@ -45,8 +45,8 @@ private:
     json make_game_server_request(const json& parameters);
     void update_server_time(int64_t t_stamp_now);
     bool extract_state_metadata(const json& response,
-                               std::map<int, std::string>& state_ids,
-                               std::map<int, int>& time_stamps);
+                                std::map<std::string, std::string> &state_ids,
+                                std::map<std::string, std::string> &time_stamps);
 };
 
 #endif // OBSERVATION_API_HPP

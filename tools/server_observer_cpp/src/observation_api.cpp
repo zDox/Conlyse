@@ -50,13 +50,12 @@ ObservationApi::~ObservationApi() {
 
 json ObservationApi::make_game_server_request(const json& parameters) {
     int attempt = 0;
-    
     while (true) {
         // Parse game server address
         std::string host, path;
         int port = 443;
         bool use_ssl = true;
-        
+
         if (game_server_address_.find("https://") == 0) {
             host = game_server_address_.substr(8);
             use_ssl = true;
@@ -68,7 +67,7 @@ json ObservationApi::make_game_server_request(const json& parameters) {
         } else {
             host = game_server_address_;
         }
-        
+
         // Extract path if present
         size_t slash_pos = host.find('/');
         if (slash_pos != std::string::npos) {
@@ -77,22 +76,28 @@ json ObservationApi::make_game_server_request(const json& parameters) {
         } else {
             path = "/";
         }
-        
-        // Create HTTP client
-        httplib::Client cli(host.c_str(), port);
-        cli.set_follow_location(true);
-        
+
+        // Create HTTP/HTTPS client - FIX HERE
+        std::unique_ptr<httplib::Client> cli;
+
         if (use_ssl) {
-            cli.enable_server_certificate_verification(false);
+            // For HTTPS, use SSLClient or specify scheme in constructor
+            cli = std::make_unique<httplib::Client>("https://" + host);
+            cli->enable_server_certificate_verification(false);
+        } else {
+            // For HTTP
+            cli = std::make_unique<httplib::Client>("http://" + host);
         }
-        
+
+        cli->set_follow_location(true);
+
         // Build request headers
         httplib::Headers req_headers = {
             {"Accept", "text/plain, */*; q=0.01"},
             {"Content-Type", "application/x-www-form-urlencoded; charset=UTF-8"},
             {"Accept-Encoding", "gzip, deflate, br"}
         };
-        
+
         // Add custom headers
         if (headers_.is_object()) {
             for (auto& [key, value] : headers_.items()) {
@@ -101,11 +106,11 @@ json ObservationApi::make_game_server_request(const json& parameters) {
                 }
             }
         }
-        
+
         // Build payload
         std::string hash_input = "undefined" + std::to_string(current_time_ms());
         std::string hash_hex = sha1_hex(hash_input);
-        
+
         json payload = {
             {"requestID", request_id_},
             {"language", "en"},
@@ -122,26 +127,26 @@ json ObservationApi::make_game_server_request(const json& parameters) {
             {"userAuth", auth_.auth},
             {"lastCallDuration", 0}
         };
-        
+
         // Merge parameters into payload
         for (auto& [key, value] : parameters.items()) {
             payload[key] = value;
         }
-        
+
         request_id_++;
-        
+
         // Send request
         std::string body = payload.dump();
-        auto res = cli.Post(path.c_str(), req_headers, body, "application/json");
-        
+        auto res = cli->Post(path.c_str(), req_headers, body, "application/json");
+
         if (!res) {
             throw std::runtime_error("HTTP request failed");
         }
-        
+
         if (res->status != 200) {
             throw std::runtime_error("HTTP status: " + std::to_string(res->status));
         }
-        
+
         // Parse response
         json response_json;
         try {
@@ -149,8 +154,9 @@ json ObservationApi::make_game_server_request(const json& parameters) {
         } catch (const std::exception& e) {
             throw std::runtime_error("Failed to parse response: " + std::string(e.what()));
         }
-        
+
         // Update server time
+        /*
         if (response_json.contains("result")) {
             auto& result = response_json["result"];
             if (result.is_object() && result.contains("timeStamp")) {
@@ -159,18 +165,16 @@ json ObservationApi::make_game_server_request(const json& parameters) {
                 update_server_time(0);
             }
         }
-        
+        */
+
         // Handle errors
         if (response_json.contains("result") && response_json["result"].is_object()) {
             auto& result = response_json["result"];
-            
             if (result.contains("@c")) {
                 std::string err_class = result["@c"].get<std::string>();
-                
                 if (err_class == "ultshared.UltAuthentificationException") {
                     throw std::runtime_error("Authentication failed");
                 }
-                
                 if (err_class == "ultshared.rpc.UltSwitchServerException") {
                     // Update server address
                     if (result.contains("newHostName")) {
@@ -178,14 +182,12 @@ json ObservationApi::make_game_server_request(const json& parameters) {
                         std::cout << "Switching game server to " << new_server << std::endl;
                         game_server_address_ = new_server;
                     }
-                    
                     // Retry
                     if (attempt >= MAX_RETRIES) {
                         throw std::runtime_error("Exceeded retries after server switch suggestion");
                     }
                     attempt++;
-                    std::cout << "Retrying after UltSwitchServerException (attempt " 
-                             << attempt << "/" << MAX_RETRIES << ")" << std::endl;
+                    std::cout << "Retrying after UltSwitchServerException (attempt " << attempt << "/" << MAX_RETRIES << ")" << std::endl;
                     continue;
                 }
             }
@@ -200,8 +202,8 @@ void ObservationApi::update_server_time(int64_t t_stamp_now) {
     // This is a simplified implementation
 }
 
-json ObservationApi::request_game_state(std::map<int, std::string>& state_ids,
-                                        std::map<int, int>& time_stamps) {
+json ObservationApi::request_game_state(std::map<std::string, std::string> &state_ids,
+                                        std::map<std::string, std::string> &time_stamps) {
     bool include_state_meta = !state_ids.empty() && !time_stamps.empty();
     
     // Build state_ids and time_stamps as JSON objects
@@ -210,10 +212,10 @@ json ObservationApi::request_game_state(std::map<int, std::string>& state_ids,
     
     if (include_state_meta) {
         for (const auto& [key, value] : state_ids) {
-            state_ids_json[std::to_string(key)] = value;
+            state_ids_json[key] = value;
         }
         for (const auto& [key, value] : time_stamps) {
-            time_stamps_json[std::to_string(key)] = value;
+            time_stamps_json[key] = value;
         }
     }
     
@@ -224,21 +226,19 @@ json ObservationApi::request_game_state(std::map<int, std::string>& state_ids,
         {"stateID", "0"},
         {"addStateIDsOnSent", include_state_meta}
     };
-    
+
     if (include_state_meta) {
-        action["stateIDs"] = {
-            {"@c", "java.util.HashMap"},
-            {"@m", state_ids_json}
-        };
-        action["timeStamps"] = {
-            {"@c", "java.util.HashMap"},
-            {"@m", time_stamps_json}
-        };
+        action["stateIDs"] = state_ids_json;
+        action["stateIDs"]["@c"] = "java.util.HashMap";
+
+        action["timeStamps"] = time_stamps_json;
+        action["timeStamps"]["@c"] = "java.util.HashMap";
     }
-    
-    action["actions"] = {
-        {"@c", "java.util.LinkedList"}
-    };
+
+    action["actions"] = json::array({
+        "java.util.LinkedList",
+        json::array()
+    });
     
     json response = make_game_server_request(action);
     
@@ -250,8 +250,9 @@ json ObservationApi::request_game_state(std::map<int, std::string>& state_ids,
 }
 
 bool ObservationApi::extract_state_metadata(const json& response,
-                                            std::map<int, std::string>& state_ids,
-                                            std::map<int, int>& time_stamps) {
+                                            std::map<std::string, std::string> &state_ids,
+                                            std::map<std::string, std::string> &time_stamps) {
+
     if (!response.contains("result") || !response["result"].is_object()) {
         return false;
     }
@@ -269,18 +270,12 @@ bool ObservationApi::extract_state_metadata(const json& response,
         }
         
         if (state.contains("stateType")) {
-            try {
-                int state_type = state["stateType"].get<int>();
-                
-                if (state.contains("stateID") && state["stateID"].is_string()) {
-                    state_ids[state_type] = state["stateID"].get<std::string>();
-                }
-                
-                if (state.contains("timeStamp")) {
-                    time_stamps[state_type] = state["timeStamp"].get<int>();
-                }
-            } catch (const std::exception&) {
-                continue;
+            if (state.contains("stateID") && state["stateID"].is_string()) {
+                state_ids[key] = state["stateID"].get<std::string>();
+            }
+
+            if (state.contains("timeStamp")) {
+                time_stamps[key] = state["timeStamp"].get<std::string>();
             }
         }
     }
