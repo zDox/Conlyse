@@ -64,7 +64,6 @@ class ObservationSession:
         self.long_term_storage_path = long_term_storage_path
         self.file_size_threshold = file_size_threshold
         self.package = None
-        self._shared_transport: Optional[HTTPTransport] = None
         self._storage: Optional[RecordingStorage] = None
 
         self._start_time: Optional[float] = None
@@ -73,7 +72,6 @@ class ObservationSession:
 
     def reset(self):
         self.package = None
-        self._shared_transport = None
         self._ensure_storage().update_resume_metadata({})
 
     def needs_update(self, now: float) -> bool:
@@ -91,26 +89,12 @@ class ObservationSession:
         return self._storage
 
     def create_worker(self) -> ObservationWorker:
-        # Check if resume data exists to decide on transport reuse
-        has_resume_data = self._ensure_storage().has_resume_metadata()
-        
-        # For sessions with resume data, reuse the transport to reduce overhead
-        if has_resume_data:
-            if self._shared_transport is None:
-                self._shared_transport = HTTPTransport()
-            transport = self._shared_transport
-        else:
-            # For first updates (no resume data), create a new transport
-            # This isolates the large initial response in thread memory
-            transport = None
-
         return ObservationWorker(
             self.account,
             self.storage_path,
             self.game_id, 
             self.package, 
             self.map_cache,
-            transport=transport,
             metadata_path=self.metadata_path,
             long_term_storage_path=self.long_term_storage_path,
             file_size_threshold=self.file_size_threshold
@@ -131,7 +115,6 @@ class ObservationWorker:
                  game_id: int,
                  package: ObservationPackage = None,
                  map_cache: StaticMapCache = None,
-                 transport: Optional[HTTPTransport] = None,
                  metadata_path: Optional[Path] = None,
                  long_term_storage_path: Optional[Path] = None,
                  file_size_threshold: Optional[int] = None):
@@ -147,7 +130,6 @@ class ObservationWorker:
         self.package: ObservationPackage = package
         self.map_cache = map_cache
         self.recording_itf = None
-        self._transport = transport
 
     def cleanup(self):
         """Clean up resources used by this worker."""
@@ -265,8 +247,8 @@ class ObservationWorker:
                     self._handle_network_error()
 
     def _create_observation_api(self) -> ObservationApi:
-        # Use provided transport (reused) or create a new one (first update)
-        transport = self._transport or HTTPTransport()
+        # create a new transport
+        transport = HTTPTransport()
         api = ObservationApi(
             transport,
             headers=self.package.headers,
