@@ -76,28 +76,26 @@ ServerObserver::~ServerObserver() {
 
 void ServerObserver::initialize_listing_interface() {
     try {
-        if (!account_pool_ || account_pool_->accounts.empty()) {
-            std::cerr << "No account pool or accounts available for listing interface" << std::endl;
+        if (!config_.contains("listing_account") || config_["listing_account"].is_null()) {
+            std::cerr << "No listing_account configuration found. Please add a dedicated account for listing." << std::endl;
             return;
         }
 
-        // Get the first account for dedicated listing use
-        auto account = account_pool_->accounts[0];
+        auto listing_config = config_["listing_account"];
+        std::string username = listing_config.value("username", "");
+        std::string password = listing_config.value("password", "");
+        std::string proxy_url = listing_config.value("proxy_url", "");
 
-        // Create a completely separate interface instance
-        std::string proxy_url = account->proxy_url;
-        listing_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
-
-        // Authenticate this dedicated interface
-        bool login_success = listing_interface_->login(account->username, account->password);
-
-        if (login_success) {
-            std::cout << "Initialized dedicated listing interface with account: "
-                     << account->username << std::endl;
-        } else {
-            std::cerr << "Failed to authenticate listing interface" << std::endl;
-            listing_interface_ = nullptr;
+        if (username.empty() || password.empty()) {
+            std::cerr << "Invalid listing account configuration: missing username or password" << std::endl;
+            return;
         }
+
+        listing_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
+        listing_interface_->login(username, password);
+
+        std::cout << "Initialized dedicated listing interface with account: "
+                 << username << std::endl;
 
     } catch (const std::exception& e) {
         std::cerr << "Failed to initialize listing interface: " << e.what() << std::endl;

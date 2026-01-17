@@ -58,6 +58,8 @@ void HubInterfaceWrapper::init_python() {
         if (!Py_IsInitialized()) {
             throw std::runtime_error("Failed to initialize Python interpreter");
         }
+        PyEval_InitThreads();
+        PyEval_SaveThread();
 
         python_initialized = true;
     }
@@ -144,21 +146,20 @@ bool HubInterfaceWrapper::login(const std::string& username, const std::string& 
     PyGILState_STATE gstate = PyGILState_Ensure();
     
     try {
-        PyObject* args = PyTuple_Pack(2, 
-            PyUnicode_FromString(username.c_str()),
-            PyUnicode_FromString(password.c_str()));
-        
+        PyObject *py_user = PyUnicode_FromString(username.c_str());
+        PyObject *py_pass = PyUnicode_FromString(password.c_str());
+        PyObject *args = PyTuple_Pack(2, py_user, py_pass);
+        Py_XDECREF(py_user);
+        Py_XDECREF(py_pass);
         PyObject* result = call_method("login", args);
         Py_DECREF(args);
         
-        if (result) {
-            std::cout << "Logged in succesfully: " << username << std::endl;
-            bool success = PyObject_IsTrue(result);
-            Py_DECREF(result);
-            authenticated_ = success;
-            PyGILState_Release(gstate);
-            return success;
-        }
+        std::cout << "Logged in succesfully: " << username << std::endl;
+        bool success = PyObject_IsTrue(result);
+        Py_DECREF(result);
+        authenticated_ = true;
+        PyGILState_Release(gstate);
+        return success;
     } catch (const std::exception& e) {
         std::cerr << "Login failed: " << e.what() << std::endl;
     }

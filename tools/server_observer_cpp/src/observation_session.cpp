@@ -211,7 +211,7 @@ ObservationPackage ObservationWorker::create_observation_package() {
     
     // Try to determine game server address
     // This would need proper implementation via Python GameApi
-    pkg.game_server_address = "https://xgs7.c.bytro.com/";  // Default server
+    pkg.game_server_address = "";
     
     return pkg;
 }
