@@ -276,6 +276,7 @@ class ReplayStorage:
 
         assert len(paths) == len(nodes), "Not a paths list for every node"
 
+
         # Serialize each patch and update the index
         for i, patch in enumerate(nodes):
             # Calculate offset based on previous patch
@@ -313,6 +314,8 @@ class ReplayStorage:
             new_size = current_size + len(patch_bytes.getbuffer())
             f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
             f.write(struct.pack('<i', new_size))
+
+
 
     def initialize(self, max_patches):
         """

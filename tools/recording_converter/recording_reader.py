@@ -5,6 +5,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
+import orjson
 import zstandard as zstd
 from tqdm import tqdm
 
@@ -210,7 +211,6 @@ class RecordingReader:
                     break
 
                 length = int.from_bytes(length_bytes, 'big')
-
                 # Read compressed data
                 compressed_data = f.read(length)
                 if len(compressed_data) != length:
@@ -219,8 +219,8 @@ class RecordingReader:
 
                 # Decompress and parse JSON
                 decompressed = self._decompressor.decompress(compressed_data)
-                json_response = json.loads(decompressed.decode('utf-8'))
-
+                decoded = decompressed.decode('utf-8')
+                json_response = orjson.loads(decoded)
                 json_responses.append((timestamp_ms, json_response))
 
         return json_responses

@@ -87,7 +87,8 @@ setup(
         "zstandard",
         "lz4",
         "msgspec",
-        "scipy"
+        "scipy",
+        "orjson"
     ],
     extras_require=extras_require,
     entry_points={
