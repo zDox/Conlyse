@@ -1,0 +1,23 @@
+{
+  "WEBSHARE_API_TOKEN": "your_webshare_token_here",
+  "accounts": [
+    {
+      "username": "account1@example.com",
+      "password": "password123",
+      "email": "account1@example.com",
+      "proxy_id": "proxy_id_from_webshare",
+      "proxy_url": "socks5://username:password@host:port"
+    },
+    {
+      "username": "account2@example.com",
+      "password": "password456",
+      "email": "account2@example.com",
+      "proxy_id": "proxy_id_from_webshare_2",
+      "proxy_url": "socks5://username:password@host:port"
+    }
+  ],
+  
+  "_comment": "WEBSHARE_API_TOKEN is used to fetch proxy list from WebShare API",
+  "_comment2": "Accounts will be assigned to available proxies automatically",
+  "_comment3": "proxy_url is in the format: socks5://username:password@address:port"
+}
