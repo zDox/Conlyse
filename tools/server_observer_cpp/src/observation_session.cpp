@@ -184,36 +184,41 @@ ObservationPackage ObservationWorker::create_observation_package() {
         return ObservationPackage();
     }
     
-    // Get authentication details
-    AuthDetails auth = hub_itf->get_auth_details();
-    json headers = hub_itf->get_headers();
-    json cookies = hub_itf->get_cookies();
+    // Join the game as guest and load game site to get server address and auth
+    std::cout << "Joining game " << game_id_ << " as guest to get game server data..." << std::endl;
     
-    // Build proxy dict
-    json proxy = json::object();
-    if (!hub_itf->get_proxy_http().empty()) {
-        proxy["http"] = hub_itf->get_proxy_http();
+    try {
+        auto game_data = hub_itf->join_game_as_guest(game_id_);
+        
+        // Build proxy dict
+        json proxy = json::object();
+        if (!hub_itf->get_proxy_http().empty()) {
+            proxy["http"] = hub_itf->get_proxy_http();
+        }
+        if (!hub_itf->get_proxy_https().empty()) {
+            proxy["https"] = hub_itf->get_proxy_https();
+        }
+        
+        // Create observation package with data from GameApi
+        ObservationPackage pkg;
+        pkg.game_id = game_id_;
+        pkg.headers = game_data.headers;
+        pkg.cookies = game_data.cookies;
+        pkg.proxy = proxy;
+        pkg.auth = game_data.auth;
+        pkg.client_version = game_data.client_version;
+        pkg.game_server_address = game_data.game_server_address;
+        
+        std::cout << "Successfully joined game " << game_id_ << std::endl;
+        std::cout << "  Game server: " << pkg.game_server_address << std::endl;
+        std::cout << "  Client version: " << pkg.client_version << std::endl;
+        std::cout << "  Map ID: " << game_data.map_id << std::endl;
+        
+        return pkg;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to join game " << game_id_ << ": " << e.what() << std::endl;
+        return ObservationPackage();
     }
-    if (!hub_itf->get_proxy_https().empty()) {
-        proxy["https"] = hub_itf->get_proxy_https();
-    }
-    
-    // For now, we need to call the Python GameApi to get game server address
-    // This is a simplified version - in production you'd need to implement
-    // the full game loading logic
-    ObservationPackage pkg;
-    pkg.game_id = game_id_;
-    pkg.headers = headers;
-    pkg.cookies = cookies;
-    pkg.proxy = proxy;
-    pkg.auth = auth;
-    pkg.client_version = 207;
-    
-    // Try to determine game server address
-    // This would need proper implementation via Python GameApi
-    pkg.game_server_address = "";
-    
-    return pkg;
 }
 
 void ObservationWorker::reset_package() {

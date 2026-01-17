@@ -54,6 +54,17 @@ public:
     std::vector<HubGameProperties> get_my_games();
     std::vector<HubGameProperties> get_global_games();
     
+    // Game join - creates GameApi and loads game site to get server address and updated auth
+    struct GameApiData {
+        std::string game_server_address;
+        int client_version;
+        int map_id;
+        AuthDetails auth;
+        json headers;
+        json cookies;
+    };
+    GameApiData join_game_as_guest(int game_id);
+    
     // Session and proxy info
     json get_cookies() const;
     json get_headers() const;

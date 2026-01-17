@@ -265,6 +265,165 @@ std::vector<HubGameProperties> HubInterfaceWrapper::get_global_games() {
     return games;
 }
 
+HubInterfaceWrapper::GameApiData HubInterfaceWrapper::join_game_as_guest(int game_id) {
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    GameApiData data;
+    data.client_version = 207;
+    data.map_id = 0;
+    
+    try {
+        // Import GameApi
+        PyObject* game_api_module = PyImport_ImportModule("conflict_interface.game_api");
+        if (!game_api_module) {
+            PyErr_Print();
+            throw std::runtime_error("Failed to import GameApi module");
+        }
+        
+        PyObject* game_api_class = PyObject_GetAttrString(game_api_module, "GameApi");
+        Py_DECREF(game_api_module);
+        
+        if (!game_api_class) {
+            PyErr_Print();
+            throw std::runtime_error("Failed to get GameApi class");
+        }
+        
+        // Get hub_interface_.api attributes
+        PyObject* api = PyObject_GetAttrString(hub_interface_, "api");
+        if (!api) {
+            Py_DECREF(game_api_class);
+            PyErr_Print();
+            throw std::runtime_error("Failed to get api from hub_interface");
+        }
+        
+        PyObject* session = PyObject_GetAttrString(api, "session");
+        PyObject* proxy = PyObject_GetAttrString(api, "proxy");
+        PyObject* auth_details = PyObject_GetAttrString(api, "auth");
+        
+        // Create GameApi instance: GameApi(session, auth_details, game_id, proxy)
+        PyObject* py_game_id = PyLong_FromLong(game_id);
+        PyObject* args = PyTuple_Pack(4, session, auth_details, py_game_id, proxy);
+        
+        PyObject* game_api = PyObject_CallObject(game_api_class, args);
+        
+        Py_DECREF(args);
+        Py_DECREF(py_game_id);
+        Py_DECREF(session);
+        Py_DECREF(proxy);
+        Py_DECREF(auth_details);
+        Py_DECREF(api);
+        Py_DECREF(game_api_class);
+        
+        if (!game_api) {
+            PyErr_Print();
+            throw std::runtime_error("Failed to create GameApi instance");
+        }
+        
+        // Call load_game_site()
+        PyObject* load_method = PyObject_GetAttrString(game_api, "load_game_site");
+        if (!load_method) {
+            Py_DECREF(game_api);
+            PyErr_Print();
+            throw std::runtime_error("Failed to get load_game_site method");
+        }
+        
+        PyObject* load_result = PyObject_CallObject(load_method, nullptr);
+        Py_DECREF(load_method);
+        
+        if (!load_result) {
+            Py_DECREF(game_api);
+            PyErr_Print();
+            throw std::runtime_error("Failed to call load_game_site");
+        }
+        Py_DECREF(load_result);
+        
+        // Extract data from game_api
+        PyObject* gs_addr = PyObject_GetAttrString(game_api, "game_server_address");
+        if (gs_addr && gs_addr != Py_None) {
+            const char* addr_str = PyUnicode_AsUTF8(gs_addr);
+            if (addr_str) data.game_server_address = addr_str;
+            Py_DECREF(gs_addr);
+        }
+        
+        PyObject* client_ver = PyObject_GetAttrString(game_api, "client_version");
+        if (client_ver && client_ver != Py_None) {
+            data.client_version = PyLong_AsLong(client_ver);
+            Py_DECREF(client_ver);
+        }
+        
+        PyObject* map_id_obj = PyObject_GetAttrString(game_api, "map_id");
+        if (map_id_obj && map_id_obj != Py_None) {
+            if (PyLong_Check(map_id_obj)) {
+                data.map_id = PyLong_AsLong(map_id_obj);
+            } else if (PyUnicode_Check(map_id_obj)) {
+                const char* map_id_str = PyUnicode_AsUTF8(map_id_obj);
+                if (map_id_str) data.map_id = std::stoi(map_id_str);
+            }
+            Py_DECREF(map_id_obj);
+        }
+        
+        // Get updated auth
+        PyObject* auth_obj = PyObject_GetAttrString(game_api, "auth");
+        if (auth_obj) {
+            PyObject* auth_str = PyObject_GetAttrString(auth_obj, "auth");
+            PyObject* rights_str = PyObject_GetAttrString(auth_obj, "rights");
+            PyObject* user_id_int = PyObject_GetAttrString(auth_obj, "user_id");
+            PyObject* auth_tstamp_int = PyObject_GetAttrString(auth_obj, "auth_tstamp");
+            
+            if (auth_str) {
+                const char* auth_cstr = PyUnicode_AsUTF8(auth_str);
+                if (auth_cstr) data.auth.auth = auth_cstr;
+                Py_DECREF(auth_str);
+            }
+            
+            if (rights_str) {
+                const char* rights_cstr = PyUnicode_AsUTF8(rights_str);
+                if (rights_cstr) data.auth.rights = rights_cstr;
+                Py_DECREF(rights_str);
+            }
+            
+            if (user_id_int) {
+                data.auth.user_id = PyLong_AsLong(user_id_int);
+                Py_DECREF(user_id_int);
+            }
+            
+            if (auth_tstamp_int) {
+                data.auth.auth_tstamp = PyLong_AsLong(auth_tstamp_int);
+                Py_DECREF(auth_tstamp_int);
+            }
+            
+            Py_DECREF(auth_obj);
+        }
+        
+        // Get session headers and cookies
+        PyObject* ga_session = PyObject_GetAttrString(game_api, "session");
+        if (ga_session) {
+            PyObject* headers_obj = PyObject_GetAttrString(ga_session, "headers");
+            if (headers_obj) {
+                data.headers = py_to_json(headers_obj);
+                Py_DECREF(headers_obj);
+            }
+            
+            PyObject* cookies_obj = PyObject_GetAttrString(ga_session, "cookies");
+            if (cookies_obj) {
+                data.cookies = py_to_json(cookies_obj);
+                Py_DECREF(cookies_obj);
+            }
+            
+            Py_DECREF(ga_session);
+        }
+        
+        Py_DECREF(game_api);
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to join game: " << e.what() << std::endl;
+        PyGILState_Release(gstate);
+        throw;
+    }
+    
+    PyGILState_Release(gstate);
+    return data;
+}
+
 json HubInterfaceWrapper::get_cookies() const {
     PyGILState_STATE gstate = PyGILState_Ensure();
     json cookies;
