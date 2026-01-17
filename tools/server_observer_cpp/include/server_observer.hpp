@@ -23,12 +23,15 @@ class ServerObserver {
 public:
     ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool);
     ~ServerObserver();
-    
+
+    void initialize_listing_interface();
+
     bool run();
     
 private:
     json config_;
     std::shared_ptr<AccountPool> account_pool_;
+    std::mutex sessions_lock_;
     
     std::vector<int> scenario_ids_;
     int max_parallel_recordings_;

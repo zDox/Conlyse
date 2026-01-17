@@ -48,55 +48,70 @@ HubInterfaceWrapper::HubInterfaceWrapper(const std::string& proxy_http, const st
 HubInterfaceWrapper::~HubInterfaceWrapper() {
     cleanup_python();
 }
-
 void HubInterfaceWrapper::init_python() {
     std::lock_guard<std::mutex> lock(python_init_mutex);
-    
+
     if (!python_initialized) {
+        // Simple initialization without complex config
         Py_Initialize();
+
+        if (!Py_IsInitialized()) {
+            throw std::runtime_error("Failed to initialize Python interpreter");
+        }
+
         python_initialized = true;
     }
-    
+
     PyGILState_STATE gstate = PyGILState_Ensure();
-    
+
     try {
-        // Add the ConflictInterface path to sys.path
+        // Set up the Python path - INSERT at beginning, don't clear!
         PyRun_SimpleString("import sys");
-        PyRun_SimpleString("sys.path.insert(0, '/home/runner/work/ConflictInterface/ConflictInterface')");
-        
+
+        // Insert our paths at the BEGINNING so they take priority
+        PyRun_SimpleString("sys.path.insert(0, '/home/zdox/PycharmProjects/ConflictInterface')");
+        PyRun_SimpleString("sys.path.insert(1, '/home/zdox/PycharmProjects/ConflictInterface/.venv/lib/python3.12/site-packages')");
+
+        // Debug: Print sys.path to verify
+        PyRun_SimpleString("print('sys.path after setup:', sys.path)");
+
         // Import the HubInterface module
         PyObject* module_name = PyUnicode_DecodeFSDefault("conflict_interface.interface.hub_interface");
         python_module_ = PyImport_Import(module_name);
         Py_DECREF(module_name);
-        
+
         if (!python_module_) {
             PyErr_Print();
             throw std::runtime_error("Failed to import HubInterface module");
         }
-        
+
         // Get the HubInterface class
         PyObject* hub_interface_class = PyObject_GetAttrString(python_module_, "HubInterface");
         if (!hub_interface_class) {
             PyErr_Print();
             throw std::runtime_error("Failed to get HubInterface class");
         }
-        
-        // Create proxy dict
+
+        // Create proxy dict with proper reference counting
         PyObject* proxy_dict = PyDict_New();
         if (!proxy_http_.empty()) {
-            PyDict_SetItemString(proxy_dict, "http", PyUnicode_FromString(proxy_http_.c_str()));
+            PyObject* http_str = PyUnicode_FromString(proxy_http_.c_str());
+            PyDict_SetItemString(proxy_dict, "http", http_str);
+            Py_DECREF(http_str);
         }
         if (!proxy_https_.empty()) {
-            PyDict_SetItemString(proxy_dict, "https", PyUnicode_FromString(proxy_https_.c_str()));
+            PyObject* https_str = PyUnicode_FromString(proxy_https_.c_str());
+            PyDict_SetItemString(proxy_dict, "https", https_str);
+            Py_DECREF(https_str);
         }
-        
+
         // Create HubInterface instance
         PyObject* args = PyTuple_Pack(1, proxy_dict);
         hub_interface_ = PyObject_CallObject(hub_interface_class, args);
         Py_DECREF(args);
         Py_DECREF(proxy_dict);
         Py_DECREF(hub_interface_class);
-        
+
         if (!hub_interface_) {
             PyErr_Print();
             throw std::runtime_error("Failed to create HubInterface instance");
@@ -105,7 +120,7 @@ void HubInterfaceWrapper::init_python() {
         PyGILState_Release(gstate);
         throw;
     }
-    
+
     PyGILState_Release(gstate);
 }
 
@@ -137,6 +152,7 @@ bool HubInterfaceWrapper::login(const std::string& username, const std::string& 
         Py_DECREF(args);
         
         if (result) {
+            std::cout << "Logged in succesfully: " << username << std::endl;
             bool success = PyObject_IsTrue(result);
             Py_DECREF(result);
             authenticated_ = success;

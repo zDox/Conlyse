@@ -62,6 +62,9 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     
     // Load known games from registry
     refresh_known_games_from_registry();
+
+    // Initialize dedicated listing interface
+    initialize_listing_interface();
 }
 
 ServerObserver::~ServerObserver() {
@@ -71,67 +74,81 @@ ServerObserver::~ServerObserver() {
     }
 }
 
-std::shared_ptr<HubInterfaceWrapper> ServerObserver::get_listing_interface() {
-    if (listing_interface_) {
-        return listing_interface_;
-    }
-    
+void ServerObserver::initialize_listing_interface() {
     try {
-        if (!account_pool_) {
-            throw std::runtime_error("No account pool provided");
+        if (!account_pool_ || account_pool_->accounts.empty()) {
+            std::cerr << "No account pool or accounts available for listing interface" << std::endl;
+            return;
         }
-        
-        auto account = account_pool_->get_any_account();
-        if (!account) {
-            account = account_pool_->next_free_account();
+
+        // Get the first account for dedicated listing use
+        auto account = account_pool_->accounts[0];
+
+        // Create a completely separate interface instance
+        std::string proxy_url = account->proxy_url;
+        listing_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
+
+        // Authenticate this dedicated interface
+        bool login_success = listing_interface_->login(account->username, account->password);
+
+        if (login_success) {
+            std::cout << "Initialized dedicated listing interface with account: "
+                     << account->username << std::endl;
+        } else {
+            std::cerr << "Failed to authenticate listing interface" << std::endl;
+            listing_interface_ = nullptr;
         }
-        
-        if (!account) {
-            std::cerr << "No accounts available for listing games" << std::endl;
-            return nullptr;
-        }
-        
-        listing_account_ = account;
-        listing_interface_ = account->get_interface();
-        return listing_interface_;
+
     } catch (const std::exception& e) {
-        std::cerr << "Failed to prepare listing interface: " << e.what() << std::endl;
-        return nullptr;
+        std::cerr << "Failed to initialize listing interface: " << e.what() << std::endl;
+        listing_interface_ = nullptr;
     }
+}
+
+std::shared_ptr<HubInterfaceWrapper> ServerObserver::get_listing_interface() {
+    // Simply return the pre-initialized dedicated interface
+    // No shared state with account pool interfaces
+    if (!listing_interface_) {
+        std::cerr << "Listing interface not initialized" << std::endl;
+        // Attempt to reinitialize
+        initialize_listing_interface();
+    }
+
+    return listing_interface_;
 }
 
 std::vector<std::pair<int, HubGameProperties>> ServerObserver::select_games(
     std::shared_ptr<HubInterfaceWrapper> interface) {
-    
+
     std::vector<std::pair<int, HubGameProperties>> selected;
     std::set<int> seen_games;
-    
+
     std::cout << "Scanning for games" << std::endl;
-    
+
     try {
         auto games = interface->get_global_games();
-        
+
         for (int scenario_id : scenario_ids_) {
             std::vector<HubGameProperties> new_candidates;
-            
+
             for (const auto& game : games) {
-                if (game.scenario_id == scenario_id && 
+                if (game.scenario_id == scenario_id &&
                     known_games_.find(game.game_id) == known_games_.end()) {
                     new_candidates.push_back(game);
                 }
             }
-            
+
             std::vector<HubGameProperties> joinable;
             for (const auto& game : new_candidates) {
                 if (game.open_slots >= 1) {
                     joinable.push_back(game);
                 }
             }
-            
-            std::cout << "Scenario " << scenario_id << ": " << new_candidates.size() 
-                     << " new games, " << joinable.size() 
+
+            std::cout << "Scenario " << scenario_id << ": " << new_candidates.size()
+                     << " new games, " << joinable.size()
                      << " potentially joinable before sampling" << std::endl;
-            
+
             for (const auto& game : joinable) {
                 if (seen_games.find(game.game_id) != seen_games.end()) {
                     continue;
@@ -143,13 +160,13 @@ std::vector<std::pair<int, HubGameProperties>> ServerObserver::select_games(
     } catch (const std::exception& e) {
         std::cerr << "Error selecting games: " << e.what() << std::endl;
     }
-    
+
     return selected;
 }
 
 void ServerObserver::refresh_known_games_from_registry() {
     known_games_.clear();
-    
+
     auto active = registry_->active();
     for (const auto& [game_id, meta] : active) {
         known_games_.insert(game_id);
@@ -160,26 +177,16 @@ std::shared_ptr<Account> ServerObserver::pick_account() {
     if (!account_pool_) {
         return nullptr;
     }
-    
-    int tried = 0;
-    int total = account_pool_->accounts.size();
-    
-    while (tried < total) {
-        auto account = account_pool_->next_guest_account(max_guest_per_account_);
-        if (!account) {
-            return nullptr;
-        }
-        
-        if (account != listing_account_) {
-            return account;
-        } else {
-            account_pool_->guest_account_pointer++;
-        }
-        tried++;
+
+    // Simply get the next available guest account
+    // No need to check against listing_account_ since listing interface is separate
+    auto account = account_pool_->next_guest_account(max_guest_per_account_);
+
+    if (!account) {
+        std::cerr << "No free account available to start new observation" << std::endl;
     }
-    
-    std::cerr << "No non-listing account available to start new observation" << std::endl;
-    return nullptr;
+
+    return account;
 }
 
 void ServerObserver::start_observation_session(int game_id, int scenario_id) {
@@ -188,16 +195,16 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
         std::cerr << "No free account available to start new observation" << std::endl;
         return;
     }
-    
-    std::cout << "Starting observation session for game " << game_id 
+
+    std::cout << "Starting observation session for game " << game_id
              << " with scenario " << scenario_id << std::endl;
-    
+
     // Determine metadata path
     std::string metadata_path;
     if (!output_metadata_dir_.empty()) {
         metadata_path = output_metadata_dir_ + "/game_" + std::to_string(game_id);
     }
-    
+
     auto observer = std::make_unique<ObservationSession>(
         game_id,
         account,
@@ -207,51 +214,51 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
         long_term_storage_path_,
         file_size_threshold_
     );
-    
+
     registry_->mark_recording(game_id, scenario_id, "");
     known_games_.insert(game_id);
-    
+
     if (account_pool_) {
         account_pool_->increment_guest_join(account);
     }
-    
+
     observer->next_update_at = std::chrono::system_clock::now();
-    
+
     {
         std::lock_guard<std::mutex> lock(threads_lock_);
         first_update_sessions_.insert(game_id);
     }
-    
+
     {
         std::lock_guard<std::mutex> lock(queue_lock_);
         update_queue_.push(observer.get());
     }
-    
+
     observer_sessions_[game_id] = std::move(observer);
 }
 
 void ServerObserver::resume_active() {
     auto active = registry_->active();
-    
+
     for (const auto& [game_id, meta] : active) {
         if (!meta.contains("scenario_id")) {
-            std::cerr << "Skipping resume for game " << game_id 
+            std::cerr << "Skipping resume for game " << game_id
                      << " without scenario metadata" << std::endl;
             continue;
         }
-        
+
         if (observer_sessions_.find(game_id) != observer_sessions_.end()) {
             continue;
         }
-        
+
         std::cout << "Resuming observation for game " << game_id << std::endl;
-        
+
         if (observer_sessions_.size() >= static_cast<size_t>(max_parallel_recordings_)) {
-            std::cerr << "Skipping resume for game " << game_id 
+            std::cerr << "Skipping resume for game " << game_id
                      << " due to max parallel limit" << std::endl;
             continue;
         }
-        
+
         int scenario_id = meta["scenario_id"].get<int>();
         start_observation_session(game_id, scenario_id);
     }
@@ -260,17 +267,17 @@ void ServerObserver::resume_active() {
 void ServerObserver::run_single_update(ObservationSession* session) {
     int game_id = session->game_id;
     int attempt = 1;
-    
+
     while (true) {
         try {
             auto worker = session->create_worker();
             bool keep_running = worker->run();
             session->update_package(worker->get_package());
-            
+
             if (keep_running) {
-                session->next_update_at = std::chrono::system_clock::now() + 
+                session->next_update_at = std::chrono::system_clock::now() +
                     std::chrono::seconds(static_cast<int>(update_interval_));
-                
+
                 std::lock_guard<std::mutex> lock(queue_lock_);
                 update_queue_.push(session);
             } else {
@@ -278,44 +285,55 @@ void ServerObserver::run_single_update(ObservationSession* session) {
                 if (account_pool_) {
                     account_pool_->decrement_guest_join(session->account);
                 }
-                observer_sessions_.erase(game_id);
+
+                {
+                    std::lock_guard<std::mutex> lock(sessions_lock_);
+                    observer_sessions_.erase(game_id);
+                }
+
                 known_games_.insert(game_id);
             }
-            
+
             {
                 std::lock_guard<std::mutex> lock(threads_lock_);
                 first_update_sessions_.erase(game_id);
+                active_threads_.erase(std::this_thread::get_id());
             }
-            
+
             break;  // Success
-            
+
         } catch (const std::exception& e) {
             if (attempt < MAX_UPDATE_RETRIES) {
-                std::cerr << "Observation for game " << game_id 
-                         << " failed, retrying attempt " << attempt 
+                std::cerr << "Observation for game " << game_id
+                         << " failed, retrying attempt " << attempt
                          << "/" << MAX_UPDATE_RETRIES << "..." << std::endl;
                 attempt++;
                 continue;
             }
-            
-            std::cerr << "Observation for game " << game_id 
-                     << " failed after " << MAX_UPDATE_RETRIES 
+
+            std::cerr << "Observation for game " << game_id
+                     << " failed after " << MAX_UPDATE_RETRIES
                      << " retries, marking as failed." << std::endl;
-            
+
             registry_->mark_failed(game_id, e.what());
-            
+
             if (account_pool_) {
                 account_pool_->decrement_guest_join(session->account);
             }
-            
-            observer_sessions_.erase(game_id);
+
+            {
+                std::lock_guard<std::mutex> lock(sessions_lock_);
+                observer_sessions_.erase(game_id);
+            }
+
             known_games_.insert(game_id);
-            
+
             {
                 std::lock_guard<std::mutex> lock(threads_lock_);
                 first_update_sessions_.erase(game_id);
+                active_threads_.erase(std::this_thread::get_id());
             }
-            
+
             break;
         }
     }
@@ -324,7 +342,7 @@ void ServerObserver::run_single_update(ObservationSession* session) {
 void ServerObserver::start_due_updates() {
     auto now = std::chrono::system_clock::now();
     std::vector<ObservationSession*> deferred;
-    
+
     while (true) {
         {
             std::lock_guard<std::mutex> lock(threads_lock_);
@@ -332,7 +350,7 @@ void ServerObserver::start_due_updates() {
                 break;
             }
         }
-        
+
         ObservationSession* observer = nullptr;
         {
             std::lock_guard<std::mutex> lock(queue_lock_);
@@ -342,52 +360,52 @@ void ServerObserver::start_due_updates() {
             observer = update_queue_.front();
             update_queue_.pop();
         }
-        
+
         if (!observer->needs_update(now)) {
             deferred.push_back(observer);
             continue;
         }
-        
+
         // Check first-update limit
         bool is_first_update;
         int active_first_updates = 0;
-        
+
         {
             std::lock_guard<std::mutex> lock(threads_lock_);
-            is_first_update = first_update_sessions_.find(observer->game_id) != 
+            is_first_update = first_update_sessions_.find(observer->game_id) !=
                              first_update_sessions_.end();
-            
+
             if (is_first_update) {
                 // Count active first updates
                 for (int gid : first_update_sessions_) {
-                    // Check if thread is active (simplified check)
+                    std::lock_guard<std::mutex> sessions_lock(sessions_lock_);
                     if (observer_sessions_.find(gid) != observer_sessions_.end()) {
                         active_first_updates++;
                     }
                 }
             }
         }
-        
+
         if (is_first_update && active_first_updates >= max_parallel_first_updates_) {
             deferred.push_back(observer);
             continue;
         }
-        
+
         // Start update thread
         std::thread thread([this, observer]() {
             run_single_update(observer);
         });
-        
+
         std::cout << "Starting ObserverWorker thread for game " << observer->game_id << std::endl;
-        
+
         {
             std::lock_guard<std::mutex> lock(threads_lock_);
             active_threads_.insert(thread.get_id());
         }
-        
-        thread.detach();  // Let it run independently
+
+        thread.detach();
     }
-    
+
     // Re-queue deferred updates
     {
         std::lock_guard<std::mutex> lock(queue_lock_);
@@ -395,7 +413,7 @@ void ServerObserver::start_due_updates() {
             update_queue_.push(observer);
         }
     }
-    
+
     // If we have deferred updates, wait a bit
     if (!deferred.empty()) {
         double min_wait = scan_interval_;
@@ -406,7 +424,7 @@ void ServerObserver::start_due_updates() {
                 min_wait = wait_seconds;
             }
         }
-        
+
         if (min_wait > 0) {
             std::this_thread::sleep_for(
                 std::chrono::duration<double>(std::min(min_wait, scan_interval_)));
@@ -415,43 +433,57 @@ void ServerObserver::start_due_updates() {
 }
 
 void ServerObserver::clean_finished_threads() {
-    // In this implementation, threads are detached, so we don't need to join them
-    // This is a simplified approach for C++
+    // Threads clean themselves up in run_single_update by removing from active_threads_
 }
 
 void ServerObserver::scan_loop() {
     auto interface = get_listing_interface();
-    
+
+    if (!interface) {
+        std::cerr << "Cannot start scan loop: listing interface not available" << std::endl;
+        return;
+    }
+
     while (!stop_flag_) {
-        if (interface && enabled_scanning_) {
+        if (enabled_scanning_) {
             auto games = select_games(interface);
-            
+
             for (const auto& [scenario_id, game] : games) {
-                if (observer_sessions_.find(game.game_id) != observer_sessions_.end()) {
-                    continue;
+                {
+                    std::lock_guard<std::mutex> lock(sessions_lock_);
+                    if (observer_sessions_.find(game.game_id) != observer_sessions_.end()) {
+                        continue;
+                    }
+
+                    if (observer_sessions_.size() >= static_cast<size_t>(max_parallel_recordings_)) {
+                        continue;
+                    }
                 }
-                
-                if (observer_sessions_.size() >= static_cast<size_t>(max_parallel_recordings_)) {
-                    continue;
-                }
-                
+
                 start_observation_session(game.game_id, scenario_id);
             }
         }
-        
+
         std::this_thread::sleep_for(std::chrono::duration<double>(scan_interval_));
     }
 }
 
 bool ServerObserver::run() {
     stop_flag_ = false;
-    
+
     resume_active();
-    
+
+    // Start scan thread
     scan_thread_ = std::make_unique<std::thread>([this]() {
-        scan_loop();
+        try {
+            scan_loop();
+        } catch (const std::exception& e) {
+            std::cerr << "ERROR: Scan thread crashed with exception: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "ERROR: Scan thread crashed with unknown exception" << std::endl;
+        }
     });
-    
+
     try {
         while (!stop_flag_) {
             clean_finished_threads();
@@ -462,11 +494,11 @@ bool ServerObserver::run() {
     } catch (const std::exception& e) {
         std::cerr << "Error in main loop: " << e.what() << std::endl;
         stop_flag_ = true;
-        
+
         if (scan_thread_ && scan_thread_->joinable()) {
             scan_thread_->join();
         }
-        
+
         return false;
     }
 }
