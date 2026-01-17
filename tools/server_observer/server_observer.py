@@ -7,7 +7,7 @@ import gc
 from copy import deepcopy
 from pathlib import Path
 from queue import Empty
-from queue import Queue
+from queue import PriorityQueue
 from threading import Event
 from threading import Lock
 from threading import Thread
@@ -20,7 +20,6 @@ from typing import Optional
 from typing import Set
 
 from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
-from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from tools.server_observer.account import Account
 from tools.server_observer.account_pool import AccountPool
@@ -82,7 +81,7 @@ class ServerObserver:
         self._first_update_sessions: Set[int] = set()
         self._threads_lock = Lock()
         self._stop_event = Event()
-        self._update_queue: Queue[ObservationSession] = Queue()
+        self._update_queue: PriorityQueue = PriorityQueue()  # (next_update_at, game_id, observer_session)
         self._scan_thread: Optional[Thread] = None
         self._map_cache = StaticMapCache(self.output_dir / "static_maps")
         self._known_games: Set[int] = set()
@@ -181,7 +180,7 @@ class ServerObserver:
         observer.next_update_at = time()
         with self._threads_lock:
             self._first_update_sessions.add(game_id)
-        self._update_queue.put(observer)
+        self._update_queue.put((observer.next_update_at, game_id, observer))
 
     def _resume_active(self):
         for game_id, meta in self.registry.active().items():
@@ -208,7 +207,7 @@ class ServerObserver:
 
                     if keep_running:
                         session.next_update_at = time() + self.update_interval
-                        self._update_queue.put(session)
+                        self._update_queue.put((session.next_update_at, game_id, session))
                     else:
                         self.registry.mark_completed(game_id)
                         self.account_pool.decrement_guest_join(session.account)
@@ -238,46 +237,63 @@ class ServerObserver:
 
     def _start_due_updates(self):
         now = time()
-        deferred: List[ObservationSession] = []
+        next_due_update = None
+
         while True:
             with self._threads_lock:
                 if len(self._active_threads) >= self.max_parallel_updates:
                     break
+
+            # Peek at the next item without removing it yet - check if queue is empty
+            if not self._update_queue.queue:
+                break
+
             try:
-                observer = self._update_queue.get_nowait()
+                next_update_at, game_id, observer = self._update_queue.queue[0]
+            except (IndexError, Empty):
+                break
+
+            # If the next item is not ready, we're done processing for now
+            if next_update_at > now:
+                next_due_update = next_update_at
+                break
+
+            # Now actually remove it from the queue
+            try:
+                _, game_id, observer = self._update_queue.get_nowait()
             except Empty:
                 break
-            if not observer.needs_update(now):
-                deferred.append(observer)
+
+            # Double-check the observer is still valid (it might have been removed)
+            if game_id not in self.observer_sessions:
                 continue
 
             # Check if this is a first-update and if we've hit the first-update limit
             with self._threads_lock:
-                is_first_update = observer.game_id in self._first_update_sessions
-                # Create a snapshot to avoid "set changed size during iteration" error
-                first_update_snapshot = set(self._first_update_sessions)
-                active_thread_names = {t.name for t in self._active_threads}
-
-            if is_first_update:
-                active_first_updates = sum(
-                    1 for gid in first_update_snapshot
-                    if self.observer_sessions.get(gid) and f"observer-{gid}" in active_thread_names
-                )
-                if active_first_updates >= self.max_parallel_first_updates:
-                    deferred.append(observer)
-                    continue
+                is_first_update = game_id in self._first_update_sessions
+                if is_first_update:
+                    # Count active first-update threads
+                    active_thread_names = {t.name for t in self._active_threads}
+                    active_first_updates = sum(
+                        1 for gid in self._first_update_sessions
+                        if f"observer-{gid}" in active_thread_names
+                    )
+                    if active_first_updates >= self.max_parallel_first_updates:
+                        # Put it back for later processing
+                        self._update_queue.put((observer.next_update_at, game_id, observer))
+                        next_due_update = observer.next_update_at
+                        break
 
             thread = Thread(target=self._run_single_update, args=(observer,), name=f"observer-{observer.game_id}", daemon=True)
             logger.info(f"Starting ObserverWorker thread for game {observer.game_id}")
             with self._threads_lock:
                 self._active_threads.add(thread)
             thread.start()
-        for observer in deferred:
-            self._update_queue.put(observer)
-        if deferred:
-            wait_times = [max(0.0, obs.next_update_at - now) for obs in deferred]
-            wait_time = min(wait_times) if wait_times else 0.0
-            if wait_time:
+
+        # Calculate wait time based on next due update
+        if next_due_update is not None:
+            wait_time = max(0.0, next_due_update - now)
+            if wait_time > 0:
                 self._stop_event.wait(min(wait_time, self.scan_interval))
 
     def _clean_finished_threads(self):
