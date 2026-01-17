@@ -1,0 +1,20 @@
+{
+  "scenario_ids": [5975, 5976],
+  "max_parallel_recordings": 5,
+  "max_parallel_updates": 10,
+  "max_parallel_first_updates": 3,
+  "scan_interval": 30,
+  "update_interval": 60.0,
+  "output_dir": "./recordings",
+  "output_metadata_dir": "./recordings_metadata",
+  "enabled_scanning": true,
+  "max_guest_games_per_account": 10,
+  "account_pool_path": "./account_pool.json",
+  "WEBSHARE_API_TOKEN": "your_api_token_here",
+  
+  "comment_long_term_storage": "Long-term storage configuration (optional)",
+  "long_term_storage_path": "./long_term_storage",
+  "file_size_threshold": 104857600,
+  
+  "comment_file_size_threshold": "Threshold in bytes (104857600 = 100 MB). When a response file exceeds this size, it will be moved to long_term_storage_path and a new file will be created to continue recording"
+}
