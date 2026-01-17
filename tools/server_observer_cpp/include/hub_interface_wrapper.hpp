@@ -1,0 +1,76 @@
+#ifndef HUB_INTERFACE_WRAPPER_HPP
+#define HUB_INTERFACE_WRAPPER_HPP
+
+#include <string>
+#include <memory>
+#include <Python.h>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+/**
+ * AuthDetails structure to hold authentication information
+ */
+struct AuthDetails {
+    std::string auth;
+    std::string rights;
+    int user_id;
+    int auth_tstamp;
+    
+    json to_json() const;
+    static AuthDetails from_json(const json& j);
+};
+
+/**
+ * HubGameProperties structure to hold game properties
+ */
+struct HubGameProperties {
+    int game_id;
+    int scenario_id;
+    int open_slots;
+    std::string name;
+    
+    static HubGameProperties from_json(const json& j);
+};
+
+/**
+ * Wrapper around Python HubInterface to handle authentication
+ * This is the ONLY way to login and retrieve authentication data
+ */
+class HubInterfaceWrapper {
+public:
+    HubInterfaceWrapper(const std::string& proxy_http = "", const std::string& proxy_https = "");
+    ~HubInterfaceWrapper();
+    
+    // Authentication
+    bool login(const std::string& username, const std::string& password);
+    void logout();
+    bool is_authenticated() const { return authenticated_; }
+    
+    // Get authentication details
+    AuthDetails get_auth_details() const;
+    
+    // Get games
+    std::vector<HubGameProperties> get_my_games();
+    std::vector<HubGameProperties> get_global_games();
+    
+    // Session and proxy info
+    json get_cookies() const;
+    json get_headers() const;
+    std::string get_proxy_http() const { return proxy_http_; }
+    std::string get_proxy_https() const { return proxy_https_; }
+    
+private:
+    PyObject* hub_interface_;
+    PyObject* python_module_;
+    bool authenticated_;
+    std::string proxy_http_;
+    std::string proxy_https_;
+    
+    void init_python();
+    void cleanup_python();
+    PyObject* call_method(const char* method_name, PyObject* args = nullptr);
+    json py_to_json(PyObject* obj) const;
+};
+
+#endif // HUB_INTERFACE_WRAPPER_HPP
