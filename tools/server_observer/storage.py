@@ -57,7 +57,16 @@ class RecordingStorage:
         self.metadata_path = metadata_path if metadata_path is not None else output_path
         self.metadata_path.mkdir(parents=True, exist_ok=True)
         
-        # Long-term storage configuration
+        # Long-term storage configuration validation
+        if (long_term_storage_path is None) != (file_size_threshold is None):
+            raise ValueError(
+                "Both 'long_term_storage_path' and 'file_size_threshold' must be provided together, "
+                "or neither should be provided. Cannot use one without the other."
+            )
+        
+        if file_size_threshold is not None and file_size_threshold <= 0:
+            raise ValueError(f"file_size_threshold must be positive, got {file_size_threshold}")
+        
         self.long_term_storage_path = long_term_storage_path
         self.file_size_threshold = file_size_threshold
         self._file_sequence = 0  # Track sequence number for rotated files
@@ -170,6 +179,9 @@ class RecordingStorage:
         if not self.responses_file.exists():
             return
         
+        # Get file size before moving
+        file_size = self._get_file_size(self.responses_file)
+        
         # Create long-term storage directory with same structure as output_path
         # The relative path from parent to output_path is preserved
         game_dir_name = self.output_path.name
@@ -195,7 +207,7 @@ class RecordingStorage:
                 "timestamp": time.time(),
                 "datetime": datetime.now(UTC).isoformat(),
                 "destination": str(lts_file_path),
-                "size_bytes": self._get_file_size(lts_file_path)
+                "size_bytes": file_size
             })
             self._save_metadata(metadata)
         except Exception as e:

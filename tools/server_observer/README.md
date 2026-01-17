@@ -13,7 +13,14 @@ The Server Observer is a lightweight tool for recording server responses across 
 
 ## Configuration
 
-The Server Observer is configured via a JSON configuration file. See `examples/server_observer_config_example.json` for a complete example.
+The Server Observer is configured via a JSON configuration file. See `tools/server_observer/config_example.json` for a complete example.
+
+**Note:** Configuration values in the example use common defaults. Adjust `file_size_threshold` based on your storage needs:
+- 10 MB = 10485760 bytes
+- 50 MB = 52428800 bytes  
+- 100 MB = 104857600 bytes
+- 500 MB = 524288000 bytes
+- 1 GB = 1073741824 bytes
 
 ### Basic Configuration
 

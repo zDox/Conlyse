@@ -12,9 +12,6 @@
   "account_pool_path": "./account_pool.json",
   "WEBSHARE_API_TOKEN": "your_api_token_here",
   
-  "comment_long_term_storage": "Long-term storage configuration (optional)",
   "long_term_storage_path": "./long_term_storage",
-  "file_size_threshold": 104857600,
-  
-  "comment_file_size_threshold": "Threshold in bytes (104857600 = 100 MB). When a response file exceeds this size, it will be moved to long_term_storage_path and a new file will be created to continue recording"
+  "file_size_threshold": 104857600
 }

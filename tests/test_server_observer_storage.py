@@ -219,6 +219,50 @@ class TestRecordingStorageLongTermStorage(unittest.TestCase):
         storage2._rotate_to_long_term_storage()
         self.assertEqual(storage2._file_sequence, 2)
         storage2.teardown_logging()
+    
+    def test_validation_both_params_required(self):
+        """Test that both long_term_storage_path and file_size_threshold must be provided together."""
+        # Only long_term_storage_path provided - should raise error
+        with self.assertRaises(ValueError) as context:
+            RecordingStorage(
+                self.output_dir,
+                long_term_storage_path=self.lts_dir
+            )
+        self.assertIn("must be provided together", str(context.exception))
+        
+        # Only file_size_threshold provided - should raise error
+        with self.assertRaises(ValueError) as context:
+            RecordingStorage(
+                self.output_dir,
+                file_size_threshold=1024
+            )
+        self.assertIn("must be provided together", str(context.exception))
+        
+        # Both provided - should work
+        storage = RecordingStorage(
+            self.output_dir,
+            long_term_storage_path=self.lts_dir,
+            file_size_threshold=1024
+        )
+        storage.teardown_logging()
+    
+    def test_validation_positive_threshold(self):
+        """Test that file_size_threshold must be positive."""
+        with self.assertRaises(ValueError) as context:
+            RecordingStorage(
+                self.output_dir,
+                long_term_storage_path=self.lts_dir,
+                file_size_threshold=0
+            )
+        self.assertIn("must be positive", str(context.exception))
+        
+        with self.assertRaises(ValueError) as context:
+            RecordingStorage(
+                self.output_dir,
+                long_term_storage_path=self.lts_dir,
+                file_size_threshold=-100
+            )
+        self.assertIn("must be positive", str(context.exception))
 
 
 if __name__ == '__main__':
