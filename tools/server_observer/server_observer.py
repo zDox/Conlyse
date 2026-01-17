@@ -60,6 +60,12 @@ class ServerObserver:
         if self.output_metadata_dir is not None:
             self.output_metadata_dir = Path(self.output_metadata_dir)
         self.enabled_scanning = config.get("enabled_scanning", True)
+        
+        # Long-term storage configuration
+        self.long_term_storage_path = config.get("long_term_storage_path")
+        if self.long_term_storage_path is not None:
+            self.long_term_storage_path = Path(self.long_term_storage_path)
+        self.file_size_threshold = config.get("file_size_threshold")
 
         self.observer_sessions: Dict[int, ObservationSession] = {}
 
@@ -164,7 +170,9 @@ class ServerObserver:
             account,
             self._map_cache,
             self.output_dir/f"game_{game_id}",
-            metadata_path=metadata_path
+            metadata_path=metadata_path,
+            long_term_storage_path=self.long_term_storage_path,
+            file_size_threshold=self.file_size_threshold
         )
         self.registry.mark_recording(game_id, scenario_id, None)
         self._known_games.add(game_id)

@@ -4,6 +4,7 @@ Storage management for recording sessions.
 import json
 import logging
 import pickle
+import shutil
 import threading
 import time
 from datetime import UTC
@@ -32,7 +33,8 @@ class RecordingStorage:
     - library.log: ConflictInterface library log
     """
 
-    def __init__(self, output_path: Path, overwrite: bool = False, metadata_path: Optional[Path] = None):
+    def __init__(self, output_path: Path, overwrite: bool = False, metadata_path: Optional[Path] = None,
+                 long_term_storage_path: Optional[Path] = None, file_size_threshold: Optional[int] = None):
         """
         Initialize recording storage.
         
@@ -43,6 +45,10 @@ class RecordingStorage:
             metadata_path: Optional separate path for metadata files 
                           (metadata.json, recording.log, library.log). 
                           If None, uses output_path for all files.
+            long_term_storage_path: Optional path for long-term storage of large response files.
+                                   If set, files exceeding file_size_threshold will be moved here.
+            file_size_threshold: Size threshold in bytes. When responses file exceeds this size,
+                                it will be moved to long_term_storage_path and a new file created.
         """
         self.output_path = output_path
         self.output_path.mkdir(parents=True, exist_ok=True)
@@ -50,6 +56,11 @@ class RecordingStorage:
         # Metadata path can be separate from responses path
         self.metadata_path = metadata_path if metadata_path is not None else output_path
         self.metadata_path.mkdir(parents=True, exist_ok=True)
+        
+        # Long-term storage configuration
+        self.long_term_storage_path = long_term_storage_path
+        self.file_size_threshold = file_size_threshold
+        self._file_sequence = 0  # Track sequence number for rotated files
         
         # Create compressor
         self._compressor = zstd.ZstdCompressor(level=3)
@@ -75,6 +86,7 @@ class RecordingStorage:
         if overwrite or not self.metadata_file.exists():
             self._init_files()
         self._load_metadata()
+        self._restore_file_sequence()
 
     def _init_files(self):
         """Initialize recording files."""
@@ -125,6 +137,71 @@ class RecordingStorage:
     def has_resume_metadata(self) -> bool:
         return "resume" in self._load_metadata() and self.resume_metadata != {}
 
+    def _restore_file_sequence(self):
+        """Restore the file sequence number from metadata."""
+        metadata = self._load_metadata()
+        self._file_sequence = metadata.get("file_sequence", 0)
+
+    def _update_file_sequence(self):
+        """Increment and persist the file sequence number."""
+        self._file_sequence += 1
+        metadata = self._load_metadata()
+        metadata["file_sequence"] = self._file_sequence
+        self._save_metadata(metadata)
+
+    def _get_file_size(self, file_path: Path) -> int:
+        """Get the size of a file in bytes."""
+        try:
+            return file_path.stat().st_size if file_path.exists() else 0
+        except Exception as e:
+            logger.warning(f"Failed to get file size for {file_path}: {e}")
+            return 0
+
+    def _should_rotate_file(self) -> bool:
+        """Check if the responses file should be rotated to long-term storage."""
+        if self.long_term_storage_path is None or self.file_size_threshold is None:
+            return False
+        
+        current_size = self._get_file_size(self.responses_file)
+        return current_size >= self.file_size_threshold
+
+    def _rotate_to_long_term_storage(self):
+        """Move current responses file to long-term storage and create a new one."""
+        if not self.responses_file.exists():
+            return
+        
+        # Create long-term storage directory with same structure as output_path
+        # The relative path from parent to output_path is preserved
+        game_dir_name = self.output_path.name
+        lts_game_dir = self.long_term_storage_path / game_dir_name
+        lts_game_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate filename with sequence number
+        self._update_file_sequence()
+        lts_filename = f"responses_{self._file_sequence:04d}.jsonl.zst"
+        lts_file_path = lts_game_dir / lts_filename
+        
+        # Move the file to long-term storage
+        try:
+            shutil.move(str(self.responses_file), str(lts_file_path))
+            logger.info(f"Rotated responses file to long-term storage: {lts_file_path}")
+            
+            # Log the rotation in metadata
+            metadata = self._load_metadata()
+            if "rotations" not in metadata:
+                metadata["rotations"] = []
+            metadata["rotations"].append({
+                "sequence": self._file_sequence,
+                "timestamp": time.time(),
+                "datetime": datetime.now(UTC).isoformat(),
+                "destination": str(lts_file_path),
+                "size_bytes": self._get_file_size(lts_file_path)
+            })
+            self._save_metadata(metadata)
+        except Exception as e:
+            logger.error(f"Failed to rotate file to long-term storage: {e}")
+            raise
+
     @staticmethod
     def append_bytes_to_file(file_path: Path, timestamp: int, data: bytes):
         with open(file_path, 'ab') as f:
@@ -135,6 +212,10 @@ class RecordingStorage:
 
     def save_response(self, response: dict):
         """Save response to file."""
+        # Check if file rotation is needed before saving
+        if self._should_rotate_file():
+            self._rotate_to_long_term_storage()
+        
         response_str = json.dumps(response)
         response_compressed = self._compressor.compress(response_str.encode("utf-8"))
         self.append_bytes_to_file(self.responses_file, int(time.time()), response_compressed)

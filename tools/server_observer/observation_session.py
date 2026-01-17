@@ -51,7 +51,9 @@ class ObservationSession:
             account: Account,
             map_cache: StaticMapCache,
             storage_path: Path,
-            metadata_path: Optional[Path] = None
+            metadata_path: Optional[Path] = None,
+            long_term_storage_path: Optional[Path] = None,
+            file_size_threshold: Optional[int] = None
         ):
         self.account = account
         self.map_cache = map_cache
@@ -59,6 +61,8 @@ class ObservationSession:
 
         self.storage_path = storage_path
         self.metadata_path = metadata_path
+        self.long_term_storage_path = long_term_storage_path
+        self.file_size_threshold = file_size_threshold
         self.package = None
         self._shared_transport: Optional[HTTPTransport] = None
         self._storage: Optional[RecordingStorage] = None
@@ -78,7 +82,12 @@ class ObservationSession:
     def _ensure_storage(self) -> RecordingStorage:
         """Ensure storage instance is initialized and return it."""
         if self._storage is None:
-            self._storage = RecordingStorage(self.storage_path, metadata_path=self.metadata_path)
+            self._storage = RecordingStorage(
+                self.storage_path, 
+                metadata_path=self.metadata_path,
+                long_term_storage_path=self.long_term_storage_path,
+                file_size_threshold=self.file_size_threshold
+            )
         return self._storage
 
     def create_worker(self) -> ObservationWorker:
@@ -103,6 +112,8 @@ class ObservationSession:
             self.map_cache,
             transport=transport,
             metadata_path=self.metadata_path,
+            long_term_storage_path=self.long_term_storage_path,
+            file_size_threshold=self.file_size_threshold
         )
 
     def update_package(self, other: ObservationPackage):
@@ -121,10 +132,17 @@ class ObservationWorker:
                  package: ObservationPackage = None,
                  map_cache: StaticMapCache = None,
                  transport: Optional[HTTPTransport] = None,
-                 metadata_path: Optional[Path] = None):
+                 metadata_path: Optional[Path] = None,
+                 long_term_storage_path: Optional[Path] = None,
+                 file_size_threshold: Optional[int] = None):
         self.account = account
         self.game_id = game_id
-        self.storage = RecordingStorage(storage_path, metadata_path=metadata_path)
+        self.storage = RecordingStorage(
+            storage_path, 
+            metadata_path=metadata_path,
+            long_term_storage_path=long_term_storage_path,
+            file_size_threshold=file_size_threshold
+        )
         self.storage.setup_logging()
         self.package: ObservationPackage = package
         self.map_cache = map_cache
