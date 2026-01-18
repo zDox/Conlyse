@@ -237,10 +237,13 @@ void RecordingStorage::save_response(json&& response) {
         rotate_to_long_term_storage();
     }
     
-    // Serialize and compress response
+    // Serialize response to string. The response parameter is moved to us,
+    // so we own it and can manipulate it freely.
     std::string response_str = response.dump();
     
-    // Clear the JSON object immediately to release memory
+    // Clear the JSON object immediately to release memory before compression.
+    // Since response is an rvalue reference parameter, we own it and clearing
+    // it helps release memory before the compression step.
     response.clear();
     
     size_t compressed_size = ZSTD_compressBound(response_str.size());

@@ -296,10 +296,12 @@ bool ObservationWorker::run() {
             package_.headers = api.get_headers();
             package_.game_server_address = api.get_game_server_address();
             
-            // Check if game ended before processing
+            // Check if game ended before processing and moving the JSON.
+            // We store the result now because game_state will be moved below.
             bool game_ended = is_game_ended(game_state);
             
-            // Process map data
+            // Extract map ID before moving game_state (if we need it).
+            // This avoids accessing the JSON after it's been moved.
             int map_id_to_fetch = -1;
             try {
                 if (game_state.contains("result") && game_state["result"].is_object()) {
@@ -321,15 +323,16 @@ bool ObservationWorker::run() {
                 // Map data not available or invalid
             }
             
-            // Save response and release the large JSON immediately
+            // Save response and release the large JSON immediately.
+            // After this point, game_state is in a moved-from state and should not be accessed.
             on_request_response(std::move(game_state));
             
-            // Fetch map data if needed (after game_state is released)
+            // Fetch map data if needed (safe to do after game_state is moved)
             if (map_id_to_fetch >= 0) {
                 ensure_static_map_data(api, map_id_to_fetch);
             }
             
-            // Check if game ended
+            // Check if game ended (using the bool we stored before the move)
             if (game_ended) {
                 return false;
             }
