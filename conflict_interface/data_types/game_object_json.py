@@ -322,7 +322,6 @@ SIMPLE_DUMP_MAPPING: dict[type,Any] = {
     TimeDeltaSecondsStr: dump_date_time_str,
 }
 
-
 def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterface = None) -> DataclassType:
     # --Error handling
     if not is_dataclass(cls):
@@ -347,7 +346,6 @@ def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterfac
 
         field_info = cls.__dataclass_fields__[python_var_name]
 
-
         if conflict_var_name in json_obj:
             parsed_data[python_var_name] = parse_any(python_var_type, json_obj[conflict_var_name], game)
         else:
@@ -366,7 +364,6 @@ def parse_dataclass(cls: Type[DataclassType], json_obj: dict, game: GameInterfac
                     raise ValueError(f"Field {python_var_name} is missing in {cls.__name__} (Might be optional)")
             else:
                 parsed_data[python_var_name] = field_info.default
-
 
     instance = cls(**parsed_data)
     return instance

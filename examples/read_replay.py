@@ -1,35 +1,33 @@
 import logging
 from time import perf_counter
 
-from conflict_interface.data_types.game_object_binary import GameObjectSerializer
-from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.interface.replay_interface import ReplayInterface
 from conflict_interface.logger_config import setup_library_logger
-from conflict_interface.utils.binary import BinaryWriter
+from conflict_interface.replay.constants import INT_TO_OP
+from conflict_interface.replay.patch_graph import PatchGraph
 from paths import TEST_DATA
 
 if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
-    ritf = ReplayInterface(TEST_DATA / "test_replay_10626166.bin", game_id= 12345, player_id=1)
+    ritf = ReplayInterface(TEST_DATA / "test_replay_game_10631632.bin", game_id= 12345, player_id=1)
 
     for i in range(10000000):
         pass
     t1 = perf_counter()
     ritf.open(mode = 'r', max_patches=None)
-
-
+    ritf.register_game_info_state_trigger()
 
 
 
     t2 = perf_counter()
     # Test Operations --------------------------------
-    ritf.jump_to(ritf.last_time, create_long_patches=True)
-    lp = ritf._replay.storage.patch_graph.patches[(int(ritf.start_time.timestamp()), int(ritf.last_time.timestamp()))]
-    writer = GameObjectSerializer()
-    byt = lp.serialize([], writer)
-    print(len(byt))
+    ritf.jump_to_last_time()
+    e = ritf.poll_events()
+    for event in e.items():
+        for t in event[1]:
+            print(t)
     # End --------------------------------------------
     t3 = perf_counter()
     ritf.close()

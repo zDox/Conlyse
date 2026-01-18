@@ -1,4 +1,4 @@
-import bisect
+from bisect import bisect_right
 
 import numpy as np
 from scipy.sparse import lil_matrix
@@ -26,6 +26,25 @@ class PatchGraph:
     @staticmethod
     def cost(patch_path: list[PatchGraphNode]):
         return sum(x.cost for x in patch_path)
+
+    def find_prev_timestamp(self, target):
+        """
+        Find the closest cached Unix timestamp less than or equal to the target.
+
+        Parameters
+        ----------
+        target : int
+            Unix timestamp (e.g. seconds since the Unix epoch).
+
+        Returns
+        -------
+        int | None
+            The closest Unix timestamp in ``self.time_stamps_cache`` that is
+            less than or equal to ``target``, or ``None`` if no such timestamp
+            exists.
+        """
+        i = bisect_right(self.time_stamps_cache, target)
+        return self.time_stamps_cache[i - 1] if i > 0 else None
 
     def add_edge(self, patch_node: PatchGraphNode):
         """
@@ -102,16 +121,13 @@ class PatchGraph:
         from_time = int(from_time.timestamp())
         to_time = int(to_time.timestamp())
 
-        # bisect to find closest timestamps: find next available timestamp ≥ requested time
-        from_index = bisect.bisect_left(self.time_stamps_cache, from_time)
-        to_index = bisect.bisect_left(self.time_stamps_cache, to_time)
-        if from_index < len(self.time_stamps_cache) and to_index < len(self.time_stamps_cache):
-            from_time_exact = self.time_stamps_cache[from_index]
-            to_time_exact = self.time_stamps_cache[to_index]
-            path = self._find_patch_path_exact(from_time_exact, to_time_exact)
-            return path
+        from_time_exact = self.find_prev_timestamp(from_time)
+        to_time_exact = self.find_prev_timestamp(to_time)
+        if from_time_exact is None or to_time_exact is None:
+            raise ValueError("No exact patch timestamps found for the given time range.")
 
-        raise ValueError("No exact patch timestamps found for the given time range.")
+        path = self._find_patch_path_exact(from_time_exact, to_time_exact)
+        return path
 
     def _find_patch_path_exact(self, from_time: int, to_time: int) -> list[PatchGraphNode]:
         if from_time == to_time:
@@ -142,4 +158,6 @@ class PatchGraph:
             cur = prev
 
         return path[::-1]
+
+
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections import deque
 from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
@@ -48,6 +49,7 @@ class Replay:
         self._op_counter = 0
         self._game: ReplayInterface | None = None
         self._max_patches = max_patches
+        self._append_que = deque([])
 
     def is_open(self) -> bool:
         return self._is_open
@@ -216,9 +218,9 @@ class Replay:
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
-    def append_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
+    def que_append_patch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch):
         self.validate_game(game_id, player_id)
-        self.validate_max_patches(len(replay_patches)*2)
+        self.validate_max_patches(2)
 
         if not self._is_open:
             logger.warning("Can not append to an closed replay")
@@ -233,40 +235,53 @@ class Replay:
 
         nodes = []
         all_new_paths = []
-        for patch in replay_patches:
-            new_nodes = self.storage.path_tree.fill_with_paths(patch.forward_patch.operations)
-            new_paths = []
-            for node in new_nodes:
-                new_paths.append((node.index, node.parent.index if node.parent else 0, node.path_element))
+        new_nodes = self.storage.path_tree.fill_with_paths(replay_patch.forward_patch.operations)
+        new_paths = []
 
-            forward = self.ops_to_lists(patch.forward_patch.operations)
-            backward = self.ops_to_lists(reversed(patch.backward_patch.operations))
+        for node in new_nodes:
+            new_paths.append((node.index, node.parent.index if node.parent else 0, node.path_element))
 
-            forward_node = PatchGraphNode(
-                from_timestamp=from_timestamp,
-                to_timestamp=to_timestamp,
-                op_types=forward['op_types'],
-                paths=forward['paths'],
-                values=forward['values']
-            )
-            backward_node = PatchGraphNode(
-                from_timestamp=to_timestamp,
-                to_timestamp=from_timestamp,
-                op_types=backward['op_types'],
-                paths=backward['paths'],
-                values=backward['values']
-            )
+        forward = self.ops_to_lists(replay_patch.forward_patch.operations)
+        backward = self.ops_to_lists(reversed(replay_patch.backward_patch.operations))
 
-            nodes.append(forward_node)
-            nodes.append(backward_node)
+        forward_node = PatchGraphNode(
+            from_timestamp=from_timestamp,
+            to_timestamp=to_timestamp,
+            op_types=forward['op_types'],
+            paths=forward['paths'],
+            values=forward['values']
+        )
+        backward_node = PatchGraphNode(
+            from_timestamp=to_timestamp,
+            to_timestamp=from_timestamp,
+            op_types=backward['op_types'],
+            paths=backward['paths'],
+            values=backward['values']
+        )
 
-            all_new_paths.append(new_paths)
-            all_new_paths.append([]) # Assume forward and backwards have the same paths
+        nodes.append(forward_node)
+        nodes.append(backward_node)
+
+        all_new_paths.append(new_paths)
+        all_new_paths.append([]) # Assume forward and backwards have the same paths
 
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
-        self.storage.append_patches_to_disk(nodes, all_new_paths, self.file_path)
+        self._append_que.append((nodes, all_new_paths))
+        #self.storage.append_patches_to_disk(nodes, all_new_paths, self.file_path)
+
+    def execute_append_que(self):
+        all_nodes = []
+        all_new_paths = []
+        while self._append_que:
+            nodes, new_paths = self._append_que.popleft()
+            all_nodes.extend(nodes)
+            all_new_paths.extend(new_paths)
+
+        self.storage.append_patches_to_disk(all_nodes, all_new_paths, self.file_path)
+
+
 
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
@@ -311,7 +326,7 @@ class Replay:
         if hook_system:
             for hook_path, references in hook_data.items():
                 for obj_path, attributes in references.items():
-                    reference = self.storage.path_tree.idx_to_node[obj_path]
+                    reference = self.storage.path_tree.idx_to_node[obj_path].reference
                     for attribute, value in attributes.items():
                         value[1] = getattr(reference, attribute, None)
                     hook_system.que_hook_path(hook_path, reference, attributes)

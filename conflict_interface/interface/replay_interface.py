@@ -1,4 +1,5 @@
 import bisect
+from bisect import bisect_right
 
 from datetime import UTC
 from datetime import datetime
@@ -144,7 +145,7 @@ class ReplayInterface(GameInterface):
 
         patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, time_stamp)
         if PatchGraph.cost(patches) > LONG_PATCH_THRESHOLD and len(patches) > 1 and create_long_patches:
-            patches = self.create_and_save_long_patch(self.current_time, time_stamp)
+            patches = [self.create_and_save_long_patch(self.current_time, time_stamp)]
 
         self._apply_patches_and_update_state(patches, time_stamp)
 
@@ -212,12 +213,16 @@ class ReplayInterface(GameInterface):
     def jump_to_last_time(self):
         self.jump_to(self._replay.get_last_time())
 
-    def create_and_save_long_patch(self, from_time: datetime, to_time: datetime) -> list[PatchGraphNode]:
+    def create_and_save_long_patch(self, from_time: datetime, to_time: datetime) -> PatchGraphNode:
         path_tree = self._replay.storage.path_tree
         patch_graph = self._replay.storage.patch_graph
-        long_patch_node = create_long_patch(from_time, to_time, patch_graph, path_tree)
+        from_time_exact = self.find_closest_prev_timestamp(from_time)
+        to_time_exact = self.find_closest_prev_timestamp(to_time)
+        if from_time_exact is None or to_time_exact is None:
+            raise ValueError(f"There are no timestamps satisfying this jump from {str(from_time)} to {str(to_time)}")
+        long_patch_node = create_long_patch(from_time_exact, to_time_exact, patch_graph, path_tree)
         self._replay.storage.patch_graph.add_edge(long_patch_node)
-        return [long_patch_node]
+        return long_patch_node
 
     def get_timestamps(self) -> list[datetime]:
         """
@@ -243,6 +248,32 @@ class ReplayInterface(GameInterface):
         # Fallback for custom timestamp (O(log n))
         i = bisect.bisect_right(ts, timestamp)
         return ts[i] if i < len(ts) else None
+
+    def find_closest_prev_timestamp(self, target: datetime):
+        """
+        Find the closest cached timestamp less than or equal to the target.
+
+        Parameters
+        ----------
+        target : datetime
+            Target datetime (UTC).
+
+        Returns
+        -------
+        datetime | None
+            The closest datetime in ``self._time_stamps_cache`` that is
+            less than or equal to ``target``, or ``None`` if no such timestamp
+            exists.
+        """
+        # Convert datetime to Unix timestamp and delegate to PatchGraph
+        target_unix = int(target.timestamp())
+        prev_unix = self._replay.storage.patch_graph.find_prev_timestamp(target_unix)
+        
+        if prev_unix is None:
+            return None
+        
+        # Convert back to datetime
+        return datetime.fromtimestamp(prev_unix, tz=UTC)
 
     def get_previous_timestamp(self, timestamp = None) -> datetime | None:
         """
