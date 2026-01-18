@@ -147,10 +147,13 @@ json ObservationApi::make_game_server_request(const json& parameters) {
             throw std::runtime_error("HTTP status: " + std::to_string(res->status));
         }
 
-        // Parse response
+        // Parse response and immediately clear the response body to free memory
         json response_json;
         try {
             response_json = json::parse(res->body);
+            // Clear the response body string to free memory
+            res->body.clear();
+            res->body.shrink_to_fit();
         } catch (const std::exception& e) {
             throw std::runtime_error("Failed to parse response: " + std::string(e.what()));
         }
@@ -301,7 +304,11 @@ json ObservationApi::get_static_map_data(int map_id) {
         throw std::runtime_error("Failed to fetch static map data");
     }
     
-    return json::parse(res->body);
+    // Parse and immediately clear the response body to free memory
+    json result = json::parse(res->body);
+    res->body.clear();
+    res->body.shrink_to_fit();
+    return result;
 }
 
 json ObservationApi::get_cookies() const {

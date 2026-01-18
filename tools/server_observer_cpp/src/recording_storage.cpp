@@ -231,7 +231,7 @@ void RecordingStorage::append_bytes_to_file(const std::string& file_path,
     file.write(reinterpret_cast<const char*>(data.data()), data.size());
 }
 
-void RecordingStorage::save_response(const json& response) {
+void RecordingStorage::save_response(json&& response) {
     // Check if file rotation is needed
     if (should_rotate_file()) {
         rotate_to_long_term_storage();
@@ -239,6 +239,10 @@ void RecordingStorage::save_response(const json& response) {
     
     // Serialize and compress response
     std::string response_str = response.dump();
+    
+    // Clear the JSON object immediately to release memory
+    response.clear();
+    
     size_t compressed_size = ZSTD_compressBound(response_str.size());
     std::vector<uint8_t> compressed(compressed_size);
     
@@ -254,6 +258,10 @@ void RecordingStorage::save_response(const json& response) {
     }
     
     compressed.resize(actual_size);
+    
+    // Clear the response string to free memory before file I/O
+    response_str.clear();
+    response_str.shrink_to_fit();
     
     // Get current timestamp
     auto now = std::chrono::system_clock::now();

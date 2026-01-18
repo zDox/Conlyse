@@ -55,7 +55,7 @@ private:
     void reset_package();
     bool ensure_static_map_data(ObservationApi& api, int map_id);
     bool is_game_ended(const json& response);
-    void on_request_response(const json& response);
+    void on_request_response(json&& response);
 };
 
 class ObservationSession {

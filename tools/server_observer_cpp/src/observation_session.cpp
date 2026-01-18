@@ -153,9 +153,9 @@ ObservationWorker::~ObservationWorker() {
     }
 }
 
-void ObservationWorker::on_request_response(const json& response) {
+void ObservationWorker::on_request_response(json&& response) {
     storage_->update_resume_metadata(package_.to_json());
-    storage_->save_response(response);
+    storage_->save_response(std::move(response));
 }
 
 bool ObservationWorker::ensure_observation_package() {
@@ -296,10 +296,11 @@ bool ObservationWorker::run() {
             package_.headers = api.get_headers();
             package_.game_server_address = api.get_game_server_address();
             
-            // Save response
-            on_request_response(game_state);
+            // Check if game ended before processing
+            bool game_ended = is_game_ended(game_state);
             
             // Process map data
+            int map_id_to_fetch = -1;
             try {
                 if (game_state.contains("result") && game_state["result"].is_object()) {
                     const auto& result = game_state["result"];
@@ -310,8 +311,7 @@ bool ObservationWorker::run() {
                             if (state3.contains("map") && state3["map"].is_object()) {
                                 const auto& map = state3["map"];
                                 if (map.contains("mapID")) {
-                                    int map_id = map["mapID"].get<int>();
-                                    ensure_static_map_data(api, map_id);
+                                    map_id_to_fetch = map["mapID"].get<int>();
                                 }
                             }
                         }
@@ -321,8 +321,16 @@ bool ObservationWorker::run() {
                 // Map data not available or invalid
             }
             
+            // Save response and release the large JSON immediately
+            on_request_response(std::move(game_state));
+            
+            // Fetch map data if needed (after game_state is released)
+            if (map_id_to_fetch >= 0) {
+                ensure_static_map_data(api, map_id_to_fetch);
+            }
+            
             // Check if game ended
-            if (is_game_ended(game_state)) {
+            if (game_ended) {
                 return false;
             }
             
