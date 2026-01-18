@@ -152,7 +152,7 @@ std::vector<std::pair<int, HubGameProperties>> ServerObserver::select_games(
                     continue;
                 }
                 seen_games.insert(game.game_id);
-                selected.push_back({scenario_id, game});
+                selected.emplace_back(scenario_id, game);
             }
         }
     } catch (const std::exception& e) {

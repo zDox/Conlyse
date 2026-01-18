@@ -11,17 +11,14 @@ Account::Account(const std::string& username, const std::string& password,
     , proxy_url(proxy_url)
     , hub_interface_(nullptr)
     , games_loaded_(false)
-{
-    // Create HubInterface with proxy
-    hub_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
-}
+{}
 
 Account::~Account() {
 }
 
 bool Account::login() {
     if (!hub_interface_) {
-        return false;
+        hub_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
     }
     
     if (hub_interface_->is_authenticated()) {

@@ -141,8 +141,8 @@ AuthDetails HubInterfaceWrapper::get_auth_details() const {
         // Extract auth fields
         details.auth = auth_obj.attr("auth").cast<std::string>();
         details.rights = auth_obj.attr("rights").cast<std::string>();
-        details.user_id = auth_obj.attr("user_id").cast<int>();
-        details.auth_tstamp = auth_obj.attr("auth_tstamp").cast<int>();
+        details.user_id = auth_obj.attr("user_id").cast<long>();
+        details.auth_tstamp = auth_obj.attr("auth_tstamp").cast<long>();
         
     } catch (const py::error_already_set& e) {
         std::cerr << "Failed to get auth details: " << e.what() << std::endl;
@@ -199,7 +199,7 @@ HubInterfaceWrapper::GameApiData HubInterfaceWrapper::join_game_as_guest(int gam
     py::gil_scoped_acquire acquire;
     GameApiData data;
     data.client_version = 207;
-    data.map_id = 0;
+    data.map_id = "";
     
     try {
         // Import GameApi
@@ -231,10 +231,8 @@ HubInterfaceWrapper::GameApiData HubInterfaceWrapper::join_game_as_guest(int gam
         
         py::object map_id_obj = game_api.attr("map_id");
         if (!map_id_obj.is_none()) {
-            if (py::isinstance<py::int_>(map_id_obj)) {
-                data.map_id = map_id_obj.cast<int>();
-            } else if (py::isinstance<py::str>(map_id_obj)) {
-                data.map_id = std::stoi(map_id_obj.cast<std::string>());
+            if (py::isinstance<py::str>(map_id_obj)) {
+                data.map_id = map_id_obj.cast<std::string>();
             }
         }
         
@@ -242,9 +240,15 @@ HubInterfaceWrapper::GameApiData HubInterfaceWrapper::join_game_as_guest(int gam
         py::object auth_obj = game_api.attr("auth");
         if (!auth_obj.is_none()) {
             data.auth.auth = auth_obj.attr("auth").cast<std::string>();
-            data.auth.rights = auth_obj.attr("rights").cast<std::string>();
-            data.auth.user_id = auth_obj.attr("user_id").cast<int>();
-            data.auth.auth_tstamp = auth_obj.attr("auth_tstamp").cast<int>();
+            if (!auth_obj.attr("rights").is_none() ) {
+                data.auth.rights = auth_obj.attr("rights").cast<std::string>();
+            }
+            if (!auth_obj.attr("user_id").is_none()) {
+                data.auth.user_id = auth_obj.attr("user_id").cast<long>();
+            }
+            if (!auth_obj.attr("auth_tstamp").is_none()) {
+                data.auth.auth_tstamp = std::stol(auth_obj.attr("auth_tstamp").cast<std::string>());
+            }
         }
         
         // Get session headers and cookies

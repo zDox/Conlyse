@@ -16,8 +16,8 @@ using json = nlohmann::json;
 struct AuthDetails {
     std::string auth;
     std::string rights;
-    int user_id;
-    int auth_tstamp;
+    long user_id;
+    long auth_tstamp;
     
     json to_json() const;
     static AuthDetails from_json(const json& j);
@@ -60,7 +60,7 @@ public:
     struct GameApiData {
         std::string game_server_address;
         int client_version;
-        int map_id;
+        std::string map_id;
         AuthDetails auth;
         json headers;
         json cookies;

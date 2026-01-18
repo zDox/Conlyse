@@ -302,7 +302,7 @@ bool ObservationWorker::run() {
             
             // Extract map ID before moving game_state (if we need it).
             // This avoids accessing the JSON after it's been moved.
-            int map_id_to_fetch = -1;
+            std::string map_id_to_fetch = "-1";
             try {
                 if (game_state.contains("result") && game_state["result"].is_object()) {
                     const auto& result = game_state["result"];
@@ -313,7 +313,7 @@ bool ObservationWorker::run() {
                             if (state3.contains("map") && state3["map"].is_object()) {
                                 const auto& map = state3["map"];
                                 if (map.contains("mapID")) {
-                                    map_id_to_fetch = map["mapID"].get<int>();
+                                    map_id_to_fetch = map["mapID"].get<std::string>();
                                 }
                             }
                         }
@@ -328,8 +328,8 @@ bool ObservationWorker::run() {
             on_request_response(std::move(game_state));
             
             // Fetch map data if needed (safe to do after game_state is moved)
-            if (map_id_to_fetch >= 0) {
-                ensure_static_map_data(api, map_id_to_fetch);
+            if (map_id_to_fetch != "-1") {
+                // ensure_static_map_data(api, map_id_to_fetch);
             }
             
             // Check if game ended (using the bool we stored before the move)
