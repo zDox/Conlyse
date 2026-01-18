@@ -3,9 +3,11 @@
 
 #include <string>
 #include <memory>
-#include <Python.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
 #include <nlohmann/json.hpp>
 
+namespace py = pybind11;
 using json = nlohmann::json;
 
 /**
@@ -72,16 +74,15 @@ public:
     std::string get_proxy_https() const { return proxy_https_; }
     
 private:
-    PyObject* hub_interface_;
-    PyObject* python_module_;
+    py::object hub_interface_;
+    py::module_ python_module_;
     bool authenticated_;
     std::string proxy_http_;
     std::string proxy_https_;
     
     void init_python();
     void cleanup_python();
-    PyObject* call_method(const char* method_name, PyObject* args = nullptr);
-    json py_to_json(PyObject* obj) const;
+    json py_to_json(const py::handle& obj) const;
 };
 
 #endif // HUB_INTERFACE_WRAPPER_HPP

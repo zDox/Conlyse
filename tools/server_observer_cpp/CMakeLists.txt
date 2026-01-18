@@ -8,6 +8,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(Threads REQUIRED)
 
+# pybind11
+FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11.git
+    GIT_TAG v2.11.1
+)
+FetchContent_MakeAvailable(pybind11)
+
 # JSON library (nlohmann/json)
 include(FetchContent)
 FetchContent_Declare(
@@ -34,7 +42,6 @@ find_package(OpenSSL REQUIRED)
 # Include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${Python3_INCLUDE_DIRS}
 )
 
 # Source files
@@ -63,7 +70,7 @@ target_link_libraries(server_observer
     OpenSSL::SSL
     OpenSSL::Crypto
     Threads::Threads
-    ${Python3_LIBRARIES}
+    pybind11::embed
 )
 
 target_include_directories(server_observer

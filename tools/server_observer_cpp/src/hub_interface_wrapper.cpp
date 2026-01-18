@@ -4,9 +4,12 @@
 #include <sstream>
 #include <mutex>
 
+namespace py = pybind11;
+
 // Python initialization guard
 static bool python_initialized = false;
 static std::mutex python_init_mutex;
+static py::scoped_interpreter* interpreter = nullptr;
 
 json AuthDetails::to_json() const {
     return json{
@@ -36,9 +39,7 @@ HubGameProperties HubGameProperties::from_json(const json& j) {
 }
 
 HubInterfaceWrapper::HubInterfaceWrapper(const std::string& proxy_http, const std::string& proxy_https)
-    : hub_interface_(nullptr)
-    , python_module_(nullptr)
-    , authenticated_(false)
+    : authenticated_(false)
     , proxy_http_(proxy_http)
     , proxy_https_(proxy_https)
 {
@@ -52,120 +53,70 @@ void HubInterfaceWrapper::init_python() {
     std::lock_guard<std::mutex> lock(python_init_mutex);
 
     if (!python_initialized) {
-        // Simple initialization without complex config
-        Py_Initialize();
-
-        if (!Py_IsInitialized()) {
-            throw std::runtime_error("Failed to initialize Python interpreter");
-        }
-        PyEval_InitThreads();
-        PyEval_SaveThread();
-
+        // Initialize Python interpreter using pybind11
+        interpreter = new py::scoped_interpreter();
         python_initialized = true;
     }
 
-    PyGILState_STATE gstate = PyGILState_Ensure();
+    py::gil_scoped_acquire acquire;
 
     try {
-        // Set up the Python path - INSERT at beginning, don't clear!
-        PyRun_SimpleString("import sys");
-
+        // Set up the Python path - INSERT at beginning
+        py::module_ sys = py::module_::import("sys");
+        py::list path = sys.attr("path");
+        
         // Insert our paths at the BEGINNING so they take priority
-        PyRun_SimpleString("sys.path.insert(0, '/home/zdox/PycharmProjects/ConflictInterface')");
-        PyRun_SimpleString("sys.path.insert(1, '/home/zdox/PycharmProjects/ConflictInterface/.venv/lib/python3.12/site-packages')");
+        path.insert(0, "/home/zdox/PycharmProjects/ConflictInterface");
+        path.insert(1, "/home/zdox/PycharmProjects/ConflictInterface/.venv/lib/python3.12/site-packages");
 
         // Debug: Print sys.path to verify
-        PyRun_SimpleString("print('sys.path after setup:', sys.path)");
+        py::print("sys.path after setup:", path);
 
         // Import the HubInterface module
-        PyObject* module_name = PyUnicode_DecodeFSDefault("conflict_interface.interface.hub_interface");
-        python_module_ = PyImport_Import(module_name);
-        Py_DECREF(module_name);
-
-        if (!python_module_) {
-            PyErr_Print();
-            throw std::runtime_error("Failed to import HubInterface module");
-        }
+        python_module_ = py::module_::import("conflict_interface.interface.hub_interface");
 
         // Get the HubInterface class
-        PyObject* hub_interface_class = PyObject_GetAttrString(python_module_, "HubInterface");
-        if (!hub_interface_class) {
-            PyErr_Print();
-            throw std::runtime_error("Failed to get HubInterface class");
-        }
+        py::object hub_interface_class = python_module_.attr("HubInterface");
 
-        // Create proxy dict with proper reference counting
-        PyObject* proxy_dict = PyDict_New();
+        // Create proxy dict
+        py::dict proxy_dict;
         if (!proxy_http_.empty()) {
-            PyObject* http_str = PyUnicode_FromString(proxy_http_.c_str());
-            PyDict_SetItemString(proxy_dict, "http", http_str);
-            Py_DECREF(http_str);
+            proxy_dict["http"] = proxy_http_;
         }
         if (!proxy_https_.empty()) {
-            PyObject* https_str = PyUnicode_FromString(proxy_https_.c_str());
-            PyDict_SetItemString(proxy_dict, "https", https_str);
-            Py_DECREF(https_str);
+            proxy_dict["https"] = proxy_https_;
         }
 
         // Create HubInterface instance
-        PyObject* args = PyTuple_Pack(1, proxy_dict);
-        hub_interface_ = PyObject_CallObject(hub_interface_class, args);
-        Py_DECREF(args);
-        Py_DECREF(proxy_dict);
-        Py_DECREF(hub_interface_class);
+        hub_interface_ = hub_interface_class(proxy_dict);
 
-        if (!hub_interface_) {
-            PyErr_Print();
-            throw std::runtime_error("Failed to create HubInterface instance");
-        }
-    } catch (...) {
-        PyGILState_Release(gstate);
-        throw;
+    } catch (const py::error_already_set& e) {
+        throw std::runtime_error(std::string("Failed to initialize Python: ") + e.what());
     }
-
-    PyGILState_Release(gstate);
 }
 
 void HubInterfaceWrapper::cleanup_python() {
-    PyGILState_STATE gstate = PyGILState_Ensure();
-    
-    if (hub_interface_) {
-        Py_DECREF(hub_interface_);
-        hub_interface_ = nullptr;
-    }
-    
-    if (python_module_) {
-        Py_DECREF(python_module_);
-        python_module_ = nullptr;
-    }
-    
-    PyGILState_Release(gstate);
+    // pybind11 handles cleanup automatically with RAII
+    // No manual reference counting needed
 }
 
 bool HubInterfaceWrapper::login(const std::string& username, const std::string& password) {
-    PyGILState_STATE gstate = PyGILState_Ensure();
+    py::gil_scoped_acquire acquire;
     
     try {
-        PyObject *py_user = PyUnicode_FromString(username.c_str());
-        PyObject *py_pass = PyUnicode_FromString(password.c_str());
-        PyObject *args = PyTuple_Pack(2, py_user, py_pass);
-        Py_XDECREF(py_user);
-        Py_XDECREF(py_pass);
-        PyObject* result = call_method("login", args);
-        Py_DECREF(args);
+        py::object result = hub_interface_.attr("login")(username, password);
         
-        std::cout << "Logged in succesfully: " << username << std::endl;
-        bool success = PyObject_IsTrue(result);
-        Py_DECREF(result);
+        std::cout << "Logged in successfully: " << username << std::endl;
+        bool success = result.cast<bool>();
         authenticated_ = true;
-        PyGILState_Release(gstate);
         return success;
+    } catch (const py::error_already_set& e) {
+        std::cerr << "Login failed: " << e.what() << std::endl;
+        return false;
     } catch (const std::exception& e) {
         std::cerr << "Login failed: " << e.what() << std::endl;
+        return false;
     }
-    
-    PyGILState_Release(gstate);
-    return false;
 }
 
 void HubInterfaceWrapper::logout() {
@@ -173,394 +124,230 @@ void HubInterfaceWrapper::logout() {
 }
 
 AuthDetails HubInterfaceWrapper::get_auth_details() const {
-    PyGILState_STATE gstate = PyGILState_Ensure();
+    py::gil_scoped_acquire acquire;
     
     AuthDetails details;
     
     try {
         // Get the auth attribute from hub_interface
-        PyObject* auth_obj = PyObject_GetAttrString(hub_interface_, "auth");
-        if (!auth_obj || auth_obj == Py_None) {
-            Py_XDECREF(auth_obj);
-            PyGILState_Release(gstate);
+        py::object auth_obj = hub_interface_.attr("auth");
+        
+        if (auth_obj.is_none()) {
             return details;
         }
         
         // Extract auth fields
-        PyObject* auth_str = PyObject_GetAttrString(auth_obj, "auth");
-        PyObject* rights_str = PyObject_GetAttrString(auth_obj, "rights");
-        PyObject* user_id_int = PyObject_GetAttrString(auth_obj, "user_id");
-        PyObject* auth_tstamp_int = PyObject_GetAttrString(auth_obj, "auth_tstamp");
+        details.auth = auth_obj.attr("auth").cast<std::string>();
+        details.rights = auth_obj.attr("rights").cast<std::string>();
+        details.user_id = auth_obj.attr("user_id").cast<int>();
+        details.auth_tstamp = auth_obj.attr("auth_tstamp").cast<int>();
         
-        if (auth_str) {
-            const char* auth_cstr = PyUnicode_AsUTF8(auth_str);
-            if (auth_cstr) details.auth = auth_cstr;
-            Py_DECREF(auth_str);
-        }
-        
-        if (rights_str) {
-            const char* rights_cstr = PyUnicode_AsUTF8(rights_str);
-            if (rights_cstr) details.rights = rights_cstr;
-            Py_DECREF(rights_str);
-        }
-        
-        if (user_id_int) {
-            details.user_id = PyLong_AsLong(user_id_int);
-            Py_DECREF(user_id_int);
-        }
-        
-        if (auth_tstamp_int) {
-            details.auth_tstamp = PyLong_AsLong(auth_tstamp_int);
-            Py_DECREF(auth_tstamp_int);
-        }
-        
-        Py_DECREF(auth_obj);
+    } catch (const py::error_already_set& e) {
+        std::cerr << "Failed to get auth details: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Failed to get auth details: " << e.what() << std::endl;
     }
     
-    PyGILState_Release(gstate);
     return details;
 }
 
 std::vector<HubGameProperties> HubInterfaceWrapper::get_my_games() {
-    PyGILState_STATE gstate = PyGILState_Ensure();
+    py::gil_scoped_acquire acquire;
     std::vector<HubGameProperties> games;
     
     try {
-        PyObject* result = call_method("get_my_games");
-        if (result && PyList_Check(result)) {
+        py::object result = hub_interface_.attr("get_my_games")();
+        if (py::isinstance<py::list>(result)) {
             json games_json = py_to_json(result);
             for (const auto& game_json : games_json) {
                 games.push_back(HubGameProperties::from_json(game_json));
             }
-            Py_DECREF(result);
         }
+    } catch (const py::error_already_set& e) {
+        std::cerr << "Failed to get my games: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Failed to get my games: " << e.what() << std::endl;
     }
     
-    PyGILState_Release(gstate);
     return games;
 }
 
 std::vector<HubGameProperties> HubInterfaceWrapper::get_global_games() {
-    PyGILState_STATE gstate = PyGILState_Ensure();
+    py::gil_scoped_acquire acquire;
     std::vector<HubGameProperties> games;
     
     try {
-        PyObject* result = call_method("get_global_games");
-        if (result && PyList_Check(result)) {
+        py::object result = hub_interface_.attr("get_global_games")();
+        if (py::isinstance<py::list>(result)) {
             json games_json = py_to_json(result);
             for (const auto& game_json : games_json) {
                 games.push_back(HubGameProperties::from_json(game_json));
             }
-            Py_DECREF(result);
         }
+    } catch (const py::error_already_set& e) {
+        std::cerr << "Failed to get global games: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Failed to get global games: " << e.what() << std::endl;
     }
     
-    PyGILState_Release(gstate);
     return games;
 }
 
 HubInterfaceWrapper::GameApiData HubInterfaceWrapper::join_game_as_guest(int game_id) {
-    PyGILState_STATE gstate = PyGILState_Ensure();
+    py::gil_scoped_acquire acquire;
     GameApiData data;
     data.client_version = 207;
     data.map_id = 0;
     
     try {
         // Import GameApi
-        PyObject* game_api_module = PyImport_ImportModule("conflict_interface.game_api");
-        if (!game_api_module) {
-            PyErr_Print();
-            throw std::runtime_error("Failed to import GameApi module");
-        }
-        
-        PyObject* game_api_class = PyObject_GetAttrString(game_api_module, "GameApi");
-        Py_DECREF(game_api_module);
-        
-        if (!game_api_class) {
-            PyErr_Print();
-            throw std::runtime_error("Failed to get GameApi class");
-        }
+        py::module_ game_api_module = py::module_::import("conflict_interface.game_api");
+        py::object game_api_class = game_api_module.attr("GameApi");
         
         // Get hub_interface_.api attributes
-        PyObject* api = PyObject_GetAttrString(hub_interface_, "api");
-        if (!api) {
-            Py_DECREF(game_api_class);
-            PyErr_Print();
-            throw std::runtime_error("Failed to get api from hub_interface");
-        }
-        
-        PyObject* session = PyObject_GetAttrString(api, "session");
-        PyObject* proxy = PyObject_GetAttrString(api, "proxy");
-        PyObject* auth_details = PyObject_GetAttrString(api, "auth");
+        py::object api = hub_interface_.attr("api");
+        py::object session = api.attr("session");
+        py::object proxy = api.attr("proxy");
+        py::object auth_details = api.attr("auth");
         
         // Create GameApi instance: GameApi(session, auth_details, game_id, proxy)
-        PyObject* py_game_id = PyLong_FromLong(game_id);
-        PyObject* args = PyTuple_Pack(4, session, auth_details, py_game_id, proxy);
-        
-        PyObject* game_api = PyObject_CallObject(game_api_class, args);
-        
-        Py_DECREF(args);
-        Py_DECREF(py_game_id);
-        Py_DECREF(session);
-        Py_DECREF(proxy);
-        Py_DECREF(auth_details);
-        Py_DECREF(api);
-        Py_DECREF(game_api_class);
-        
-        if (!game_api) {
-            PyErr_Print();
-            throw std::runtime_error("Failed to create GameApi instance");
-        }
+        py::object game_api = game_api_class(session, auth_details, game_id, proxy);
         
         // Call load_game_site()
-        PyObject* load_method = PyObject_GetAttrString(game_api, "load_game_site");
-        if (!load_method) {
-            Py_DECREF(game_api);
-            PyErr_Print();
-            throw std::runtime_error("Failed to get load_game_site method");
-        }
-        
-        PyObject* load_result = PyObject_CallObject(load_method, nullptr);
-        Py_DECREF(load_method);
-        
-        if (!load_result) {
-            Py_DECREF(game_api);
-            PyErr_Print();
-            throw std::runtime_error("Failed to call load_game_site");
-        }
-        Py_DECREF(load_result);
+        game_api.attr("load_game_site")();
         
         // Extract data from game_api
-        PyObject* gs_addr = PyObject_GetAttrString(game_api, "game_server_address");
-        if (gs_addr && gs_addr != Py_None) {
-            const char* addr_str = PyUnicode_AsUTF8(gs_addr);
-            if (addr_str) data.game_server_address = addr_str;
-            Py_DECREF(gs_addr);
+        py::object gs_addr = game_api.attr("game_server_address");
+        if (!gs_addr.is_none()) {
+            data.game_server_address = gs_addr.cast<std::string>();
         }
         
-        PyObject* client_ver = PyObject_GetAttrString(game_api, "client_version");
-        if (client_ver && client_ver != Py_None) {
-            data.client_version = PyLong_AsLong(client_ver);
-            Py_DECREF(client_ver);
+        py::object client_ver = game_api.attr("client_version");
+        if (!client_ver.is_none()) {
+            data.client_version = client_ver.cast<int>();
         }
         
-        PyObject* map_id_obj = PyObject_GetAttrString(game_api, "map_id");
-        if (map_id_obj && map_id_obj != Py_None) {
-            if (PyLong_Check(map_id_obj)) {
-                data.map_id = PyLong_AsLong(map_id_obj);
-            } else if (PyUnicode_Check(map_id_obj)) {
-                const char* map_id_str = PyUnicode_AsUTF8(map_id_obj);
-                if (map_id_str) data.map_id = std::stoi(map_id_str);
+        py::object map_id_obj = game_api.attr("map_id");
+        if (!map_id_obj.is_none()) {
+            if (py::isinstance<py::int_>(map_id_obj)) {
+                data.map_id = map_id_obj.cast<int>();
+            } else if (py::isinstance<py::str>(map_id_obj)) {
+                data.map_id = std::stoi(map_id_obj.cast<std::string>());
             }
-            Py_DECREF(map_id_obj);
         }
         
         // Get updated auth
-        PyObject* auth_obj = PyObject_GetAttrString(game_api, "auth");
-        if (auth_obj) {
-            PyObject* auth_str = PyObject_GetAttrString(auth_obj, "auth");
-            PyObject* rights_str = PyObject_GetAttrString(auth_obj, "rights");
-            PyObject* user_id_int = PyObject_GetAttrString(auth_obj, "user_id");
-            PyObject* auth_tstamp_int = PyObject_GetAttrString(auth_obj, "auth_tstamp");
-            
-            if (auth_str) {
-                const char* auth_cstr = PyUnicode_AsUTF8(auth_str);
-                if (auth_cstr) data.auth.auth = auth_cstr;
-                Py_DECREF(auth_str);
-            }
-            
-            if (rights_str) {
-                const char* rights_cstr = PyUnicode_AsUTF8(rights_str);
-                if (rights_cstr) data.auth.rights = rights_cstr;
-                Py_DECREF(rights_str);
-            }
-            
-            if (user_id_int) {
-                data.auth.user_id = PyLong_AsLong(user_id_int);
-                Py_DECREF(user_id_int);
-            }
-            
-            if (auth_tstamp_int) {
-                data.auth.auth_tstamp = PyLong_AsLong(auth_tstamp_int);
-                Py_DECREF(auth_tstamp_int);
-            }
-            
-            Py_DECREF(auth_obj);
+        py::object auth_obj = game_api.attr("auth");
+        if (!auth_obj.is_none()) {
+            data.auth.auth = auth_obj.attr("auth").cast<std::string>();
+            data.auth.rights = auth_obj.attr("rights").cast<std::string>();
+            data.auth.user_id = auth_obj.attr("user_id").cast<int>();
+            data.auth.auth_tstamp = auth_obj.attr("auth_tstamp").cast<int>();
         }
         
         // Get session headers and cookies
-        PyObject* ga_session = PyObject_GetAttrString(game_api, "session");
-        if (ga_session) {
-            PyObject* headers_obj = PyObject_GetAttrString(ga_session, "headers");
-            if (headers_obj) {
-                data.headers = py_to_json(headers_obj);
-                Py_DECREF(headers_obj);
-            }
-            
-            PyObject* cookies_obj = PyObject_GetAttrString(ga_session, "cookies");
-            if (cookies_obj) {
-                data.cookies = py_to_json(cookies_obj);
-                Py_DECREF(cookies_obj);
-            }
-            
-            Py_DECREF(ga_session);
-        }
+        py::object ga_session = game_api.attr("session");
+        py::object headers_obj = ga_session.attr("headers");
+        data.headers = py_to_json(headers_obj);
         
-        Py_DECREF(game_api);
+        py::object cookies_obj = ga_session.attr("cookies");
+        data.cookies = py_to_json(cookies_obj);
         
+    } catch (const py::error_already_set& e) {
+        std::cerr << "Failed to join game: " << e.what() << std::endl;
+        throw;
     } catch (const std::exception& e) {
         std::cerr << "Failed to join game: " << e.what() << std::endl;
-        PyGILState_Release(gstate);
         throw;
     }
     
-    PyGILState_Release(gstate);
     return data;
 }
 
 json HubInterfaceWrapper::get_cookies() const {
-    PyGILState_STATE gstate = PyGILState_Ensure();
+    py::gil_scoped_acquire acquire;
     json cookies;
     
     try {
         // Get api.session.cookies
-        PyObject* api = PyObject_GetAttrString(hub_interface_, "api");
-        if (api) {
-            PyObject* session = PyObject_GetAttrString(api, "session");
-            if (session) {
-                PyObject* cookies_obj = PyObject_GetAttrString(session, "cookies");
-                if (cookies_obj) {
-                    cookies = py_to_json(cookies_obj);
-                    Py_DECREF(cookies_obj);
-                }
-                Py_DECREF(session);
-            }
-            Py_DECREF(api);
-        }
+        py::object api = hub_interface_.attr("api");
+        py::object session = api.attr("session");
+        py::object cookies_obj = session.attr("cookies");
+        cookies = py_to_json(cookies_obj);
+    } catch (const py::error_already_set& e) {
+        std::cerr << "Failed to get cookies: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Failed to get cookies: " << e.what() << std::endl;
     }
     
-    PyGILState_Release(gstate);
     return cookies;
 }
 
 json HubInterfaceWrapper::get_headers() const {
-    PyGILState_STATE gstate = PyGILState_Ensure();
+    py::gil_scoped_acquire acquire;
     json headers;
     
     try {
         // Get api.session.headers
-        PyObject* api = PyObject_GetAttrString(hub_interface_, "api");
-        if (api) {
-            PyObject* session = PyObject_GetAttrString(api, "session");
-            if (session) {
-                PyObject* headers_obj = PyObject_GetAttrString(session, "headers");
-                if (headers_obj) {
-                    headers = py_to_json(headers_obj);
-                    Py_DECREF(headers_obj);
-                }
-                Py_DECREF(session);
-            }
-            Py_DECREF(api);
-        }
+        py::object api = hub_interface_.attr("api");
+        py::object session = api.attr("session");
+        py::object headers_obj = session.attr("headers");
+        headers = py_to_json(headers_obj);
+    } catch (const py::error_already_set& e) {
+        std::cerr << "Failed to get headers: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Failed to get headers: " << e.what() << std::endl;
     }
     
-    PyGILState_Release(gstate);
     return headers;
 }
 
-PyObject* HubInterfaceWrapper::call_method(const char* method_name, PyObject* args) {
-    if (!hub_interface_) {
-        throw std::runtime_error("HubInterface not initialized");
-    }
-    
-    PyObject* method = PyObject_GetAttrString(hub_interface_, method_name);
-    if (!method) {
-        PyErr_Print();
-        throw std::runtime_error(std::string("Method not found: ") + method_name);
-    }
-    
-    PyObject* result;
-    if (args) {
-        result = PyObject_CallObject(method, args);
-    } else {
-        result = PyObject_CallObject(method, nullptr);
-    }
-    
-    Py_DECREF(method);
-    
-    if (!result) {
-        PyErr_Print();
-        throw std::runtime_error(std::string("Method call failed: ") + method_name);
-    }
-    
-    return result;
-}
-
-json HubInterfaceWrapper::py_to_json(PyObject* obj) const {
-    if (!obj || obj == Py_None) {
+json HubInterfaceWrapper::py_to_json(const py::handle& obj) const {
+    if (obj.is_none()) {
         return nullptr;
     }
     
-    if (PyBool_Check(obj)) {
-        return obj == Py_True;
+    if (py::isinstance<py::bool_>(obj)) {
+        return obj.cast<bool>();
     }
     
-    if (PyLong_Check(obj)) {
-        return PyLong_AsLong(obj);
+    if (py::isinstance<py::int_>(obj)) {
+        return obj.cast<long>();
     }
     
-    if (PyFloat_Check(obj)) {
-        return PyFloat_AsDouble(obj);
+    if (py::isinstance<py::float_>(obj)) {
+        return obj.cast<double>();
     }
     
-    if (PyUnicode_Check(obj)) {
-        const char* str = PyUnicode_AsUTF8(obj);
-        return str ? std::string(str) : "";
+    if (py::isinstance<py::str>(obj)) {
+        return obj.cast<std::string>();
     }
     
-    if (PyList_Check(obj)) {
+    if (py::isinstance<py::list>(obj)) {
         json arr = json::array();
-        Py_ssize_t size = PyList_Size(obj);
-        for (Py_ssize_t i = 0; i < size; i++) {
-            PyObject* item = PyList_GetItem(obj, i);
+        py::list list = obj.cast<py::list>();
+        for (const auto& item : list) {
             arr.push_back(py_to_json(item));
         }
         return arr;
     }
     
-    if (PyDict_Check(obj)) {
+    if (py::isinstance<py::dict>(obj)) {
         json dict = json::object();
-        PyObject *key, *value;
-        Py_ssize_t pos = 0;
-        
-        while (PyDict_Next(obj, &pos, &key, &value)) {
-            const char* key_str = PyUnicode_AsUTF8(key);
-            if (key_str) {
-                dict[key_str] = py_to_json(value);
-            }
+        py::dict py_dict = obj.cast<py::dict>();
+        for (const auto& item : py_dict) {
+            std::string key = py::str(item.first).cast<std::string>();
+            dict[key] = py_to_json(item.second);
         }
         return dict;
     }
     
     // Try to convert object to dict using __dict__
-    if (PyObject_HasAttrString(obj, "__dict__")) {
-        PyObject* dict = PyObject_GetAttrString(obj, "__dict__");
-        if (dict && PyDict_Check(dict)) {
-            json result = py_to_json(dict);
-            Py_DECREF(dict);
-            return result;
+    if (py::hasattr(obj, "__dict__")) {
+        py::object dict = obj.attr("__dict__");
+        if (py::isinstance<py::dict>(dict)) {
+            return py_to_json(dict);
         }
-        Py_XDECREF(dict);
     }
     
     return nullptr;
