@@ -54,10 +54,16 @@ void HubInterfaceWrapper::init_python() {
 
     if (!python_initialized) {
         // Initialize Python interpreter using pybind11
+        // Note: py::scoped_interpreter automatically acquires the GIL
         interpreter = std::make_unique<py::scoped_interpreter>();
         python_initialized = true;
+        
+        // Release the GIL immediately after initialization to allow multithreading
+        // This mimics the behavior of the original PyEval_SaveThread() call
+        PyEval_SaveThread();
     }
 
+    // Acquire GIL for this thread to perform initialization
     py::gil_scoped_acquire acquire;
 
     try {
@@ -95,6 +101,8 @@ void HubInterfaceWrapper::init_python() {
     } catch (const py::error_already_set& e) {
         throw std::runtime_error(std::string("Failed to initialize Python: ") + e.what());
     }
+    
+    // GIL is automatically released when acquire goes out of scope
 }
 
 void HubInterfaceWrapper::cleanup_python() {
