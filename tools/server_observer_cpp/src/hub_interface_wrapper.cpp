@@ -9,7 +9,7 @@ namespace py = pybind11;
 // Python initialization guard
 static bool python_initialized = false;
 static std::mutex python_init_mutex;
-static py::scoped_interpreter* interpreter = nullptr;
+static std::unique_ptr<py::scoped_interpreter> interpreter;
 
 json AuthDetails::to_json() const {
     return json{
@@ -54,7 +54,7 @@ void HubInterfaceWrapper::init_python() {
 
     if (!python_initialized) {
         // Initialize Python interpreter using pybind11
-        interpreter = new py::scoped_interpreter();
+        interpreter = std::make_unique<py::scoped_interpreter>();
         python_initialized = true;
     }
 
@@ -62,6 +62,8 @@ void HubInterfaceWrapper::init_python() {
 
     try {
         // Set up the Python path - INSERT at beginning
+        // NOTE: These paths are hard-coded to match the development environment
+        // In production, ensure PYTHONPATH is set appropriately or modify these paths
         py::module_ sys = py::module_::import("sys");
         py::list path = sys.attr("path");
         
@@ -325,8 +327,8 @@ json HubInterfaceWrapper::py_to_json(const py::handle& obj) const {
     
     if (py::isinstance<py::list>(obj)) {
         json arr = json::array();
-        py::list list = obj.cast<py::list>();
-        for (const auto& item : list) {
+        // Iterate directly over obj to avoid creating a copy
+        for (const auto& item : obj) {
             arr.push_back(py_to_json(item));
         }
         return arr;
@@ -334,6 +336,7 @@ json HubInterfaceWrapper::py_to_json(const py::handle& obj) const {
     
     if (py::isinstance<py::dict>(obj)) {
         json dict = json::object();
+        // For dict, we need to cast to access key-value pairs properly
         py::dict py_dict = obj.cast<py::dict>();
         for (const auto& item : py_dict) {
             std::string key = py::str(item.first).cast<std::string>();
