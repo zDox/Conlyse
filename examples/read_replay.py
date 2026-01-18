@@ -11,7 +11,7 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
-    ritf = ReplayInterface(TEST_DATA / "test_replay_10626234_1.bin", game_id= 12345, player_id=1)
+    ritf = ReplayInterface(TEST_DATA / "test_replay_game_10631632.bin", game_id= 12345, player_id=1)
 
     for i in range(10000000):
         pass
@@ -19,8 +19,15 @@ if __name__ == "__main__":
     ritf.open(mode = 'r', max_patches=None)
     ritf.register_game_info_state_trigger()
 
+
+
     t2 = perf_counter()
     # Test Operations --------------------------------
+    ritf.jump_to_last_time()
+    e = ritf.poll_events()
+    for event in e.items():
+        for t in event[1]:
+            print(t)
     # End --------------------------------------------
     t3 = perf_counter()
     ritf.close()
