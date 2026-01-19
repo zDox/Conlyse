@@ -12,6 +12,7 @@
 #include <queue>
 #include <atomic>
 #include <nlohmann/json.hpp>
+#include <malloc.h>
 #include "account_pool.hpp"
 #include "observation_session.hpp"
 #include "recording_registry.hpp"

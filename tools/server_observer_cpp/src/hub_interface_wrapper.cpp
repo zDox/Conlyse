@@ -204,12 +204,13 @@ std::vector<HubGameProperties> HubInterfaceWrapper::get_global_games() {
 }
 
 HubInterfaceWrapper::GameApiData HubInterfaceWrapper::join_game_as_guest(int game_id) {
-    py::gil_scoped_acquire acquire;
     GameApiData data;
     data.client_version = 207;
     data.map_id = "";
     
     try {
+        py::gil_scoped_acquire acquire;
+
         // Import GameApi
         py::module_ game_api_module = py::module_::import("conflict_interface.game_api");
         py::object game_api_class = game_api_module.attr("GameApi");

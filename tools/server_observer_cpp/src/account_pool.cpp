@@ -161,7 +161,6 @@ void AccountPool::load_accounts() {
         Proxy& proxy = proxies[proxy_id];
         account->proxy_id = proxy.id;
         account->proxy_url = proxy.get_proxy_url();
-        account->reset_interface();
     }
 }
 

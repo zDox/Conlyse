@@ -237,6 +237,7 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
 
 void ServerObserver::resume_active() {
     auto active = registry_->active();
+    std::cout << "Resuming " << active.size() << " active observations" << std::endl;
 
     for (const auto& [game_id, meta] : active) {
         if (!meta.contains("scenario_id")) {
@@ -253,7 +254,7 @@ void ServerObserver::resume_active() {
 
         if (observer_sessions_.size() >= static_cast<size_t>(max_parallel_recordings_)) {
             std::cerr << "Skipping resume for game " << game_id
-                     << " due to max parallel limit" << std::endl;
+                     << " due to max parallel limit reached " << observer_sessions_.size() << "observations"<< std::endl;
             continue;
         }
 
@@ -271,6 +272,8 @@ void ServerObserver::run_single_update(ObservationSession* session) {
             auto worker = session->create_worker();
             bool keep_running = worker->run();
             session->update_package(worker->get_package());
+            std::cout << "Finished update for game " << game_id << std::endl;
+            malloc_trim(0);
 
             if (keep_running) {
                 session->next_update_at = std::chrono::system_clock::now() +
@@ -278,7 +281,9 @@ void ServerObserver::run_single_update(ObservationSession* session) {
 
                 std::lock_guard<std::mutex> lock(queue_lock_);
                 update_queue_.push(session);
+                std::cout << "Added session to update queue: " <<  game_id <<std::endl;
             } else {
+                std::cout << "Finished recording game " << game_id << std::endl;
                 registry_->mark_completed(game_id);
                 if (account_pool_) {
                     account_pool_->decrement_guest_join(session->account);
