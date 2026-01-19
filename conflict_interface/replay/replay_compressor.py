@@ -34,7 +34,11 @@ def decompress_file(src, dst):
 class ReplayCompressor:
     def __init__(self, uncompressed_path: Path | None = None, replay: Replay | None = None, compressed_path: Path | None = None):
         """
-        :param uncompressed_path: Path to uncompressed file (compression input / decompression output)
+        :param uncompressed_path: Path to uncompressed file (compression input / decompression output). If not
+            provided, and ``replay`` is given, the path will be taken from ``replay.file_path``.
+        :param replay: Optional :class:`Replay` instance. When provided and ``uncompressed_path`` is not given,
+            the replay's ``file_path`` is used as the uncompressed input/output path. This is useful when working
+            directly with a loaded replay instead of specifying the file path manually.
         :param compressed_path: Path to compressed file (compression output / decompression input)
         """
         self.replay = replay
