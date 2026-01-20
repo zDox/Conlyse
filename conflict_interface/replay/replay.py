@@ -286,11 +286,10 @@ class Replay:
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
 
-        def apply_op(_op_type, _value, _target, _pos, _node):
+        def apply_op(_op_type, _value, _target, _pos):
             apply_operation(_op_type, _value, _target, _pos)
             self._op_counter += 1
-            if _node and _op_type == REMOVE_OPERATION:
-                self.storage.path_tree.reset_child_references(_node.index)
+
 
         # Find operations that have unknown references
         unknown_ops, unknown_paths = [], []
@@ -319,8 +318,10 @@ class Replay:
         # Apply resolved operations
         it = zip(patch.op_types, patch.paths, patch.values)
         for op_type, path_idx, value in it:
+
             node = idx_to_node[path_idx]
-            apply_op(op_type, value, node.reference, node.path_element, node)
+            apply_op(op_type, value, node.reference, node.path_element)
+            self.storage.path_tree.reset_child_references(node.index)
 
         # Get new values and que the hooks
         if hook_system:
