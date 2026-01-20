@@ -354,6 +354,12 @@ class FromJsonResponsesUsingUpdateToReplay:
                     logger.error(f"Found another {self.GAME_ACTIVATION_ACTION} at index {i}")
                     return False
 
+                # Skip Authentification Exception and ServerSwitchException
+                if json_response.get("result").get("@c") == "ultshared.rpc.UltSwitchServerException":
+                    continue
+                elif json_response.get("@c") == "ultshared.UltAuthentificationException":
+                    continue
+
                 # Parse new state
                 new_state: GameState = parse_any(
                     GameState, json_response["result"], mock_game

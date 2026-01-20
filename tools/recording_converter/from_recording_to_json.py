@@ -145,14 +145,11 @@ game
                 logger.info("No JSON requests file found in recording")
 
             # Dump JSON responses if available
-            if self.reader.responses_file.exists():
-                json_responses = self.reader.read_json_responses(limit)
-                if json_responses:
-                    self.dump_responses_to_json(json_responses)
-                else:
-                    logger.warning("No JSON responses found in recording")
+            json_responses = self.reader.read_json_responses(limit)
+            if json_responses:
+                self.dump_responses_to_json(json_responses)
             else:
-                logger.info("No JSON responses file found in recording")
+                logger.warning("No JSON responses found in recording")
             return True
 
         except Exception as e:
