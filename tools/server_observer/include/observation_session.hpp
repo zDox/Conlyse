@@ -27,37 +27,6 @@ struct ObservationPackage {
     static ObservationPackage from_json(const json& j);
 };
 
-class ObservationWorker {
-public:
-    ObservationWorker(std::shared_ptr<Account> account,
-                     const std::string& storage_path,
-                     int game_id,
-                     const ObservationPackage& package,
-                     std::shared_ptr<StaticMapCache> map_cache,
-                     const std::string& metadata_path = "",
-                     const std::string& long_term_storage_path = "",
-                     int file_size_threshold = 0);
-    
-    ~ObservationWorker();
-    
-    bool run();
-    ObservationPackage& get_package() { return package_; }
-    
-private:
-    std::shared_ptr<Account> account_;
-    int game_id_;
-    std::unique_ptr<RecordingStorage> storage_;
-    ObservationPackage package_;
-    std::shared_ptr<StaticMapCache> map_cache_;
-    
-    bool ensure_observation_package();
-    ObservationPackage create_observation_package();
-    void reset_package();
-    bool ensure_static_map_data(ObservationApi& api, int map_id);
-    bool is_game_ended(const json& response);
-    void on_request_response(json&& response);
-};
-
 class ObservationSession {
 public:
     ObservationSession(int game_id,
@@ -68,13 +37,14 @@ public:
                       const std::string& long_term_storage_path = "",
                       int file_size_threshold = 0);
     
+    ~ObservationSession();
+    
     int game_id;
     std::shared_ptr<Account> account;
     std::chrono::system_clock::time_point next_update_at;
     
     bool needs_update(std::chrono::system_clock::time_point now) const;
-    std::unique_ptr<ObservationWorker> create_worker();
-    void update_package(const ObservationPackage& other);
+    bool run_update();
     void reset();
     
 private:
@@ -87,6 +57,12 @@ private:
     std::unique_ptr<RecordingStorage> storage_;
     
     RecordingStorage* ensure_storage();
+    bool ensure_observation_package();
+    ObservationPackage create_observation_package();
+    void reset_package();
+    bool ensure_static_map_data(ObservationApi& api, int map_id);
+    bool is_game_ended(const json& response);
+    void on_request_response(json&& response);
 };
 
 #endif // OBSERVATION_SESSION_HPP

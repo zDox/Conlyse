@@ -87,106 +87,50 @@ ObservationSession::ObservationSession(int game_id,
     next_update_at = std::chrono::system_clock::now();
 }
 
-bool ObservationSession::needs_update(std::chrono::system_clock::time_point now) const {
-    return now >= next_update_at;
-}
-
-std::unique_ptr<ObservationWorker> ObservationSession::create_worker() {
-    return std::make_unique<ObservationWorker>(
-        account,
-        storage_path_,
-        game_id,
-        package_,
-        map_cache_,
-        metadata_path_,
-        long_term_storage_path_,
-        file_size_threshold_
-    );
-}
-
-void ObservationSession::update_package(const ObservationPackage& other) {
-    package_ = other;
-}
-
-void ObservationSession::reset() {
-    package_ = ObservationPackage();
-    ensure_storage()->update_resume_metadata(json::object());
-}
-
-RecordingStorage* ObservationSession::ensure_storage() {
-    if (!storage_) {
-        storage_ = std::make_unique<RecordingStorage>(
-            storage_path_,
-            metadata_path_,
-            long_term_storage_path_,
-            file_size_threshold_
-        );
-    }
-    return storage_.get();
-}
-
-ObservationWorker::ObservationWorker(std::shared_ptr<Account> account,
-                                   const std::string& storage_path,
-                                   int game_id,
-                                   const ObservationPackage& package,
-                                   std::shared_ptr<StaticMapCache> map_cache,
-                                   const std::string& metadata_path,
-                                   const std::string& long_term_storage_path,
-                                   int file_size_threshold)
-    : account_(account)
-    , game_id_(game_id)
-    , package_(package)
-    , map_cache_(map_cache)
-{
-    storage_ = std::make_unique<RecordingStorage>(
-        storage_path,
-        metadata_path,
-        long_term_storage_path,
-        file_size_threshold
-    );
-    storage_->setup_logging();
-}
-
-ObservationWorker::~ObservationWorker() {
+ObservationSession::~ObservationSession() {
     if (storage_) {
         storage_->teardown_logging();
     }
 }
 
-void ObservationWorker::on_request_response(json&& response) {
-    storage_->update_resume_metadata(package_.to_json());
-    storage_->save_response(std::move(response));
+bool ObservationSession::needs_update(std::chrono::system_clock::time_point now) const {
+    return now >= next_update_at;
 }
 
-bool ObservationWorker::ensure_observation_package() {
+void ObservationSession::on_request_response(json&& response) {
+    ensure_storage()->update_resume_metadata(package_.to_json());
+    ensure_storage()->save_response(std::move(response));
+}
+
+bool ObservationSession::ensure_observation_package() {
     if (package_.game_id != 0) {
         return true;
     }
     
-    json resume_metadata = storage_->get_resume_metadata();
+    json resume_metadata = ensure_storage()->get_resume_metadata();
     if (!resume_metadata.empty() && resume_metadata.contains("auth")) {
-        std::cout << "Resuming from Storage for game " << game_id_ << std::endl;
+        std::cout << "Resuming from Storage for game " << game_id << std::endl;
         package_ = ObservationPackage::from_json(resume_metadata);
         return true;
     }
     
     std::cout << "Observation package not yet created, building package for game " 
-             << game_id_ << std::endl;
+             << game_id << std::endl;
     package_ = create_observation_package();
     return package_.game_id != 0;
 }
 
-ObservationPackage ObservationWorker::create_observation_package() {
-    auto hub_itf = account_->get_interface();
+ObservationPackage ObservationSession::create_observation_package() {
+    auto hub_itf = account->get_interface();
     if (!hub_itf) {
         return ObservationPackage();
     }
     
     // Join the game as guest and load game site to get server address and auth
-    std::cout << "Joining game " << game_id_ << " as guest to get game server data..." << std::endl;
+    std::cout << "Joining game " << game_id << " as guest to get game server data..." << std::endl;
     
     try {
-        auto game_data = hub_itf->join_game_as_guest(game_id_);
+        auto game_data = hub_itf->join_game_as_guest(game_id);
         
         // Build proxy dict
         json proxy = json::object();
@@ -199,7 +143,7 @@ ObservationPackage ObservationWorker::create_observation_package() {
         
         // Create observation package with data from GameApi
         ObservationPackage pkg;
-        pkg.game_id = game_id_;
+        pkg.game_id = game_id;
         pkg.headers = game_data.headers;
         pkg.cookies = game_data.cookies;
         pkg.proxy = proxy;
@@ -207,24 +151,24 @@ ObservationPackage ObservationWorker::create_observation_package() {
         pkg.client_version = game_data.client_version;
         pkg.game_server_address = game_data.game_server_address;
         
-        std::cout << "Successfully joined game " << game_id_ << std::endl;
+        std::cout << "Successfully joined game " << game_id << std::endl;
         std::cout << "  Game server: " << pkg.game_server_address << std::endl;
         std::cout << "  Client version: " << pkg.client_version << std::endl;
         std::cout << "  Map ID: " << game_data.map_id << std::endl;
         
         return pkg;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to join game " << game_id_ << ": " << e.what() << std::endl;
+        std::cerr << "Failed to join game " << game_id << ": " << e.what() << std::endl;
         return ObservationPackage();
     }
 }
 
-void ObservationWorker::reset_package() {
-    account_->reset_interface();
+void ObservationSession::reset_package() {
+    account->reset_interface();
     package_ = create_observation_package();
 }
 
-bool ObservationWorker::ensure_static_map_data(ObservationApi& api, int map_id) {
+bool ObservationSession::ensure_static_map_data(ObservationApi& api, int map_id) {
     if (map_cache_->is_cached(map_id)) {
         return true;
     }
@@ -239,7 +183,7 @@ bool ObservationWorker::ensure_static_map_data(ObservationApi& api, int map_id) 
     }
 }
 
-bool ObservationWorker::is_game_ended(const json& response) {
+bool ObservationSession::is_game_ended(const json& response) {
     if (!response.is_object()) {
         return false;
     }
@@ -264,14 +208,18 @@ bool ObservationWorker::is_game_ended(const json& response) {
     return false;
 }
 
-bool ObservationWorker::run() {
+bool ObservationSession::run_update() {
     int attempt = 1;
     
+    // Setup storage logging
+    ensure_storage()->setup_logging();
+    
     while (true) {
-        std::cout << "Starting update for game " << game_id_ << std::endl;
+        std::cout << "Starting update for game " << game_id << std::endl;
         
         if (!ensure_observation_package()) {
             std::cerr << "Failed to create observation package" << std::endl;
+            ensure_storage()->teardown_logging();
             return false;
         }
         
@@ -282,7 +230,7 @@ bool ObservationWorker::run() {
                 package_.cookies,
                 package_.proxy,
                 package_.auth,
-                game_id_,
+                game_id,
                 package_.game_server_address,
                 package_.client_version
             );
@@ -332,6 +280,9 @@ bool ObservationWorker::run() {
                 // ensure_static_map_data(api, map_id_to_fetch);
             }
             
+            // Teardown storage logging before returning
+            ensure_storage()->teardown_logging();
+            
             // Check if game ended (using the bool we stored before the move)
             if (game_ended) {
                 return false;
@@ -347,6 +298,7 @@ bool ObservationWorker::run() {
                 if (attempt >= MAX_RETRIES) {
                     std::cerr << "Authentication failed after " << MAX_RETRIES 
                              << " retries" << std::endl;
+                    ensure_storage()->teardown_logging();
                     return false;
                 }
                 
@@ -375,7 +327,25 @@ bool ObservationWorker::run() {
             }
             
             // Unknown error
+            ensure_storage()->teardown_logging();
             throw;
         }
     }
+}
+
+void ObservationSession::reset() {
+    package_ = ObservationPackage();
+    ensure_storage()->update_resume_metadata(json::object());
+}
+
+RecordingStorage* ObservationSession::ensure_storage() {
+    if (!storage_) {
+        storage_ = std::make_unique<RecordingStorage>(
+            storage_path_,
+            metadata_path_,
+            long_term_storage_path_,
+            file_size_threshold_
+        );
+    }
+    return storage_.get();
 }
