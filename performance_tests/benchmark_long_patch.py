@@ -20,7 +20,7 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     print("BENCHMARKING ACROSS INDICES")
     print("=" * 80)
 
-    ritf = ReplayInterface(TEST_DATA / "test_replay_10626234.bin", player_id=1, game_id=12345)
+    ritf = ReplayInterface(TEST_DATA / "test_replay_game_10631632.bin", player_id=1, game_id=12345)
     ritf.open('r')
     ritf.register_game_info_state_trigger()
 
@@ -141,4 +141,4 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     return results
 
 if __name__ == '__main__':
-    benchmark_across_indices(start_idx=1, end_idx=1000, step=50, runs=1)
+    print(benchmark_across_indices(start_idx=1, end_idx=1400, step=10, runs=10))

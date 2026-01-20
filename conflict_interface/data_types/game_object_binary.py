@@ -24,12 +24,6 @@ def stable_type_id(cls):
     s = f"{cls.__module__}.{cls.__qualname__}".encode()
     return int.from_bytes(hashlib.sha256(s).digest()[:4], "little")
 
-def binary_serializable(category: SerializationCategory):
-    def wrapper(cls):
-        GameObjectSerializer.register(cls, category)
-        return cls
-
-    return wrapper
 
 def get_mapping(cls):
     if hasattr(cls, 'get_mapping'):
@@ -38,7 +32,6 @@ def get_mapping(cls):
         return cls.MAPPING
     else:
         return {f.name: None for f in fields(cls)}
-
 
 class GameObjectSerializer:
     _PRIMITIVES = frozenset({int, float, str, bool, type(None)})

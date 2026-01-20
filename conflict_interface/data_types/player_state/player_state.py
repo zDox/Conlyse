@@ -4,7 +4,7 @@ from enum import Enum
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.game_object_binary import binary_serializable
+from conflict_interface.data_types.decorators import binary_serializable
 from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
 from conflict_interface.data_types.state import State

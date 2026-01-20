@@ -1,7 +1,7 @@
 from typing import Optional
 
 from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.game_object_binary import binary_serializable
+from conflict_interface.data_types.decorators import binary_serializable
 from conflict_interface.data_types.research_state.research_action import ResearchAction
 from conflict_interface.data_types.custom_types import ArrayList, HashMap
 

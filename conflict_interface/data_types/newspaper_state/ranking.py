@@ -5,7 +5,7 @@ from ..custom_types import HashMap # TODO why is tis relative needed
 from ..custom_types import RankingEntryList
 from ..game_object import GameObject
 from ..game_object_binary import SerializationCategory
-from ..game_object_binary import binary_serializable
+from ..decorators import binary_serializable
 
 
 @binary_serializable(SerializationCategory.DATACLASS)
