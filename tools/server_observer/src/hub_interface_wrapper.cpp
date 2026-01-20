@@ -52,19 +52,19 @@ HubInterfaceWrapper::~HubInterfaceWrapper() {
 void HubInterfaceWrapper::init_python() {
     std::lock_guard<std::mutex> lock(python_init_mutex);
 
+    PyGILState_STATE gstate;
+
     if (!python_initialized) {
         // Initialize Python interpreter using pybind11
         // Note: py::scoped_interpreter automatically acquires the GIL
         interpreter = std::make_unique<py::scoped_interpreter>();
         python_initialized = true;
-        
-        // Release the GIL immediately after initialization to allow multithreading
-        // This mimics the behavior of the original PyEval_SaveThread() call
+        // Release the GIL immediately to allow multi-threading
         PyEval_SaveThread();
     }
 
     // Acquire GIL for this thread to perform initialization
-    py::gil_scoped_acquire acquire;
+    gstate = PyGILState_Ensure();
 
     try {
         // Set up the Python path - INSERT at beginning
@@ -99,15 +99,25 @@ void HubInterfaceWrapper::init_python() {
         hub_interface_ = hub_interface_class(proxy_dict);
 
     } catch (const py::error_already_set& e) {
+        PyGILState_Release(gstate);
         throw std::runtime_error(std::string("Failed to initialize Python: ") + e.what());
     }
     
-    // GIL is automatically released when acquire goes out of scope
+    // Release the GIL
+    PyGILState_Release(gstate);
 }
 
 void HubInterfaceWrapper::cleanup_python() {
-    // pybind11 handles cleanup automatically with RAII
-    // No manual reference counting needed
+    // Clean up Python objects while holding the GIL
+    if (python_initialized) {
+        PyGILState_STATE gstate = PyGILState_Ensure();
+
+        // Explicitly reset/clear Python objects to decrement their reference counts
+        hub_interface_ = py::object();  // Reset to empty object
+        python_module_ = py::module_();  // Reset to empty module
+
+        PyGILState_Release(gstate);
+    }
 }
 
 bool HubInterfaceWrapper::login(const std::string& username, const std::string& password) {

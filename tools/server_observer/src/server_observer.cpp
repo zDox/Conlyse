@@ -1,5 +1,6 @@
 #include "server_observer.hpp"
 #include <iostream>
+#include <iomanip>
 #include <chrono>
 #include <thread>
 #include <filesystem>
@@ -14,7 +15,12 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     : config_(config)
     , account_pool_(account_pool)
     , stop_flag_(false)
+    , total_updates_completed_(0)
 {
+    // Initialize statistics timing
+    stats_start_time_ = std::chrono::system_clock::now();
+    last_stats_print_time_ = stats_start_time_;
+
     // Parse configuration
     if (config.contains("scenario_ids") && config["scenario_ids"].is_array()) {
         for (const auto& id : config["scenario_ids"]) {
@@ -275,13 +281,21 @@ void ServerObserver::run_single_update(ObservationSession* session) {
             std::cout << "Finished update for game " << game_id << std::endl;
             malloc_trim(0);
 
+            // Increment update counter and record timestamp
+            total_updates_completed_++;
+            {
+                std::lock_guard<std::mutex> lock(stats_lock_);
+                update_timestamps_.push_back(std::chrono::system_clock::now());
+            }
+
             if (keep_running) {
-                session->next_update_at = std::chrono::system_clock::now() +
+                // Schedule next update based on the previous scheduled time, not current time
+                // This ensures we maintain the actual update_interval_ between updates
+                session->next_update_at = session->next_update_at +
                     std::chrono::seconds(static_cast<int>(update_interval_));
 
                 std::lock_guard<std::mutex> lock(queue_lock_);
                 update_queue_.push(session);
-                std::cout << "Added session to update queue: " <<  game_id <<std::endl;
             } else {
                 std::cout << "Finished recording game " << game_id << std::endl;
                 registry_->mark_completed(game_id);
@@ -300,6 +314,7 @@ void ServerObserver::run_single_update(ObservationSession* session) {
             {
                 std::lock_guard<std::mutex> lock(threads_lock_);
                 first_update_sessions_.erase(game_id);
+                running_first_updates_.erase(game_id);
                 active_threads_.erase(std::this_thread::get_id());
             }
 
@@ -334,6 +349,7 @@ void ServerObserver::run_single_update(ObservationSession* session) {
             {
                 std::lock_guard<std::mutex> lock(threads_lock_);
                 first_update_sessions_.erase(game_id);
+                running_first_updates_.erase(game_id);
                 active_threads_.erase(std::this_thread::get_id());
             }
 
@@ -376,36 +392,28 @@ void ServerObserver::start_due_updates() {
                                    first_update_sessions_.end();
 
             if (is_first_update) {
-                // Count currently running first updates
-                int running_first_updates = 0;
-                for (int gid: first_update_sessions_) {
-                    // Check if there's an active thread for this game
-                    // Since threads clean up when done, being in active_threads_ means running
-                    if (!active_threads_.empty()) {
-                        // At least one thread exists
-                        std::lock_guard<std::mutex> sessions_lock(sessions_lock_);
-                        auto it = observer_sessions_.find(gid);
-                        // If session exists and was recently accessed, it's likely running
-                        if (it != observer_sessions_.end()) {
-                            running_first_updates++;
-                        }
-                    }
-                }
+                // Count currently running first updates using the tracking set
+                int running_first_updates_count = static_cast<int>(running_first_updates_.size());
 
-                if (running_first_updates >= max_parallel_first_updates_) {
+                if (running_first_updates_count >= max_parallel_first_updates_) {
+                    std::cout << "Deferring first update for game " << observer->game_id
+                             << " due to max parallel first updates limit (currently running: "
+                             << running_first_updates_count << ")." << std::endl;
                     deferred.push_back(observer);
                     continue;
                 }
+
+                // Mark this game as now running its first update
+                running_first_updates_.insert(observer->game_id);
             }
         }
 
+        std::cout << "Starting thread for game " << observer->game_id << std::endl;
 
         // Start update thread
         std::thread thread([this, observer]() {
             run_single_update(observer);
         });
-
-        std::cout << "Starting ObserverWorker thread for game " << observer->game_id << std::endl;
 
         {
             std::lock_guard<std::mutex> lock(threads_lock_);
@@ -425,7 +433,7 @@ void ServerObserver::start_due_updates() {
 
     // If we have deferred updates, wait a bit
     if (!deferred.empty()) {
-        double min_wait = scan_interval_;
+        double min_wait = update_interval_;
         for (auto* obs : deferred) {
             auto wait_duration = obs->next_update_at - now;
             double wait_seconds = std::chrono::duration<double>(wait_duration).count();
@@ -435,8 +443,10 @@ void ServerObserver::start_due_updates() {
         }
 
         if (min_wait > 0) {
+            std::cout << "Waiting " << min_wait
+                     << " seconds for next due update..." << std::endl;
             std::this_thread::sleep_for(
-                std::chrono::duration<double>(std::min(min_wait, scan_interval_)));
+                std::chrono::duration<double>(std::min(min_wait, update_interval_)));
         }
     }
 }
@@ -477,6 +487,59 @@ void ServerObserver::scan_loop() {
     }
 }
 
+void ServerObserver::print_update_statistics() {
+    auto now = std::chrono::system_clock::now();
+
+    std::lock_guard<std::mutex> lock(stats_lock_);
+
+    // Calculate time since last print
+    auto duration_since_last = std::chrono::duration_cast<std::chrono::seconds>(
+        now - last_stats_print_time_).count();
+
+    // Only print every 60 seconds
+    if (duration_since_last < 60) {
+        return;
+    }
+
+    // Remove timestamps older than 30 seconds from the rolling window
+    auto window_start = now - std::chrono::seconds(30);
+    while (!update_timestamps_.empty() && update_timestamps_.front() < window_start) {
+        update_timestamps_.pop_front();
+    }
+
+    // Calculate rolling window statistics
+    size_t updates_in_window = update_timestamps_.size();
+    double window_rate = updates_in_window / 30.0;  // Updates per second in the last 30 seconds
+
+    // Calculate overall statistics
+    auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(
+        now - stats_start_time_).count();
+
+    uint64_t total_updates = total_updates_completed_.load();
+
+    double overall_rate = (total_duration > 0) ?
+        static_cast<double>(total_updates) / total_duration : 0.0;
+
+    // Get current active sessions count
+    size_t active_sessions = 0;
+    {
+        std::lock_guard<std::mutex> session_lock(sessions_lock_);
+        active_sessions = observer_sessions_.size();
+    }
+
+    std::cout << "=== Update Statistics ===" << std::endl;
+    std::cout << "Total updates completed: " << total_updates << std::endl;
+    std::cout << "Total runtime: " << total_duration << " seconds" << std::endl;
+    std::cout << "Overall average updates/sec: " << std::fixed << std::setprecision(3)
+              << overall_rate << std::endl;
+    std::cout << "Rolling 30s window: " << updates_in_window << " updates, "
+              << std::fixed << std::setprecision(3) << window_rate << " updates/sec" << std::endl;
+    std::cout << "Active observation sessions: " << active_sessions << std::endl;
+    std::cout << "=========================" << std::endl;
+
+    last_stats_print_time_ = now;
+}
+
 bool ServerObserver::run() {
     stop_flag_ = false;
 
@@ -497,7 +560,7 @@ bool ServerObserver::run() {
         while (!stop_flag_) {
             clean_finished_threads();
             start_due_updates();
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            print_update_statistics();
         }
         return true;
     } catch (const std::exception& e) {

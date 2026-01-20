@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <mutex>
 #include "hub_interface_wrapper.hpp"
 
 class Account {
@@ -30,15 +31,19 @@ public:
     int open_game_slots();
     
     json to_json() const;
-    static Account from_json(const json& j);
-    
+    static std::shared_ptr<Account> from_json(const json& j);
+
 private:
     std::shared_ptr<HubInterfaceWrapper> hub_interface_;
     std::vector<HubGameProperties> games_;
     bool games_loaded_;
-    
+    mutable std::mutex mutex_;
+
+    // Internal methods that assume mutex is already locked
+    bool login_internal();
     void ensure_games_loaded();
-    
+    void ensure_games_loaded_internal();
+
     static const int MAXIMUM_NUMBER_OF_GAMES = 10;
 };
 

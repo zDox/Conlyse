@@ -110,7 +110,7 @@ void AccountPool::load_accounts() {
         
         if (accounts_file.contains("accounts") && accounts_file["accounts"].is_array()) {
             for (const auto& account_json : accounts_file["accounts"]) {
-                auto account = std::make_shared<Account>(Account::from_json(account_json));
+                auto account = Account::from_json(account_json);
                 accounts.push_back(account);
             }
         }

@@ -16,7 +16,7 @@ Account::Account(const std::string& username, const std::string& password,
 Account::~Account() {
 }
 
-bool Account::login() {
+bool Account::login_internal() {
     if (!hub_interface_) {
         hub_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
     }
@@ -28,34 +28,44 @@ bool Account::login() {
     return hub_interface_->login(username, password);
 }
 
+bool Account::login() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return login_internal();
+}
+
 std::shared_ptr<HubInterfaceWrapper> Account::get_interface() {
+    std::lock_guard<std::mutex> lock(mutex_);
+
     if (!hub_interface_) {
         hub_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
     }
     
     if (!hub_interface_->is_authenticated()) {
-        login();
+        login_internal();
     }
     
     return hub_interface_;
 }
 
 void Account::reset_interface() {
+    std::lock_guard<std::mutex> lock(mutex_);
     hub_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
     games_.clear();
     games_loaded_ = false;
-    login();
+    login_internal();
 }
 
 std::vector<HubGameProperties> Account::get_my_games() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!games_loaded_) {
-        ensure_games_loaded();
+        ensure_games_loaded_internal();
     }
     return games_;
 }
 
 bool Account::has_game(int game_id) {
-    ensure_games_loaded();
+    std::lock_guard<std::mutex> lock(mutex_);
+    ensure_games_loaded_internal();
     for (const auto& game : games_) {
         if (game.game_id == game_id) {
             return true;
@@ -65,29 +75,37 @@ bool Account::has_game(int game_id) {
 }
 
 bool Account::has_maximum_games() {
-    ensure_games_loaded();
+    std::lock_guard<std::mutex> lock(mutex_);
+    ensure_games_loaded_internal();
     return games_.size() >= MAXIMUM_NUMBER_OF_GAMES;
 }
 
 int Account::open_game_slots() {
-    ensure_games_loaded();
+    std::lock_guard<std::mutex> lock(mutex_);
+    ensure_games_loaded_internal();
     return MAXIMUM_NUMBER_OF_GAMES - games_.size();
 }
 
-void Account::ensure_games_loaded() {
+void Account::ensure_games_loaded_internal() {
     if (games_loaded_) {
         return;
     }
     
     if (!hub_interface_->is_authenticated()) {
-        login();
+        login_internal();
     }
     
     games_ = hub_interface_->get_my_games();
     games_loaded_ = true;
 }
 
+void Account::ensure_games_loaded() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    ensure_games_loaded_internal();
+}
+
 json Account::to_json() const {
+    std::lock_guard<std::mutex> lock(mutex_);
     return {
         {"username", username},
         {"password", password},
@@ -97,8 +115,8 @@ json Account::to_json() const {
     };
 }
 
-Account Account::from_json(const json& j) {
-    return Account(
+std::shared_ptr<Account> Account::from_json(const json& j) {
+    return std::make_shared<Account>(
         j.value("username", ""),
         j.value("password", ""),
         j.value("email", ""),

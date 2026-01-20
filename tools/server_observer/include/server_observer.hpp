@@ -10,7 +10,9 @@
 #include <mutex>
 #include <condition_variable>
 #include <queue>
+#include <deque>
 #include <atomic>
+#include <chrono>
 #include <nlohmann/json.hpp>
 #include <malloc.h>
 #include "account_pool.hpp"
@@ -53,6 +55,7 @@ private:
     std::shared_ptr<Account> listing_account_;
     std::set<std::thread::id> active_threads_;
     std::set<int> first_update_sessions_;
+    std::set<int> running_first_updates_;  // Game IDs currently running first update
     std::mutex threads_lock_;
     std::atomic<bool> stop_flag_;
     std::condition_variable stop_cv_;
@@ -62,6 +65,13 @@ private:
     std::shared_ptr<StaticMapCache> map_cache_;
     std::set<int> known_games_;
     
+    // Statistics tracking
+    std::atomic<uint64_t> total_updates_completed_;
+    std::chrono::system_clock::time_point stats_start_time_;
+    std::chrono::system_clock::time_point last_stats_print_time_;
+    std::mutex stats_lock_;
+    std::deque<std::chrono::system_clock::time_point> update_timestamps_;  // Rolling window of update times
+
     std::shared_ptr<HubInterfaceWrapper> get_listing_interface();
     std::vector<std::pair<int, HubGameProperties>> select_games(std::shared_ptr<HubInterfaceWrapper> interface);
     void refresh_known_games_from_registry();
@@ -72,6 +82,7 @@ private:
     void start_due_updates();
     void clean_finished_threads();
     void scan_loop();
+    void print_update_statistics();
 };
 
 #endif // SERVER_OBSERVER_HPP
