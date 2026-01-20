@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from .ranking_entry import RankingEntry
 from ..custom_types import HashMap # TODO why is tis relative needed
@@ -14,12 +15,12 @@ class Ranking(GameObject):
     C = "ultshared.UltRanking"
     winner: int
     ranking: list[int]
-    players_rank_sorted: list[int]
+    players_rank_sorted: Optional[list[int]]
     winner_team: int
     team_ranking: HashMap[int, int]
-    teams_rank_sorted: list[int]
+    teams_rank_sorted: Optional[list[int]]
     initialized: bool
-    unified_rank_sorted: RankingEntryList[RankingEntry]
+    unified_rank_sorted: Optional[RankingEntryList[RankingEntry]]
 
     MAPPING = {
         "winner": "winner",
