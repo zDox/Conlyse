@@ -275,9 +275,7 @@ void ServerObserver::run_single_update(ObservationSession* session) {
 
     while (true) {
         try {
-            auto worker = session->create_worker();
-            bool keep_running = worker->run();
-            session->update_package(worker->get_package());
+            bool keep_running = session->run_update();
             std::cout << "Finished update for game " << game_id << std::endl;
             malloc_trim(0);
 
