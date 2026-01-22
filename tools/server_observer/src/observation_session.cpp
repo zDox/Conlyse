@@ -320,9 +320,9 @@ bool ObservationSession::run_update() {
             // Handle network errors
             if (error.find("failed") != std::string::npos || 
                 error.find("timeout") != std::string::npos) {
-                std::cerr << "GameServer is not responding, retrying in " 
-                         << TIME_TILL_RETRY << " seconds..." << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(TIME_TILL_RETRY));
+                std::cerr << "GameServer is not responding, resetting package and retrying..." << std::endl;
+                reset_package();
+                attempt++;
                 continue;
             }
             
