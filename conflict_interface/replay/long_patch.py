@@ -74,6 +74,9 @@ def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
             elif old_op_type == ADD_OPERATION and op_type == REPLACE_OPERATION:
                 idx_to_opnode[path] = (ADD_OPERATION, path, value, creation_time, t)
 
+            elif old_op_type == REPLACE_OPERATION and op_type == REMOVE_OPERATION:
+                idx_to_opnode[path] = (REMOVE_OPERATION, path, value, t, t)
+
             # All other cases
             else:
                 idx_to_opnode[path] = (op_type, path, value, creation_time, t)
@@ -180,24 +183,31 @@ def dfs_apply_ops(u, adj, value, idx_to_opnode, path_tree):
     if not children: return
     if value is None: return
 
-    for v in children:
-        dfs_apply_ops(v, adj, get_child(v, value, path_tree), idx_to_opnode, path_tree)
 
     node_value = idx_to_opnode[u]
     if node_value is None: return
 
     node_last_changed_time = node_value[4]
 
+    pruned_children = []
     for v in children:
         child_opnode = idx_to_opnode[v]
-        child_op_type, _, child_value, _, child_last_changed_time = child_opnode
+        if child_opnode is None: continue
+        child_op_type, _, child_value, child_creation_time, child_last_changed_time = child_opnode
 
-        if child_opnode is None or child_last_changed_time < node_last_changed_time: continue
+        if child_last_changed_time < node_last_changed_time: continue
+        pruned_children.append((child_creation_time, child_op_type, child_value, v))
 
-        apply_operation(child_op_type, child_value, value, path_tree.idx_to_node[v].path_element)
+    pruned_children.sort(key=lambda t: t[0])
+    for _, child_op_type, child_value, v in pruned_children:
+        path_element = path_tree.idx_to_node[v].path_element
+        apply_operation(child_op_type, child_value, value, path_element)
+        if child_op_type == -1 or child_op_type == REMOVE_OPERATION: continue # Noops and removed objects are nonexistent and therefore have no changes to be applied
+
+        dfs_apply_ops(v, adj, get_child(value, path_element), idx_to_opnode, path_tree)
 
 
-def get_child(v, value, path_tree: PathTree):
+def get_child(value, path_element: int | str):
     """
     Retrieve the child value corresponding to a path-tree edge.
 
@@ -216,11 +226,13 @@ def get_child(v, value, path_tree: PathTree):
     Returns:
         The child value corresponding to the path element.
     """
-    idx = path_tree.idx_to_node[v].path_element
     if isinstance(value, GameObject):
-        return getattr(value, idx)
+        return getattr(value, path_element)
     else:
-        return value[idx]
+        try:
+            return value[path_element]
+        except IndexError as e:
+            print(e)
 
 def create_adj_list(patch_path: list[PatchGraphNode], path_tree: PathTree):
     """

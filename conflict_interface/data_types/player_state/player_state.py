@@ -8,9 +8,10 @@ from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
 from conflict_interface.data_types.state import State
-from conflict_interface.data_types.state import state_update
+from conflict_interface.data_types.update_helpers import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.constants import PathNode
+
 
 @binary_serializable(SerializationCategory.ENUM)
 class VisibilityMode(Enum, metaclass=DefaultEnumMeta):
@@ -37,7 +38,7 @@ class PlayerState(State):
         for player in other.players.values():
             if player.player_id not in self.players:
                 if rp:
-                    rp.add(path + ["players", player.player_id], None, player)
+                    rp.add(path + ["players", player.player_id], player)
                 self.players[player.player_id] = player
             else:
                 self.players[player.player_id].update(

@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     t2 = perf_counter()
     # Test Operations --------------------------------
-    ritf.jump_to(ritf.last_time, create_long_patches=False)
+    ritf.jump_to(ritf.last_time, create_long_patches=True)
 
     # End --------------------------------------------
     t3 = perf_counter()
