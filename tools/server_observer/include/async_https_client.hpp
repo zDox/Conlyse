@@ -20,6 +20,22 @@ namespace asio = boost::asio;
 using tcp = asio::ip::tcp;
 namespace ssl = asio::ssl;
 
+// Proxy configuration structure
+struct ProxyConfig {
+    bool enabled = false;
+    std::string host;
+    int port = 0;
+    std::string username;
+    std::string password;
+    
+    ProxyConfig() = default;
+    ProxyConfig(const std::string& proxy_host, int proxy_port, 
+                const std::string& proxy_username = "", 
+                const std::string& proxy_password = "")
+        : enabled(true), host(proxy_host), port(proxy_port), 
+          username(proxy_username), password(proxy_password) {}
+};
+
 // Result structure
 struct HttpResponse {
     bool success;
@@ -38,11 +54,13 @@ class AsyncHttpsRequest : public std::enable_shared_from_this<AsyncHttpsRequest>
 public:
     AsyncHttpsRequest(asio::io_context& io_context, 
                      ssl::context& ssl_context,
-                     std::chrono::seconds timeout)
+                     std::chrono::seconds timeout,
+                     const ProxyConfig& proxy = ProxyConfig())
         : resolver_(io_context),
           ssl_socket_(io_context, ssl_context),
           timeout_timer_(io_context),
-          timeout_duration_(timeout) {}
+          timeout_duration_(timeout),
+          proxy_(proxy) {}
     
     asio::awaitable<HttpResponse> execute(
         const std::string& host, 
@@ -72,9 +90,13 @@ public:
             // Set up timeout
             timeout_timer_.expires_after(timeout_duration_);
             
+            // Determine connection target (proxy or direct)
+            std::string connect_host = proxy_.enabled ? proxy_.host : host;
+            std::string connect_port = proxy_.enabled ? std::to_string(proxy_.port) : port;
+            
             // Resolve with timeout
             auto resolve_result = co_await (
-                resolver_.async_resolve(host, port, asio::use_awaitable) ||
+                resolver_.async_resolve(connect_host, connect_port, asio::use_awaitable) ||
                 timeout_timer_.async_wait(asio::use_awaitable)
             );
             
@@ -97,6 +119,71 @@ public:
                 response.timeout = true;
                 response.error_message = "Connect timeout";
                 co_return response;
+            }
+            
+            // If using proxy, perform CONNECT handshake
+            if (proxy_.enabled) {
+                // Build CONNECT request
+                std::ostringstream connect_request;
+                connect_request << "CONNECT " << host << ":" << port << " HTTP/1.1\r\n";
+                connect_request << "Host: " << host << ":" << port << "\r\n";
+                
+                // Add proxy authentication if credentials provided
+                if (!proxy_.username.empty()) {
+                    std::string auth_str = proxy_.username + ":" + proxy_.password;
+                    std::string auth_header = "Proxy-Authorization: Basic " + base64_encode(auth_str) + "\r\n";
+                    connect_request << auth_header;
+                }
+                
+                connect_request << "\r\n";
+                
+                std::string connect_str = connect_request.str();
+                
+                // Write CONNECT request with timeout - use next_layer() to access the TCP socket
+                timeout_timer_.expires_after(timeout_duration_);
+                
+                auto proxy_write_result = co_await (
+                    asio::async_write(ssl_socket_.next_layer(), asio::buffer(connect_str), asio::use_awaitable) ||
+                    timeout_timer_.async_wait(asio::use_awaitable)
+                );
+                
+                if (proxy_write_result.index() == 1) {
+                    response.timeout = true;
+                    response.error_message = "Proxy CONNECT write timeout";
+                    co_return response;
+                }
+                
+                // Read CONNECT response - read until we have complete headers
+                asio::streambuf proxy_response_buf;
+                timeout_timer_.expires_after(timeout_duration_);
+                
+                auto proxy_read_result = co_await (
+                    asio::async_read_until(ssl_socket_.next_layer(), proxy_response_buf, "\r\n\r\n", asio::use_awaitable) ||
+                    timeout_timer_.async_wait(asio::use_awaitable)
+                );
+                
+                if (proxy_read_result.index() == 1) {
+                    response.timeout = true;
+                    response.error_message = "Proxy CONNECT response timeout";
+                    co_return response;
+                }
+                
+                // Parse proxy response
+                std::istream proxy_stream(&proxy_response_buf);
+                std::string http_version;
+                int proxy_status;
+                proxy_stream >> http_version >> proxy_status;
+                
+                if (proxy_status != 200) {
+                    response.error_message = "Proxy CONNECT failed with status: " + std::to_string(proxy_status);
+                    co_return response;
+                }
+                
+                // Consume the rest of the CONNECT response headers
+                std::string line;
+                while (std::getline(proxy_stream, line) && line != "\r") {
+                    // Discard proxy response headers
+                }
             }
             
             // SSL handshake with timeout
@@ -273,10 +360,42 @@ public:
     }
     
 private:
+    // Simple base64 encoding for proxy authentication
+    static std::string base64_encode(const std::string& input) {
+        static const char* base64_chars = 
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "abcdefghijklmnopqrstuvwxyz"
+            "0123456789+/";
+        
+        std::string result;
+        int val = 0;
+        int valb = -6;
+        
+        for (unsigned char c : input) {
+            val = (val << 8) + c;
+            valb += 8;
+            while (valb >= 0) {
+                result.push_back(base64_chars[(val >> valb) & 0x3F]);
+                valb -= 6;
+            }
+        }
+        
+        if (valb > -6) {
+            result.push_back(base64_chars[((val << 8) >> (valb + 8)) & 0x3F]);
+        }
+        
+        while (result.size() % 4) {
+            result.push_back('=');
+        }
+        
+        return result;
+    }
+
     tcp::resolver resolver_;
     ssl::stream<tcp::socket> ssl_socket_;
     asio::steady_timer timeout_timer_;
     std::chrono::seconds timeout_duration_;
+    ProxyConfig proxy_;
 };
 
 // httplib-like Client class
@@ -326,6 +445,16 @@ public:
         timeout_ = timeout;
     }
     
+    void set_proxy(const std::string& host, int port, 
+                   const std::string& username = "", 
+                   const std::string& password = "") {
+        proxy_ = ProxyConfig(host, port, username, password);
+    }
+    
+    void clear_proxy() {
+        proxy_ = ProxyConfig();
+    }
+    
     // Synchronous POST request
     HttpResponse Post(const std::string& path,
                      const Headers& headers,
@@ -357,7 +486,7 @@ public:
         const std::string& content_type) {
         
         auto request = std::make_shared<AsyncHttpsRequest>(
-            io_context_, ssl_context_, timeout_);
+            io_context_, ssl_context_, timeout_, proxy_);
         
         std::string full_path = path;
         if (!base_path_.empty() && path[0] != '/') {
@@ -396,7 +525,7 @@ public:
         const Headers& headers = {}) {
         
         auto request = std::make_shared<AsyncHttpsRequest>(
-            io_context_, ssl_context_, timeout_);
+            io_context_, ssl_context_, timeout_, proxy_);
         
         std::string full_path = path;
         if (!base_path_.empty() && path[0] != '/') {
@@ -460,6 +589,7 @@ private:
     std::chrono::seconds timeout_;
     bool verify_ssl_;
     bool follow_redirects_ = false;
+    ProxyConfig proxy_;
 };
 
 #endif // ASYNC_HTTPS_CLIENT_HPP

@@ -6,6 +6,7 @@ This directory contains a Boost.Asio-based HTTPS client implementation with C++2
 
 - **Asynchronous Operations**: Full support for C++20 coroutines using Boost.Asio awaitables
 - **Timeout Support**: Comprehensive timeout handling at every stage (DNS resolution, TCP connection, SSL handshake, read/write operations)
+- **Proxy Support**: HTTP CONNECT proxy support with authentication
 - **Thread Pool**: Built-in thread pool for handling concurrent requests
 - **httplib-like Interface**: Familiar API similar to cpp-httplib for easy adoption
 - **SSL/TLS Support**: Full SSL/TLS support with SNI hostname configuration
@@ -44,6 +45,34 @@ int main() {
     } else {
         std::cout << "Request failed: " << response.error_message << std::endl;
     }
+    
+    return 0;
+}
+```
+
+### Using HTTP Proxy
+
+```cpp
+#include "async_https_client.hpp"
+
+int main() {
+    HttpClient client("https://api.example.com");
+    
+    // Configure HTTP CONNECT proxy with authentication
+    client.set_proxy("proxy.example.com", 8080, "username", "password");
+    
+    // Or without authentication
+    // client.set_proxy("proxy.example.com", 8080);
+    
+    Headers headers = {{"User-Agent", "MyApp/1.0"}};
+    HttpResponse response = client.Get("/endpoint", headers);
+    
+    if (response.success) {
+        std::cout << "Request through proxy succeeded!" << std::endl;
+    }
+    
+    // Clear proxy configuration
+    client.clear_proxy();
     
     return 0;
 }
@@ -119,6 +148,14 @@ int main() {
 
 ### Classes
 
+#### `ProxyConfig`
+Structure for configuring proxy settings:
+- `bool enabled`: Whether proxy is enabled
+- `std::string host`: Proxy server hostname
+- `int port`: Proxy server port
+- `std::string username`: Proxy authentication username (optional)
+- `std::string password`: Proxy authentication password (optional)
+
 #### `HttpResponse`
 Structure containing the response data:
 - `bool success`: Whether the request succeeded
@@ -130,7 +167,12 @@ Structure containing the response data:
 - `std::map<std::string, std::string> headers`: Response headers
 
 #### `AsyncHttpsRequest`
-Low-level class for making individual HTTPS requests with timeout support. Uses C++20 coroutines and Boost.Asio experimental awaitable operators.
+Low-level class for making individual HTTPS requests with timeout and proxy support. Uses C++20 coroutines and Boost.Asio experimental awaitable operators.
+
+**Key features:**
+- HTTP CONNECT proxy support with basic authentication
+- Timeout handling for all operations including proxy handshake
+- SNI hostname configuration for proper SSL/TLS
 
 #### `HttpClient`
 High-level client class providing an httplib-like interface:
@@ -138,6 +180,7 @@ High-level client class providing an httplib-like interface:
 - Provides both synchronous and asynchronous methods
 - Handles SSL context configuration
 - URL parsing and connection management
+- Proxy configuration via `set_proxy()` and `clear_proxy()` methods
 
 ## Build Requirements
 
