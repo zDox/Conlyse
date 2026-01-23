@@ -54,7 +54,7 @@ def apply_operation(op_type: int, value: Any, reference: GameObject | list | dic
                 raise ValueError(f"Can only add at str for gameObject but got {type(pos)}")
             if not hasattr(reference, pos):
                 raise ValueError(f"Object has not attribute '{pos}")
-            if not getattr(reference, pos) is None:
+            if getattr(reference, pos) is not None:
                 raise ValueError(f"Attribute {pos} is already set")
             setattr(reference, pos, value)
         else:
@@ -70,13 +70,11 @@ def apply_operation(op_type: int, value: Any, reference: GameObject | list | dic
             # Set attribute to None to "remove" it
             setattr(reference, pos, None)
         else:
-            try:
-                if type(reference) is list or issubclass(type(reference), list):
-                    assert len(reference)-1 == pos, f"REMOVE on list MUST happen at the end! pos: {pos} != {len(reference)-1}"
+            if type(reference) is list or issubclass(type(reference), list):
+                assert len(reference)-1 == pos, f"REMOVE on list MUST happen at the end! pos: {pos} != {len(reference)-1}"
 
-                reference.pop(pos)
-            except Exception as e:
-                print(e)
+            reference.pop(pos)
+
 
 def get_reference_from_direct_parent(node: PathTreeNode) -> GameObject | list | dict | None:
     """

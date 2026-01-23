@@ -229,10 +229,7 @@ def get_child(value, path_element: int | str):
     if isinstance(value, GameObject):
         return getattr(value, path_element)
     else:
-        try:
-            return value[path_element]
-        except IndexError as e:
-            print(e)
+        return value[path_element]
 
 def create_adj_list(patch_path: list[PatchGraphNode], path_tree: PathTree):
     """

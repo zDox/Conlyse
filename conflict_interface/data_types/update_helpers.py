@@ -28,11 +28,19 @@ def dict_update(original: dict, other: dict, path: list[PathNode] = None, rp: Bi
 
 
 def list_update(original: list, other: list, path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
-    assert original is not None, "List does not exist. Cant update it"
 
     if other is None:
-        rp.remove(path, original)
+        if original is None:
+            return
+
+        for i in range(len(original)-1,-1, -1):
+            if rp:
+                rp.remove(path + [i], original[i])
+            original.pop(i)
         return
+
+    assert original is not None, "List does not exist. Cant update it"
+
 
     min_length = min(len(original), len(other))
     for i in range(min_length):
