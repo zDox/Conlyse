@@ -31,6 +31,10 @@ extras_require = {
     "tools-recorder": [
         # Add dependencies for recorder tool here
     ],
+    "tools-server-observer": [
+        "httpx",
+        "httpx[socks]"
+    ],
     "test-long-patches":[
         "deepdiff"
     ]
