@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(ServerObserver VERSION 1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Include FetchContent module
@@ -10,6 +10,7 @@ include(FetchContent)
 # Find required packages
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(Threads REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
 
 # pybind11
 FetchContent_Declare(
@@ -74,6 +75,7 @@ target_link_libraries(server_observer
     OpenSSL::Crypto
     Threads::Threads
     pybind11::embed
+    Boost::system
 )
 
 target_include_directories(server_observer
