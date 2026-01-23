@@ -60,6 +60,8 @@ set(SOURCES
     src/static_map_cache.cpp
     src/recording_storage.cpp
     src/hub_interface_wrapper.cpp
+    src/async_https_request.cpp
+    src/http_client.cpp
 )
 
 # Create executable
