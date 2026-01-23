@@ -21,6 +21,9 @@ class ReplayPatch:
     paths: list[list[PathNode]]
     values: list[Any]
 
+    def is_empty(self):
+        return len(self.op_types) == 0
+
 
 class BidirectionalReplayPatch:
     """
