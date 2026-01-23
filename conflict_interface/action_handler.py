@@ -188,7 +188,7 @@ class ActionHandler:
             # Create and record a replay patch
             rp = BidirectionalReplayPatch()
             self.game_state.update(game_state, path=[], rp=rp)
-            self.game.record_patch(rp, game_state)
+            self.game.record_patch(rp)
         else:
             # Update the current game state
             self.game_state.update(game_state, path=[])

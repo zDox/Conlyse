@@ -80,6 +80,13 @@ class RecordingReader:
             # Decompress and unpickle
             decompressed = self._decompressor.decompress(compressed_data)
             static_map_data = pickle.loads(decompressed)
+            if isinstance(static_map_data, StaticMapData):
+                logger.info("Loaded static map data as StaticMapData object")
+            elif isinstance(static_map_data, dict):
+                logger.info("Loaded static map data as dict")
+                static_map_data = parse_any(StaticMapData, static_map_data, None)
+            else:
+                raise ValueError(f"Unexpected static map data type: {type(static_map_data)}")
 
             if isinstance(static_map_data, StaticMapData):
                 logger.info("Read static map data from recording")
