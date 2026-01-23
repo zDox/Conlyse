@@ -175,16 +175,16 @@ class Replay:
         forward_node = PatchGraphNode(
             from_timestamp=from_timestamp,
             to_timestamp=to_timestamp,
-            op_types=forward.op_types,
+            op_types=list(forward.op_types),
             paths=forward_path_ids,
-            values=forward.values
+            values=list(forward.values)
         )
         backward_node = PatchGraphNode(
             from_timestamp=to_timestamp,
             to_timestamp=from_timestamp,
-            op_types=list(reversed(backward.op_types)),
-            paths=list(reversed(backward_path_ids)),
-            values=list(reversed(backward.values))
+            op_types=list(backward.op_types),
+            paths=backward_path_ids,
+            values=list(backward.values)
         )
         return forward_node, backward_node
 

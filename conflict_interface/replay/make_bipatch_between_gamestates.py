@@ -96,7 +96,6 @@ def make_replay_patch_list(rp: BidirectionalReplayPatch, path: list[str], origin
         original: Starting list state
         other: Target list state
     """
-    # Special cases where either list of GameObject, and they don't have an id. Or ProductionList
     min_length = min(len(original), len(other))
     for i in range(min_length):
         if original[i] != other[i]:
@@ -137,7 +136,7 @@ def make_replay_patch_dict(rp: BidirectionalReplayPatch, path: list[str], origin
         rp.remove(path + [removed_key], original[removed_key])
 
 
-def make_replay_patch_simple(rp: BidirectionalReplayPatch, path: list[str], self: Any, other: Any):
+def make_replay_patch_simple(rp: BidirectionalReplayPatch, path: list[str], original: Any, other: Any):
     """
     Build patch for simple value changes.
 
@@ -146,8 +145,8 @@ def make_replay_patch_simple(rp: BidirectionalReplayPatch, path: list[str], self
     Args:
         rp: The replay patch being built
         path: Current path in the object hierarchy
-        self: Starting value
+        original: Starting value
         other: Target value
     """
-    if self != other:
-        rp.replace(path, self, other)
+    if original != other:
+        rp.replace(path, original, other)

@@ -4,6 +4,7 @@ Replay patch operations for tracking changes to game state.
 This module defines the operations used to represent changes between game states
 in the replay system. It supports three types of operations: Add, Replace, and Remove.
 """
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,9 +18,9 @@ logger = get_logger()
 
 @dataclass
 class ReplayPatch:
-    op_types: list[int]
-    paths: list[list[PathNode]]
-    values: list[Any]
+    op_types: deque[int]
+    paths: deque[list[PathNode]]
+    values: deque[Any]
 
     def is_empty(self):
         return len(self.op_types) == 0
@@ -36,8 +37,8 @@ class BidirectionalReplayPatch:
 
     def __init__(self):
         """Initialize with empty forward and backward patches."""
-        self.forward_patch = ReplayPatch([],[],[])
-        self.backward_patch = ReplayPatch([],[],[])
+        self.forward_patch = ReplayPatch(deque([]),deque([]),deque([]))
+        self.backward_patch = ReplayPatch(deque([]),deque([]),deque([]))
 
     def add(self, path: list[PathNode], new_value: Any) -> None:
         """
@@ -53,9 +54,9 @@ class BidirectionalReplayPatch:
         self.forward_patch.paths.append(path)
         self.forward_patch.values.append(new_value)
 
-        self.backward_patch.op_types.append(REMOVE_OPERATION)
-        self.backward_patch.paths.append(path)
-        self.backward_patch.values.append(None)
+        self.backward_patch.op_types.appendleft(REMOVE_OPERATION)
+        self.backward_patch.paths.appendleft(path)
+        self.backward_patch.values.appendleft(None)
 
     def replace(self, path: list[str], old_value: Any, new_value: Any) -> None:
         """
@@ -72,9 +73,9 @@ class BidirectionalReplayPatch:
         self.forward_patch.paths.append(path)
         self.forward_patch.values.append(new_value)
 
-        self.backward_patch.op_types.append(REPLACE_OPERATION)
-        self.backward_patch.paths.append(path)
-        self.backward_patch.values.append(old_value)
+        self.backward_patch.op_types.appendleft(REPLACE_OPERATION)
+        self.backward_patch.paths.appendleft(path)
+        self.backward_patch.values.appendleft(old_value)
 
     def remove(self, path: list[str], old_value: Any) -> None:
         """
@@ -90,6 +91,6 @@ class BidirectionalReplayPatch:
         self.forward_patch.paths.append(path)
         self.forward_patch.values.append(None)
 
-        self.backward_patch.op_types.append(ADD_OPERATION)
-        self.backward_patch.paths.append(path)
-        self.backward_patch.values.append(old_value)
+        self.backward_patch.op_types.appendleft(ADD_OPERATION)
+        self.backward_patch.paths.appendleft(path)
+        self.backward_patch.values.appendleft(old_value)
