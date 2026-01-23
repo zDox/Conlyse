@@ -1,10 +1,12 @@
 import json
+import os
 import pickle
 from pathlib import Path
 from typing import List
 from typing import Optional
 from typing import Tuple
 
+import orjson
 import zstandard as zstd
 from tqdm import tqdm
 
@@ -86,7 +88,10 @@ class RecordingReader:
             else:
                 raise ValueError(f"Unexpected static map data type: {type(static_map_data)}")
 
-            logger.info("Read static map data from recording")
+            if isinstance(static_map_data, StaticMapData):
+                logger.info("Read static map data from recording")
+            elif isinstance(static_map_data, dict):
+                static_map_data = parse_any(StaticMapData, static_map_data)
             return static_map_data
         except Exception as e:
             logger.error(f"Error reading static map data: {e}")
@@ -193,18 +198,10 @@ class RecordingReader:
             return 0
         return len(updates)
 
-    def read_json_responses(self, limit: int = None) -> List[Tuple[int, dict]]:
-        """
-        Read all JSON responses from the recording.
-
-        Returns:
-            List of (timestamp_ms, json_response) tuples
-        """
+    def read_json_response_file(self, file):
         json_responses = []
-        len_updates = self.len_updates()
-        number_of_responses_to_process = len_updates if limit is None else min(limit, len_updates)
-        with open(self.responses_file, 'rb') as f:
-            for _ in tqdm(range(number_of_responses_to_process), desc="Reading JSON responses: ", unit="Response", unit_scale=True):
+        with open(self.recording_dir/file, 'rb') as f:
+            while True:
                 # Read timestamp (8 bytes)
                 timestamp_bytes = f.read(8)
                 if not timestamp_bytes:
@@ -218,7 +215,6 @@ class RecordingReader:
                     break
 
                 length = int.from_bytes(length_bytes, 'big')
-
                 # Read compressed data
                 compressed_data = f.read(length)
                 if len(compressed_data) != length:
@@ -227,9 +223,31 @@ class RecordingReader:
 
                 # Decompress and parse JSON
                 decompressed = self._decompressor.decompress(compressed_data)
-                json_response = json.loads(decompressed.decode('utf-8'))
-
+                decoded = decompressed.decode('utf-8')
+                json_response = orjson.loads(decoded)
                 json_responses.append((timestamp_ms, json_response))
+        return json_responses
+    
+    def read_json_responses(self, limit: int = None) -> List[Tuple[int, dict]]:
+        """
+        Read all JSON responses from the recording.
+
+        Returns:
+            List of (timestamp_ms, json_response) tuples
+        """
+        json_responses = []
+        len_updates = self.len_updates()
+        number_of_responses_to_process = len_updates if limit is None else min(limit, len_updates)
+        response_files = []
+        for file in os.listdir(self.recording_dir):
+            if file.startswith("responses"):
+                response_files.append(file)
+        # Response files have the name responses_0001.jsonl.zst, responses_0002.jsonl.zst, etc.
+        logger.info(f"Found {len(response_files)} response files in recording")
+        response_files.sort()
+        for file in response_files:
+            logger.info(f"Reading responses from {file}")
+            json_responses += self.read_json_response_file(file)
 
         return json_responses
 

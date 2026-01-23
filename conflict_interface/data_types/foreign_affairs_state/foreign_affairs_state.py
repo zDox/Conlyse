@@ -11,27 +11,11 @@ from conflict_interface.data_types.game_object_binary import SerializationCatego
 from conflict_interface.data_types.game_object_binary import binary_serializable
 from conflict_interface.data_types.newspaper_state.article import Article
 from conflict_interface.data_types.state import State
-from conflict_interface.data_types.state import state_update
-from conflict_interface.data_types.state import universal_update
+from conflict_interface.data_types.update_helpers import state_update
+from conflict_interface.data_types.update_helpers import dict_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.constants import PathNode
 
-def dict_update(original: dict, other: dict, path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
-    for key, value in other.items():
-        if key not in original:
-            if rp:
-                rp.add(path + [key], None, value)
-            original[key] = value
-        else:
-            if original[key] != value:
-                if rp:
-                    rp.replace(path + [key], original[key], value)
-                original[key] = value
-    for key in list(original.keys()):
-        if key not in other:
-            if rp:
-                rp.remove(path + [key], original[key])
-            del original[key]
 
 @binary_serializable(SerializationCategory.DATACLASS)
 @dataclass

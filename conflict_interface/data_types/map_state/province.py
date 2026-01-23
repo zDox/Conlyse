@@ -26,7 +26,7 @@ from conflict_interface.data_types.player_state.player_profile import PlayerProf
 from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.constants import PathNode
 from conflict_interface.utils.exceptions import ActionException
 
 logger = get_logger()

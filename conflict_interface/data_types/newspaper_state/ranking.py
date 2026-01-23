@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from .ranking_entry import RankingEntry
 from ..custom_types import HashMap # TODO why is tis relative needed
@@ -6,6 +7,10 @@ from ..custom_types import RankingEntryList
 from ..game_object import GameObject
 from ..game_object_binary import SerializationCategory
 from ..game_object_binary import binary_serializable
+from ..update_helpers import dict_update
+from ..update_helpers import list_update
+from ...replay.replay_patch import BidirectionalReplayPatch
+from ...replay.constants import PathNode
 
 
 @binary_serializable(SerializationCategory.DATACLASS)
@@ -14,12 +19,12 @@ class Ranking(GameObject):
     C = "ultshared.UltRanking"
     winner: int
     ranking: list[int]
-    players_rank_sorted: list[int]
+    players_rank_sorted: Optional[list[int]]
     winner_team: int
     team_ranking: HashMap[int, int]
-    teams_rank_sorted: list[int]
+    teams_rank_sorted: Optional[list[int]]
     initialized: bool
-    unified_rank_sorted: RankingEntryList[RankingEntry]
+    unified_rank_sorted: Optional[RankingEntryList[RankingEntry]]
 
     MAPPING = {
         "winner": "winner",
@@ -31,3 +36,22 @@ class Ranking(GameObject):
         "initialized": "initialized",
         "unified_rank_sorted": "unifiedRankSorted",
     }
+
+    def update(self, other: "Ranking", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):
+        if rp is not None:
+            if self.winner != other.winner:
+                rp.replace(path + ["winner"], self.winner, other.winner)
+            if self.winner_team != other.winner_team:
+                rp.replace(path+["winner_team"], self.winner_team, other.winner_team)
+            if self.initialized != other.initialized:
+                rp.replace(path+["initialized"], self.initialized, other.initialized)
+
+        self.winner = other.winner
+        self.winner_team = other.winner_team
+        self.initialized = other.initialized
+
+        list_update(self.ranking, other.ranking, path + ["ranking"], rp)
+        list_update(self.players_rank_sorted, other.players_rank_sorted, path + ["players_rank_sorted"], rp)
+        list_update(self.teams_rank_sorted, other.teams_rank_sorted, path + ["teams_rank_sorted"], rp)
+        list_update(self.unified_rank_sorted, other.unified_rank_sorted, path + ["unified_rank_sorted"], rp)
+        dict_update(self.team_ranking, other.team_ranking, path+ ["team_ranking"], rp)

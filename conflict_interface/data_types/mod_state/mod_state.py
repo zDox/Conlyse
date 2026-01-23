@@ -50,9 +50,10 @@ from conflict_interface.data_types.spy_state.premium_spy_job import RevealAllArm
 from conflict_interface.data_types.spy_state.premium_spy_job import RevealProvinceArmiesJob
 from conflict_interface.data_types.spy_state.spy_mission import SpyMission
 from conflict_interface.data_types.state import State
-from conflict_interface.data_types.state import universal_update
+from conflict_interface.data_types.update_helpers import universal_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.constants import PathNode
+
 
 @binary_serializable(SerializationCategory.DATACLASS)
 @dataclass

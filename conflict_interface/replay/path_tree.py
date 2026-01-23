@@ -34,10 +34,9 @@ class PathTree:
         self.idx_counter += 1
         return new_node
 
-    def fill_with_paths(self, operations) -> list[PathTreeNode]:
+    def fill_with_paths(self, paths: list[list[int | str]]) -> list[PathTreeNode]:
         added_nodes = []
-        for op in operations:
-            path = op.path
+        for path in paths:
             current_node = self.root
             for path_element in path:
                 if current_node.has_child(path_element):
