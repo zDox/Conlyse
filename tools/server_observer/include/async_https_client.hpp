@@ -19,7 +19,6 @@
 namespace asio = boost::asio;
 using tcp = asio::ip::tcp;
 namespace ssl = asio::ssl;
-using namespace boost::asio::experimental::awaitable_operators;
 
 // Result structure
 struct HttpResponse {
@@ -53,6 +52,8 @@ public:
         const Headers& headers,
         const std::string& body,
         const std::string& content_type) {
+        
+        using namespace boost::asio::experimental::awaitable_operators;
         
         auto self = shared_from_this();
         HttpResponse response;
@@ -257,7 +258,6 @@ public:
             timeout_timer_.cancel();
             
             // Graceful SSL shutdown
-            boost::system::error_code shutdown_ec;
             co_await ssl_socket_.async_shutdown(asio::as_tuple(asio::use_awaitable));
             
         } catch (const std::exception& e) {
@@ -284,7 +284,7 @@ class HttpClient {
 public:
     HttpClient(const std::string& url, size_t num_threads = 4)
         : work_guard_(asio::make_work_guard(io_context_)),
-          ssl_context_(ssl::context::tlsv12_client),
+          ssl_context_(ssl::context::tls_client),
           timeout_(30),
           verify_ssl_(true) {
         
@@ -414,20 +414,16 @@ public:
     
 private:
     void parse_url(const std::string& url) {
-        bool use_ssl = true;
         std::string remaining;
         
         if (url.find("https://") == 0) {
             remaining = url.substr(8);
-            use_ssl = true;
             port_ = 443;
         } else if (url.find("http://") == 0) {
             remaining = url.substr(7);
-            use_ssl = false;
             port_ = 80;
         } else {
             remaining = url;
-            use_ssl = true;
             port_ = 443;
         }
         
@@ -444,8 +440,12 @@ private:
         // Extract port if present
         size_t colon_pos = host_.find(':');
         if (colon_pos != std::string::npos) {
-            port_ = std::stoi(host_.substr(colon_pos + 1));
-            host_ = host_.substr(0, colon_pos);
+            try {
+                port_ = std::stoi(host_.substr(colon_pos + 1));
+                host_ = host_.substr(0, colon_pos);
+            } catch (const std::exception& e) {
+                throw std::runtime_error("Invalid port number in URL: " + url);
+            }
         }
     }
     
