@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import get_type_hints
 
 from conflict_interface.data_types.game_object_binary import SerializationCategory
 from conflict_interface.data_types.decorators import binary_serializable
@@ -19,3 +20,12 @@ class AjaxRequest:
     evaluate_response: bool = False
     current_request: int = 0
     method = "post"
+
+    MAPPING = {}
+    _type_hints = None
+
+    @classmethod
+    def get_type_hints_cached(cls):
+        if cls._type_hints is None:
+            cls._type_hints = get_type_hints(cls)
+        return cls._type_hints

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Optional
+from typing import get_type_hints
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import HashMap
@@ -30,3 +31,9 @@ class GameStateAction:
         "time_stamps": "tstamps",
         "actions": "actions"
     }
+    _type_hints = None
+    @classmethod
+    def get_type_hints_cached(cls):
+        if cls._type_hints is None:
+            cls._type_hints = get_type_hints(cls)
+        return cls._type_hints

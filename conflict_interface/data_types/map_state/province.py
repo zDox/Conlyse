@@ -97,10 +97,10 @@ class Province(GameObject):
     impacts: Optional[ArrayList[Impact]]
 
     production: Optional[ProvinceProduction]
-    productions: Optional[ProductionList[ProvinceProduction]]
+    productions: Optional[ProductionList[Optional[ProvinceProduction]]]
     terrain_type: TerrainType
 
-    constructions: Optional[ProductionList[ProvinceProduction]]
+    constructions: Optional[ProductionList[Optional[ProvinceProduction]]]
     costal: bool = False
     money_production: int = 0
     morale: int = 70
