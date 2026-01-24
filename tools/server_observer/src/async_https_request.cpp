@@ -12,6 +12,7 @@ AsyncHttpsRequest::AsyncHttpsRequest(asio::io_context& io_context,
       timeout_duration_(timeout),
       proxy_(proxy) {}
 
+
 std::string AsyncHttpsRequest::base64_encode(const std::string& input) {
     static const char* base64_chars = 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -60,19 +61,6 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
     
     auto start_time = std::chrono::steady_clock::now();
     
-    // Cleanup guard to ensure socket and timer are cleaned up before returning
-    auto cleanup = [this]() {
-        boost::system::error_code ec;
-        // Cancel resolver to abort any pending DNS lookups
-        resolver_.cancel();
-        // Cancel timer to abort any pending timeouts
-        timeout_timer_.cancel();
-        // Close socket if it's open
-        if (ssl_socket_.lowest_layer().is_open()) {
-            ssl_socket_.lowest_layer().close(ec);
-        }
-    };
-
     try {
         // Set SNI hostname
         if (!SSL_set_tlsext_host_name(ssl_socket_.native_handle(), host.c_str())) {
@@ -95,7 +83,6 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         if (resolve_result.index() == 1) {
             response.timeout = true;
             response.error_message = "Resolve timeout";
-            cleanup();
             co_return response;
         }
         std::cout << "Resolved " << connect_host << ":" << connect_port << std::endl;
@@ -116,7 +103,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         if (connect_result.index() == 1) {
             response.timeout = true;
             response.error_message = "Connect timeout";
-            cleanup();
+            
             co_return response;
         }
         std::cout << "Connected to " << host << ":" << port << std::endl;
@@ -155,7 +142,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             if (proxy_write_result.index() == 1) {
                 response.timeout = true;
                 response.error_message = "Proxy CONNECT write timeout";
-                cleanup();
+                
                 co_return response;
             }
 
@@ -176,7 +163,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             if (proxy_read_result.index() == 1) {
                 response.timeout = true;
                 response.error_message = "Proxy CONNECT response timeout";
-                cleanup();
+                
                 co_return response;
             }
 
@@ -193,7 +180,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
 
             if (proxy_status != 200) {
                 response.error_message = "Proxy CONNECT failed with status: " + std::to_string(proxy_status);
-                cleanup();
+                
                 co_return response;
             }
 
@@ -216,7 +203,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         if (handshake_result.index() == 1) {
             response.timeout = true;
             response.error_message = "SSL handshake timeout";
-            cleanup();
+            
             co_return response;
         }
         std::cout << "SSL Handshake completed with " << host << std::endl;
@@ -262,7 +249,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         if (write_result.index() == 1) {
             response.timeout = true;
             response.error_message = "Write timeout";
-            cleanup();
+            
             co_return response;
         }
         std::cout << "HTTP request sent to " << host << std::endl;
@@ -286,7 +273,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         if (read_result.index() == 1) {
             response.timeout = true;
             response.error_message = "Read timeout (status line)";
-            cleanup();
+            
             co_return response;
         }
         std::cout << "Reading status line from " << host << std::endl;
@@ -315,7 +302,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         if (headers_result.index() == 1) {
             response.timeout = true;
             response.error_message = "Read timeout (headers)";
-            cleanup();
+            
             co_return response;
         }
 
@@ -365,7 +352,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
                 if (!timer_ec) {
                     response.timeout = true;
                     response.error_message = "Read timeout (body)";
-                    cleanup();
+                    
                     co_return response;
                 }
                 break;
@@ -395,24 +382,12 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         response.success = true;
         std::cout << "Request to " << host << " completed successfully" << std::endl;
 
-        // Attempt graceful SSL shutdown with short timeout
-        // Since we use "Connection: close", the server likely already closed the connection
-        timeout_timer_.expires_after(std::chrono::seconds(2));
-        auto shutdown_result = co_await (
-            ssl_socket_.async_shutdown(asio::as_tuple(asio::use_awaitable)) ||
-            timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-        );
+        // Don't attempt SSL shutdown - it can cause segfaults during destruction
+        // The socket will be closed naturally when the object is destroyed
+        // Since we use "Connection: close", the server handles the closure
 
-        if (shutdown_result.index() == 0) {
-            auto [shutdown_ec] = std::get<0>(shutdown_result);
-            if (!shutdown_ec) {
-                std::cout << "SSL shutdown completed cleanly for " << host << std::endl;
-            }
-        }
-        // Ignore shutdown errors/timeouts - connection is already done
-
-        // Clean up everything before returning
-        cleanup();
+        // Don't call cleanup() here - let the destructor handle it naturally
+        // to avoid issues with SSL socket state
 
     } catch (const std::exception& e) {
         auto end_time = std::chrono::steady_clock::now();
@@ -422,7 +397,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         response.error_message = e.what();
 
         // Clean up everything
-        cleanup();
+        
     }
 
     co_return response;
