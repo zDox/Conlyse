@@ -1,11 +1,10 @@
-from dataclasses import MISSING as DATACLASS_MISSING
 from dataclasses import dataclass
 from dataclasses import is_dataclass
+from dataclasses import MISSING as DATACLASS_MISSING
 from datetime import UTC
 from enum import Enum
 from logging import getLogger
 from typing import Any
-from typing import Union
 from typing import cast
 from typing import get_args
 from typing import get_origin
@@ -28,7 +27,6 @@ from conflict_interface.interface import GameInterface
 
 logger = getLogger()
 
-_is_union_cache = {}
 _type_is_any_list_cache = {}
 _type_is_list_cache = {}
 _type_is_any_dict_cache = {}
@@ -36,15 +34,9 @@ _type_is_any_set_cache = {}
 _type_is_game_object_cache = {}
 _type_is_dataclass_cache = {}
 _type_is_enum_cache = {}
+_default_value_cache = {}
 
-def type_is_union(t):
-    try:
-        return _is_union_cache[t]
-    except KeyError:
-        pass
-    ret = get_origin(t) is Union
-    _is_union_cache[t] = ret
-    return ret
+
 
 def type_is_any_list(t):
     try:
@@ -205,6 +197,15 @@ def can_convert(value, value_type, cls) -> bool:
         return False
 
 
+def _is_float_str(s: str) -> bool:
+    """Check if a string is float-convertible without raising exceptions."""
+    s = s.strip()
+    if not s:
+        return False
+    if s.count('.') > 1 or s.lower() in ('inf', '-inf', '+inf', 'nan'):
+        return False
+    s_clean = s.lstrip('+-')
+    return s_clean.replace('.', '', 1).isdigit()
 
 def parse_date_time_milliseconds(json_obj):
     if len(str(json_obj)) < 13 and str(json_obj) != "0":
@@ -313,6 +314,7 @@ class JsonParser:
             raise ValueError(f"Cant parse json_obj {str(json_obj)[:200]} with type {t}")
 
 
+
     def parse_game_object(self, json_obj, t: TypeGraphNode, game):
         #assert type(json_obj) is dict, f"GameObject has to be represented by dict! type {t} is not; {str(json_obj)[:200]}"
 
@@ -343,29 +345,34 @@ class JsonParser:
             #if not hasattr(cls, "__dataclass_fields__"):
             #    raise ValueError(f"{cls.__name__} has no __dataclass_fields__")
 
-            field_info = get_fields(cls, python_var_name)
+
             if conflict_var_name in json_obj:
                 parsed_data[python_var_name] = self._parse_any(json_obj[conflict_var_name], t.children[python_var_name])
             else:
-                #possible_types = t.children[python_var_name]
-                #if len(possible_types) != 1:
-                #    raise ValueError(f"Default value for json_obj {str(json_obj)[:200]} could not be determined out of {[x.type for x in t.children[python_var_name]]}")
-                python_var_type = t.children[python_var_name][0].type
-
-                if field_info.default == DATACLASS_MISSING:
-                    if field_info.default_factory != DATACLASS_MISSING:
-                        parsed_data[python_var_name] = field_info.default_factory()
-                    elif type(None) in get_args(python_var_type):
-                        parsed_data[python_var_name] = None
-                    elif issubclass(python_var_type, Enum):
-                        if isinstance(python_var_type, DefaultEnumMeta):
-                            parsed_data[python_var_name] = python_var_type()
-                        else:
-                            raise ValueError(f"Enum {python_var_type} is not a DefaultEnumMeta")
-                    else:
-                        raise ValueError(f"Field {python_var_name} is missing in {cls.__name__} (Might be optional)")
+                if (cls, conflict_var_name) in _default_value_cache:
+                    parsed_data[python_var_name] =  _default_value_cache[(cls, conflict_var_name)]
                 else:
-                    parsed_data[python_var_name] = field_info.default
+                    #possible_types = t.children[python_var_name]
+                    #if len(possible_types) != 1:
+                    #   raise ValueError(f"Default value for json_obj {str(json_obj)[:200]} could not be determined out of {[x.type for x in t.children[python_var_name]]}")
+                    python_var_type = t.children[python_var_name][0].type
+                    field_info = get_fields(cls, python_var_name)
+                    if field_info.default == DATACLASS_MISSING:
+                        if field_info.default_factory != DATACLASS_MISSING:
+                            parsed_data[python_var_name] = field_info.default_factory()
+                        elif type(None) in get_args(python_var_type):
+                            parsed_data[python_var_name] = None
+                        elif issubclass(python_var_type, Enum):
+                            if isinstance(python_var_type, DefaultEnumMeta):
+                                parsed_data[python_var_name] = python_var_type()
+                            else:
+                                raise ValueError(f"Enum {python_var_type} is not a DefaultEnumMeta")
+                        else:
+                            raise ValueError(f"Field {python_var_name} is missing in {cls.__name__} (Might be optional)")
+                    else:
+                        parsed_data[python_var_name] = field_info.default
+
+                    _default_value_cache[(cls, conflict_var_name)] = parsed_data[python_var_name]
         instance = cls(**parsed_data)
         return instance
 
@@ -386,6 +393,26 @@ class JsonParser:
                 raise ValueError(f"Unknown enum value {json_obj} for {t}")
 
     def get_actual_type(self, json_obj, types: list[TypeGraphNode]) -> TypeGraphNode | None:
+        # Fast path: 90%+ of calls probably have len(types) == 1
+        if len(types) == 1:
+            possible_type = types[0]
+            # Skip _try_match_type overhead for common case
+            if not possible_type.is_union:
+                json_type = type(json_obj)
+
+                # Fast path: exact type match for primitives
+                if possible_type.type == json_type:
+                    return possible_type
+
+                # Type coercion (only if types don't match exactly)
+                if json_type in self._PRIMITIVES:
+                    return possible_type
+
+                # Complex types
+                if match := self._try_match_type(json_obj, possible_type):
+                    return match
+                raise ValueError(f"Type mismatch...")
+
         for possible_type in types:
             if match := self._try_match_type(json_obj, possible_type):
                 return match
@@ -396,7 +423,7 @@ class JsonParser:
         """Try to match json_obj against a single possible type."""
 
         # Handle union types recursively
-        if type_is_union(possible_type.type):
+        if possible_type.is_union:
             return self.get_actual_type(json_obj, possible_type.children["v"])
 
         json_type = type(json_obj)
@@ -466,7 +493,60 @@ class JsonParser:
         return None
 
 
+import time
+from collections import defaultdict
 
+
+class TimedJsonParser(JsonParser):
+    def __init__(self):
+        super().__init__()
+        self.timings = defaultdict(float)
+        self.counts = defaultdict(int)
+
+    def _parse_any(self, json_obj, types, game=None):
+        start = time.perf_counter()
+        result = super()._parse_any(json_obj, types, game)
+        self.timings['_parse_any'] += time.perf_counter() - start
+        self.counts['_parse_any'] += 1
+        return result
+
+    def parse_data_class(self, json_obj, t):
+        start = time.perf_counter()
+        result = super().parse_data_class(json_obj, t)
+        self.timings['parse_data_class'] += time.perf_counter() - start
+        self.counts['parse_data_class'] += 1
+        return result
+
+    def parse_game_object(self, json_obj, t, game):
+        start = time.perf_counter()
+        result = super().parse_game_object(json_obj, t, game)
+        self.timings['parse_game_object'] += time.perf_counter() - start
+        self.counts['parse_game_object'] += 1
+        return result
+
+    def get_actual_type(self, json_obj, types):
+        start = time.perf_counter()
+        result = super().get_actual_type(json_obj, types)
+        self.timings['get_actual_type'] += time.perf_counter() - start
+        self.counts['get_actual_type'] += 1
+        return result
+
+    def _try_match_type(self, json_obj, possible_type):
+        start = time.perf_counter()
+        result = super()._try_match_type(json_obj, possible_type)
+        self.timings['_try_match_type'] += time.perf_counter() - start
+        self.counts['_try_match_type'] += 1
+        return result
+
+    def print_stats(self):
+        print("\n" + "=" * 60)
+        print("TIMING STATISTICS")
+        print("=" * 60)
+        for name in sorted(self.timings.keys(), key=lambda x: self.timings[x], reverse=True):
+            total = self.timings[name]
+            count = self.counts[name]
+            avg = total / count if count > 0 else 0
+            print(f"{name:25} {total:8.3f}s  {count:8} calls  {avg * 1000:8.3f}ms avg")
 
 
 

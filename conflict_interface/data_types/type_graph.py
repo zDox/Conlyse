@@ -31,9 +31,16 @@ def type_is_enum(t):
     return issubclass(t, Enum)
 
 class TypeGraphNode:
+    _PRIMITIVES = frozenset({int, float, str, bool, type(None)})
+
     def __init__(self, _type: type):
         self.type: type = _type
         self.children: dict[str, list[TypeGraphNode]] = {}
+
+        self.is_union = type_is_union(_type)
+        self.is_primitive = _type in self._PRIMITIVES
+
+
 
 class TypeGraph:
 
