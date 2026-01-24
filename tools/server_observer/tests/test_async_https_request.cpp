@@ -1111,6 +1111,44 @@ TEST_F(AsyncHttpsRequestTest, BadRequestStatus) {
     EXPECT_EQ(response.status_code, 400);
 }
 
+// Test duplicate Content-Type headers (reproduces observation API bug)
+TEST_F(AsyncHttpsRequestTest, DuplicateContentTypeHeaders) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        // Add Content-Type in headers - this will create a duplicate!
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8";
+
+        std::string body = R"({"key": "value"})";
+
+        // This will add ANOTHER Content-Type header (application/json)
+        // resulting in duplicate headers which can cause 400 errors
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post",
+                headers,
+                body,
+                "application/json"  // This creates the duplicate
+            )
+        );
+    }
+
+    // httpbin.org is lenient and may accept this, but strict servers return 400
+    // The request should still complete, but this demonstrates the bug
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    // Note: Some strict servers would return 400 here due to duplicate headers
+}
+
 // Test request with cache control headers
 TEST_F(AsyncHttpsRequestTest, CacheControlHeaders) {
     HttpResponse response;
