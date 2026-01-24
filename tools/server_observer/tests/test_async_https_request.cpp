@@ -25,15 +25,24 @@ protected:
     }
 
     void TearDown() override {
-        // Ensure io_context is stopped before destroying
+        // IMPORTANT: Ensure all AsyncHttpsRequest objects are destroyed first
+        // before destroying io_context and ssl_context to avoid segfault.
+        // The request objects hold references to these contexts.
+        
+        // Stop the io_context to cancel any pending operations
         if (io_context_) {
             io_context_->stop();
+            // Give pending operations a chance to complete
+            io_context_->poll();
         }
+        
+        // Now destroy the contexts in the correct order
         io_context_.reset();
         ssl_context_.reset();
     }
 
     // Helper function to run a coroutine and get the result
+    // This ensures the awaitable is fully executed and completed before returning
     template<typename Awaitable>
     auto runAwaitable(Awaitable&& awaitable) -> decltype(auto) {
         using ResultType = typename std::decay_t<Awaitable>::value_type;
@@ -52,7 +61,11 @@ protected:
             asio::detached
         );
 
+        // Run the io_context until all work is complete
         io_context_->run();
+        
+        // Reset io_context for next use
+        io_context_->restart();
 
         if (exception) {
             std::rethrow_exception(exception);
@@ -97,26 +110,31 @@ TEST_F(AsyncHttpsRequestTest, SuccessfulGetRequest) {
 
 // Test HTTPS GET request with custom path
 TEST_F(AsyncHttpsRequestTest, GetRequestWithPath) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "GET",
-            "/get",
-            headers,
-            "",
-            ""
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/get",
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_FALSE(response.timeout);

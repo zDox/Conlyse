@@ -63,7 +63,11 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
     // Cleanup guard to ensure socket and timer are cleaned up before returning
     auto cleanup = [this]() {
         boost::system::error_code ec;
+        // Cancel resolver to abort any pending DNS lookups
+        resolver_.cancel();
+        // Cancel timer to abort any pending timeouts
         timeout_timer_.cancel();
+        // Close socket if it's open
         if (ssl_socket_.lowest_layer().is_open()) {
             ssl_socket_.lowest_layer().close(ec);
         }
