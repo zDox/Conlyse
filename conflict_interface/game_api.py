@@ -1,3 +1,4 @@
+import gc
 import re
 from collections import defaultdict
 from dataclasses import dataclass
@@ -7,11 +8,11 @@ from datetime import timedelta
 from functools import wraps
 from hashlib import sha1
 from json import dumps
-from json import loads
 from time import time
 
 from cloudscraper25 import CloudScraper
 from lxml import html
+from requests import Session
 
 from conflict_interface.data_types.authentication import AuthDetails
 from conflict_interface.logger_config import get_logger
@@ -81,22 +82,6 @@ class GameApi:
         else:
             self.proxy = defaultdict()
 
-    @classmethod
-    def from_static(cls) -> "GameApi":
-        instance = cls(session=CloudScraper.create_scraper(disableCloudflareV2=True,
-                                                           stealth_options={
-                                                               'min_delay': 0.01,
-                                                               'max_delay': 1,
-                                                               'human_like_delays': True,
-                                                               'randomize_headers': True,
-                                                               'browser_quirks': True
-                                                           }
-                                                           ),
-                       auth_details=None,
-                       game_id=0,
-                       proxy=None)
-        return instance
-
     def set_proxy(self, proxy: dict):
         self.proxy = proxy
 
@@ -128,7 +113,7 @@ class GameApi:
         response_html = html.fromstring(response.text)
 
         url = response_html.xpath(r'//iframe[@id="ifm"]/@src')[0]
-
+        del response_html
         self.index_html_url = url
 
         parameters = url.split('&')
@@ -173,11 +158,11 @@ class GameApi:
         self.load_game_php()
         self.load_index_html()
 
-
     def make_game_server_request(self, parameters):
         headers = {
             'Accept': 'text/plain, */*; q=0.01',
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            "Accept-Encoding": "gzip, deflate, br"
         }
 
         hash_hex = sha1(("undefined" + str(int(time() * 1000)))
@@ -202,12 +187,18 @@ class GameApi:
         }
         logger.debug(f"Sending Game API request {self.request_id} with params: {dumps(parameters)}")
         self.request_id += 1
-        response = self.session.post(self.game_server_address,
-                                     headers=headers,
-                                     data=dumps(data),
-                                     proxies=self.proxy)
-        response.raise_for_status()
-        response_json = response.json()
+        with Session() as session:
+            with session.post(self.game_server_address,
+                                             headers=headers,
+                                            cookies=self.session.cookies,
+                                             data=dumps(data),
+                                             proxies=self.proxy,
+                                            stream=True) as response:
+
+                response.raise_for_status()
+                response_json = response.json()
+            del response
+        del session
 
         if not type(response_json["result"]) is int:
             if "timeStamp" in response_json["result"]:
@@ -218,8 +209,24 @@ class GameApi:
         if "result" in response_json and type(response_json["result"]) is dict:
             if response_json["result"].get("@c") == "ultshared.UltAuthentificationException":
                 raise Exception(f"Authentfication failed while sending parameters {dumps(data, indent=2)} to game server.")
+        gc.collect()
         return response_json
 
+    def reset(self):
+        print("Resetting session")
+        new_scraper = CloudScraper.create_scraper(disableCloudflareV2=True, stealth_options={
+            'min_delay': 0.01,
+            'max_delay': 1,
+            'human_like_delays': True,
+            'randomize_headers': True,
+            'browser_quirks': True
+        })
+        new_scraper.headers = self.session.headers
+        new_scraper.proxies = self.session.proxies
+        new_scraper.cookies = self.session.cookies
+        self.session.close()
+        del self.session
+        self.session = new_scraper
 
     def client_time(self, time_scale) -> datetime:
         """
@@ -267,7 +274,7 @@ class GameApi:
         )
 
         response.raise_for_status()
-        return loads(response.text)
+        return response.json()
 
     def get_image(self, path: str) -> bytes:
         response = self.session.get(

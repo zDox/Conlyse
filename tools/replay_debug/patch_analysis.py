@@ -9,10 +9,8 @@ This module provides methods for analyzing patches in replay files:
 """
 from typing import List, Tuple, Optional
 
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_patch import ReplayPatch
-from conflict_interface.replay.replay_patch import AddOperation
-from conflict_interface.replay.replay_patch import ReplaceOperation
-from conflict_interface.replay.replay_patch import RemoveOperation
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
@@ -52,7 +50,7 @@ class PatchAnalysisMixin:
         # Sort by from_timestamp, then to_timestamp
         self.all_patches.sort(key=lambda x: (x[0], x[1]))
     
-    def _convert_patch_node_to_replay_patch(self, patch_node, path_tree):
+    def _convert_patch_node_to_replay_patch(self, patch_node, path_tree) -> BidirectionalReplayPatch:
         """Convert a PatchGraphNode to a ReplayPatch object.
         
         This is kept for compatibility but is now only used when converting
@@ -65,7 +63,7 @@ class PatchAnalysisMixin:
         Returns:
             ReplayPatch object with operations
         """
-        replay_patch = ReplayPatch()
+        replay_patch = BidirectionalReplayPatch()
         idx_to_node = path_tree.idx_to_node
         
         for op_type, path_idx, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
@@ -74,15 +72,14 @@ class PatchAnalysisMixin:
             
             # Create the appropriate operation
             if op_type == ADD_OPERATION:
-                op = AddOperation(path=path, new_value=value)
+                replay_patch.add(path, value)
             elif op_type == REPLACE_OPERATION:
-                op = ReplaceOperation(path=path, new_value=value)
+                replay_patch.replace(path, None, value)
             elif op_type == REMOVE_OPERATION:
-                op = RemoveOperation(path=path)
+                replay_patch.remove(path, None)
             else:
                 raise ValueError(f"Unknown operation type: {op_type}")
-            
-            replay_patch.operations.append(op)
+
         
         return replay_patch
     

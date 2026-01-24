@@ -34,16 +34,16 @@ class RecordingStorage:
     def __init__(self, output_path: str, save_game_states: bool = False):
         """
         Initialize recording storage.
-        
+
         Args:
             output_path: Path to the output directory for recordings
         """
         self.output_path = Path(output_path)
         self.output_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Create compressor
         self._compressor = zstd.ZstdCompressor(level=3)
-        
+
         # Storage for game states and responses
         self.game_states_file = self.output_path / "game_states.bin"
         self.requests_file = self.output_path / "requests.jsonl.zst"
@@ -58,10 +58,9 @@ class RecordingStorage:
 
         self.save_game_states = save_game_states
 
-        
         # Initialize files
         self._init_files()
-    
+
     def _init_files(self):
         """Initialize recording files."""
         # Create metadata
@@ -71,12 +70,12 @@ class RecordingStorage:
             "updates": []
         }
         self._save_metadata(metadata)
-    
+
     def _save_metadata(self, metadata: dict):
         """Save metadata to file."""
         with open(self.metadata_file, 'w') as f:
             json.dump(metadata, f, indent=2)
-    
+
     def _load_metadata(self) -> dict:
         """Load metadata from file."""
         if self.metadata_file.exists():
@@ -106,7 +105,6 @@ class RecordingStorage:
 
         self.append_bytes_to_file(self.game_states_file, timestamp_ms, compressed_state)
         logger.info(f"Saved game state at timestamp {timestamp}")
-
 
     def save_request_response(self, timestamp: float, request_json: dict, response_json: dict):
         # Compress and save JSON request
@@ -152,7 +150,7 @@ class RecordingStorage:
     def save_static_map_data(self, static_map_data: StaticMapData):
         """
         Save static map data to file.
-        
+
         Args:
             static_map_data: The static map data object
         """
@@ -162,13 +160,13 @@ class RecordingStorage:
         static_map_data_bytes = pickle.dumps(static_map_data)
         static_map_data.set_game(ritf)
         compressed_data = self._compressor.compress(static_map_data_bytes)
-        
+
         # Write to file
         with open(self.static_map_data_file, 'wb') as f:
             f.write(compressed_data)
-        
+
         logger.info("Saved static map data")
-    
+
     def teardown_logging(self):
         """Remove the file logging handler."""
         if self.recorder_log_file_handler:

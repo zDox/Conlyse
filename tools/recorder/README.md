@@ -11,6 +11,7 @@ which might be totally different as they are dependent on the game mode accelera
 - **Scriptable Actions**: Execute a sequence of predefined actions
 - **Periodic Updates**: Option to update game state during wait periods
 - **Multiple Action Types**: Build, mobilize, research, army commands, and more
+- **Multi-Game Mode**: Discover and record many running games concurrently using proxies and replay files
 
 ## Installation
 
@@ -69,6 +70,25 @@ The recorder uses a JSON configuration file with the following structure:
 
 ### Proxy Settings
 - `proxy_url`: (Optional) Proxy URL for connections (not needed if using account pool with proxies)
+
+### Multi-Game Recording
+
+To record multiple running games as a guest and store replay files, provide a list of scenarios and limits:
+
+```json
+{
+  "account_pool_path": "path/to/account_pool.json",
+  "scenario_ids": [5975, 5976],
+  "record_percentage": 0.2,
+  "max_parallel_recordings": 5,
+  "actions": [
+    {
+      "type": "update_until_game_end",
+      "update_interval": 120
+    }
+  ]
+}
+```
 
 ### Actions
 
@@ -169,6 +189,22 @@ Wait for a specified duration while periodically updating the game state.
 **Parameters:**
 - `duration`: Duration to sleep (see format above)
 - `update_interval`: Seconds between updates (default: 10)
+
+### Update Until Game End
+Keep updating the game and writing replay patches until the game ends or the optional limits are reached.
+
+```json
+{
+  "type": "update_until_game_end",
+  "update_interval": 120,
+  "max_updates": 50
+}
+```
+
+**Parameters:**
+- `update_interval`: Seconds between updates (default: 60)
+- `max_updates`: Optional cap on iterations
+- `max_duration`: Optional maximum runtime in seconds
 
 ### Army Actions
 

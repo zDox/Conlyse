@@ -353,7 +353,7 @@ class ReplayInterface(GameInterface):
         path_idx = self._replay.storage.path_tree.path_list_to_idx(path)
         self._hook_system.unregister_hook(path_idx, callback)
 
-    def register_player_trigger(self, attributes: list[str]):
+    def register_player_trigger(self, attributes: list[str] | None = None):
         path = ["states", "player_state", "players"]
         self._hook_system.register_event_trigger(
             tag=ReplayHookTag.PlayerChanged,
@@ -364,7 +364,7 @@ class ReplayInterface(GameInterface):
         path = ["states", "player_state", "players"]
         self._hook_system.unregister_event_trigger(path)
 
-    def register_team_trigger(self, attributes: list[str]):
+    def register_team_trigger(self, attributes: list[str] | None = None):
         path = ["states", "player_state", "teams"]
         self._hook_system.register_event_trigger(
             tag=ReplayHookTag.TeamChanged,
@@ -376,7 +376,7 @@ class ReplayInterface(GameInterface):
         path = ["states", "player_state", "teams"]
         self._hook_system.unregister_event_trigger(path)
 
-    def register_army_trigger(self, attributes: list[str]):
+    def register_army_trigger(self, attributes: list[str] | None = None):
         path = ["states", "army_state", "armies"]
         self._hook_system.register_event_trigger(
             tag=ReplayHookTag.ArmyChanged,
@@ -388,14 +388,13 @@ class ReplayInterface(GameInterface):
         path = ["states", "army_state", "armies"]
         self._hook_system.unregister_event_trigger(path)
 
-    def register_game_info_state_trigger(self):
+    def register_game_info_trigger(self, attributes: list[str] | None = None):
         path = ["states", "game_info_state"]
         self._hook_system.register_event_trigger(
             tag=ReplayHookTag.GameInfoChanged,
             path=path,
-            attributes=None
+            attributes=attributes
         )
-
-    def unregister_game_info_state_trigger(self):
+    def unregister_game_info_trigger(self):
         path = ["states", "game_info_state"]
         self._hook_system.unregister_event_trigger(path)

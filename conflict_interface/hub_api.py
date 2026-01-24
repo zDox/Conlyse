@@ -52,7 +52,7 @@ HUB_RESULT_CODE_EXCEPTION_MAPPING = {
     HubResultCode.NotEnoughTickets: NotEnoughTickets,
 }
 
-SESSION_TOKEN_RETRIES = 3
+LOGIN_RETIRES = 3
 
 def get_user_name_taken_response_text(username):
     return f'<script type="text/javascript">setNameCheckResponse(0, "Username already taken", 2, "{username}");</script>'
@@ -224,7 +224,6 @@ class HubApi:
             proxies=self.proxy,
         )
         response.raise_for_status()
-
         result = json.loads(response.text)
         try:
             result_code = HubResultCode(result["resultCode"])
@@ -389,7 +388,7 @@ class HubApi:
         logger.debug(f"Loaded main page action: {form.action} form data: {form_data}")
         return form.action, form_data
 
-    def load_authentication_from_response(self, response: Response):
+    def load_authentication_from_response(self, response: Response) -> bool:
         """
         Parses the authentication details from an HTTP response and initializes the
         authentication attributes for the class instance. It identifies the
@@ -413,15 +412,11 @@ class HubApi:
             raise Exception("Could not find authentication url")
 
         self.auth = AuthDetails.from_url_parameters(iframe_src[0])
-        for i in range(SESSION_TOKEN_RETRIES):
-            try:
-                self.auth.session_token = self.get_session_token()
-            except Exception as e:
-                if i == SESSION_TOKEN_RETRIES -1:
-                    raise e
-                sleep_amount = 5 * (i +1)
-                logger.warning(f"Sleeping for {sleep_amount} seconds as getSessionToken failed...")
-                sleep(sleep_amount)
+        try:
+            self.auth.session_token = self.get_session_token()
+        except AuthenticationException:
+            return False
+        return True
 
     def get_session_token(self) -> str:
         """
@@ -524,12 +519,15 @@ class HubApi:
             'user': username,
             'pass': password,
         }
+        for i in range(LOGIN_RETIRES):
+            response = self.session.post(self.HOST, params=params, data=data, proxies=self.proxy)
 
-        response = self.session.post(self.HOST, params=params, data=data, proxies=self.proxy)
-
-        response.raise_for_status()
-        self.load_authentication_from_response(response)
-        return True
+            response.raise_for_status()
+            result = self.load_authentication_from_response(response)
+            if result:
+                return True
+        else:
+            return False
 
     def logout(self):
         self.session = CloudScraper.create_scraper(disableCloudflareV2=True,
@@ -599,6 +597,8 @@ class HubApi:
                                          "global": "1",
                                          "page": str(page)},
                                         "getInternationalGames")
+            if isinstance(res, str):
+                break
             last_page = res["lastPage"]
             page += 1
             for game in res["games"]:

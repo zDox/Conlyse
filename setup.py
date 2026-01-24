@@ -31,6 +31,10 @@ extras_require = {
     "tools-recorder": [
         # Add dependencies for recorder tool here
     ],
+    "tools-server-observer": [
+        "httpx",
+        "httpx[socks]"
+    ],
     "test-long-patches":[
         "deepdiff"
     ]
@@ -81,7 +85,6 @@ setup(
         "lxml",
         "numpy",
         "shapely",
-        "jsonpatch",
         "cloudscraper25",
         "msgpack",
         "zstandard",
@@ -96,6 +99,7 @@ setup(
             "recorder=tools.recorder.__main__:main",
             "replay-debug=tools.replay_debug.__main__:main",
             "recording-converter=tools.recording_converter.__main__:main",
+            "server-observer=tools.server_observer.__main__:main",
         ],
     },
 )

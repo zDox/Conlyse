@@ -16,10 +16,10 @@ from conflict_interface.data_types.resource_state.resource_profile import Resour
 from conflict_interface.data_types.resource_state.trading import Trading
 from conflict_interface.data_types.resource_state.traiding_action import OrderAction
 from conflict_interface.data_types.state import State
-from conflict_interface.data_types.state import state_update
+from conflict_interface.data_types.update_helpers import state_update
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.constants import PathNode
 
 logger = get_logger()
 

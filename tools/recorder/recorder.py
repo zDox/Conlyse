@@ -4,8 +4,8 @@ Main recorder class for game recording.
 import os
 from copy import deepcopy
 from datetime import datetime
-from time import time
 from time import sleep
+from time import time
 from typing import Optional
 
 from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
@@ -42,6 +42,12 @@ class Recorder:
         self.account_pool: Optional[AccountPool] = account_pool
         self.current_account: Optional[Account] = None
         self.save_game_states: bool = save_game_states
+        self.record_as_replay: bool = bool(self.config.get("record_as_replay", False))
+        self.join_as_guest: bool = bool(self.config.get("join_as_guest", False))
+        self.replay_filepath: Optional[str] = None
+        self.record_requests: bool = bool(self.config.get("record_requests", True))
+        self.resume_info: dict = {}
+        self.deload_between_updates: bool = bool(self.config.get("deload_between_updates", False))
         
         # Track the last server request and response for recording
         self._last_request: Optional[dict] = None
@@ -54,10 +60,13 @@ class Recorder:
         
         if not recording_name:
             recording_name = f"recording_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+
         output_path = os.path.join(output_dir, recording_name)
         self.storage = RecordingStorage(output_path, self.save_game_states)
-        
+
+        if self.record_as_replay:
+            self.replay_filepath = self.config.get("replay_path") or os.path.join(output_path, "replay.db")
+
         # Set up log file recording
         self.storage.setup_logging()
         
@@ -152,7 +161,23 @@ class Recorder:
         """
         # Patch and join the game
         self.hub_itf.join_game = self._create_patched_join_game()
-        self.game_itf = self.hub_itf.join_game(game_id, replay_filename=None)
+        self.game_itf = self.hub_itf.join_game(
+            game_id,
+            guest=self.join_as_guest,
+            replay_filename=self.replay_filepath if self.record_as_replay else None
+        )
+        # store resume info
+        try:
+            self.resume_info.update({
+                "game_id": game_id,
+                "player_id": getattr(self.game_itf, "player_id", None),
+                "proxy": self.hub_itf.api.proxy,
+                "auth": getattr(self.hub_itf.api, "auth", None),
+                "cookies": self.hub_itf.api.session.cookies.get_dict(),
+                "replay_path": self.replay_filepath,
+            })
+        except Exception as e:
+            logger.debug(f"Failed to write resume metadata: {e}")
 
         # Save initial game state and static map data
         self._save_static_map_data(self.game_itf.static_map_data)
@@ -183,13 +208,14 @@ class Recorder:
                 auth_details=deepcopy(self.hub_itf.api.auth),
                 proxy=self.hub_itf.api.proxy,
                 guest=guest,
-                replay_filepath=replay_filename
+                replay_filepath=replay_filename or self.replay_filepath
             )
 
             # Patch the game API to capture responses
             original_request_method = game_interface.game_api.make_game_server_request
 
             def patched_request(*args, **kwargs):
+                start_req = time()
                 self.storage.save_game_state(time(),
                                              game_interface.game_state)
                 # Capture the request parameters
@@ -201,7 +227,9 @@ class Recorder:
 
                 response = original_request_method(*args, **kwargs)
                 self._last_response = {**response, "game_api_request_id": game_interface.game_api.request_id}
-                self.storage.save_request_response(time(), self._last_request, self._last_response)
+                if self.record_requests and self.storage:
+                    ts = time()
+                    self.storage.save_request_response(ts, self._last_request, self._last_response)
                 return response
 
             game_interface.game_api.make_game_server_request = patched_request
@@ -284,6 +312,8 @@ class Recorder:
                 return self._army_attack(action)
             elif action_type == 'army_cancel_commands':
                 return self._army_cancel_commands(action)
+            elif action_type == 'update_until_game_end':
+                return self._update_until_game_end(action)
             else:
                 logger.error(f"Unknown action type: {action_type}")
                 return False
@@ -433,13 +463,63 @@ class Recorder:
 
             # Only update if we're not done
             if elapsed < duration_seconds:
-                self.game_itf.update()
+                self._update_with_telemetry()
 
             # Print progress
             progress = min(100.0, 100.0 * elapsed / duration_seconds)
             print(f"Sleeping with updates: {progress:.1f}% ({format_duration(elapsed)} / {format_duration(duration_seconds)})")
         
         return True
+
+    def _update_until_game_end(self, action: dict) -> bool:
+        """
+        Periodically update and optionally save game states until the game ends.
+
+        Supported parameters:
+        - update_interval: seconds between updates (default: 60)
+        - max_updates: optional cap on update iterations
+        - max_duration: optional cap on total runtime in seconds
+        """
+        update_interval = action.get("update_interval", 60.0)
+        max_updates = action.get("max_updates")
+        max_duration = action.get("max_duration")
+
+        updates_done = 0
+        start_time = time()
+
+        while True:
+            game_state = self._update_with_telemetry()
+            updates_done += 1
+
+            if self.save_game_states and self.storage:
+                if game_state:
+                    self.storage.save_game_state(time(), game_state)
+
+            game_info = getattr(game_state.states, "game_info_state", None) if game_state else None
+            if game_info and getattr(game_info, "game_ended", False):
+                logger.info("Game ended detected, stopping updates.")
+                return True
+
+            if max_updates is not None and updates_done >= max_updates:
+                logger.info("Reached configured maximum number of updates, stopping.")
+                return True
+
+            if max_duration is not None and (time() - start_time) >= max_duration:
+                logger.info("Reached configured maximum duration, stopping.")
+                return True
+
+            sleep(update_interval)
+
+    def _update_with_telemetry(self):
+        # Reload interface from disk if deloaded
+        if self.game_itf is None:
+            logger.error("No game interface available for update")
+            return None
+
+        t0 = time()
+        self.game_itf.update()
+        state = self.game_itf.game_state
+        return state
     
     def _get_army(self, action: dict):
         """Helper to get army from ID or number."""
@@ -565,7 +645,4 @@ class Recorder:
             logger.info("Recording completed successfully")
             return True
         finally:
-            # Always teardown logging, even if there was an error
-            if self.storage:
-                self.storage.teardown_logging()
-            return False
+            pass
