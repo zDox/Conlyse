@@ -197,3 +197,4 @@ class GameState(State):
                 getattr(self.states, state).update(new_state, path + ["states", state], rp)
             else:
                 raise Exception(f"{type(new_state)} has no update function")
+

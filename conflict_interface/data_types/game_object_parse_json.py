@@ -4,6 +4,7 @@ from dataclasses import is_dataclass
 from datetime import UTC
 from enum import Enum
 from logging import getLogger
+from typing import Any
 from typing import Union
 from typing import cast
 from typing import get_args
@@ -23,7 +24,7 @@ from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.point import Point
 from conflict_interface.data_types.type_graph import TypeGraph
 from conflict_interface.data_types.type_graph import TypeGraphNode
-from performance_tests.split_timer import SplitTimer
+from conflict_interface.interface import GameInterface
 
 logger = getLogger()
 
@@ -139,10 +140,9 @@ def can_convert(value, value_type, cls) -> bool:
         #if value_type is bool:  # bool is subclass of int, usually unwanted
         #    timer_.split("INT FAIL BOOL")
         #    return False
-        #if value_type in (int, float):
-        #    ok = value == int(value)
-        #    timer_.split("INT FROM NUM OK" if ok else "INT FROM NUM FAIL")
-        #    return ok
+        if value_type in (int, float):
+            ok = value == int(value)
+            return ok
         if value_type is str:
             ok = value.strip().lstrip("+-").isdigit()
             return ok
@@ -265,7 +265,10 @@ class JsonParser:
     def __init__(self):
         self.type_graph = TypeGraph()
 
-    def parse_any(self, json_obj: dict | list | int | str, types: list[TypeGraphNode]):
+    def parse_any(self, cls: Any, json_obj: dict | list | int | str, game: GameInterface = None):
+        return self._parse_any(json_obj, [self.type_graph.type_to_node[cls]], game = game)
+
+    def _parse_any(self, json_obj: dict | list | int | str, types: list[TypeGraphNode], game = None):
         #assert self.type_graph.build, "Build the type-tree using .build_tree before parsing!"
         correct_type_node = self.get_actual_type(json_obj, types)
         #if correct_type_node is None:
@@ -276,7 +279,7 @@ class JsonParser:
             return json_obj
 
         if type_is_game_object(t):
-            return self.parse_game_object(json_obj, correct_type_node)
+            return self.parse_game_object(json_obj, correct_type_node, game)
 
         elif type_is_dataclass(t):
             return self.parse_data_class(json_obj, correct_type_node)
@@ -308,12 +311,12 @@ class JsonParser:
             raise ValueError(f"Cant parse json_obj {str(json_obj)[:200]} with type {t}")
 
 
-    def parse_game_object(self, json_obj, t: TypeGraphNode):
-        assert type(json_obj) is dict, f"GameObject has to be represented by dict! type {t} is not; {str(json_obj)[:200]}"
+    def parse_game_object(self, json_obj, t: TypeGraphNode, game):
+        #assert type(json_obj) is dict, f"GameObject has to be represented by dict! type {t} is not; {str(json_obj)[:200]}"
 
         instance = self.parse_data_class(json_obj, t)
         instance = cast(t.type, instance)
-        # TODO add Game
+        instance.game = game
         return instance
 
     def parse_data_class(self, json_obj, t: TypeGraphNode):
@@ -340,7 +343,7 @@ class JsonParser:
 
             field_info = get_fields(cls, python_var_name)
             if conflict_var_name in json_obj:
-                parsed_data[python_var_name] = self.parse_any(json_obj[conflict_var_name], t.children[python_var_name])
+                parsed_data[python_var_name] = self._parse_any(json_obj[conflict_var_name], t.children[python_var_name])
             else:
                 #possible_types = t.children[python_var_name]
                 #if len(possible_types) != 1:
@@ -365,10 +368,10 @@ class JsonParser:
         return instance
 
     def parse_list(self, json_obj: list, value_t: list[TypeGraphNode]):
-        return [self.parse_any(v, value_t) for v in json_obj]
+        return [self._parse_any(v, value_t) for v in json_obj]
 
     def parse_dict(self, json_obj: dict, key_t: list[TypeGraphNode], value_t: list[TypeGraphNode]):
-        return {self.parse_any(k, key_t): self.parse_any(v, value_t) for k,v in json_obj.items()}
+        return {self._parse_any(k, key_t): self._parse_any(v, value_t) for k,v in json_obj.items()}
 
     @staticmethod
     def parse_enum(json_obj: str | int, t: type) -> Enum:
@@ -395,20 +398,20 @@ class JsonParser:
             return self.get_actual_type(json_obj, possible_type.children["v"])
 
         json_type = type(json_obj)
-
+        if json_type in self._PRIMITIVES:
+            return self._match_primitive_type(json_obj, possible_type, json_type)
         # Dispatch to specific type handlers
-        if json_type is list:
+        elif json_type is list:
             return self._match_list_type(json_obj, possible_type)
         elif json_type is dict:
             return self._match_dict_type(json_obj, possible_type)
-        else:
-            return self._match_primitive_type(json_obj, possible_type, json_type)
+        return None
 
     def _match_list_type(self, json_obj: list, possible_type: TypeGraphNode) -> TypeGraphNode | None:
         """Match list types with optional tagged discriminator."""
         # Check for tagged list (first element is type discriminator)
         if json_obj and possible_type.type in self.type_graph.type_to_c:
-            if json_obj[0] == self.type_graph.type_to_c[possible_type.type]:
+            if json_obj[0] in self.type_graph.type_to_c[possible_type.type]:
 
                 return possible_type
 
@@ -424,7 +427,7 @@ class JsonParser:
         """Match dict types with optional @c discriminator or structural checks."""
         # Check for explicit type discriminator
         if "@c" in json_obj and possible_type.type in self.type_graph.type_to_c:
-            if json_obj["@c"] == self.type_graph.type_to_c[possible_type.type]:
+            if json_obj["@c"] in self.type_graph.type_to_c[possible_type.type]:
                 return possible_type
 
         # Check for generic dict type

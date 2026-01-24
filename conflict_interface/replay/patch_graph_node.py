@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 import struct
 from typing import Any
+from typing import TYPE_CHECKING
 
 import msgpack
 import numpy as np
 
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object_binary import GameObjectSerializer
-from conflict_interface.interface.game_interface import GameInterface
+
 from conflict_interface.utils.binary import BinaryReader
 from conflict_interface.utils.binary import BinaryWriter
 from conflict_interface.utils.helper import is_primitive
 
+if TYPE_CHECKING:
+    from conflict_interface.interface import GameInterface
 
 class PatchGraphNode:
 

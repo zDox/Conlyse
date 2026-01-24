@@ -40,7 +40,7 @@ class TypeGraph:
     _TYPE_QUE = deque([])
     def __init__(self):
         self.type_to_node: dict[type, TypeGraphNode] = {}
-        self.type_to_c: dict[type, str] = {}
+        self.type_to_c: dict[type, list[str]] = {}
         self.build = False
 
     @classmethod
@@ -74,7 +74,10 @@ class TypeGraph:
         node = TypeGraphNode(_type)
         self.type_to_node[_type] = node
         if hasattr(_type, "C"):
-            self.type_to_c[_type] = getattr(_type, "C")
+            self.type_to_c.setdefault(_type, []).append(getattr(_type, "C"))
+
+    def add_c_tag(self, _type: type, c):
+        self.type_to_c.setdefault(_type, []).append(c)
 
     def add_edge_and_nodes(self, u: type, v: type, tag: str):
         self.add_node(u)
