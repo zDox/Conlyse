@@ -12,7 +12,6 @@ AsyncHttpsRequest::AsyncHttpsRequest(asio::io_context& io_context,
       timeout_duration_(timeout),
       proxy_(proxy) {}
 
-
 std::string AsyncHttpsRequest::base64_encode(const std::string& input) {
     static const char* base64_chars = 
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

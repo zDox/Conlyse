@@ -32,7 +32,7 @@ protected:
         // After test body completes, io_context might have pending cleanup handlers
         // from the AsyncHttpsRequest destructor. Reset the io_context to allow
         // it to run again, then poll to process any such handlers.
-        if (io_context_ && !io_context_->stopped()) {
+        if (io_context_ && io_context_->stopped()) {
             io_context_->restart();
         }
         if (io_context_) {
@@ -67,8 +67,10 @@ protected:
         // Run the io_context until all work is complete
         io_context_->run();
         
-        // DO NOT call restart() here - it can cause segfaults
-        // Just let the contexts be destroyed naturally
+        // DO NOT call restart() here - the io_context will be in a stopped state
+        // after run() completes. Calling restart() can cause issues with cleanup
+        // handlers that are posted during object destruction. Instead, we let the
+        // TearDown handle any necessary restart/poll cycle.
 
         if (exception) {
             std::rethrow_exception(exception);
