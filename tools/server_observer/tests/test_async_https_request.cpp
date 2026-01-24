@@ -29,10 +29,13 @@ protected:
         // before destroying io_context and ssl_context to avoid segfault.
         // The request objects hold references to these contexts.
         
-        // Stop the io_context to cancel any pending operations
+        // After test body completes, io_context might have pending cleanup handlers
+        // from the AsyncHttpsRequest destructor. Reset the io_context to allow
+        // it to run again, then poll to process any such handlers.
+        if (io_context_ && io_context_->stopped()) {
+            io_context_->restart();
+        }
         if (io_context_) {
-            io_context_->stop();
-            // Give pending operations a chance to complete
             io_context_->poll();
         }
         
@@ -44,7 +47,7 @@ protected:
     // Helper function to run a coroutine and get the result
     // This ensures the awaitable is fully executed and completed before returning
     template<typename Awaitable>
-    auto runAwaitable(Awaitable&& awaitable) -> decltype(auto) {
+    auto runAwaitable(Awaitable&& awaitable) -> typename std::decay_t<Awaitable>::value_type {
         using ResultType = typename std::decay_t<Awaitable>::value_type;
         std::optional<ResultType> result;
         std::exception_ptr exception;
@@ -64,14 +67,16 @@ protected:
         // Run the io_context until all work is complete
         io_context_->run();
         
-        // Reset io_context for next use
-        io_context_->restart();
+        // DO NOT call restart() here - the io_context will be in a stopped state
+        // after run() completes. Calling restart() can cause issues with cleanup
+        // handlers that are posted during object destruction. Instead, we let the
+        // TearDown handle any necessary restart/poll cycle.
 
         if (exception) {
             std::rethrow_exception(exception);
         }
 
-        return std::move(*result);
+        return *result;
     }
 
     std::unique_ptr<asio::io_context> io_context_;
