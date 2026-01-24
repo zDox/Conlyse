@@ -1,5 +1,5 @@
-import dataclasses
 from dataclasses import MISSING as DATACLASS_MISSING
+from dataclasses import dataclass
 from dataclasses import is_dataclass
 from datetime import UTC
 from enum import Enum
@@ -109,7 +109,7 @@ def type_is_enum(t):
     _type_is_enum_cache[t] = ret
     return ret
 
-def get_fields(t: type[dataclasses.dataclass()], var: str):
+def get_fields(t: type[dataclass()], var: str):
     ret = t.__dataclass_fields__[var]
     return ret
 
