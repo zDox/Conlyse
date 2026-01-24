@@ -80,26 +80,31 @@ protected:
 
 // Test successful HTTPS GET request to a reliable endpoint
 TEST_F(AsyncHttpsRequestTest, SuccessfulGetRequest) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    auto response = runAwaitable(
-        request->execute(
-            "www.google.com",
-            "443",
-            "GET",
-            "/",
-            headers,
-            "",
-            ""
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "www.google.com",
+                "443",
+                "GET",
+                "/",
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_FALSE(response.timeout);
@@ -145,28 +150,33 @@ TEST_F(AsyncHttpsRequestTest, GetRequestWithPath) {
 
 // Test POST request with body
 TEST_F(AsyncHttpsRequestTest, PostRequestWithBody) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    std::string body = R"({"test": "data", "key": "value"})";
+        std::string body = R"({"test": "data", "key": "value"})";
 
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "POST",
-            "/post",
-            headers,
-            body,
-            "application/json"
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post",
+                headers,
+                body,
+                "application/json"
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_FALSE(response.timeout);
@@ -180,29 +190,34 @@ TEST_F(AsyncHttpsRequestTest, PostRequestWithBody) {
 
 // Test request timeout
 TEST_F(AsyncHttpsRequestTest, RequestTimeout) {
-    // Use a very short timeout to force timeout
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(1)  // Very short timeout
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        // Use a very short timeout to force timeout
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(1)  // Very short timeout
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    // Use a host that's known to be slow or unresponsive
-    // httpbin.org/delay/10 delays response by 10 seconds
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "GET",
-            "/delay/10",  // 10 second delay
-            headers,
-            "",
-            ""
-        )
-    );
+        // Use a host that's known to be slow or unresponsive
+        // httpbin.org/delay/10 delays response by 10 seconds
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/delay/10",  // 10 second delay
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_FALSE(response.success);
     EXPECT_TRUE(response.timeout);
@@ -210,26 +225,31 @@ TEST_F(AsyncHttpsRequestTest, RequestTimeout) {
 
 // Test invalid host
 TEST_F(AsyncHttpsRequestTest, InvalidHost) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(10)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(10)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    auto response = runAwaitable(
-        request->execute(
-            "invalid-host-that-does-not-exist-12345.com",
-            "443",
-            "GET",
-            "/",
-            headers,
-            "",
-            ""
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "invalid-host-that-does-not-exist-12345.com",
+                "443",
+                "GET",
+                "/",
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_FALSE(response.success);
     EXPECT_FALSE(response.error_message.empty());
@@ -237,26 +257,31 @@ TEST_F(AsyncHttpsRequestTest, InvalidHost) {
 
 // Test response headers parsing
 TEST_F(AsyncHttpsRequestTest, ResponseHeadersParsing) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "GET",
-            "/response-headers?Test-Header=TestValue",
-            headers,
-            "",
-            ""
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/response-headers?Test-Header=TestValue",
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_FALSE(response.headers.empty());
@@ -268,28 +293,33 @@ TEST_F(AsyncHttpsRequestTest, ResponseHeadersParsing) {
 
 // Test custom headers are sent
 TEST_F(AsyncHttpsRequestTest, CustomHeadersSent) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
-    headers["X-Custom-Header"] = "CustomValue";
-    headers["Authorization"] = "Bearer test-token";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        headers["X-Custom-Header"] = "CustomValue";
+        headers["Authorization"] = "Bearer test-token";
 
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "GET",
-            "/headers",
-            headers,
-            "",
-            ""
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/headers",
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_EQ(response.status_code, 200);
@@ -301,54 +331,64 @@ TEST_F(AsyncHttpsRequestTest, CustomHeadersSent) {
 
 // Test different HTTP methods
 TEST_F(AsyncHttpsRequestTest, PutRequest) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    std::string body = R"({"update": "test"})";
+        std::string body = R"({"update": "test"})";
 
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "PUT",
-            "/put",
-            headers,
-            body,
-            "application/json"
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "PUT",
+                "/put",
+                headers,
+                body,
+                "application/json"
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_EQ(response.status_code, 200);
 }
 
 TEST_F(AsyncHttpsRequestTest, DeleteRequest) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "DELETE",
-            "/delete",
-            headers,
-            "",
-            ""
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "DELETE",
+                "/delete",
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_EQ(response.status_code, 200);
@@ -356,52 +396,62 @@ TEST_F(AsyncHttpsRequestTest, DeleteRequest) {
 
 // Test status codes
 TEST_F(AsyncHttpsRequestTest, NotFoundStatus) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "GET",
-            "/status/404",
-            headers,
-            "",
-            ""
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/status/404",
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_EQ(response.status_code, 404);
 }
 
 TEST_F(AsyncHttpsRequestTest, ServerErrorStatus) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "GET",
-            "/status/500",
-            headers,
-            "",
-            ""
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/status/500",
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_EQ(response.status_code, 500);
@@ -409,26 +459,31 @@ TEST_F(AsyncHttpsRequestTest, ServerErrorStatus) {
 
 // Test latency measurement
 TEST_F(AsyncHttpsRequestTest, LatencyMeasurement) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "GET",
-            "/delay/1",  // 1 second delay
-            headers,
-            "",
-            ""
-        )
-    );
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/delay/1",  // 1 second delay
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_GE(response.latency.count(), 1000);  // At least 1 second
@@ -513,27 +568,32 @@ TEST_F(AsyncHttpsRequestTest, MultipleSequentialRequests) {
 
 // Test large response body handling
 TEST_F(AsyncHttpsRequestTest, LargeResponseBody) {
-    auto request = std::make_shared<AsyncHttpsRequest>(
-        *io_context_,
-        *ssl_context_,
-        std::chrono::seconds(30)
-    );
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
 
-    Headers headers;
-    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-    // Request a large amount of data (100KB)
-    auto response = runAwaitable(
-        request->execute(
-            "httpbin.org",
-            "443",
-            "GET",
-            "/bytes/102400",  // 100KB of random bytes
-            headers,
-            "",
-            ""
-        )
-    );
+        // Request a large amount of data (100KB)
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/bytes/102400",  // 100KB of random bytes
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_EQ(response.status_code, 200);
