@@ -967,7 +967,7 @@ TEST_F(AsyncHttpsRequestTest, RedirectHandling) {
         Headers headers;
         headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
 
-        // This endpoint redirects to /get
+        // This endpoint returns a 302 redirect to /get
         response = runAwaitable(
             request->execute(
                 "httpbin.org",
@@ -981,11 +981,12 @@ TEST_F(AsyncHttpsRequestTest, RedirectHandling) {
         );
     }
 
-    // Note: AsyncHttpsRequest doesn't follow redirects automatically
-    // So we expect a 302 or similar redirect status
+    // AsyncHttpsRequest does NOT follow redirects automatically (by design).
+    // It treats redirect responses as successful responses with the redirect status code.
+    // The client receives the 302 response and would need to manually handle the redirect.
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
-    // Status could be 302 (redirect) if not following, or 200 if following
-    EXPECT_TRUE(response.status_code == 302 || response.status_code == 200);
+    EXPECT_EQ(response.status_code, 302) << "Expected redirect status code";
+    // The Location header would contain the redirect URL
 }
 
 // Test UTF-8 characters in JSON body
@@ -1130,6 +1131,9 @@ TEST_F(AsyncHttpsRequestTest, DuplicateContentTypeHeaders) {
 
         // This will add ANOTHER Content-Type header (application/json)
         // resulting in duplicate headers which can cause 400 errors
+        // NOTE: We cannot easily verify the duplicate headers are sent without
+        // a network capture, but the code path in async_https_request.cpp
+        // (lines 221-228) clearly shows both headers are added.
         response = runAwaitable(
             request->execute(
                 "httpbin.org",
@@ -1143,10 +1147,11 @@ TEST_F(AsyncHttpsRequestTest, DuplicateContentTypeHeaders) {
         );
     }
 
-    // httpbin.org is lenient and may accept this, but strict servers return 400
-    // The request should still complete, but this demonstrates the bug
+    // httpbin.org is lenient and accepts duplicate headers, so the request succeeds.
+    // However, strict servers (like some game servers) would return 400 here.
+    // This test demonstrates the bug scenario that occurs in observation_api.cpp.
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
-    // Note: Some strict servers would return 400 here due to duplicate headers
+    // Note: Strict servers would return 400 here due to duplicate Content-Type headers
 }
 
 // Test request with cache control headers

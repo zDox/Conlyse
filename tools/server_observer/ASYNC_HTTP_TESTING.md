@@ -159,7 +159,11 @@ if (!body.empty() && !has_content_type) {
 
 ### Additional Observations
 
-1. **Hash Generation**: The observation API generates a hash using "undefined" as a prefix (line 72), which seems intentional but unusual.
+1. **Hash Generation**: The observation API generates a hash using "undefined" as a prefix (line 72):
+   ```cpp
+   std::string hash_input = "undefined" + std::to_string(current_time_ms());
+   ```
+   This appears to be intentional, likely matching the behavior of JavaScript code where an undefined variable would be converted to the string "undefined". This maintains compatibility with the game server's expected hash format.
 
 2. **Request Payload Structure**: The API builds a complex JSON payload with authentication information. Missing or malformed fields could cause 400 errors.
 
