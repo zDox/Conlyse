@@ -275,8 +275,10 @@ class JsonParser:
         #    raise ValueError(f"Type for {type(json_obj)} json_obj {str(json_obj)[:200]} could not be determined out of {[x.type for x in types]}")
 
         t = correct_type_node.type
-        if t in self._PRIMITIVES:
+        if t is type(None):
             return json_obj
+        if t in self._PRIMITIVES:
+            return t(json_obj)
 
         if type_is_game_object(t):
             return self.parse_game_object(json_obj, correct_type_node, game)
