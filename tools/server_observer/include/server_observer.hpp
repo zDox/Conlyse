@@ -34,6 +34,7 @@ public:
 private:
     json config_;
     std::shared_ptr<AccountPool> account_pool_;
+    std::shared_ptr<RequestManager> request_manager_;
     std::mutex sessions_lock_;
     
     std::vector<int> scenario_ids_;

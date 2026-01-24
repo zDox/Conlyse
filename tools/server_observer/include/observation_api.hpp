@@ -5,19 +5,25 @@
 #include <map>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <chrono>
+#include <httplib.h>
+
+#include "http_client.hpp"
 #include "hub_interface_wrapper.hpp"
 
 using json = nlohmann::json;
 
 class ObservationApi {
 public:
-    ObservationApi(const json& headers,
-                  const json& cookies,
-                  const json& proxy,
-                  const AuthDetails& auth_details,
-                  int game_id,
-                  const std::string& game_server_address,
-                  int client_version = 207);
+    ObservationApi(
+                std::shared_ptr<RequestManager> manager,
+                json headers,
+                json cookies,
+                json proxy,
+                AuthDetails auth_details,
+                int game_id,
+                const std::string& game_server_address,
+                int client_version = 207);
     
     ~ObservationApi();
     
@@ -41,7 +47,8 @@ private:
     json headers_;
     json cookies_;
     json proxy_;
-    
+    std::unique_ptr<HttpClient> cli_;
+
     json make_game_server_request(const json& parameters);
     void update_server_time(int64_t t_stamp_now);
     bool extract_state_metadata(const json& response,

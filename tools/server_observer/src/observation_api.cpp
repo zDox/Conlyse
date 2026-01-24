@@ -1,12 +1,6 @@
 #include "observation_api.hpp"
-#include <httplib.h>
-#include <iostream>
-#include <chrono>
-#include <sstream>
-#include <iomanip>
-#include <openssl/sha.h>
 
-static const int SUPPORTED_CLIENT_VERSION = 207;
+
 static const int MAX_RETRIES = 3;
 
 static std::string sha1_hex(const std::string& input) {
@@ -14,8 +8,8 @@ static std::string sha1_hex(const std::string& input) {
     SHA1(reinterpret_cast<const unsigned char*>(input.c_str()), input.size(), hash);
     
     std::stringstream ss;
-    for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
-        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
+    for (unsigned char i : hash) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(i);
     }
     return ss.str();
 }
@@ -26,73 +20,40 @@ static int64_t current_time_ms() {
     return ms.count();
 }
 
-ObservationApi::ObservationApi(const json& headers,
-                             const json& cookies,
-                             const json& proxy,
-                             const AuthDetails& auth_details,
+ObservationApi::ObservationApi(
+    std::shared_ptr<RequestManager> manager,
+    json  headers,
+                             json  cookies,
+                             json  proxy,
+                             AuthDetails  auth_details,
                              int game_id,
                              const std::string& game_server_address,
                              int client_version)
     : game_id_(game_id)
     , player_id_(0)
-    , auth_(auth_details)
+    , auth_(std::move(auth_details))
     , request_id_(0)
     , client_version_(client_version)
     , game_server_address_(game_server_address)
-    , headers_(headers)
-    , cookies_(cookies)
-    , proxy_(proxy)
+    , headers_(std::move(headers))
+    , cookies_(std::move(cookies))
+    , proxy_(std::move(proxy))
 {
+    cli_ = std::make_unique<HttpClient>(manager, game_server_address);
 }
 
-ObservationApi::~ObservationApi() {
-}
+ObservationApi::~ObservationApi() = default;
 
 json ObservationApi::make_game_server_request(const json& parameters) {
     int attempt = 0;
     while (true) {
-        // Parse game server address
-        std::string host, path;
-        int port = 443;
-        bool use_ssl = true;
 
-        if (game_server_address_.find("https://") == 0) {
-            host = game_server_address_.substr(8);
-            use_ssl = true;
-            port = 443;
-        } else if (game_server_address_.find("http://") == 0) {
-            host = game_server_address_.substr(7);
-            use_ssl = false;
-            port = 80;
-        } else {
-            host = game_server_address_;
-        }
-
-        // Extract path if present
-        size_t slash_pos = host.find('/');
-        if (slash_pos != std::string::npos) {
-            path = host.substr(slash_pos);
-            host = host.substr(0, slash_pos);
-        } else {
-            path = "/";
-        }
-
-        // Create HTTP/HTTPS client - FIX HERE
-        std::unique_ptr<httplib::Client> cli;
-
-        if (use_ssl) {
-            // For HTTPS, use SSLClient or specify scheme in constructor
-            cli = std::make_unique<httplib::Client>("https://" + host);
-            cli->enable_server_certificate_verification(false);
-        } else {
-            // For HTTP
-            cli = std::make_unique<httplib::Client>("http://" + host);
-        }
-
-        cli->set_follow_location(true);
+        // Create HTTPS client
+        cli_->enable_server_certificate_verification(false);
+        cli_->set_follow_location(true);
 
         // Build request headers
-        httplib::Headers req_headers = {
+        Headers req_headers = {
             {"Accept", "text/plain, */*; q=0.01"},
             {"Content-Type", "application/x-www-form-urlencoded; charset=UTF-8"},
             {"Accept-Encoding", "gzip, deflate, br"}
@@ -137,38 +98,22 @@ json ObservationApi::make_game_server_request(const json& parameters) {
 
         // Send request
         std::string body = payload.dump();
-        auto res = cli->Post(path.c_str(), req_headers, body, "application/json");
+        auto res = cli_->Post(req_headers, body, "application/json");
 
-        if (!res) {
-            throw std::runtime_error("HTTP request failed");
-        }
-
-        if (res->status != 200) {
-            throw std::runtime_error("HTTP status: " + std::to_string(res->status));
+        if (res.status_code != 200) {
+            throw std::runtime_error("HTTP status: " + std::to_string(res.status_code));
         }
 
         // Parse response and immediately clear the response body to free memory
         json response_json;
         try {
-            response_json = json::parse(res->body);
+            response_json = json::parse(res.data);
             // Clear the response body string to free memory
-            res->body.clear();
-            res->body.shrink_to_fit();
+            res.data.clear();
+            res.data.shrink_to_fit();
         } catch (const std::exception& e) {
             throw std::runtime_error("Failed to parse response: " + std::string(e.what()));
         }
-
-        // Update server time
-        /*
-        if (response_json.contains("result")) {
-            auto& result = response_json["result"];
-            if (result.is_object() && result.contains("timeStamp")) {
-                update_server_time(result["timeStamp"].get<int64_t>());
-            } else {
-                update_server_time(0);
-            }
-        }
-        */
 
         // Handle errors
         if (response_json.contains("result") && response_json["result"].is_object()) {
@@ -184,6 +129,7 @@ json ObservationApi::make_game_server_request(const json& parameters) {
                         std::string new_server = "https://" + result["newHostName"].get<std::string>();
                         std::cout << "Switching game server to " << new_server << std::endl;
                         game_server_address_ = new_server;
+                        cli_->set_url(game_server_address_);
                     }
                     // Retry
                     if (attempt >= MAX_RETRIES) {
@@ -198,11 +144,6 @@ json ObservationApi::make_game_server_request(const json& parameters) {
         
         return response_json;
     }
-}
-
-void ObservationApi::update_server_time(int64_t t_stamp_now) {
-    // In C++, we don't need to track server time offset for observation
-    // This is a simplified implementation
 }
 
 json ObservationApi::request_game_state(std::map<std::string, std::string> &state_ids,
@@ -287,23 +228,22 @@ bool ObservationApi::extract_state_metadata(const json& response,
 }
 
 json ObservationApi::get_static_map_data(int map_id) {
-    std::string url = "https://static1.bytro.com/fileadmin/mapjson/live/" + 
+    std::string url = "https://static1.bytro.com/fileadmin/mapjson/live/" +
                       std::to_string(map_id) + ".json";
-    
     httplib::Client cli("https://static1.bytro.com");
     cli.set_follow_location(true);
-    
+
     httplib::Headers headers = {
         {"Accept", "application/json, text/javascript, */*; q=0.01"}
     };
-    
+
     std::string path = "/fileadmin/mapjson/live/" + std::to_string(map_id) + ".json";
     auto res = cli.Get(path.c_str(), headers);
-    
+
     if (!res || res->status != 200) {
         throw std::runtime_error("Failed to fetch static map data");
     }
-    
+
     // Parse and immediately clear the response body to free memory
     json result = json::parse(res->body);
     res->body.clear();

@@ -18,7 +18,7 @@ using tcp = asio::ip::tcp;
 namespace ssl = asio::ssl;
 
 // Awaitable HTTPS request class with timeout support
-class AsyncHttpsRequest : public std::enable_shared_from_this<AsyncHttpsRequest> {
+class AsyncHttpsRequest {
 public:
     AsyncHttpsRequest(asio::io_context& io_context, 
                      ssl::context& ssl_context,

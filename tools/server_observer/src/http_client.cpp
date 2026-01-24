@@ -1,39 +1,24 @@
 #include "http_client.hpp"
 
-HttpClient::HttpClient(const std::string& url, size_t num_threads)
-    : work_guard_(asio::make_work_guard(io_context_)),
-      ssl_context_(ssl::context::tls_client),
+#include <utility>
+
+#include "async_https_request.hpp"
+
+HttpClient::HttpClient(std::shared_ptr<RequestManager> manager, const std::string& url)
+    : manager_(std::move(std::move(manager))),
       timeout_(30),
       verify_ssl_(true) {
     
-    parse_url(url);
-    
-    // Configure SSL context
-    ssl_context_.set_default_verify_paths();
-    ssl_context_.set_verify_mode(ssl::verify_peer);
-    
-    // Start worker threads
-    for (size_t i = 0; i < num_threads; ++i) {
-        threads_.emplace_back([this]() {
-            io_context_.run();
-        });
+    if (!manager_) {
+        throw std::runtime_error("HttpClient requires a valid RequestManager");
     }
-}
 
-HttpClient::~HttpClient() {
-    work_guard_.reset();
-    for (auto& t : threads_) {
-        if (t.joinable()) t.join();
-    }
+    parse_url(url);
 }
+HttpClient::~HttpClient() = default;
 
 void HttpClient::enable_server_certificate_verification(bool enable) {
     verify_ssl_ = enable;
-    if (!enable) {
-        ssl_context_.set_verify_mode(ssl::verify_none);
-    } else {
-        ssl_context_.set_verify_mode(ssl::verify_peer);
-    }
 }
 
 void HttpClient::set_follow_location(bool follow) {
@@ -44,9 +29,13 @@ void HttpClient::set_connection_timeout(std::chrono::seconds timeout) {
     timeout_ = timeout;
 }
 
+void HttpClient::set_url(const std::string &url) {
+    parse_url(url);
+}
+
 void HttpClient::set_proxy(const std::string& host, int port, 
-               const std::string& username, 
-               const std::string& password) {
+                           const std::string& username, 
+                           const std::string& password) {
     proxy_ = ProxyConfig(host, port, username, password);
 }
 
@@ -54,7 +43,7 @@ void HttpClient::clear_proxy() {
     proxy_ = ProxyConfig();
 }
 
-HttpResponse HttpClient::Post(const std::string& path,
+HttpResponse HttpClient::Post(
                  const Headers& headers,
                  const std::string& body,
                  const std::string& content_type) {
@@ -62,10 +51,10 @@ HttpResponse HttpClient::Post(const std::string& path,
     std::promise<HttpResponse> promise;
     auto future = promise.get_future();
     
-    asio::co_spawn(io_context_,
-        [this, path, headers, body, content_type, &promise]() -> asio::awaitable<void> {
+    asio::co_spawn(manager_->get_io_context(),
+        [this, headers, body, content_type, &promise]() -> asio::awaitable<void> {
             try {
-                auto response = co_await Post_async(path, headers, body, content_type);
+                auto response = co_await Post_async(headers, body, content_type);
                 promise.set_value(response);
             } catch (...) {
                 promise.set_exception(std::current_exception());
@@ -77,34 +66,29 @@ HttpResponse HttpClient::Post(const std::string& path,
 }
 
 asio::awaitable<HttpResponse> HttpClient::Post_async(
-    const std::string& path,
     const Headers& headers,
     const std::string& body,
     const std::string& content_type) {
     
+    // Acquire a request slot (blocks if max in-flight reached)
+    RequestManager::RequestSlot slot(*manager_);
+
     auto request = std::make_shared<AsyncHttpsRequest>(
-        io_context_, ssl_context_, timeout_, proxy_);
-    
-    std::string full_path = path;
-    if (!base_path_.empty() && path[0] != '/') {
-        full_path = base_path_ + "/" + path;
-    } else if (!base_path_.empty()) {
-        full_path = base_path_ + path;
-    }
-    
+        manager_->get_io_context(), manager_->get_ssl_context(), timeout_, proxy_);
+
     co_return co_await request->execute(
-        host_, std::to_string(port_), "POST", full_path, 
+        host_, std::to_string(port_), "POST", base_path_,
         headers, body, content_type);
 }
 
-HttpResponse HttpClient::Get(const std::string& path, const Headers& headers) {
+HttpResponse HttpClient::Get(const Headers& headers) {
     std::promise<HttpResponse> promise;
     auto future = promise.get_future();
     
-    asio::co_spawn(io_context_,
-        [this, path, headers, &promise]() -> asio::awaitable<void> {
+    asio::co_spawn(manager_->get_io_context(),
+        [this, headers, &promise]() -> asio::awaitable<void> {
             try {
-                auto response = co_await Get_async(path, headers);
+                auto response = co_await Get_async(headers);
                 promise.set_value(response);
             } catch (...) {
                 promise.set_exception(std::current_exception());
@@ -116,26 +100,21 @@ HttpResponse HttpClient::Get(const std::string& path, const Headers& headers) {
 }
 
 asio::awaitable<HttpResponse> HttpClient::Get_async(
-    const std::string& path,
     const Headers& headers) {
     
+    // Acquire a request slot (blocks if max in-flight reached)
+    RequestManager::RequestSlot slot(*manager_);
+
     auto request = std::make_shared<AsyncHttpsRequest>(
-        io_context_, ssl_context_, timeout_, proxy_);
-    
-    std::string full_path = path;
-    if (!base_path_.empty() && path[0] != '/') {
-        full_path = base_path_ + "/" + path;
-    } else if (!base_path_.empty()) {
-        full_path = base_path_ + path;
-    }
-    
+        manager_->get_io_context(), manager_->get_ssl_context(), timeout_, proxy_);
+
     co_return co_await request->execute(
-        host_, std::to_string(port_), "GET", full_path, 
+        host_, std::to_string(port_), "GET", base_path_,
         headers, "", "");
 }
 
 asio::io_context& HttpClient::get_io_context() {
-    return io_context_;
+    return manager_->get_io_context();
 }
 
 void HttpClient::parse_url(const std::string& url) {
@@ -168,7 +147,7 @@ void HttpClient::parse_url(const std::string& url) {
         try {
             port_ = std::stoi(host_.substr(colon_pos + 1));
             host_ = host_.substr(0, colon_pos);
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             throw std::runtime_error("Invalid port number in URL: " + url);
         }
     }

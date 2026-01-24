@@ -65,6 +65,11 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     
     // Initialize map cache
     map_cache_ = std::make_shared<StaticMapCache>(output_dir_ + "/static_maps");
+
+    request_manager_ = std::make_shared<RequestManager>(
+        config.value("request_manager_threads", 1),
+        config.value("max_in_flight_requests", 100)
+    );
     
     // Load known games from registry
     refresh_known_games_from_registry();
@@ -208,8 +213,8 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
     if (!output_metadata_dir_.empty()) {
         metadata_path = output_metadata_dir_ + "/game_" + std::to_string(game_id);
     }
-
     auto observer = std::make_unique<ObservationSession>(
+        request_manager_,
         game_id,
         account,
         map_cache_,
