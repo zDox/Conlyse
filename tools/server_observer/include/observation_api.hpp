@@ -79,9 +79,6 @@ private:
     std::map<std::string, std::string> cookies_;
     ProxyConfig proxy_;
     std::unique_ptr<HttpClient> cli_;
-
-    // Helper methods for request processing
-    json parse_response(const std::string& response_data);
 };
 
 #endif // OBSERVATION_API_HPP

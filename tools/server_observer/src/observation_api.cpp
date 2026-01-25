@@ -48,16 +48,6 @@ ObservationApi::ObservationApi(
 
 ObservationApi::~ObservationApi() = default;
 
-json ObservationApi::parse_response(const std::string& response_data) {
-    json response_json;
-    try {
-        response_json = json::parse(response_data);
-    } catch (const std::exception& e) {
-        throw std::runtime_error("Failed to parse response: " + std::string(e.what()));
-    }
-    return response_json;
-}
-
 asio::awaitable<HttpResponse> ObservationApi::request_game_state_async(std::map<std::string, std::string> &state_ids,
                                                                         std::map<std::string, std::string> &time_stamps) {
     bool include_state_meta = !state_ids.empty() && !time_stamps.empty();
