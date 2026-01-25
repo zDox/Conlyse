@@ -10,6 +10,7 @@
 
 #include "http_client.hpp"
 #include "hub_interface_wrapper.hpp"
+#include "proxy_config.hpp"
 
 using json = nlohmann::json;
 
@@ -17,9 +18,9 @@ class ObservationApi {
 public:
     ObservationApi(
                 std::shared_ptr<RequestManager> manager,
-                json headers,
-                json cookies,
-                json proxy,
+                const std::map<std::string, std::string>& headers,
+                const std::map<std::string, std::string>& cookies,
+                const ProxyConfig& proxy,
                 AuthDetails auth_details,
                 int game_id,
                 const std::string& game_server_address,
@@ -33,8 +34,8 @@ public:
     json get_static_map_data(int map_id);
     
     AuthDetails get_auth() const { return auth_; }
-    json get_cookies() const;
-    json get_headers() const;
+    std::map<std::string, std::string> get_cookies() const;
+    std::map<std::string, std::string> get_headers() const;
     std::string get_game_server_address() const { return game_server_address_; }
     
 private:
@@ -44,9 +45,9 @@ private:
     int request_id_;
     int client_version_;
     std::string game_server_address_;
-    json headers_;
-    json cookies_;
-    json proxy_;
+    std::map<std::string, std::string> headers_;
+    std::map<std::string, std::string> cookies_;
+    ProxyConfig proxy_;
     std::unique_ptr<HttpClient> cli_;
 
     json make_game_server_request(const json& parameters);

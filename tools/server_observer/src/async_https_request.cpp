@@ -1,6 +1,7 @@
 #include "async_https_request.hpp"
 #include <iostream>
 #include <zlib.h>
+#include <openssl/ssl.h>
 
 namespace {
     // Decompress gzip-encoded data
@@ -101,6 +102,11 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             throw std::runtime_error("Failed to set SNI hostname");
         }
 
+        // Disable SSL write buffering to ensure immediate transmission
+        // Note: Don't use SSL_MODE_AUTO_RETRY in async contexts as it can block
+        SSL_set_mode(ssl_socket_.native_handle(), SSL_MODE_ENABLE_PARTIAL_WRITE);
+        SSL_set_mode(ssl_socket_.native_handle(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+
         // Step 1: Resolve hostname
         tcp::resolver::results_type endpoints;
         std::string connect_host = proxy_.enabled ? proxy_.host : host;
@@ -184,8 +190,11 @@ asio::awaitable<bool> AsyncHttpsRequest::resolve_host(
     auto start = std::chrono::steady_clock::now();
     timeout_timer_.expires_after(timeout_duration_);
 
+    // Use resolver flags to prefer IPv4 and improve connection speed
+    tcp::resolver::flags resolve_flags = tcp::resolver::address_configured;
+
     auto resolve_result = co_await (
-        resolver_.async_resolve(host, port, asio::as_tuple(asio::use_awaitable)) ||
+        resolver_.async_resolve(host, port, resolve_flags, asio::as_tuple(asio::use_awaitable)) ||
         timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
     );
 
@@ -233,6 +242,16 @@ asio::awaitable<bool> AsyncHttpsRequest::connect_to_server(
     if (ec) {
         throw boost::system::system_error(ec);
     }
+
+    // Disable Nagle's algorithm to avoid buffering delays
+    ssl_socket_.lowest_layer().set_option(tcp::no_delay(true));
+
+    // Set socket options for better performance
+    ssl_socket_.lowest_layer().set_option(tcp::socket::keep_alive(true));
+
+    // Set send/receive buffer sizes for optimal performance
+    ssl_socket_.lowest_layer().set_option(boost::asio::socket_base::send_buffer_size(65536));
+    ssl_socket_.lowest_layer().set_option(boost::asio::socket_base::receive_buffer_size(65536));
 
     timeout_timer_.cancel();
     record_timing(start, response.timings.connect_duration);
@@ -376,6 +395,28 @@ std::string AsyncHttpsRequest::build_http_request(
     request_stream << method << " " << real_path << " HTTP/1.1\r\n";
     request_stream << "Host: " << host << "\r\n";
 
+    // Add default headers if not provided by user
+    bool has_accept = false;
+    bool has_accept_encoding = false;
+    bool has_user_agent = false;
+
+    for (const auto& [key, value] : headers) {
+        if (key == "Accept") has_accept = true;
+        if (key == "Accept-Encoding") has_accept_encoding = true;
+        if (key == "User-Agent") has_user_agent = true;
+    }
+
+    // Add defaults similar to Python requests
+    if (!has_accept) {
+        request_stream << "Accept: */*\r\n";
+    }
+    if (!has_accept_encoding) {
+        request_stream << "Accept-Encoding: gzip, deflate\r\n";
+    }
+    if (!has_user_agent) {
+        request_stream << "User-Agent: AsyncHttpsClient/1.0\r\n";
+    }
+
     // Custom headers
     for (const auto& [key, value] : headers) {
         request_stream << key << ": " << value << "\r\n";
@@ -427,7 +468,7 @@ asio::awaitable<bool> AsyncHttpsRequest::send_http_request(
 
     timeout_timer_.cancel();
     record_timing(start, response.timings.write_duration);
-    std::cout << "HTTP request sent" << std::endl;
+    std::cout << "HTTP request sent (" << bytes_written << " bytes written)" << std::endl;
 
     co_return true;
 }
@@ -441,6 +482,8 @@ asio::awaitable<bool> AsyncHttpsRequest::read_status_line(
     auto ttfb_start = std::chrono::steady_clock::now();
     auto read_start = std::chrono::steady_clock::now();
     timeout_timer_.expires_after(timeout_duration_);
+
+    std::cout << "Waiting for status line (TTFB measurement starts)..." << std::endl;
 
     auto read_result = co_await (
         asio::async_read_until(ssl_socket_, buffer, "\r\n", asio::as_tuple(asio::use_awaitable)) ||

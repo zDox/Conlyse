@@ -52,6 +52,9 @@ FetchContent_MakeAvailable(boost)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ZSTD REQUIRED libzstd)
 
+# Zlib for gzip decompression
+find_package(ZLIB REQUIRED)
+
 # OpenSSL for SHA1
 find_package(OpenSSL REQUIRED)
 
@@ -88,6 +91,7 @@ target_link_libraries(server_observer
         ${ZSTD_LIBRARIES}
         OpenSSL::SSL
         OpenSSL::Crypto
+        ZLIB::ZLIB
         Threads::Threads
         pybind11::embed
 )
@@ -103,6 +107,13 @@ install(TARGETS server_observer DESTINATION bin)
 
 # ============== Testing ==============
 option(BUILD_TESTS "Build the tests" ON)
+
+# Proxy test configuration options
+option(ENABLE_PROXY_TESTS "Enable proxy tests (requires a proxy server)" OFF)
+set(TEST_PROXY_HOST "127.0.0.1" CACHE STRING "Proxy host for testing")
+set(TEST_PROXY_PORT "8080" CACHE STRING "Proxy port for testing")
+set(TEST_PROXY_USER "" CACHE STRING "Proxy username for authenticated tests")
+set(TEST_PROXY_PASS "" CACHE STRING "Proxy password for authenticated tests")
 
 if(BUILD_TESTS)
     enable_testing()
@@ -130,6 +141,7 @@ if(BUILD_TESTS)
         gtest_main
         OpenSSL::SSL
         OpenSSL::Crypto
+        ZLIB::ZLIB
         Threads::Threads
     )
 
@@ -141,6 +153,74 @@ if(BUILD_TESTS)
 
     # Register tests with CTest
     include(GoogleTest)
-    gtest_discover_tests(test_async_https_request)
+    gtest_discover_tests(test_async_https_request
+        PROPERTIES
+            ENVIRONMENT "TEST_PROXY_HOST=${TEST_PROXY_HOST};TEST_PROXY_PORT=${TEST_PROXY_PORT};TEST_PROXY_USER=${TEST_PROXY_USER};TEST_PROXY_PASS=${TEST_PROXY_PASS}"
+    )
+
+    # Custom test targets
+    # Run all tests (note: use "make test" for CTest, or "make run-tests" for this target)
+    add_custom_target(run-tests
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        DEPENDS test_async_https_request
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running all tests..."
+    )
+
+    # Run only non-proxy tests
+    add_custom_target(test-no-proxy
+        COMMAND test_async_https_request --gtest_filter=-*Proxy*:*RequestThroughProxy*
+        DEPENDS test_async_https_request
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running tests without proxy tests..."
+    )
+
+    # Run only proxy tests
+    add_custom_target(test-proxy
+        COMMAND ${CMAKE_COMMAND} -E env
+            TEST_PROXY_HOST=${TEST_PROXY_HOST}
+            TEST_PROXY_PORT=${TEST_PROXY_PORT}
+            TEST_PROXY_USER=${TEST_PROXY_USER}
+            TEST_PROXY_PASS=${TEST_PROXY_PASS}
+            $<TARGET_FILE:test_async_https_request> --gtest_filter=*Proxy*
+        DEPENDS test_async_https_request
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running proxy tests with TEST_PROXY_HOST=${TEST_PROXY_HOST}:${TEST_PROXY_PORT}..."
+    )
+
+    # Verbose test output
+    add_custom_target(test-verbose
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
+        DEPENDS test_async_https_request
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMENT "Running all tests with verbose output..."
+    )
+
+    # Helper target to check proxy connectivity
+    add_custom_target(check-proxy
+        COMMAND ${CMAKE_COMMAND} -E echo "Checking proxy connectivity at ${TEST_PROXY_HOST}:${TEST_PROXY_PORT}..."
+        COMMAND bash -c "timeout 2 bash -c '</dev/tcp/${TEST_PROXY_HOST}/${TEST_PROXY_PORT}' 2>/dev/null && echo 'Proxy is reachable!' || echo 'Proxy is NOT reachable. Tests may be skipped.'"
+        COMMENT "Testing proxy connectivity..."
+    )
+
+    # Print test configuration
+    message(STATUS "Test Configuration:")
+    message(STATUS "  BUILD_TESTS: ${BUILD_TESTS}")
+    message(STATUS "  ENABLE_PROXY_TESTS: ${ENABLE_PROXY_TESTS}")
+    message(STATUS "  TEST_PROXY_HOST: ${TEST_PROXY_HOST}")
+    message(STATUS "  TEST_PROXY_PORT: ${TEST_PROXY_PORT}")
+    if(TEST_PROXY_USER)
+        message(STATUS "  TEST_PROXY_USER: ${TEST_PROXY_USER} (authenticated)")
+    else()
+        message(STATUS "  TEST_PROXY_USER: (not set - auth tests will be skipped)")
+    endif()
+    message(STATUS "")
+    message(STATUS "Available test targets:")
+    message(STATUS "  make test               - Run all tests (CTest)")
+    message(STATUS "  make run-tests          - Run all tests (alternative)")
+    message(STATUS "  make test-no-proxy      - Run tests excluding proxy tests")
+    message(STATUS "  make test-proxy         - Run only proxy tests")
+    message(STATUS "  make test-verbose       - Run all tests with verbose output")
+    message(STATUS "  make check-proxy        - Check if proxy is reachable")
 endif()
 

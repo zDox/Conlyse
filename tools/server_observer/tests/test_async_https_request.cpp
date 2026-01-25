@@ -585,6 +585,267 @@ TEST_F(AsyncHttpsRequestTest, ProxyConfigCreation) {
     EXPECT_FALSE(proxy3.enabled);
 }
 
+// Test request through proxy server (without authentication)
+// This test requires a proxy server to be available.
+// You can set up a local proxy using: ssh -D 8080 -N user@host
+// or use a tool like squid or tinyproxy.
+// The test will be skipped if the proxy is not available.
+TEST_F(AsyncHttpsRequestTest, RequestThroughProxyWithoutAuth) {
+    // Check if a local SOCKS proxy is available at localhost:8080
+    // This is a common setup for SSH dynamic forwarding
+    const char* proxy_host_env = std::getenv("TEST_PROXY_HOST");
+    const char* proxy_port_env = std::getenv("TEST_PROXY_PORT");
+
+    std::string proxy_host = proxy_host_env ? proxy_host_env : "127.0.0.1";
+    int proxy_port = proxy_port_env ? std::stoi(proxy_port_env) : 8080;
+
+    // First, check if the proxy is reachable
+    try {
+        tcp::socket test_socket(*io_context_);
+        tcp::resolver resolver(*io_context_);
+        auto endpoints = resolver.resolve(proxy_host, std::to_string(proxy_port));
+        asio::connect(test_socket, endpoints);
+        test_socket.close();
+    } catch (const std::exception&) {
+        GTEST_SKIP() << "Proxy server not available at " << proxy_host << ":" << proxy_port
+                     << ". Set TEST_PROXY_HOST and TEST_PROXY_PORT environment variables to use a different proxy.";
+        return;
+    }
+
+    ProxyConfig proxy(proxy_host, proxy_port);
+
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30),
+            proxy
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/get",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+    EXPECT_FALSE(response.data.empty());
+
+    // Verify proxy connection timing was recorded
+    EXPECT_GT(response.timings.proxy_connect_duration.count(), 0)
+        << "Proxy connect duration should be positive when using proxy";
+}
+
+// Test request through proxy with authentication
+TEST_F(AsyncHttpsRequestTest, RequestThroughProxyWithAuth) {
+    const char* proxy_host_env = std::getenv("TEST_PROXY_HOST");
+    const char* proxy_port_env = std::getenv("TEST_PROXY_PORT");
+    const char* proxy_user_env = std::getenv("TEST_PROXY_USER");
+    const char* proxy_pass_env = std::getenv("TEST_PROXY_PASS");
+
+    if (!proxy_host_env || !proxy_port_env || !proxy_user_env || !proxy_pass_env) {
+        GTEST_SKIP() << "Authenticated proxy test requires TEST_PROXY_HOST, TEST_PROXY_PORT, "
+                     << "TEST_PROXY_USER, and TEST_PROXY_PASS environment variables";
+        return;
+    }
+
+    std::string proxy_host = proxy_host_env;
+    int proxy_port = std::stoi(proxy_port_env);
+    std::string proxy_user = proxy_user_env;
+    std::string proxy_pass = proxy_pass_env;
+
+    // Check if the proxy is reachable
+    try {
+        tcp::socket test_socket(*io_context_);
+        tcp::resolver resolver(*io_context_);
+        auto endpoints = resolver.resolve(proxy_host, std::to_string(proxy_port));
+        asio::connect(test_socket, endpoints);
+        test_socket.close();
+    } catch (const std::exception&) {
+        GTEST_SKIP() << "Proxy server not reachable at " << proxy_host << ":" << proxy_port;
+        return;
+    }
+
+    ProxyConfig proxy(proxy_host, proxy_port, proxy_user, proxy_pass);
+
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30),
+            proxy
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/get",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+    EXPECT_FALSE(response.data.empty());
+
+    // Verify proxy connection timing was recorded
+    EXPECT_GT(response.timings.proxy_connect_duration.count(), 0)
+        << "Proxy connect duration should be positive when using proxy";
+}
+
+// Test proxy connection failure (invalid proxy)
+TEST_F(AsyncHttpsRequestTest, ProxyConnectionFailure) {
+    // Use an invalid proxy that should not be reachable
+    ProxyConfig proxy("192.0.2.1", 9999);  // 192.0.2.1 is a TEST-NET address that should not route
+
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(5),  // Short timeout
+            proxy
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/get",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    // The request should fail because the proxy is unreachable
+    EXPECT_FALSE(response.success);
+    EXPECT_FALSE(response.error_message.empty());
+}
+
+// Test that proxy timing is zero when not using proxy
+TEST_F(AsyncHttpsRequestTest, NoProxyTimingVerification) {
+    HttpResponse response;
+    {
+        // Create request without proxy (default ProxyConfig)
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/get",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+
+    // Verify proxy timing is zero when not using proxy
+    EXPECT_EQ(response.timings.proxy_connect_duration.count(), 0)
+        << "Proxy connect duration should be 0 when not using proxy";
+}
+
+// Test POST request through proxy
+TEST_F(AsyncHttpsRequestTest, PostRequestThroughProxy) {
+    const char* proxy_host_env = std::getenv("TEST_PROXY_HOST");
+    const char* proxy_port_env = std::getenv("TEST_PROXY_PORT");
+
+    if (!proxy_host_env || !proxy_port_env) {
+        GTEST_SKIP() << "Proxy test requires TEST_PROXY_HOST and TEST_PROXY_PORT environment variables";
+        return;
+    }
+
+    std::string proxy_host = proxy_host_env;
+    int proxy_port = std::stoi(proxy_port_env);
+
+    // Check if the proxy is reachable
+    try {
+        tcp::socket test_socket(*io_context_);
+        tcp::resolver resolver(*io_context_);
+        auto endpoints = resolver.resolve(proxy_host, std::to_string(proxy_port));
+        asio::connect(test_socket, endpoints);
+        test_socket.close();
+    } catch (const std::exception&) {
+        GTEST_SKIP() << "Proxy server not reachable";
+        return;
+    }
+
+    ProxyConfig proxy(proxy_host, proxy_port);
+
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30),
+            proxy
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        std::string body = R"({"test": "proxy_post"})";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post",
+                headers,
+                body,
+                "application/json"
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+    EXPECT_NE(response.data.find("proxy_post"), std::string::npos);
+
+    // Verify proxy connection timing was recorded
+    EXPECT_GT(response.timings.proxy_connect_duration.count(), 0);
+}
+
 // Test multiple sequential requests
 TEST_F(AsyncHttpsRequestTest, MultipleSequentialRequests) {
     Headers headers;
@@ -1249,6 +1510,186 @@ TEST_F(AsyncHttpsRequestTest, CacheControlHeaders) {
 
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_EQ(response.status_code, 200);
+}
+
+// Test true concurrent execution with timing proof
+TEST_F(AsyncHttpsRequestTest, TrueConcurrentExecution) {
+    Headers headers;
+    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+    const int NUM_CONCURRENT = 5;
+    const int DELAY_SECONDS = 2;  // Each request will take ~2 seconds
+
+    // First, measure sequential execution time
+    auto sequential_start = std::chrono::steady_clock::now();
+
+    for (int i = 0; i < NUM_CONCURRENT; ++i) {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        auto response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/delay/" + std::to_string(DELAY_SECONDS),
+                headers,
+                "",
+                ""
+            )
+        );
+
+        EXPECT_TRUE(response.success) << "Sequential request " << i << " failed: " << response.error_message;
+
+        // Reset io_context for next iteration
+        io_context_->restart();
+    }
+
+    auto sequential_end = std::chrono::steady_clock::now();
+    auto sequential_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        sequential_end - sequential_start
+    ).count();
+
+    std::cout << "Sequential execution time: " << sequential_duration << " ms" << std::endl;
+
+    // Now, test concurrent execution with a single io_context
+    io_context_->restart();
+
+    std::vector<std::shared_ptr<AsyncHttpsRequest>> requests;
+    std::vector<HttpResponse> results(NUM_CONCURRENT);
+    std::exception_ptr exception;
+
+    auto concurrent_start = std::chrono::steady_clock::now();
+
+    // Spawn all requests concurrently in the same io_context
+    for (int i = 0; i < NUM_CONCURRENT; ++i) {
+        requests.push_back(std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        ));
+
+        asio::co_spawn(
+            *io_context_,
+            [&, i]() -> asio::awaitable<void> {
+                try {
+                    results[i] = co_await requests[i]->execute(
+                        "httpbin.org",
+                        "443",
+                        "GET",
+                        "/delay/" + std::to_string(DELAY_SECONDS),
+                        headers,
+                        "",
+                        ""
+                    );
+                } catch (...) {
+                    if (!exception) {
+                        exception = std::current_exception();
+                    }
+                }
+            },
+            asio::detached
+        );
+    }
+
+    // Run all concurrent requests
+    io_context_->run();
+
+    auto concurrent_end = std::chrono::steady_clock::now();
+    auto concurrent_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        concurrent_end - concurrent_start
+    ).count();
+
+    std::cout << "Concurrent execution time: " << concurrent_duration << " ms" << std::endl;
+
+    if (exception) {
+        std::rethrow_exception(exception);
+    }
+
+    // Verify all requests succeeded
+    for (int i = 0; i < NUM_CONCURRENT; ++i) {
+        EXPECT_TRUE(results[i].success) << "Concurrent request " << i << " failed: " << results[i].error_message;
+        EXPECT_EQ(results[i].status_code, 200);
+    }
+
+    // Key assertion: concurrent should be MUCH faster than sequential
+    // Sequential: NUM_CONCURRENT * DELAY_SECONDS = 5 * 2 = ~10+ seconds
+    // Concurrent: ~DELAY_SECONDS = ~2-3 seconds (all running in parallel)
+    // We expect concurrent to be at least 2x faster (conservative estimate)
+    std::cout << "Speedup ratio: " << static_cast<double>(sequential_duration) / static_cast<double>(concurrent_duration) << "x" << std::endl;
+
+    EXPECT_LT(concurrent_duration, sequential_duration / 2)
+        << "Concurrent execution should be at least 2x faster than sequential. "
+        << "Sequential: " << sequential_duration << " ms, "
+        << "Concurrent: " << concurrent_duration << " ms";
+
+    // Also verify concurrent time is close to single request time (with some overhead)
+    EXPECT_LT(concurrent_duration, static_cast<long>((static_cast<double>(sequential_duration) / NUM_CONCURRENT) * 1.5))
+        << "Concurrent execution should take roughly the same time as a single request, "
+        << "proving all requests ran in parallel";
+}
+
+// Test concurrent requests with shared io_context (simpler version)
+TEST_F(AsyncHttpsRequestTest, SharedIoContextConcurrency) {
+    Headers headers;
+    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+    const int NUM_REQUESTS = 3;
+    std::vector<std::shared_ptr<AsyncHttpsRequest>> requests;
+    std::vector<HttpResponse> results(NUM_REQUESTS);
+
+    auto start_time = std::chrono::steady_clock::now();
+
+    // Create multiple requests that will execute concurrently
+    for (int i = 0; i < NUM_REQUESTS; ++i) {
+        requests.push_back(std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        ));
+
+        asio::co_spawn(
+            *io_context_,
+            [&, i]() -> asio::awaitable<void> {
+                results[i] = co_await requests[i]->execute(
+                    "httpbin.org",
+                    "443",
+                    "GET",
+                    "/delay/1",  // 1 second delay
+                    headers,
+                    "",
+                    ""
+                );
+            },
+            asio::detached
+        );
+    }
+
+    // Run the io_context - all requests execute concurrently
+    io_context_->run();
+
+    auto end_time = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        end_time - start_time
+    ).count();
+
+    std::cout << "Shared io_context: " << NUM_REQUESTS << " requests with 1s delay each completed in "
+              << duration << " ms" << std::endl;
+
+    // Verify all requests succeeded
+    for (int i = 0; i < NUM_REQUESTS; ++i) {
+        EXPECT_TRUE(results[i].success) << "Request " << i << " failed: " << results[i].error_message;
+        EXPECT_EQ(results[i].status_code, 200);
+    }
+
+    // If requests were truly concurrent, total time should be ~1 second, not 3 seconds
+    // Allow some overhead, but should definitely be less than 2 seconds
+    EXPECT_LT(duration, 2000)
+        << "Concurrent requests should complete in ~1 second (not " << duration << " ms), "
+        << "proving they executed in parallel";
 }
 
 int main(int argc, char **argv) {

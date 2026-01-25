@@ -8,11 +8,36 @@ static const int MAX_RETRIES = 3;
 static const int TIME_TILL_RETRY = 10;
 
 json ObservationPackage::to_json() const {
+    // Convert headers map to JSON
+    json headers_json = json::object();
+    for (const auto &[key, value]: headers) {
+        headers_json[key] = value;
+    }
+
+    // Convert cookies map to JSON
+    json cookies_json = json::object();
+    for (const auto &[key, value]: cookies) {
+        cookies_json[key] = value;
+    }
+
+    // Convert ProxyConfig to JSON
+    json proxy_json = json::object();
+    if (proxy.enabled) {
+        proxy_json["host"] = proxy.host;
+        proxy_json["port"] = proxy.port;
+        if (!proxy.username.empty()) {
+            proxy_json["username"] = proxy.username;
+        }
+        if (!proxy.password.empty()) {
+            proxy_json["password"] = proxy.password;
+        }
+    }
+
     json j = {
         {"game_id", game_id},
-        {"headers", headers},
-        {"cookies", cookies},
-        {"proxy", proxy},
+        {"headers", headers_json},
+        {"cookies", cookies_json},
+        {"proxy", proxy_json},
         {"auth", auth.to_json()},
         {"client_version", client_version},
         {"game_server_address", game_server_address}
@@ -38,11 +63,44 @@ json ObservationPackage::to_json() const {
 ObservationPackage ObservationPackage::from_json(const json &j) {
     ObservationPackage pkg;
     pkg.game_id = j.value("game_id", 0);
-    pkg.headers = j.value("headers", json::object());
-    pkg.cookies = j.value("cookies", json::object());
-    pkg.proxy = j.value("proxy", json::object());
     pkg.client_version = j.value("client_version", 207);
     pkg.game_server_address = j.value("game_server_address", "");
+
+    // Convert headers from JSON to map
+    if (j.contains("headers") && j["headers"].is_object()) {
+        for (const auto &[key, value]: j["headers"].items()) {
+            try {
+                pkg.headers[key] = value.get<std::string>();
+            } catch (...) {
+            }
+        }
+    }
+
+    // Convert cookies from JSON to map
+    if (j.contains("cookies") && j["cookies"].is_object()) {
+        for (const auto &[key, value]: j["cookies"].items()) {
+            try {
+                pkg.cookies[key] = value.get<std::string>();
+            } catch (...) {
+            }
+        }
+    }
+
+    // Convert proxy from JSON to ProxyConfig
+    if (j.contains("proxy") && j["proxy"].is_object()) {
+        const auto &proxy_json = j["proxy"];
+        if (proxy_json.contains("host") && proxy_json.contains("port")) {
+            pkg.proxy.enabled = true;
+            pkg.proxy.host = proxy_json["host"].get<std::string>();
+            pkg.proxy.port = proxy_json["port"].get<int>();
+            if (proxy_json.contains("username")) {
+                pkg.proxy.username = proxy_json["username"].get<std::string>();
+            }
+            if (proxy_json.contains("password")) {
+                pkg.proxy.password = proxy_json["password"].get<std::string>();
+            }
+        }
+    }
 
     if (j.contains("auth")) {
         pkg.auth = AuthDetails::from_json(j["auth"]);
@@ -146,21 +204,64 @@ ObservationPackage ObservationSession::create_observation_package() {
     try {
         auto game_data = hub_itf->join_game_as_guest(game_id);
 
-        // Build proxy dict
-        json proxy = json::object();
-        if (!hub_itf->get_proxy_http().empty()) {
-            proxy["http"] = hub_itf->get_proxy_http();
+        // Convert JSON headers to std::map
+        std::map<std::string, std::string> headers_map;
+        if (game_data.headers.is_object()) {
+            for (const auto &[key, value]: game_data.headers.items()) {
+                if (value.is_string()) {
+                    headers_map[key] = value.get<std::string>();
+                }
+            }
         }
-        if (!hub_itf->get_proxy_https().empty()) {
-            proxy["https"] = hub_itf->get_proxy_https();
+
+        // Convert JSON cookies to std::map
+        std::map<std::string, std::string> cookies_map;
+        if (game_data.cookies.is_object()) {
+            for (const auto &[key, value]: game_data.cookies.items()) {
+                if (value.is_string()) {
+                    cookies_map[key] = value.get<std::string>();
+                }
+            }
+        }
+
+        // Build ProxyConfig from proxy strings
+        ProxyConfig proxy_config;
+        std::string proxy_https = hub_itf->get_proxy_https();
+        if (!proxy_https.empty()) {
+            // Parse proxy URL format: http://[username:password@]host:port
+            size_t proto_end = proxy_https.find("://");
+            if (proto_end != std::string::npos) {
+                std::string proxy_part = proxy_https.substr(proto_end + 3);
+
+                // Check for authentication
+                size_t at_pos = proxy_part.find('@');
+                if (at_pos != std::string::npos) {
+                    std::string auth_part = proxy_part.substr(0, at_pos);
+                    proxy_part = proxy_part.substr(at_pos + 1);
+
+                    size_t colon_pos = auth_part.find(':');
+                    if (colon_pos != std::string::npos) {
+                        proxy_config.username = auth_part.substr(0, colon_pos);
+                        proxy_config.password = auth_part.substr(colon_pos + 1);
+                    }
+                }
+
+                // Parse host:port
+                size_t colon_pos = proxy_part.find(':');
+                if (colon_pos != std::string::npos) {
+                    proxy_config.host = proxy_part.substr(0, colon_pos);
+                    proxy_config.port = std::stoi(proxy_part.substr(colon_pos + 1));
+                    proxy_config.enabled = true;
+                }
+            }
         }
 
         // Create an observation package with data from GameApi
         ObservationPackage pkg;
         pkg.game_id = game_id;
-        pkg.headers = game_data.headers;
-        pkg.cookies = game_data.cookies;
-        pkg.proxy = proxy;
+        pkg.headers = headers_map;
+        pkg.cookies = cookies_map;
+        pkg.proxy = proxy_config;
         pkg.auth = game_data.auth;
         pkg.client_version = game_data.client_version;
         pkg.game_server_address = game_data.game_server_address;

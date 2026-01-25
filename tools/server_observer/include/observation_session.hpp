@@ -9,14 +9,15 @@
 #include "static_map_cache.hpp"
 #include "recording_storage.hpp"
 #include "observation_api.hpp"
+#include "proxy_config.hpp"
 
 using json = nlohmann::json;
 
 struct ObservationPackage {
     int game_id = 0;
-    json headers;
-    json cookies;
-    json proxy;
+    std::map<std::string, std::string> headers;
+    std::map<std::string, std::string> cookies;
+    ProxyConfig proxy;
     AuthDetails auth;
     int client_version = 0;
     std::string game_server_address;

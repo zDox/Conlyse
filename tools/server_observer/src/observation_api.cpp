@@ -22,22 +22,22 @@ static int64_t current_time_ms() {
 
 ObservationApi::ObservationApi(
     std::shared_ptr<RequestManager> manager,
-    json  headers,
-                             json  cookies,
-                             json  proxy,
-                             AuthDetails  auth_details,
-                             int game_id,
-                             const std::string& game_server_address,
-                             int client_version)
+    const std::map<std::string, std::string>& headers,
+    const std::map<std::string, std::string>& cookies,
+    const ProxyConfig& proxy,
+    AuthDetails  auth_details,
+    int game_id,
+    const std::string& game_server_address,
+    int client_version)
     : game_id_(game_id)
     , player_id_(0)
     , auth_(std::move(auth_details))
     , request_id_(0)
     , client_version_(client_version)
     , game_server_address_(game_server_address)
-    , headers_(std::move(headers))
-    , cookies_(std::move(cookies))
-    , proxy_(std::move(proxy))
+    , headers_(headers)
+    , cookies_(cookies)
+    , proxy_(proxy)
 {
     cli_ = std::make_unique<HttpClient>(manager, game_server_address);
 }
@@ -52,6 +52,11 @@ json ObservationApi::make_game_server_request(const json& parameters) {
         cli_->enable_server_certificate_verification(false);
         cli_->set_follow_location(true);
 
+        // Configure proxy if provided
+        if (proxy_.enabled) {
+            cli_->set_proxy(proxy_.host, proxy_.port, proxy_.username, proxy_.password);
+        }
+
         // Build request headers
         Headers req_headers = {
             {"Accept", "text/plain, */*; q=0.01"},
@@ -59,12 +64,8 @@ json ObservationApi::make_game_server_request(const json& parameters) {
         };
 
         // Add custom headers
-        if (headers_.is_object()) {
-            for (auto& [key, value] : headers_.items()) {
-                if (value.is_string()) {
-                    req_headers.insert({key, value.get<std::string>()});
-                }
-            }
+        for (const auto& [key, value] : headers_) {
+            req_headers.insert({key, value});
         }
 
         // Build payload
@@ -233,6 +234,16 @@ json ObservationApi::get_static_map_data(int map_id) {
     httplib::Client cli("https://static1.bytro.com");
     cli.set_follow_location(true);
 
+    // Configure proxy if provided
+    if (proxy_.enabled) {
+        cli.set_proxy(proxy_.host.c_str(), proxy_.port);
+
+        // Set proxy authentication if provided
+        if (!proxy_.username.empty() && !proxy_.password.empty()) {
+            cli.set_proxy_basic_auth(proxy_.username.c_str(), proxy_.password.c_str());
+        }
+    }
+
     httplib::Headers headers = {
         {"Accept", "application/json, text/javascript, */*; q=0.01"}
     };
@@ -251,10 +262,10 @@ json ObservationApi::get_static_map_data(int map_id) {
     return result;
 }
 
-json ObservationApi::get_cookies() const {
+std::map<std::string, std::string> ObservationApi::get_cookies() const {
     return cookies_;
 }
 
-json ObservationApi::get_headers() const {
+std::map<std::string, std::string> ObservationApi::get_headers() const {
     return headers_;
 }
