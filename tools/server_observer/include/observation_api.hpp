@@ -31,6 +31,7 @@ struct GameServerResult {
     GameServerError error_code;
     std::string error_message;
     json data;
+    std::string raw_response;  // Raw JSON response string
 
     bool success() const { return error_code == GameServerError::SUCCESS; }
 };

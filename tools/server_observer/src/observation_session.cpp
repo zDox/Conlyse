@@ -160,9 +160,9 @@ bool ObservationSession::needs_update(std::chrono::system_clock::time_point now)
     return now >= next_update_at;
 }
 
-void ObservationSession::on_request_response(json &&response) {
+void ObservationSession::on_request_response(std::string &&response_str) {
     ensure_storage()->update_resume_metadata(package_.to_json());
-    ensure_storage()->save_response(std::move(response));
+    ensure_storage()->save_response(std::move(response_str));
 }
 
 bool ObservationSession::ensure_observation_package() {
@@ -364,13 +364,12 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
         package_.headers = api_->get_headers();
         package_.game_server_address = api_->get_game_server_address();
 
-        // Check if game ended before processing and moving the JSON.
-        // We store the result now because game_state will be moved below.
+        // Check if game ended before processing.
         bool game_ended = is_game_ended(game_state);
 
-        // Save response and release the large JSON immediately.
-        // After this point, game_state is in a moved-from state and should not be accessed.
-        on_request_response(std::move(game_state));
+        // Save raw response string to storage.
+        // We move the raw string to storage, avoiding the need to dump JSON.
+        on_request_response(std::move(result.raw_response));
 
         // Teardown storage logging before returning
         ensure_storage()->teardown_logging();
@@ -378,7 +377,7 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
         // Reset attempt counter on success
         attempt_ = 1;
 
-        // Check if game ended (using the bool we stored before the move)
+        // Check if game ended
         if (game_ended) {
             co_return false;
         }

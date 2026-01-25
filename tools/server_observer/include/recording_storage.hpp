@@ -15,7 +15,7 @@ public:
                     const std::string& long_term_storage_path = "",
                     int file_size_threshold = 0);
     
-    void save_response(json&& response);
+    void save_response(std::string&& response_str);
     void update_resume_metadata(const json& resume);
     json get_resume_metadata() const;
     bool has_resume_metadata() const;

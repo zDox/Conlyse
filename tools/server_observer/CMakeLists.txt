@@ -30,6 +30,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
+# simdjson library (for fast JSON parsing)
+FetchContent_Declare(
+        simdjson
+        GIT_REPOSITORY https://github.com/simdjson/simdjson.git
+        GIT_TAG v3.10.1
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(simdjson)
+
 # HTTP client library (cpp-httplib)
 FetchContent_Declare(
         httplib
@@ -87,6 +96,7 @@ add_executable(server_observer ${SOURCES})
 target_link_libraries(server_observer
         PRIVATE
         nlohmann_json::nlohmann_json
+        simdjson::simdjson
         httplib::httplib
         ${ZSTD_LIBRARIES}
         OpenSSL::SSL
