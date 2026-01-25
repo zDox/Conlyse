@@ -8,9 +8,6 @@ from conflict_interface.replay.numba_long_patch import build_op_tree_2
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.path_tree import PathTree
-from performance_tests.split_timer import SplitTimer
-from tests.helper_functions import compare_dicts
-
 
 def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
     """
@@ -279,7 +276,6 @@ def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: Patch
         A PatchGraphNode representing the consolidated patch over
         the given time range.
     """
-    timer = SplitTimer()
     shortest_path = patch_graph.find_patch_path(from_time, to_time)
     adj = create_adj_list(shortest_path, path_tree)
     op_tree = build_op_tree_2(shortest_path, adj, path_tree.root.index)

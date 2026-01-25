@@ -5,8 +5,6 @@ from copy import deepcopy
 from logging import getLogger
 
 import numpy as np
-from numba.typed import Dict
-from numba.typed import List
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.hook_system.replay_hook import ReplayHook
