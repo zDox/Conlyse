@@ -1,36 +1,39 @@
 #include "async_https_request.hpp"
-
 #include <iostream>
-
 #include <zlib.h>
 
-std::string gunzip(const std::string& input) {
-    z_stream zs{};
-    zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(input.data()));
-    zs.avail_in = input.size();
+namespace {
+    // Decompress gzip-encoded data
+    std::string gunzip(const std::string& input) {
+        z_stream zs{};
+        zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(input.data()));
+        zs.avail_in = input.size();
 
-    if (inflateInit2(&zs, 16 + MAX_WBITS) != Z_OK)
-        throw std::runtime_error("inflateInit failed");
-
-    std::string output;
-    char buffer[32768];
-
-    int ret;
-    do {
-        zs.next_out = reinterpret_cast<Bytef*>(buffer);
-        zs.avail_out = sizeof(buffer);
-
-        ret = inflate(&zs, 0);
-        if (ret != Z_OK && ret != Z_STREAM_END) {
-            inflateEnd(&zs);
-            throw std::runtime_error("inflate failed");
+        if (inflateInit2(&zs, 16 + MAX_WBITS) != Z_OK) {
+            throw std::runtime_error("inflateInit failed");
         }
 
-        output.append(buffer, sizeof(buffer) - zs.avail_out);
-    } while (ret != Z_STREAM_END);
+        std::string output;
+        constexpr size_t BUFFER_SIZE = 32768;
+        char buffer[BUFFER_SIZE];
 
-    inflateEnd(&zs);
-    return output;
+        int ret;
+        do {
+            zs.next_out = reinterpret_cast<Bytef*>(buffer);
+            zs.avail_out = sizeof(buffer);
+
+            ret = inflate(&zs, 0);
+            if (ret != Z_OK && ret != Z_STREAM_END) {
+                inflateEnd(&zs);
+                throw std::runtime_error("inflate failed");
+            }
+
+            output.append(buffer, sizeof(buffer) - zs.avail_out);
+        } while (ret != Z_STREAM_END);
+
+        inflateEnd(&zs);
+        return output;
+    }
 }
 
 
@@ -93,431 +96,514 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
     auto start_time = std::chrono::steady_clock::now();
     
     try {
-        // Set SNI hostname
+        // Set SNI hostname for proper SSL certificate validation
         if (!SSL_set_tlsext_host_name(ssl_socket_.native_handle(), host.c_str())) {
             throw std::runtime_error("Failed to set SNI hostname");
         }
 
-        // Set up timeout
-        timeout_timer_.expires_after(timeout_duration_);
-
-        // Determine connection target (proxy or direct)
+        // Step 1: Resolve hostname
+        tcp::resolver::results_type endpoints;
         std::string connect_host = proxy_.enabled ? proxy_.host : host;
         std::string connect_port = proxy_.enabled ? std::to_string(proxy_.port) : port;
 
-        // Resolve with timeout
-        auto resolve_start = std::chrono::steady_clock::now();
-        auto resolve_result = co_await (
-            resolver_.async_resolve(connect_host, connect_port, asio::as_tuple(asio::use_awaitable)) ||
-            timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-        );
-
-        if (resolve_result.index() == 1) {
-            response.timeout = true;
-            response.error_message = "Resolve timeout";
+        if (!co_await resolve_host(connect_host, connect_port, response, endpoints)) {
             co_return response;
         }
-        std::cout << "Resolved " << connect_host << ":" << connect_port << std::endl;
 
-        auto [resolve_ec, endpoints] = std::get<0>(resolve_result);
-        if (resolve_ec) {
-            throw boost::system::system_error(resolve_ec);
-        }
-
-        auto resolve_end = std::chrono::steady_clock::now();
-        response.timings.resolve_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            resolve_end - resolve_start);
-
-        // Cancel timer after successful operation
-        timeout_timer_.cancel();
-
-        timeout_timer_.expires_after(timeout_duration_);
-
-        // Connect with timeout
-        auto connect_start = std::chrono::steady_clock::now();
-        auto connect_result = co_await (
-            asio::async_connect(ssl_socket_.lowest_layer(), endpoints, asio::as_tuple(asio::use_awaitable)) ||
-            timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-        );
-
-        if (connect_result.index() == 1) {
-            response.timeout = true;
-            response.error_message = "Connect timeout";
-            
+        // Step 2: Connect to server
+        if (!co_await connect_to_server(endpoints, response)) {
             co_return response;
         }
-        std::cout << "Connected to " << host << ":" << port << std::endl;
 
-        auto [connect_ec, connected_endpoint] = std::get<0>(connect_result);
-        if (connect_ec) {
-            throw boost::system::system_error(connect_ec);
-        }
-
-        auto connect_end = std::chrono::steady_clock::now();
-        response.timings.connect_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            connect_end - connect_start);
-
-        // Cancel timer after successful operation
-        timeout_timer_.cancel();
-
-        // If using proxy, perform CONNECT handshake
+        // Step 3: Perform proxy CONNECT if needed
         if (proxy_.enabled) {
-            auto proxy_start = std::chrono::steady_clock::now();
-
-            // Build CONNECT request
-            std::ostringstream connect_request;
-            connect_request << "CONNECT " << host << ":" << port << " HTTP/1.1\r\n";
-            connect_request << "Host: " << host << ":" << port << "\r\n";
-
-            // Add proxy authentication if credentials provided
-            if (!proxy_.username.empty()) {
-                std::string auth_str = proxy_.username + ":" + proxy_.password;
-                std::string auth_header = "Proxy-Authorization: Basic " + base64_encode(auth_str) + "\r\n";
-                connect_request << auth_header;
-            }
-
-            connect_request << "\r\n";
-
-            std::string connect_str = connect_request.str();
-
-            // Write CONNECT request with timeout - use next_layer() to access the TCP socket
-            timeout_timer_.expires_after(timeout_duration_);
-
-            auto proxy_write_result = co_await (
-                asio::async_write(ssl_socket_.next_layer(), asio::buffer(connect_str), asio::as_tuple(asio::use_awaitable)) ||
-                timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-            );
-
-            if (proxy_write_result.index() == 1) {
-                response.timeout = true;
-                response.error_message = "Proxy CONNECT write timeout";
-                
+            if (!co_await perform_proxy_connect(host, port, response)) {
                 co_return response;
             }
-
-            auto [proxy_write_ec, proxy_bytes_written] = std::get<0>(proxy_write_result);
-            if (proxy_write_ec) {
-                throw boost::system::system_error(proxy_write_ec);
-            }
-
-            // Cancel timer after successful operation
-            timeout_timer_.cancel();
-
-            // Read CONNECT response - read until we have complete headers
-            asio::streambuf proxy_response_buf;
-            timeout_timer_.expires_after(timeout_duration_);
-
-            auto proxy_read_result = co_await (
-                asio::async_read_until(ssl_socket_.next_layer(), proxy_response_buf, "\r\n\r\n", asio::as_tuple(asio::use_awaitable)) ||
-                timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-            );
-
-            if (proxy_read_result.index() == 1) {
-                response.timeout = true;
-                response.error_message = "Proxy CONNECT response timeout";
-                
-                co_return response;
-            }
-
-            auto [proxy_read_ec, proxy_bytes_read] = std::get<0>(proxy_read_result);
-            if (proxy_read_ec) {
-                throw boost::system::system_error(proxy_read_ec);
-            }
-
-            // Parse proxy response
-            std::istream proxy_stream(&proxy_response_buf);
-            std::string http_version;
-            int proxy_status;
-            proxy_stream >> http_version >> proxy_status;
-
-            if (proxy_status != 200) {
-                response.error_message = "Proxy CONNECT failed with status: " + std::to_string(proxy_status);
-                
-                co_return response;
-            }
-
-            // Consume the rest of the CONNECT response headers
-            std::string line;
-            while (std::getline(proxy_stream, line) && line != "\r") {
-                // Discard proxy response headers
-            }
-
-            // Cancel timer after successful operation
-            timeout_timer_.cancel();
-
-            auto proxy_end = std::chrono::steady_clock::now();
-            response.timings.proxy_connect_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                proxy_end - proxy_start);
         }
-        std::cout << "Starting SSL handshake with " << host << std::endl;
 
-        // SSL handshake with timeout
-        auto handshake_start = std::chrono::steady_clock::now();
-        timeout_timer_.expires_after(timeout_duration_);
-
-        auto handshake_result = co_await (
-            ssl_socket_.async_handshake(ssl::stream_base::client, asio::as_tuple(asio::use_awaitable)) ||
-            timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-        );
-
-        if (handshake_result.index() == 1) {
-            response.timeout = true;
-            response.error_message = "SSL handshake timeout";
-            
+        // Step 4: SSL handshake
+        if (!co_await perform_ssl_handshake(response)) {
             co_return response;
         }
-        std::cout << "SSL Handshake completed with " << host << std::endl;
 
-        auto [handshake_ec] = std::get<0>(handshake_result);
-        if (handshake_ec) {
-            throw boost::system::system_error(handshake_ec);
-        }
-
-        auto handshake_end = std::chrono::steady_clock::now();
-        response.timings.ssl_handshake_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            handshake_end - handshake_start);
-
-        // Cancel timer after successful operation
-        timeout_timer_.cancel();
-
-        std::string real_path = path.empty() ? "/" : path;
-        // Build HTTP request
-        std::ostringstream request_stream;
-        request_stream << method << " " << real_path << " HTTP/1.1\r\n";
-        request_stream << "Host: " << host << "\r\n";
-
-        // Add custom headers
-        for (const auto& [key, value] : headers) {
-            request_stream << key << ": " << value << "\r\n";
-        }
-
-        // Add body if present
-        if (!body.empty()) {
-            request_stream << "Content-Type: " << content_type << "\r\n";
-            request_stream << "Content-Length: " << body.size() << "\r\n";
-        }
-
-        request_stream << "Connection: close\r\n";
-        request_stream << "\r\n";
-
-        if (!body.empty()) {
-            request_stream << body;
-        }
-
-        std::string request_str = request_stream.str();
-        std::cout << "Sending request" << request_str << std::endl;
-        // Write request with timeout
-        auto write_start = std::chrono::steady_clock::now();
-        timeout_timer_.expires_after(timeout_duration_);
-
-        auto write_result = co_await (
-            asio::async_write(ssl_socket_, asio::buffer(request_str), asio::as_tuple(asio::use_awaitable)) ||
-            timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-        );
-
-        if (write_result.index() == 1) {
-            response.timeout = true;
-            response.error_message = "Write timeout";
-            
+        // Step 5: Send HTTP request
+        std::string request = build_http_request(host, method, path, headers, body, content_type);
+        if (!co_await send_http_request(request, response)) {
             co_return response;
         }
-        std::cout << "HTTP request sent to " << host << std::endl;
 
-        auto [write_ec, bytes_written] = std::get<0>(write_result);
-        if (write_ec) {
-            throw boost::system::system_error(write_ec);
-        }
-
-        auto write_end = std::chrono::steady_clock::now();
-        response.timings.write_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            write_end - write_start);
-
-        // Cancel timer after successful operation
-        timeout_timer_.cancel();
-
-        // Read response with timeout
+        // Step 6: Read HTTP response
         asio::streambuf response_buffer;
-        auto ttfb_start = std::chrono::steady_clock::now();  // Start TTFB measurement after write completes
-        timeout_timer_.expires_after(timeout_duration_);
 
-        // Read status line
-        auto read_status_start = std::chrono::steady_clock::now();
-        auto read_result = co_await (
-            asio::async_read_until(ssl_socket_, response_buffer, "\r\n", asio::as_tuple(asio::use_awaitable)) ||
-            timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-        );
-        auto read_status_end = std::chrono::steady_clock::now();
-
-
-        if (read_result.index() == 1) {
-            response.timeout = true;
-            response.error_message = "Read timeout (status line)";
-            
-            co_return response;
-        }
-        std::cout << "Reading status line from " << host << std::endl;
-
-        auto [read_ec, bytes_read] = std::get<0>(read_result);
-        if (read_ec) {
-            throw boost::system::system_error(read_ec);
-        }
-
-        // Calculate timings
-        // TTFB = time from write completion to receiving first byte (includes server processing)
-        response.timings.time_to_first_byte = std::chrono::duration_cast<std::chrono::milliseconds>(
-            read_status_end - ttfb_start);
-        // read_status_duration = actual time spent in the async_read operation
-        response.timings.read_status_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            read_status_end - read_status_start);
-
-        // Cancel timer after successful operation
-        timeout_timer_.cancel();
-
-        // Parse status line
-        std::istream response_stream(&response_buffer);
-        std::string http_version;
-        response_stream >> http_version >> response.status_code;
-        std::string status_message;
-        std::getline(response_stream, status_message);
-
-        // Read headers
-        auto read_headers_start = std::chrono::steady_clock::now();
-        timeout_timer_.expires_after(timeout_duration_);
-
-        std::cout << "Reading headers from " << host << std::endl;
-        auto headers_result = co_await (
-            asio::async_read_until(ssl_socket_, response_buffer, "\r\n\r\n", asio::as_tuple(asio::use_awaitable)) ||
-            timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-        );
-
-        if (headers_result.index() == 1) {
-            response.timeout = true;
-            response.error_message = "Read timeout (headers)";
-            
+        if (!co_await read_status_line(response_buffer, response)) {
             co_return response;
         }
 
-        auto [headers_ec, headers_bytes] = std::get<0>(headers_result);
-        if (headers_ec) {
-            throw boost::system::system_error(headers_ec);
+        if (!co_await read_headers(response_buffer, response)) {
+            co_return response;
         }
 
-        auto read_headers_end = std::chrono::steady_clock::now();
-        response.timings.read_headers_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            read_headers_end - read_headers_start);
-
-        // Cancel timer after successful operation
-        timeout_timer_.cancel();
-
-        // Parse headers
-        std::string header_line;
-        while (std::getline(response_stream, header_line) && header_line != "\r") {
-            size_t colon_pos = header_line.find(':');
-            if (colon_pos != std::string::npos) {
-                std::string key = header_line.substr(0, colon_pos);
-                std::string value = header_line.substr(colon_pos + 2);
-                // Remove trailing \r if present
-                if (!value.empty() && value.back() == '\r') {
-                    value.pop_back();
-                }
-                response.headers[key] = value;
-            }
-        }
-        std::cout << "Headers received from " << host << std::endl;
-
-        // Read body
-        auto read_body_start = std::chrono::steady_clock::now();
-        std::ostringstream body_stream;
-
-        // First, add any data already in the buffer
-        if (response_buffer.size() > 0) {
-            body_stream << &response_buffer;
+        if (!co_await read_body(response_buffer, response)) {
+            co_return response;
         }
 
-        // Read remaining data until EOF
-        timeout_timer_.expires_after(timeout_duration_);
-        std::cout << "Reading body from " << host << std::endl;
-        while (true) {
-            auto body_result = co_await (
-                asio::async_read(ssl_socket_, response_buffer,
-                                asio::transfer_at_least(1),
-                                asio::as_tuple(asio::use_awaitable)) ||
-                timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
-            );
+        // Step 7: Post-processing
+        decompress_if_needed(response);
 
-            if (body_result.index() == 1) {
-                // Timeout
-                auto [timer_ec] = std::get<1>(body_result);
-                if (!timer_ec) {
-                    response.timeout = true;
-                    response.error_message = "Read timeout (body)";
-                    
-                    co_return response;
-                }
-                break;
-            }
-
-            auto [read_ec, bytes_transferred] = std::get<0>(body_result);
-            if (read_ec == asio::error::eof ||
-                read_ec == asio::ssl::error::stream_truncated) {
-                // Connection closed by server (expected)
-                // stream_truncated happens when server closes SSL connection without proper shutdown
-                body_stream << &response_buffer;
-                break;
-            } else if (read_ec) {
-                // Other error
-                throw boost::system::system_error(read_ec);
-            }
-
-            body_stream << &response_buffer;
-        }
-        std::cout << "Body received from " << host << std::endl;
-        response.data = body_stream.str();
-
-        auto read_body_end = std::chrono::steady_clock::now();
-        response.timings.read_body_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            read_body_end - read_body_start);
-
+        // Calculate total latency
         auto end_time = std::chrono::steady_clock::now();
-        response.latency = std::chrono::duration_cast<std::chrono::milliseconds>(
-            end_time - start_time);
-
-        // Cancel timer on successful completion
-        timeout_timer_.cancel();
+        response.latency = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+        response.timings.total_duration = response.latency;
 
         response.success = true;
-        std::cout << "Request to " << host << " completed successfully with size"<< response.headers["Content-Length"] << std::endl;
-
-        // Decompress if needed
-        if (response.headers["Content-Encoding"] == "gzip") {
-            auto decompress_start = std::chrono::steady_clock::now();
-            response.data = gunzip(response.data);
-            auto decompress_end = std::chrono::steady_clock::now();
-            response.timings.decompress_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                decompress_end - decompress_start);
-            std::cout << "Decompressed response size: " << response.data.size() << std::endl;
-        }
-
-        // Set total duration
-        response.timings.total_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - start_time);
-        // Don't attempt SSL shutdown - it can cause segfaults during destruction
-        // The socket will be closed naturally when the object is destroyed
-        // Since we use "Connection: close", the server handles the closure
-
-        // Don't call cleanup() here - let the destructor handle it naturally
-        // to avoid issues with SSL socket state
+        std::cout << "Request to " << host << " completed successfully (size: "
+                  << response.data.size() << " bytes)" << std::endl;
 
     } catch (const std::exception& e) {
         auto end_time = std::chrono::steady_clock::now();
-        response.latency = std::chrono::duration_cast<std::chrono::milliseconds>(
-            end_time - start_time);
+        response.latency = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
         response.success = false;
         response.error_message = e.what();
-
-        // Clean up everything
-        
+        std::cerr << "Request failed: " << e.what() << std::endl;
     }
 
     co_return response;
 }
+
+// ==================== Helper Method Implementations ====================
+
+asio::awaitable<bool> AsyncHttpsRequest::resolve_host(
+    const std::string& host,
+    const std::string& port,
+    HttpResponse& response,
+    tcp::resolver::results_type& endpoints) {
+
+    using namespace boost::asio::experimental::awaitable_operators;
+
+    auto start = std::chrono::steady_clock::now();
+    timeout_timer_.expires_after(timeout_duration_);
+
+    auto resolve_result = co_await (
+        resolver_.async_resolve(host, port, asio::as_tuple(asio::use_awaitable)) ||
+        timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
+    );
+
+    if (resolve_result.index() == 1) {
+        response.timeout = true;
+        response.error_message = "DNS resolution timeout";
+        co_return false;
+    }
+
+    auto [ec, results] = std::get<0>(resolve_result);
+    if (ec) {
+        throw boost::system::system_error(ec);
+    }
+
+    endpoints = results;
+    timeout_timer_.cancel();
+
+    record_timing(start, response.timings.resolve_duration);
+    std::cout << "Resolved " << host << ":" << port << std::endl;
+
+    co_return true;
+}
+
+asio::awaitable<bool> AsyncHttpsRequest::connect_to_server(
+    const tcp::resolver::results_type& endpoints,
+    HttpResponse& response) {
+
+    using namespace boost::asio::experimental::awaitable_operators;
+
+    auto start = std::chrono::steady_clock::now();
+    timeout_timer_.expires_after(timeout_duration_);
+
+    auto connect_result = co_await (
+        asio::async_connect(ssl_socket_.lowest_layer(), endpoints, asio::as_tuple(asio::use_awaitable)) ||
+        timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
+    );
+
+    if (connect_result.index() == 1) {
+        response.timeout = true;
+        response.error_message = "Connection timeout";
+        co_return false;
+    }
+
+    auto [ec, connected_endpoint] = std::get<0>(connect_result);
+    if (ec) {
+        throw boost::system::system_error(ec);
+    }
+
+    timeout_timer_.cancel();
+    record_timing(start, response.timings.connect_duration);
+    std::cout << "Connected to server" << std::endl;
+
+    co_return true;
+}
+
+asio::awaitable<bool> AsyncHttpsRequest::perform_proxy_connect(
+    const std::string& host,
+    const std::string& port,
+    HttpResponse& response) {
+
+    using namespace boost::asio::experimental::awaitable_operators;
+
+    auto start = std::chrono::steady_clock::now();
+
+    // Build CONNECT request
+    std::ostringstream connect_request;
+    connect_request << "CONNECT " << host << ":" << port << " HTTP/1.1\r\n";
+    connect_request << "Host: " << host << ":" << port << "\r\n";
+
+    // Add proxy authentication if credentials provided
+    if (!proxy_.username.empty()) {
+        std::string auth_str = proxy_.username + ":" + proxy_.password;
+        connect_request << "Proxy-Authorization: Basic " << base64_encode(auth_str) << "\r\n";
+    }
+
+    connect_request << "\r\n";
+    std::string connect_str = connect_request.str();
+
+    // Send CONNECT request
+    timeout_timer_.expires_after(timeout_duration_);
+    auto write_result = co_await (
+        asio::async_write(ssl_socket_.next_layer(), asio::buffer(connect_str),
+                         asio::as_tuple(asio::use_awaitable)) ||
+        timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
+    );
+
+    if (write_result.index() == 1) {
+        response.timeout = true;
+        response.error_message = "Proxy CONNECT write timeout";
+        co_return false;
+    }
+
+    auto [write_ec, bytes_written] = std::get<0>(write_result);
+    if (write_ec) {
+        throw boost::system::system_error(write_ec);
+    }
+
+    timeout_timer_.cancel();
+
+    // Read CONNECT response
+    asio::streambuf proxy_response_buf;
+    timeout_timer_.expires_after(timeout_duration_);
+
+    auto read_result = co_await (
+        asio::async_read_until(ssl_socket_.next_layer(), proxy_response_buf, "\r\n\r\n",
+                              asio::as_tuple(asio::use_awaitable)) ||
+        timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
+    );
+
+    if (read_result.index() == 1) {
+        response.timeout = true;
+        response.error_message = "Proxy CONNECT response timeout";
+        co_return false;
+    }
+
+    auto [read_ec, bytes_read] = std::get<0>(read_result);
+    if (read_ec) {
+        throw boost::system::system_error(read_ec);
+    }
+
+    // Parse proxy response
+    std::istream proxy_stream(&proxy_response_buf);
+    std::string http_version;
+    int proxy_status;
+    proxy_stream >> http_version >> proxy_status;
+
+    if (proxy_status != 200) {
+        response.error_message = "Proxy CONNECT failed with status: " + std::to_string(proxy_status);
+        co_return false;
+    }
+
+    // Consume remaining headers
+    std::string line;
+    while (std::getline(proxy_stream, line) && line != "\r") {
+        // Discard proxy response headers
+    }
+
+    timeout_timer_.cancel();
+    record_timing(start, response.timings.proxy_connect_duration);
+    std::cout << "Proxy CONNECT successful" << std::endl;
+
+    co_return true;
+}
+
+asio::awaitable<bool> AsyncHttpsRequest::perform_ssl_handshake(HttpResponse& response) {
+    using namespace boost::asio::experimental::awaitable_operators;
+
+    auto start = std::chrono::steady_clock::now();
+    timeout_timer_.expires_after(timeout_duration_);
+
+    std::cout << "Starting SSL handshake" << std::endl;
+
+    auto handshake_result = co_await (
+        ssl_socket_.async_handshake(ssl::stream_base::client, asio::as_tuple(asio::use_awaitable)) ||
+        timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
+    );
+
+    if (handshake_result.index() == 1) {
+        response.timeout = true;
+        response.error_message = "SSL handshake timeout";
+        co_return false;
+    }
+
+    auto [ec] = std::get<0>(handshake_result);
+    if (ec) {
+        throw boost::system::system_error(ec);
+    }
+
+    timeout_timer_.cancel();
+    record_timing(start, response.timings.ssl_handshake_duration);
+    std::cout << "SSL handshake completed" << std::endl;
+
+    co_return true;
+}
+
+std::string AsyncHttpsRequest::build_http_request(
+    const std::string& host,
+    const std::string& method,
+    const std::string& path,
+    const Headers& headers,
+    const std::string& body,
+    const std::string& content_type) {
+
+    std::string real_path = path.empty() ? "/" : path;
+    std::ostringstream request_stream;
+
+    // Request line
+    request_stream << method << " " << real_path << " HTTP/1.1\r\n";
+    request_stream << "Host: " << host << "\r\n";
+
+    // Custom headers
+    for (const auto& [key, value] : headers) {
+        request_stream << key << ": " << value << "\r\n";
+    }
+
+    // Body-related headers
+    if (!body.empty()) {
+        request_stream << "Content-Type: " << content_type << "\r\n";
+        request_stream << "Content-Length: " << body.size() << "\r\n";
+    }
+
+    request_stream << "Connection: close\r\n";
+    request_stream << "\r\n";
+
+    // Body
+    if (!body.empty()) {
+        request_stream << body;
+    }
+
+    return request_stream.str();
+}
+
+asio::awaitable<bool> AsyncHttpsRequest::send_http_request(
+    const std::string& request,
+    HttpResponse& response) {
+
+    using namespace boost::asio::experimental::awaitable_operators;
+
+    auto start = std::chrono::steady_clock::now();
+    timeout_timer_.expires_after(timeout_duration_);
+
+    std::cout << "Sending HTTP request (" << request.size() << " bytes)" << std::endl;
+
+    auto write_result = co_await (
+        asio::async_write(ssl_socket_, asio::buffer(request), asio::as_tuple(asio::use_awaitable)) ||
+        timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
+    );
+
+    if (write_result.index() == 1) {
+        response.timeout = true;
+        response.error_message = "HTTP request write timeout";
+        co_return false;
+    }
+
+    auto [ec, bytes_written] = std::get<0>(write_result);
+    if (ec) {
+        throw boost::system::system_error(ec);
+    }
+
+    timeout_timer_.cancel();
+    record_timing(start, response.timings.write_duration);
+    std::cout << "HTTP request sent" << std::endl;
+
+    co_return true;
+}
+
+asio::awaitable<bool> AsyncHttpsRequest::read_status_line(
+    asio::streambuf& buffer,
+    HttpResponse& response) {
+
+    using namespace boost::asio::experimental::awaitable_operators;
+
+    auto ttfb_start = std::chrono::steady_clock::now();
+    auto read_start = std::chrono::steady_clock::now();
+    timeout_timer_.expires_after(timeout_duration_);
+
+    auto read_result = co_await (
+        asio::async_read_until(ssl_socket_, buffer, "\r\n", asio::as_tuple(asio::use_awaitable)) ||
+        timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
+    );
+
+    auto read_end = std::chrono::steady_clock::now();
+
+    if (read_result.index() == 1) {
+        response.timeout = true;
+        response.error_message = "Read timeout (status line)";
+        co_return false;
+    }
+
+    auto [ec, bytes_read] = std::get<0>(read_result);
+    if (ec) {
+        throw boost::system::system_error(ec);
+    }
+
+    // Record timings
+    response.timings.time_to_first_byte = std::chrono::duration_cast<std::chrono::milliseconds>(
+        read_end - ttfb_start);
+    response.timings.read_status_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        read_end - read_start);
+
+    timeout_timer_.cancel();
+
+    // Parse status line
+    std::istream response_stream(&buffer);
+    std::string http_version;
+    response_stream >> http_version >> response.status_code;
+    std::string status_message;
+    std::getline(response_stream, status_message);
+
+    std::cout << "Received status: " << response.status_code << std::endl;
+
+    co_return true;
+}
+
+asio::awaitable<bool> AsyncHttpsRequest::read_headers(
+    asio::streambuf& buffer,
+    HttpResponse& response) {
+
+    using namespace boost::asio::experimental::awaitable_operators;
+
+    auto start = std::chrono::steady_clock::now();
+    timeout_timer_.expires_after(timeout_duration_);
+
+    auto read_result = co_await (
+        asio::async_read_until(ssl_socket_, buffer, "\r\n\r\n", asio::as_tuple(asio::use_awaitable)) ||
+        timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
+    );
+
+    if (read_result.index() == 1) {
+        response.timeout = true;
+        response.error_message = "Read timeout (headers)";
+        co_return false;
+    }
+
+    auto [ec, bytes_read] = std::get<0>(read_result);
+    if (ec) {
+        throw boost::system::system_error(ec);
+    }
+
+    timeout_timer_.cancel();
+    record_timing(start, response.timings.read_headers_duration);
+
+    // Parse headers
+    std::istream response_stream(&buffer);
+    std::string header_line;
+
+    while (std::getline(response_stream, header_line) && header_line != "\r") {
+        size_t colon_pos = header_line.find(':');
+        if (colon_pos != std::string::npos) {
+            std::string key = header_line.substr(0, colon_pos);
+            std::string value = header_line.substr(colon_pos + 2);
+
+            // Remove trailing \r if present
+            if (!value.empty() && value.back() == '\r') {
+                value.pop_back();
+            }
+
+            response.headers[key] = value;
+        }
+    }
+
+    std::cout << "Received " << response.headers.size() << " headers" << std::endl;
+
+    co_return true;
+}
+
+asio::awaitable<bool> AsyncHttpsRequest::read_body(
+    asio::streambuf& buffer,
+    HttpResponse& response) {
+
+    using namespace boost::asio::experimental::awaitable_operators;
+
+    auto start = std::chrono::steady_clock::now();
+    std::ostringstream body_stream;
+
+    // Add any data already in the buffer
+    if (buffer.size() > 0) {
+        body_stream << &buffer;
+    }
+
+    // Read remaining data until EOF
+    timeout_timer_.expires_after(timeout_duration_);
+    std::cout << "Reading response body" << std::endl;
+
+    while (true) {
+        auto read_result = co_await (
+            asio::async_read(ssl_socket_, buffer, asio::transfer_at_least(1),
+                            asio::as_tuple(asio::use_awaitable)) ||
+            timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
+        );
+
+        if (read_result.index() == 1) {
+            // Check if it's a real timeout or just timer cancellation
+            auto [timer_ec] = std::get<1>(read_result);
+            if (!timer_ec) {
+                response.timeout = true;
+                response.error_message = "Read timeout (body)";
+                co_return false;
+            }
+            break;
+        }
+
+        auto [ec, bytes_transferred] = std::get<0>(read_result);
+
+        // EOF or SSL stream truncation is expected (server closed connection)
+        if (ec == asio::error::eof || ec == asio::ssl::error::stream_truncated) {
+            body_stream << &buffer;
+            break;
+        } else if (ec) {
+            throw boost::system::system_error(ec);
+        }
+
+        body_stream << &buffer;
+    }
+
+    response.data = body_stream.str();
+    timeout_timer_.cancel();
+
+    record_timing(start, response.timings.read_body_duration);
+    std::cout << "Received body (" << response.data.size() << " bytes)" << std::endl;
+
+    co_return true;
+}
+
+void AsyncHttpsRequest::decompress_if_needed(HttpResponse& response) {
+    if (response.headers["Content-Encoding"] == "gzip") {
+        auto start = std::chrono::steady_clock::now();
+        response.data = gunzip(response.data);
+        record_timing(start, response.timings.decompress_duration);
+        std::cout << "Decompressed response (" << response.data.size() << " bytes)" << std::endl;
+    }
+}
+
+void AsyncHttpsRequest::record_timing(
+    std::chrono::steady_clock::time_point start,
+    std::chrono::milliseconds& timing_field) {
+
+    auto end = std::chrono::steady_clock::now();
+    timing_field = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+}
+
