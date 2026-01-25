@@ -1,4 +1,9 @@
 #include "observation_api.hpp"
+#include <openssl/sha.h>
+#include <chrono>
+#include <sstream>
+#include <iomanip>
+#include <iostream>
 
 
 static std::string sha1_hex(const std::string& input) {
@@ -52,8 +57,8 @@ json ObservationApi::parse_response(const std::string& response_data) {
     return response_json;
 }
 
-HttpResponse ObservationApi::request_game_state(std::map<std::string, std::string> &state_ids,
-                                                std::map<std::string, std::string> &time_stamps) {
+asio::awaitable<HttpResponse> ObservationApi::request_game_state_async(std::map<std::string, std::string> &state_ids,
+                                                                        std::map<std::string, std::string> &time_stamps) {
     bool include_state_meta = !state_ids.empty() && !time_stamps.empty();
     
     // Build state_ids and time_stamps as JSON objects
@@ -138,9 +143,9 @@ HttpResponse ObservationApi::request_game_state(std::map<std::string, std::strin
 
     request_id_++;
 
-    // Send request and return raw response
+    // Send request asynchronously and return awaitable response
     std::string body = payload.dump();
-    return cli_->Post(req_headers, body, "application/json");
+    co_return co_await cli_->Post_async(req_headers, body, "application/json");
 }
 
 GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& response,
@@ -186,7 +191,6 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
     }
 
     std::string result_class = response_result["@c"].get<std::string>();
-    std::cout << "Error class: " << result_class << std::endl;
 
     // Check for authentication errors
     if (result_class == "ultshared.UltAuthentificationException") {

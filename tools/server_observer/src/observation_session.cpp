@@ -332,7 +332,7 @@ bool ObservationSession::is_game_ended(const json &response) {
     return false;
 }
 
-bool ObservationSession::run_update() {
+asio::awaitable<bool> ObservationSession::run_update_async() {
     std::cout << "Starting update for game " << game_id << " (attempt " << attempt_ << ")" << std::endl;
 
     // Setup storage logging
@@ -341,13 +341,12 @@ bool ObservationSession::run_update() {
     if (!ensure_observation_package()) {
         std::cerr << "Failed to create observation package" << std::endl;
         ensure_storage()->teardown_logging();
-        return false;
+        co_return false;
     }
 
     try {
-        // Fetch game state (returns raw HTTP response)
-        HttpResponse response = api_->request_game_state(package_.state_ids, package_.time_stamps);
-
+        // Fetch game state asynchronously (returns raw HTTP response)
+        HttpResponse response = co_await api_->request_game_state_async(package_.state_ids, package_.time_stamps);
 
         // Parse and validate response, extracting state metadata
         GameServerResult result = api_->parse_and_validate_response(response, package_.state_ids, package_.time_stamps);
@@ -381,10 +380,10 @@ bool ObservationSession::run_update() {
 
         // Check if game ended (using the bool we stored before the move)
         if (game_ended) {
-            return false;
+            co_return false;
         }
 
-        return true;
+        co_return true;
     } catch (const std::runtime_error &e) {
         std::string error = e.what();
 
@@ -394,7 +393,7 @@ bool ObservationSession::run_update() {
                 std::cerr << "Authentication failed after " << MAX_RETRIES
                         << " retries" << std::endl;
                 ensure_storage()->teardown_logging();
-                return false;
+                co_return false;
             }
 
             std::cerr << "Authentication failed, resetting package and will retry..."
@@ -402,7 +401,7 @@ bool ObservationSession::run_update() {
             reset_package();
             attempt_++;
             ensure_storage()->teardown_logging();
-            return true; // Return true to indicate session should be requeued
+            co_return true; // Return true to indicate session should be requeued
         }
 
         // Handle server errors
@@ -410,7 +409,7 @@ bool ObservationSession::run_update() {
             std::cerr << "GameServer returned error, will retry in "
                     << TIME_TILL_RETRY << " seconds..." << std::endl;
             ensure_storage()->teardown_logging();
-            return true; // Return true to indicate session should be requeued
+            co_return true; // Return true to indicate session should be requeued
         }
 
         // Handle network errors
@@ -420,7 +419,7 @@ bool ObservationSession::run_update() {
             reset_package();
             attempt_++;
             ensure_storage()->teardown_logging();
-            return true; // Return true to indicate session should be requeued
+            co_return true; // Return true to indicate session should be requeued
         }
 
         // Unknown error - don't retry

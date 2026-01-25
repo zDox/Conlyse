@@ -3,8 +3,9 @@
 #include <iomanip>
 #include <chrono>
 #include <thread>
-#include <filesystem>
 #include <algorithm>
+#include <boost/asio/co_spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 namespace fs = std::filesystem;
 
@@ -16,6 +17,8 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     , account_pool_(account_pool)
     , stop_flag_(false)
     , total_updates_completed_(0)
+    , active_coroutines_(0)
+    , num_update_worker_threads_(config.value("update_worker_threads", 4))
 {
     // Initialize statistics timing
     stats_start_time_ = std::chrono::system_clock::now();
@@ -71,6 +74,17 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
         config.value("max_in_flight_requests", 100)
     );
     
+    // Initialize dedicated worker threads for update coroutines
+    update_work_guard_ = std::make_unique<asio::executor_work_guard<asio::io_context::executor_type>>(
+        asio::make_work_guard(update_io_context_)
+    );
+    std::cout << "Starting " << num_update_worker_threads_ << " worker threads for update coroutines" << std::endl;
+    for (int i = 0; i < num_update_worker_threads_; ++i) {
+        update_worker_threads_.emplace_back([this]() {
+            update_io_context_.run();
+        });
+    }
+    
     // Load known games from registry
     refresh_known_games_from_registry();
 
@@ -79,10 +93,70 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
 }
 
 ServerObserver::~ServerObserver() {
+    // Ensure stop() has been called
+    if (!stop_flag_) {
+        stop();
+    }
+
+    std::cout << "ServerObserver destructor complete" << std::endl;
+}
+
+void ServerObserver::stop() {
+    std::cout << "Stopping ServerObserver..." << std::endl;
     stop_flag_ = true;
+    
+    // Stop the scan thread first
     if (scan_thread_ && scan_thread_->joinable()) {
+        std::cout << "Waiting for scan thread to finish..." << std::endl;
         scan_thread_->join();
     }
+    
+    // Wait for all active coroutines to complete with a timeout
+    std::cout << "Waiting for " << active_coroutines_.load()
+              << " active coroutines to complete..." << std::endl;
+
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (active_coroutines_.load() > 0 &&
+           std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    if (active_coroutines_.load() > 0) {
+        std::cerr << "Warning: " << active_coroutines_.load()
+                  << " coroutines still active after timeout" << std::endl;
+    }
+
+    // Now stop the io_context and join worker threads
+    update_work_guard_.reset();  // Release the work guard to allow io_context to finish
+    update_io_context_.stop();   // Stop the io_context
+    
+    std::cout << "Waiting for " << update_worker_threads_.size()
+              << " worker threads to finish..." << std::endl;
+
+    // Join all update worker threads
+    for (auto& thread : update_worker_threads_) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    
+    std::cout << "All worker threads stopped" << std::endl;
+
+    // Clear observer sessions (this will destroy Python objects)
+    {
+        std::lock_guard<std::mutex> lock(sessions_lock_);
+        std::cout << "Clearing " << observer_sessions_.size()
+                  << " observer sessions..." << std::endl;
+        observer_sessions_.clear();
+    }
+
+    // Clear the listing interface (contains Python objects)
+    if (listing_interface_) {
+        std::cout << "Clearing listing interface..." << std::endl;
+        listing_interface_.reset();
+    }
+
+    std::cout << "ServerObserver stopped successfully" << std::endl;
 }
 
 void ServerObserver::initialize_listing_interface() {
@@ -274,13 +348,13 @@ void ServerObserver::resume_active() {
     }
 }
 
-void ServerObserver::run_single_update(ObservationSession* session) {
+asio::awaitable<void> ServerObserver::run_single_update_async(ObservationSession* session) {
     int game_id = session->game_id;
     int attempt = 1;
 
     while (true) {
         try {
-            bool keep_running = session->run_update();
+            bool keep_running = co_await session->run_update_async();
             std::cout << "Finished update for game " << game_id << std::endl;
             malloc_trim(0);
 
@@ -318,7 +392,6 @@ void ServerObserver::run_single_update(ObservationSession* session) {
                 std::lock_guard<std::mutex> lock(threads_lock_);
                 first_update_sessions_.erase(game_id);
                 running_first_updates_.erase(game_id);
-                active_threads_.erase(std::this_thread::get_id());
             }
 
             break;  // Success
@@ -353,12 +426,16 @@ void ServerObserver::run_single_update(ObservationSession* session) {
                 std::lock_guard<std::mutex> lock(threads_lock_);
                 first_update_sessions_.erase(game_id);
                 running_first_updates_.erase(game_id);
-                active_threads_.erase(std::this_thread::get_id());
             }
 
             break;
         }
     }
+
+    // Decrement the active coroutine counter
+    active_coroutines_--;
+
+    co_return;
 }
 
 void ServerObserver::start_due_updates() {
@@ -366,11 +443,9 @@ void ServerObserver::start_due_updates() {
     std::vector<ObservationSession*> deferred;
 
     while (true) {
-        {
-            std::lock_guard<std::mutex> lock(threads_lock_);
-            if (active_threads_.size() >= static_cast<size_t>(max_parallel_updates_)) {
-                break;
-            }
+        // Check if we've reached the limit of concurrent coroutines
+        if (active_coroutines_.load() >= max_parallel_updates_) {
+            break;
         }
 
         ObservationSession* observer = nullptr;
@@ -411,19 +486,17 @@ void ServerObserver::start_due_updates() {
             }
         }
 
-        std::cout << "Starting thread for game " << observer->game_id << std::endl;
+        std::cout << "Starting coroutine for game " << observer->game_id << std::endl;
 
-        // Start update thread
-        std::thread thread([this, observer]() {
-            run_single_update(observer);
-        });
+        // Increment the active coroutine counter before spawning
+        active_coroutines_++;
 
-        {
-            std::lock_guard<std::mutex> lock(threads_lock_);
-            active_threads_.insert(thread.get_id());
-        }
-
-        thread.detach();
+        // Spawn async coroutine using the dedicated update worker thread pool
+        asio::co_spawn(
+            update_io_context_,
+            run_single_update_async(observer),
+            asio::detached
+        );
     }
 
     // Re-queue deferred updates
@@ -500,7 +573,7 @@ void ServerObserver::print_update_statistics() {
         now - last_stats_print_time_).count();
 
     // Only print every 60 seconds
-    if (duration_since_last < 60) {
+    if (duration_since_last < 30) {
         return;
     }
 

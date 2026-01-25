@@ -7,12 +7,14 @@
 #include <nlohmann/json.hpp>
 #include <chrono>
 #include <httplib.h>
+#include <boost/asio/awaitable.hpp>
 
 #include "http_client.hpp"
 #include "hub_interface_wrapper.hpp"
 #include "proxy_config.hpp"
 
 using json = nlohmann::json;
+namespace asio = boost::asio;
 
 // Error codes for game server requests
 enum class GameServerError {
@@ -49,6 +51,9 @@ public:
     
     HttpResponse request_game_state(std::map<std::string, std::string> &state_ids,
                                     std::map<std::string, std::string> &time_stamps);
+
+    asio::awaitable<HttpResponse> request_game_state_async(std::map<std::string, std::string> &state_ids,
+                                                            std::map<std::string, std::string> &time_stamps);
 
     GameServerResult parse_and_validate_response(HttpResponse& response,
                                                   std::map<std::string, std::string> &state_ids,

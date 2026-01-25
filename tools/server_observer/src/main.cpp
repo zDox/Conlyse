@@ -1,15 +1,18 @@
 #include <iostream>
 #include <fstream>
-#include <signal.h>
+#include <csignal>
 #include "server_observer.hpp"
 #include "account_pool.hpp"
+#include "hub_interface_wrapper.hpp"
 
 static std::unique_ptr<ServerObserver> g_observer;
 
 void signal_handler(int signal) {
     std::cout << "\nReceived signal " << signal << ", stopping..." << std::endl;
-    // In a production system, we'd set a flag to gracefully stop
-    exit(0);
+    if (g_observer) {
+        g_observer->stop();
+    }
+    // Don't call exit() - let the program exit normally so destructors run properly
 }
 
 int main(int argc, char* argv[]) {
@@ -61,6 +64,7 @@ int main(int argc, char* argv[]) {
     }
     
     // Create and run server observer
+    int exit_code = 0;
     try {
         g_observer = std::make_unique<ServerObserver>(config, account_pool);
         
@@ -69,13 +73,23 @@ int main(int argc, char* argv[]) {
         
         if (success) {
             std::cout << "ServerObserver completed successfully" << std::endl;
-            return 0;
+            exit_code = 0;
         } else {
             std::cerr << "ServerObserver failed" << std::endl;
-            return 1;
+            exit_code = 1;
         }
     } catch (const std::exception& e) {
         std::cerr << "Error running server observer: " << e.what() << std::endl;
-        return 1;
+        exit_code = 1;
     }
+
+    // Explicitly destroy the observer to ensure Python cleanup happens before interpreter shutdown
+    std::cout << "Cleaning up observer..." << std::endl;
+    g_observer.reset();
+    std::cout << "Observer cleanup complete" << std::endl;
+
+    // Explicitly shutdown the Python interpreter to ensure proper cleanup order
+    HubInterfaceWrapper::shutdown_python();
+
+    return exit_code;
 }
