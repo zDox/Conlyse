@@ -44,12 +44,12 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
 
     ritf = ReplayInterface(TEST_DATA / "test_replay_game_10631784.bin", player_id=0, game_id=12345)
     ritf.open('r')
-    ritf.register_province_trigger(["owner_id", "resource_production", "morale"])
-    trigger_attributes = [
-        attr_name for attr_name in COLUMN_MAPPING.values()
-        if attr_name is not None
-    ]
-    ritf.register_player_trigger(trigger_attributes)
+    #ritf.register_province_trigger(["owner_id", "resource_production", "morale"])
+    #trigger_attributes = [
+    #    attr_name for attr_name in COLUMN_MAPPING.values()
+    #    if attr_name is not None
+    #]
+    #ritf.register_player_trigger(trigger_attributes)
 
     indices = list(range(start_idx, end_idx + 1, step))
     results = {
@@ -168,4 +168,4 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     return results
 
 if __name__ == '__main__':
-    print(benchmark_across_indices(start_idx=1, end_idx=1840, step=25, runs=3))
+    print(benchmark_across_indices(start_idx=1, end_idx=1840, step=100, runs=2))

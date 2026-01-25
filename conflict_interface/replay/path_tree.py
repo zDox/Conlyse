@@ -4,12 +4,17 @@ from collections import deque
 from copy import deepcopy
 from logging import getLogger
 
+import numpy as np
+from numba.typed import Dict
+from numba.typed import List
+
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.replay.apply_replay_helper import get_reference_from_direct_parent
 from conflict_interface.replay.path_tree_node import PathTreeNode
 
 logger = getLogger()
+
 
 class PathTree:
     def __init__(self):
@@ -49,17 +54,18 @@ class PathTree:
 
 
     def precompute(self):
+        print(f"Precomputing")
         self.precompute_euler_tour()
         self.precompute_rmq()
 
     def precompute_euler_tour(self):
         N = self.idx_counter
-        self.euler = array('I')
-        self.tin = array('I', [0] * N)
-        self.tout = array('I', [0] * N)
-        self.depth = array('I', [0] * N)
-        self.parent = array('i', [-1] * N)
-        self.first = array('i', [-1] * N)
+        self.euler = array('I')  # empty array of unsigned ints
+        self.tin = np.zeros(N, dtype=np.uint32)  # equivalent to [0]*N
+        self.tout = np.zeros(N, dtype=np.uint32)
+        self.depth = np.zeros(N, dtype=np.uint32)
+        self.parent = np.full(N, -1, dtype=np.int32)  # equivalent to [-1]*N
+        self.first = np.full(N, -1, dtype=np.int32)
 
         time = 0
         stack = [(self.root, 0, 0)]
@@ -88,14 +94,16 @@ class PathTree:
                 self.euler.append(idx)
                 time += 1
 
+        self.euler = np.asarray(self.euler, dtype=np.int32)
+
     def precompute_rmq(self):
         euler_len = len(self.euler)
-        self.log = array('I', [0] * (euler_len + 1))
+        self.log = np.zeros(euler_len + 1, dtype=np.uint32)
         for i in range(2, euler_len + 1):
             self.log[i] = self.log[i // 2] + 1
 
         K = self.log[euler_len] + 1
-        self.st = [array('I', [0] * euler_len) for _ in range(K)]
+        self.st = np.zeros((K, euler_len), dtype=np.uint32)
 
         # initialize Level 0 of Sparse Table
         for i in range(euler_len):
@@ -108,80 +116,26 @@ class PathTree:
                 b = self.st[k - 1][i + span]
                 self.st[k][i] = a if self.depth[self.euler[a]] <= self.depth[self.euler[b]] else b
 
-    def lca(self, u_idx: int, v_idx: int) -> int:
-        left = self.first[u_idx]
-        right = self.first[v_idx]
-        if left > right:
-            left, right = right, left
-        length = right - left + 1
-        k = self.log[length]
-        a = self.st[k][left]
-        b = self.st[k][right - (1 << k) + 1]
-        return self.euler[a] if self.depth[self.euler[a]] < self.depth[self.euler[b]] else self.euler[b]
-
     def build_steiner_tree(self, nodes: list[int]) -> dict[int, list[int]]:
         """
         Build a virtual/Steiner tree *expanded* so every edge is an actual original tree edge.
         Returns adjacency list mapping node_idx -> list[node_idx] (directed edges, parent -> child).
         """
-        # ensure root included
-        if self.root.index not in nodes:
-            nodes = nodes + [self.root.index]
+        from conflict_interface.steiner_tree_cpp import build_steiner_tree as build_steiner_tree_cpp
 
-        # sort input nodes by tin
-        nodes_sorted = sorted(set(nodes), key=lambda x: self.tin[x])
-
-        # insert LCAs between consecutive nodes
-        full = nodes_sorted[:]
-        for i in range(len(nodes_sorted) - 1):
-            full.append(self.lca(nodes_sorted[i], nodes_sorted[i + 1]))
-
-        # deduplicate and sort by tin again
-        full = sorted(set(full), key=lambda x: self.tin[x])
-
-        # Build compressed virtual tree using stack (parent-child in 'full')
-        st = []
-        compressed_parent = {}  # child -> parent (in 'full' set)
-        for v in full:
-            if not st:
-                st.append(v)
-                continue
-            # pop until stack top is ancestor of v
-            while not (self.tin[st[-1]] <= self.tin[v] <= self.tout[st[-1]]):
-                st.pop()
-            parent = st[-1]
-            compressed_parent[v] = parent
-            st.append(v)
-
-        # Now expand each compressed edge parent <- child into real edges along child -> ... -> parent
-        adj = defaultdict(list)
-        added = set()  # set[(parent, child)] to avoid duplicate directed edges
-
-        def add_directed_edge(parent, child):
-            if (parent, child) in added:
-                return
-            added.add((parent, child))
-            adj[parent].append(child)
-
-        for child, parent in compressed_parent.items():
-            # walk from child up to parent using self.parent[] and add directed edges (parent -> child direction)
-            cur = child
-            while cur != parent:
-                p = self.parent[cur]
-                if p == -1:
-                    raise RuntimeError(f"Parent pointer missing when expanding {child} -> {parent}")
-                add_directed_edge(p, cur)  # parent -> child direction
-                cur = p
-
-        # Ensure all nodes from the full set are keys in adj (even if they have no children)
-        for v in full:
-            adj.setdefault(v, [])
-
-        # Sort children by tin for deterministic order
-        for v in adj:
-            adj[v].sort(key=lambda x: self.tin[x])
-
-        return dict(adj)
+        # Pass numpy arrays directly - zero copy!
+        return build_steiner_tree_cpp(
+            self.parent,  # numpy array
+            self.tin,  # numpy array
+            self.tout,  # numpy array
+            self.root.index,
+            nodes,  # just a list
+            self.euler,  # numpy array
+            self.depth,  # numpy array
+            self.st,  # 2D numpy array
+            self.log,  # numpy array
+            self.first  # numpy array
+        )
 
     def bfs_set_references(self, sub_tree: dict[int, list[int]], game_state: GameState):
         q = deque([])
