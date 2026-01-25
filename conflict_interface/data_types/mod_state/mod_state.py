@@ -10,7 +10,7 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import HashSet
 from conflict_interface.data_types.custom_types import TreeMap
 from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.game_object_binary import binary_serializable
+from conflict_interface.data_types.decorators import binary_serializable
 from conflict_interface.data_types.map_state.map_state_enums import SeaType
 from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
 from conflict_interface.data_types.map_state.province_state import ProvinceState

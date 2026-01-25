@@ -7,7 +7,7 @@ from conflict_interface.data_types.custom_types import ArraysArrayList
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.game_event_state.sender import Sender
 from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.game_object_binary import binary_serializable
+from conflict_interface.data_types.decorators import binary_serializable
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 
 @binary_serializable(SerializationCategory.DATACLASS)

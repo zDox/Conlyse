@@ -8,6 +8,28 @@ from conflict_interface.replay.long_patch import create_long_patch
 from conflict_interface.replay.patch_graph import PatchGraph
 from paths import TEST_DATA
 
+COLUMN_MAPPING = {
+        "PlayerID": "player_id",
+        "TeamName": None,  # Computed from team_id
+        "Name": "name",
+        "CapitalName": None,  # Computed from capital_id
+        "NationName": "nation_name",
+        "ComputerPlayer": "computer_player",
+        "NativeComputer": "native_computer",
+        "UserName": "user_name",
+        "Defeated": "defeated",
+        "Retired": "retired",
+        "Playing": "playing",
+        "Taken": "taken",
+        "Faction": "faction",
+        "Available": "available",
+        "PremiumUser": "premium_user",
+        "AccumulatedVictoryPoints": "accumulated_victory_points",
+        "DailyVictoryPoints": "daily_victory_points",
+        "TerroristCountry": "terrorist_country",
+        "Banned": "banned",
+        "VictoryPoints": "victory_points",
+    }
 
 def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     """
@@ -20,9 +42,14 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     print("BENCHMARKING ACROSS INDICES")
     print("=" * 80)
 
-    ritf = ReplayInterface(TEST_DATA / "test_replay_10626234.bin", player_id=1, game_id=12345)
+    ritf = ReplayInterface(TEST_DATA / "test_replay_game_10631784.bin", player_id=0, game_id=12345)
     ritf.open('r')
-    ritf.register_game_info_state_trigger()
+    ritf.register_province_trigger(["owner_id", "resource_production", "morale"])
+    trigger_attributes = [
+        attr_name for attr_name in COLUMN_MAPPING.values()
+        if attr_name is not None
+    ]
+    ritf.register_player_trigger(trigger_attributes)
 
     indices = list(range(start_idx, end_idx + 1, step))
     results = {
@@ -71,20 +98,20 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
             total_times.append((t3 - t1) * 1000)
             gc.collect()
 
-            # Time normal jump
-            ritf.jump_to(from_time, create_long_patches=False)
-            t1 = time.perf_counter()
-            ritf.jump_to(to_time, create_long_patches=False)
-            t2 = time.perf_counter()
-            default_times.append((t2 - t1)*1000)
-            gc.collect()
+            ## Time normal jump
+            #ritf.jump_to(from_time, create_long_patches=False)
+            #t1 = time.perf_counter()
+            #ritf.jump_to(to_time, create_long_patches=False)
+            #t2 = time.perf_counter()
+            #default_times.append((t2 - t1)*1000)
+            #gc.collect()
 
 
 
         min_build_time = min(build_times)
         min_apply_time = min(apply_times)
         min_total_time = min(total_times)
-        min_default_time = min(default_times)
+        #min_default_time = min(default_times)
 
         ops_before = PatchGraph.cost(patch_path)
         ops_after = len(node.op_types)
@@ -95,7 +122,7 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
         results['ops_before'].append(ops_before)
         results['ops_after'].append(ops_after)
         results['build_time_ms'].append(min_build_time)
-        results['default_time_ms'].append(min_default_time)
+        #results['default_time_ms'].append(min_default_time)
         results['apply_time_ms'].append(min_apply_time)
         results['total_time_ms'].append(min_total_time)
 
@@ -114,7 +141,7 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
 
     # Plot 2: Time breakdown
     ax2.plot(results['indices'], results['build_time_ms'], 'g-', linewidth=2, marker='s', label='Build Time')
-    ax2.plot(results['indices'], results['default_time_ms'], 'y-', linewidth=2, marker='x', label='Default Time')
+    #ax2.plot(results['indices'], results['default_time_ms'], 'y-', linewidth=2, marker='x', label='Default Time')
     ax2.plot(results['indices'], results['apply_time_ms'], 'b-', linewidth=2, marker='^', label='Apply Time')
     ax2.plot(results['indices'], results['total_time_ms'], 'r-', linewidth=2, marker='o', label='Total Time')
 
@@ -141,4 +168,4 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     return results
 
 if __name__ == '__main__':
-    benchmark_across_indices(start_idx=1, end_idx=1000, step=50, runs=1)
+    print(benchmark_across_indices(start_idx=1, end_idx=1840, step=25, runs=3))

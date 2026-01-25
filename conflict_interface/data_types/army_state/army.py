@@ -34,7 +34,7 @@ from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
 from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
 from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.game_object_binary import binary_serializable
+from conflict_interface.data_types.decorators import binary_serializable
 
 logger = get_logger()
 

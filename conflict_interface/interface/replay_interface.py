@@ -25,7 +25,7 @@ from conflict_interface.replay.replay import Replay
 
 logger = get_logger()
 
-LONG_PATCH_THRESHOLD = 150000
+LONG_PATCH_THRESHOLD = 10
 
 class ReplayInterface(GameInterface):
     def __init__(self, file_path: Path | str, player_id: int | None = None, game_id: int | None = None):

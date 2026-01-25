@@ -5,7 +5,7 @@ from typing import Optional
 from tqdm import tqdm
 
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_json import parse_any
+from conflict_interface.data_types.game_object_parse_json import JsonParser
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.interface.game_interface import GameInterface
@@ -40,6 +40,9 @@ class FromJsonResponsesUsingUpdateToReplay:
             recording_reader: Reader instance for accessing recording data
         """
         self.reader = recording_reader
+        self.parser = JsonParser()
+        self.parser.type_graph.build_graph()
+        self.parser.type_graph.add_c_tag(GameState, "ultshared.UltAutoGameState")
 
     def convert(
             self,
@@ -270,7 +273,7 @@ class FromJsonResponsesUsingUpdateToReplay:
 
         try:
             # Parse initial game state
-            initial_state: GameState = parse_any(
+            initial_state: GameState = self.parser.parse_any(
                 GameState, json_response["result"], mock_game
             )
             current_timestamp = unix_ms_to_datetime(int(initial_state.time_stamp))
@@ -361,7 +364,7 @@ class FromJsonResponsesUsingUpdateToReplay:
                     continue
 
                 # Parse new state
-                new_state: GameState = parse_any(
+                new_state: GameState = self.parser.parse_any(
                     GameState, json_response["result"], mock_game
                 )
                 current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
