@@ -13,6 +13,7 @@
 #include <deque>
 #include <atomic>
 #include <chrono>
+#include <boost/asio/awaitable.hpp>
 #include <nlohmann/json.hpp>
 #include <malloc.h>
 #include "account_pool.hpp"
@@ -21,6 +22,7 @@
 #include "static_map_cache.hpp"
 
 using json = nlohmann::json;
+namespace asio = boost::asio;
 
 class ServerObserver {
 public:
@@ -55,6 +57,7 @@ private:
     std::shared_ptr<HubInterfaceWrapper> listing_interface_;
     std::shared_ptr<Account> listing_account_;
     std::set<std::thread::id> active_threads_;
+    std::atomic<int> active_coroutines_;  // Track active async update coroutines
     std::set<int> first_update_sessions_;
     std::set<int> running_first_updates_;  // Game IDs currently running first update
     std::mutex threads_lock_;
@@ -80,6 +83,7 @@ private:
     void start_observation_session(int game_id, int scenario_id);
     void resume_active();
     void run_single_update(ObservationSession* session);
+    asio::awaitable<void> run_single_update_async(ObservationSession* session);
     void start_due_updates();
     void clean_finished_threads();
     void scan_loop();

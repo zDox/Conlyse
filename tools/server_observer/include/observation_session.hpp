@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <chrono>
+#include <boost/asio/awaitable.hpp>
 #include <nlohmann/json.hpp>
 #include "account.hpp"
 #include "static_map_cache.hpp"
@@ -12,6 +13,7 @@
 #include "proxy_config.hpp"
 
 using json = nlohmann::json;
+namespace asio = boost::asio;
 
 struct ObservationPackage {
     int game_id = 0;
@@ -50,6 +52,8 @@ public:
     bool needs_update(std::chrono::system_clock::time_point now) const;
 
     bool run_update();
+
+    asio::awaitable<bool> run_update_async();
 
     void reset();
 

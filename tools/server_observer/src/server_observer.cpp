@@ -5,6 +5,8 @@
 #include <thread>
 #include <filesystem>
 #include <algorithm>
+#include <boost/asio/co_spawn.hpp>
+#include <boost/asio/detached.hpp>
 
 namespace fs = std::filesystem;
 
@@ -16,6 +18,7 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     , account_pool_(account_pool)
     , stop_flag_(false)
     , total_updates_completed_(0)
+    , active_coroutines_(0)
 {
     // Initialize statistics timing
     stats_start_time_ = std::chrono::system_clock::now();
@@ -361,16 +364,104 @@ void ServerObserver::run_single_update(ObservationSession* session) {
     }
 }
 
+asio::awaitable<void> ServerObserver::run_single_update_async(ObservationSession* session) {
+    int game_id = session->game_id;
+    int attempt = 1;
+
+    while (true) {
+        try {
+            bool keep_running = co_await session->run_update_async();
+            std::cout << "Finished update for game " << game_id << std::endl;
+            malloc_trim(0);
+
+            // Increment update counter and record timestamp
+            total_updates_completed_++;
+            {
+                std::lock_guard<std::mutex> lock(stats_lock_);
+                update_timestamps_.push_back(std::chrono::system_clock::now());
+            }
+
+            if (keep_running) {
+                // Schedule next update based on the previous scheduled time, not current time
+                // This ensures we maintain the actual update_interval_ between updates
+                session->next_update_at = session->next_update_at +
+                    std::chrono::seconds(static_cast<int>(update_interval_));
+
+                std::lock_guard<std::mutex> lock(queue_lock_);
+                update_queue_.push(session);
+            } else {
+                std::cout << "Finished recording game " << game_id << std::endl;
+                registry_->mark_completed(game_id);
+                if (account_pool_) {
+                    account_pool_->decrement_guest_join(session->account);
+                }
+
+                {
+                    std::lock_guard<std::mutex> lock(sessions_lock_);
+                    observer_sessions_.erase(game_id);
+                }
+
+                known_games_.insert(game_id);
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(threads_lock_);
+                first_update_sessions_.erase(game_id);
+                running_first_updates_.erase(game_id);
+            }
+
+            break;  // Success
+
+        } catch (const std::exception& e) {
+            if (attempt < MAX_UPDATE_RETRIES) {
+                std::cerr << "Observation for game " << game_id
+                         << " failed, retrying attempt " << attempt
+                         << "/" << MAX_UPDATE_RETRIES << "..." << std::endl;
+                attempt++;
+                continue;
+            }
+
+            std::cerr << "Observation for game " << game_id
+                     << " failed after " << MAX_UPDATE_RETRIES
+                     << " retries, marking as failed." << std::endl;
+
+            registry_->mark_failed(game_id, e.what());
+
+            if (account_pool_) {
+                account_pool_->decrement_guest_join(session->account);
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(sessions_lock_);
+                observer_sessions_.erase(game_id);
+            }
+
+            known_games_.insert(game_id);
+
+            {
+                std::lock_guard<std::mutex> lock(threads_lock_);
+                first_update_sessions_.erase(game_id);
+                running_first_updates_.erase(game_id);
+            }
+
+            break;
+        }
+    }
+
+    // Decrement the active coroutine counter
+    active_coroutines_--;
+
+    co_return;
+}
+
 void ServerObserver::start_due_updates() {
     auto now = std::chrono::system_clock::now();
     std::vector<ObservationSession*> deferred;
 
     while (true) {
-        {
-            std::lock_guard<std::mutex> lock(threads_lock_);
-            if (active_threads_.size() >= static_cast<size_t>(max_parallel_updates_)) {
-                break;
-            }
+        // Check if we've reached the limit of concurrent coroutines
+        if (active_coroutines_.load() >= max_parallel_updates_) {
+            break;
         }
 
         ObservationSession* observer = nullptr;
@@ -411,19 +502,17 @@ void ServerObserver::start_due_updates() {
             }
         }
 
-        std::cout << "Starting thread for game " << observer->game_id << std::endl;
+        std::cout << "Starting coroutine for game " << observer->game_id << std::endl;
 
-        // Start update thread
-        std::thread thread([this, observer]() {
-            run_single_update(observer);
-        });
+        // Increment the active coroutine counter before spawning
+        active_coroutines_++;
 
-        {
-            std::lock_guard<std::mutex> lock(threads_lock_);
-            active_threads_.insert(thread.get_id());
-        }
-
-        thread.detach();
+        // Spawn async coroutine using the RequestManager's worker thread pool
+        asio::co_spawn(
+            request_manager_->get_io_context(),
+            run_single_update_async(observer),
+            asio::detached
+        );
     }
 
     // Re-queue deferred updates
