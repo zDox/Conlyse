@@ -106,6 +106,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         std::string connect_port = proxy_.enabled ? std::to_string(proxy_.port) : port;
 
         // Resolve with timeout
+        auto resolve_start = std::chrono::steady_clock::now();
         auto resolve_result = co_await (
             resolver_.async_resolve(connect_host, connect_port, asio::as_tuple(asio::use_awaitable)) ||
             timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
@@ -123,9 +124,17 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             throw boost::system::system_error(resolve_ec);
         }
 
+        auto resolve_end = std::chrono::steady_clock::now();
+        response.timings.resolve_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            resolve_end - resolve_start);
+
+        // Cancel timer after successful operation
+        timeout_timer_.cancel();
+
         timeout_timer_.expires_after(timeout_duration_);
 
         // Connect with timeout
+        auto connect_start = std::chrono::steady_clock::now();
         auto connect_result = co_await (
             asio::async_connect(ssl_socket_.lowest_layer(), endpoints, asio::as_tuple(asio::use_awaitable)) ||
             timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
@@ -144,8 +153,17 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             throw boost::system::system_error(connect_ec);
         }
 
+        auto connect_end = std::chrono::steady_clock::now();
+        response.timings.connect_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            connect_end - connect_start);
+
+        // Cancel timer after successful operation
+        timeout_timer_.cancel();
+
         // If using proxy, perform CONNECT handshake
         if (proxy_.enabled) {
+            auto proxy_start = std::chrono::steady_clock::now();
+
             // Build CONNECT request
             std::ostringstream connect_request;
             connect_request << "CONNECT " << host << ":" << port << " HTTP/1.1\r\n";
@@ -181,6 +199,9 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             if (proxy_write_ec) {
                 throw boost::system::system_error(proxy_write_ec);
             }
+
+            // Cancel timer after successful operation
+            timeout_timer_.cancel();
 
             // Read CONNECT response - read until we have complete headers
             asio::streambuf proxy_response_buf;
@@ -220,10 +241,18 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             while (std::getline(proxy_stream, line) && line != "\r") {
                 // Discard proxy response headers
             }
+
+            // Cancel timer after successful operation
+            timeout_timer_.cancel();
+
+            auto proxy_end = std::chrono::steady_clock::now();
+            response.timings.proxy_connect_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                proxy_end - proxy_start);
         }
         std::cout << "Starting SSL handshake with " << host << std::endl;
 
         // SSL handshake with timeout
+        auto handshake_start = std::chrono::steady_clock::now();
         timeout_timer_.expires_after(timeout_duration_);
 
         auto handshake_result = co_await (
@@ -243,6 +272,14 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         if (handshake_ec) {
             throw boost::system::system_error(handshake_ec);
         }
+
+        auto handshake_end = std::chrono::steady_clock::now();
+        response.timings.ssl_handshake_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            handshake_end - handshake_start);
+
+        // Cancel timer after successful operation
+        timeout_timer_.cancel();
+
         std::string real_path = path.empty() ? "/" : path;
         // Build HTTP request
         std::ostringstream request_stream;
@@ -270,6 +307,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         std::string request_str = request_stream.str();
         std::cout << "Sending request" << request_str << std::endl;
         // Write request with timeout
+        auto write_start = std::chrono::steady_clock::now();
         timeout_timer_.expires_after(timeout_duration_);
 
         auto write_result = co_await (
@@ -290,15 +328,25 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             throw boost::system::system_error(write_ec);
         }
 
+        auto write_end = std::chrono::steady_clock::now();
+        response.timings.write_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            write_end - write_start);
+
+        // Cancel timer after successful operation
+        timeout_timer_.cancel();
+
         // Read response with timeout
         asio::streambuf response_buffer;
+        auto ttfb_start = std::chrono::steady_clock::now();  // Start TTFB measurement after write completes
         timeout_timer_.expires_after(timeout_duration_);
 
         // Read status line
+        auto read_status_start = std::chrono::steady_clock::now();
         auto read_result = co_await (
             asio::async_read_until(ssl_socket_, response_buffer, "\r\n", asio::as_tuple(asio::use_awaitable)) ||
             timeout_timer_.async_wait(asio::as_tuple(asio::use_awaitable))
         );
+        auto read_status_end = std::chrono::steady_clock::now();
 
 
         if (read_result.index() == 1) {
@@ -314,6 +362,17 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             throw boost::system::system_error(read_ec);
         }
 
+        // Calculate timings
+        // TTFB = time from write completion to receiving first byte (includes server processing)
+        response.timings.time_to_first_byte = std::chrono::duration_cast<std::chrono::milliseconds>(
+            read_status_end - ttfb_start);
+        // read_status_duration = actual time spent in the async_read operation
+        response.timings.read_status_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            read_status_end - read_status_start);
+
+        // Cancel timer after successful operation
+        timeout_timer_.cancel();
+
         // Parse status line
         std::istream response_stream(&response_buffer);
         std::string http_version;
@@ -322,6 +381,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         std::getline(response_stream, status_message);
 
         // Read headers
+        auto read_headers_start = std::chrono::steady_clock::now();
         timeout_timer_.expires_after(timeout_duration_);
 
         std::cout << "Reading headers from " << host << std::endl;
@@ -342,6 +402,13 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             throw boost::system::system_error(headers_ec);
         }
 
+        auto read_headers_end = std::chrono::steady_clock::now();
+        response.timings.read_headers_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            read_headers_end - read_headers_start);
+
+        // Cancel timer after successful operation
+        timeout_timer_.cancel();
+
         // Parse headers
         std::string header_line;
         while (std::getline(response_stream, header_line) && header_line != "\r") {
@@ -359,6 +426,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         std::cout << "Headers received from " << host << std::endl;
 
         // Read body
+        auto read_body_start = std::chrono::steady_clock::now();
         std::ostringstream body_stream;
 
         // First, add any data already in the buffer
@@ -406,15 +474,33 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         std::cout << "Body received from " << host << std::endl;
         response.data = body_stream.str();
 
+        auto read_body_end = std::chrono::steady_clock::now();
+        response.timings.read_body_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            read_body_end - read_body_start);
+
         auto end_time = std::chrono::steady_clock::now();
         response.latency = std::chrono::duration_cast<std::chrono::milliseconds>(
             end_time - start_time);
 
+        // Cancel timer on successful completion
+        timeout_timer_.cancel();
+
         response.success = true;
-        std::cout << "Request to " << host << " completed successfully" << std::endl;
+        std::cout << "Request to " << host << " completed successfully with size"<< response.headers["Content-Length"] << std::endl;
+
+        // Decompress if needed
         if (response.headers["Content-Encoding"] == "gzip") {
+            auto decompress_start = std::chrono::steady_clock::now();
             response.data = gunzip(response.data);
+            auto decompress_end = std::chrono::steady_clock::now();
+            response.timings.decompress_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                decompress_end - decompress_start);
+            std::cout << "Decompressed response size: " << response.data.size() << std::endl;
         }
+
+        // Set total duration
+        response.timings.total_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start_time);
         // Don't attempt SSL shutdown - it can cause segfaults during destruction
         // The socket will be closed naturally when the object is destroyed
         // Since we use "Connection: close", the server handles the closure

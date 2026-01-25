@@ -401,6 +401,71 @@ TEST_F(AsyncHttpsRequestTest, DeleteRequest) {
     EXPECT_EQ(response.status_code, 200);
 }
 
+// Test timing information
+TEST_F(AsyncHttpsRequestTest, TimingInformation) {
+    HttpResponse response;
+    {
+        // Scope the request to ensure it's destroyed before test ends
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        headers["Accept-Encoding"] = "gzip";  // Test decompression timing
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/gzip",  // This endpoint returns gzip-compressed data
+                headers,
+                "",
+                ""
+            )
+        );
+        // request goes out of scope here and is destroyed
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+
+    // Verify timing information is recorded
+    EXPECT_GT(response.timings.total_duration.count(), 0) << "Total duration should be positive";
+    EXPECT_GT(response.timings.resolve_duration.count(), 0) << "Resolve duration should be positive";
+    EXPECT_GE(response.timings.connect_duration.count(), 0) << "Connect duration should be non-negative";
+    EXPECT_GE(response.timings.ssl_handshake_duration.count(), 0) << "SSL handshake duration should be non-negative";
+    EXPECT_GE(response.timings.write_duration.count(), 0) << "Write duration should be non-negative";
+    EXPECT_GE(response.timings.read_status_duration.count(), 0) << "Read status duration should be non-negative";
+    EXPECT_GE(response.timings.read_headers_duration.count(), 0) << "Read headers duration should be non-negative";
+    EXPECT_GE(response.timings.read_body_duration.count(), 0) << "Read body duration should be non-negative";
+
+    // For gzip endpoint, decompression should have happened
+    if (response.headers["Content-Encoding"] == "gzip") {
+        EXPECT_GT(response.timings.decompress_duration.count(), 0) << "Decompress duration should be positive for gzip response";
+    }
+
+    // Proxy connect duration should be zero when not using proxy
+    EXPECT_EQ(response.timings.proxy_connect_duration.count(), 0) << "Proxy connect duration should be 0 without proxy";
+
+    // Total duration should be greater than or equal to sum of individual steps
+    auto sum_of_steps = response.timings.resolve_duration.count() +
+                        response.timings.connect_duration.count() +
+                        response.timings.ssl_handshake_duration.count() +
+                        response.timings.write_duration.count() +
+                        response.timings.read_status_duration.count() +
+                        response.timings.read_headers_duration.count() +
+                        response.timings.read_body_duration.count() +
+                        response.timings.decompress_duration.count();
+    EXPECT_GE(response.timings.total_duration.count(), sum_of_steps) << "Total should be >= sum of steps";
+
+    // Also verify backward compatibility with latency field
+    EXPECT_GT(response.latency.count(), 0) << "Legacy latency field should still be set";
+}
+
 // Test status codes
 TEST_F(AsyncHttpsRequestTest, NotFoundStatus) {
     HttpResponse response;

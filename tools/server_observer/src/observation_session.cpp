@@ -259,7 +259,7 @@ bool ObservationSession::run_update() {
             // Check if game ended before processing and moving the JSON.
             // We store the result now because game_state will be moved below.
             bool game_ended = is_game_ended(game_state);
-
+            std::cout << "Game ended status: " << (game_ended ? "true" : "false") << std::endl;
             // Extract map ID before moving game_state (if we need it).
             // This avoids accessing the JSON after it's been moved.
             std::string map_id_to_fetch = "-1";

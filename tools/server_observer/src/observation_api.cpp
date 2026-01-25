@@ -119,6 +119,7 @@ json ObservationApi::make_game_server_request(const json& parameters) {
             auto& result = response_json["result"];
             if (result.contains("@c")) {
                 std::string err_class = result["@c"].get<std::string>();
+                std::cout << "Error class: " << err_class << std::endl;
                 if (err_class == "ultshared.UltAuthentificationException") {
                     throw std::runtime_error("Authentication failed");
                 }
