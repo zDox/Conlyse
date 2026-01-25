@@ -1,9 +1,11 @@
-from setuptools import find_packages, setup, Extension
-from setuptools.command.build_ext import build_ext
 import sys
-import os
 from codecs import open
 from os import path
+
+from setuptools import Extension
+from setuptools import find_packages
+from setuptools import setup
+from setuptools.command.build_ext import build_ext
 
 # The directory containing this file
 HERE = path.abspath(path.dirname(__file__))
@@ -60,18 +62,6 @@ test_extras = [
 extras_require["tests"] = tools_extras + test_extras
 
 
-# Pybind11 extension setup
-class get_pybind_include(object):
-    """Helper class to determine the pybind11 include path"""
-
-    def __str__(self):
-        try:
-            import pybind11
-            return pybind11.get_include()
-        except ImportError:
-            return ''
-
-
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
 
@@ -89,6 +79,17 @@ class BuildExt(build_ext):
                     ext.extra_compile_args += ['-stdlib=libc++', '-mmacosx-version-min=10.14']
 
         build_ext.build_extensions(self)
+
+
+# Helper function to get pybind11 includes
+def get_pybind_include():
+    """Get pybind11 include path, installing if necessary"""
+    try:
+        import pybind11
+        return pybind11.get_include()
+    except ImportError:
+        # pybind11 will be installed via setup_requires
+        return ''
 
 
 ext_modules = [
@@ -140,6 +141,10 @@ setup(
         "scipy",
         "orjson",
         "pybind11>=2.6.0",
+    ],
+    setup_requires=[
+        "pybind11>=2.6.0",  # Ensures pybind11 is installed before building
+        "numpy",  # Also needed at build time for numpy includes if you use them
     ],
     extras_require=extras_require,
     ext_modules=ext_modules,
