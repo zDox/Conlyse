@@ -2,6 +2,38 @@
 
 #include <iostream>
 
+#include <zlib.h>
+
+std::string gunzip(const std::string& input) {
+    z_stream zs{};
+    zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(input.data()));
+    zs.avail_in = input.size();
+
+    if (inflateInit2(&zs, 16 + MAX_WBITS) != Z_OK)
+        throw std::runtime_error("inflateInit failed");
+
+    std::string output;
+    char buffer[32768];
+
+    int ret;
+    do {
+        zs.next_out = reinterpret_cast<Bytef*>(buffer);
+        zs.avail_out = sizeof(buffer);
+
+        ret = inflate(&zs, 0);
+        if (ret != Z_OK && ret != Z_STREAM_END) {
+            inflateEnd(&zs);
+            throw std::runtime_error("inflate failed");
+        }
+
+        output.append(buffer, sizeof(buffer) - zs.avail_out);
+    } while (ret != Z_STREAM_END);
+
+    inflateEnd(&zs);
+    return output;
+}
+
+
 AsyncHttpsRequest::AsyncHttpsRequest(asio::io_context& io_context, 
                                      ssl::context& ssl_context,
                                      std::chrono::seconds timeout,
@@ -211,10 +243,10 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         if (handshake_ec) {
             throw boost::system::system_error(handshake_ec);
         }
-
+        std::string real_path = path.empty() ? "/" : path;
         // Build HTTP request
         std::ostringstream request_stream;
-        request_stream << method << " " << path << " HTTP/1.1\r\n";
+        request_stream << method << " " << real_path << " HTTP/1.1\r\n";
         request_stream << "Host: " << host << "\r\n";
 
         // Add custom headers
@@ -225,7 +257,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         // Add body if present
         if (!body.empty()) {
             request_stream << "Content-Type: " << content_type << "\r\n";
-            request_stream << "Content-Length: " << body.length() << "\r\n";
+            request_stream << "Content-Length: " << body.size() << "\r\n";
         }
 
         request_stream << "Connection: close\r\n";
@@ -236,7 +268,7 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         }
 
         std::string request_str = request_stream.str();
-
+        std::cout << "Sending request" << request_str << std::endl;
         // Write request with timeout
         timeout_timer_.expires_after(timeout_duration_);
 
@@ -380,7 +412,9 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
 
         response.success = true;
         std::cout << "Request to " << host << " completed successfully" << std::endl;
-
+        if (response.headers["Content-Encoding"] == "gzip") {
+            response.data = gunzip(response.data);
+        }
         // Don't attempt SSL shutdown - it can cause segfaults during destruction
         // The socket will be closed naturally when the object is destroyed
         // Since we use "Connection: close", the server handles the closure

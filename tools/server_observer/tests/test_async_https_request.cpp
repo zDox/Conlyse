@@ -8,6 +8,8 @@
 #include "../include/proxy_config.hpp"
 #include <memory>
 #include <chrono>
+#include <future>
+#include <vector>
 
 namespace asio = boost::asio;
 namespace ssl = asio::ssl;
@@ -603,6 +605,585 @@ TEST_F(AsyncHttpsRequestTest, LargeResponseBody) {
     EXPECT_TRUE(response.success) << "Error: " << response.error_message;
     EXPECT_EQ(response.status_code, 200);
     EXPECT_GE(response.data.size(), 100000);  // At least 100KB
+}
+
+// ============== Advanced Request Tests ==============
+
+// Test Content-Type header mismatch with body content
+TEST_F(AsyncHttpsRequestTest, ContentTypeMismatch) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        // Set Content-Type in headers to form-encoded
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8";
+
+        // But send JSON body - this mimics the observation API issue
+        std::string body = R"({"key": "value"})";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post",
+                headers,
+                body,
+                "application/json"  // This will override the header
+            )
+        );
+    }
+
+    // The request should succeed - httpbin is lenient
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+}
+
+// Test POST with query parameters in URL
+TEST_F(AsyncHttpsRequestTest, PostWithQueryParameters) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        std::string body = R"({"data": "test"})";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post?param1=value1&param2=value2",
+                headers,
+                body,
+                "application/json"
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+    // Verify query params are in the response
+    EXPECT_NE(response.data.find("param1"), std::string::npos);
+    EXPECT_NE(response.data.find("value1"), std::string::npos);
+}
+
+// Test special characters in headers
+TEST_F(AsyncHttpsRequestTest, SpecialCharactersInHeaders) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        // Test headers with special characters (properly encoded)
+        headers["X-Custom-Value"] = "test@example.com";
+        headers["X-Special-Chars"] = "hello-world_123";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/headers",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+    EXPECT_NE(response.data.find("X-Custom-Value"), std::string::npos);
+}
+
+// Test POST with form-encoded data (proper format)
+TEST_F(AsyncHttpsRequestTest, FormEncodedPost) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        // Proper form-encoded body
+        std::string body = "key1=value1&key2=value2&key3=test%20data";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post",
+                headers,
+                body,
+                "application/x-www-form-urlencoded"
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+    // Verify the form data is in the response
+    EXPECT_NE(response.data.find("key1"), std::string::npos);
+    EXPECT_NE(response.data.find("value1"), std::string::npos);
+}
+
+// Test empty body with POST
+TEST_F(AsyncHttpsRequestTest, PostWithEmptyBody) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post",
+                headers,
+                "",  // Empty body
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+}
+
+// Test PATCH method
+TEST_F(AsyncHttpsRequestTest, PatchRequest) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        std::string body = R"({"field": "updated"})";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "PATCH",
+                "/patch",
+                headers,
+                body,
+                "application/json"
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+}
+
+// Test very long URL path
+TEST_F(AsyncHttpsRequestTest, LongUrlPath) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        // Create a long path with multiple segments
+        std::string long_path = "/get?";
+        for (int i = 0; i < 20; ++i) {
+            if (i > 0) long_path += "&";
+            long_path += "param" + std::to_string(i) + "=value" + std::to_string(i);
+        }
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                long_path,
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+}
+
+// Test request with Accept-Encoding header
+TEST_F(AsyncHttpsRequestTest, AcceptEncodingHeader) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        headers["Accept-Encoding"] = "gzip, deflate, br";
+        headers["Accept"] = "application/json";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/get",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+}
+
+// Test JSON with nested objects
+TEST_F(AsyncHttpsRequestTest, NestedJsonPost) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        std::string body = R"({
+            "level1": {
+                "level2": {
+                    "level3": {
+                        "data": "nested",
+                        "array": [1, 2, 3]
+                    }
+                }
+            }
+        })";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post",
+                headers,
+                body,
+                "application/json"
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+    EXPECT_NE(response.data.find("nested"), std::string::npos);
+}
+
+// Test request with multiple accept types
+TEST_F(AsyncHttpsRequestTest, MultipleAcceptTypes) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        headers["Accept"] = "text/plain, */*; q=0.01";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/get",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+}
+
+// Test redirects (httpbin should handle this)
+TEST_F(AsyncHttpsRequestTest, RedirectHandling) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        // This endpoint returns a 302 redirect to /get
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/redirect-to?url=/get",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    // AsyncHttpsRequest does NOT follow redirects automatically (by design).
+    // It treats redirect responses as successful responses with the redirect status code.
+    // The client receives the 302 response and would need to manually handle the redirect.
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 302) << "Expected redirect status code";
+    // The Location header would contain the redirect URL
+}
+
+// Test UTF-8 characters in JSON body
+TEST_F(AsyncHttpsRequestTest, Utf8InJsonBody) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        std::string body = R"({"message": "Hello 世界", "emoji": "🚀"})";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post",
+                headers,
+                body,
+                "application/json; charset=UTF-8"
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
+}
+
+// Test concurrent requests with different methods
+TEST_F(AsyncHttpsRequestTest, ConcurrentDifferentMethods) {
+    Headers headers;
+    headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+    // Run 3 different requests concurrently
+    std::vector<std::future<HttpResponse>> futures;
+    
+    for (int i = 0; i < 3; ++i) {
+        futures.push_back(std::async(std::launch::async, [this, i, headers]() {
+            auto local_io = std::make_unique<asio::io_context>();
+            auto local_ssl = std::make_unique<ssl::context>(ssl::context::tlsv12_client);
+            local_ssl->set_default_verify_paths();
+            local_ssl->set_verify_mode(ssl::verify_peer);
+
+            auto request = std::make_shared<AsyncHttpsRequest>(
+                *local_io, *local_ssl, std::chrono::seconds(30)
+            );
+
+            std::optional<HttpResponse> result;
+            std::string method, path;
+            
+            switch (i % 3) {
+                case 0:
+                    method = "GET";
+                    path = "/get";
+                    break;
+                case 1:
+                    method = "POST";
+                    path = "/post";
+                    break;
+                case 2:
+                    method = "DELETE";
+                    path = "/delete";
+                    break;
+            }
+
+            asio::co_spawn(
+                *local_io,
+                [&]() -> asio::awaitable<void> {
+                    result = co_await request->execute(
+                        "httpbin.org", "443", method, path, headers, "", ""
+                    );
+                },
+                asio::detached
+            );
+
+            local_io->run();
+            return *result;
+        }));
+    }
+
+    // Wait for all requests to complete
+    for (auto& future : futures) {
+        auto response = future.get();
+        EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+        EXPECT_EQ(response.status_code, 200);
+    }
+}
+
+// Test status code 400 (Bad Request) - intentionally trigger it
+TEST_F(AsyncHttpsRequestTest, BadRequestStatus) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+
+        // This endpoint returns 400
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/status/400",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 400);
+}
+
+// Test duplicate Content-Type headers (reproduces observation API bug)
+TEST_F(AsyncHttpsRequestTest, DuplicateContentTypeHeaders) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        // Add Content-Type in headers - this will create a duplicate!
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8";
+
+        std::string body = R"({"key": "value"})";
+
+        // This will add ANOTHER Content-Type header (application/json)
+        // resulting in duplicate headers which can cause 400 errors
+        // NOTE: We cannot easily verify the duplicate headers are sent without
+        // a network capture, but the code path in async_https_request.cpp
+        // (lines 221-228) clearly shows both headers are added.
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "POST",
+                "/post",
+                headers,
+                body,
+                "application/json"  // This creates the duplicate
+            )
+        );
+    }
+
+    // httpbin.org is lenient and accepts duplicate headers, so the request succeeds.
+    // However, strict servers (like some game servers) would return 400 here.
+    // This test demonstrates the bug scenario that occurs in observation_api.cpp.
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    // Note: Strict servers would return 400 here due to duplicate Content-Type headers
+}
+
+// Test request with cache control headers
+TEST_F(AsyncHttpsRequestTest, CacheControlHeaders) {
+    HttpResponse response;
+    {
+        auto request = std::make_shared<AsyncHttpsRequest>(
+            *io_context_,
+            *ssl_context_,
+            std::chrono::seconds(30)
+        );
+
+        Headers headers;
+        headers["User-Agent"] = "AsyncHttpsRequestTest/1.0";
+        headers["Cache-Control"] = "no-cache, no-store";
+        headers["Pragma"] = "no-cache";
+
+        response = runAwaitable(
+            request->execute(
+                "httpbin.org",
+                "443",
+                "GET",
+                "/cache",
+                headers,
+                "",
+                ""
+            )
+        );
+    }
+
+    EXPECT_TRUE(response.success) << "Error: " << response.error_message;
+    EXPECT_EQ(response.status_code, 200);
 }
 
 int main(int argc, char **argv) {

@@ -6,7 +6,7 @@
 
 HttpClient::HttpClient(std::shared_ptr<RequestManager> manager, const std::string& url)
     : manager_(std::move(std::move(manager))),
-      timeout_(30),
+      timeout_(60),
       verify_ssl_(true) {
     
     if (!manager_) {

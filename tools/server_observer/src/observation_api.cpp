@@ -55,7 +55,6 @@ json ObservationApi::make_game_server_request(const json& parameters) {
         // Build request headers
         Headers req_headers = {
             {"Accept", "text/plain, */*; q=0.01"},
-            {"Content-Type", "application/x-www-form-urlencoded; charset=UTF-8"},
             {"Accept-Encoding", "gzip, deflate, br"}
         };
 
@@ -99,7 +98,7 @@ json ObservationApi::make_game_server_request(const json& parameters) {
         // Send request
         std::string body = payload.dump();
         auto res = cli_->Post(req_headers, body, "application/json");
-
+        std::cout << "Latency:" << res.latency << " ms" << std::endl;
         if (res.status_code != 200) {
             throw std::runtime_error("HTTP status: " + std::to_string(res.status_code));
         }
