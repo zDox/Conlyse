@@ -163,8 +163,6 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         response.timings.total_duration = response.latency;
 
         response.success = true;
-        std::cout << "Request to " << host << " completed successfully (size: "
-                  << response.data.size() << " bytes)" << std::endl;
 
     } catch (const std::exception& e) {
         auto end_time = std::chrono::steady_clock::now();
@@ -213,8 +211,6 @@ asio::awaitable<bool> AsyncHttpsRequest::resolve_host(
     timeout_timer_.cancel();
 
     record_timing(start, response.timings.resolve_duration);
-    std::cout << "Resolved " << host << ":" << port << std::endl;
-
     co_return true;
 }
 
@@ -255,8 +251,6 @@ asio::awaitable<bool> AsyncHttpsRequest::connect_to_server(
 
     timeout_timer_.cancel();
     record_timing(start, response.timings.connect_duration);
-    std::cout << "Connected to server" << std::endl;
-
     co_return true;
 }
 
@@ -344,7 +338,6 @@ asio::awaitable<bool> AsyncHttpsRequest::perform_proxy_connect(
 
     timeout_timer_.cancel();
     record_timing(start, response.timings.proxy_connect_duration);
-    std::cout << "Proxy CONNECT successful" << std::endl;
 
     co_return true;
 }
@@ -355,7 +348,6 @@ asio::awaitable<bool> AsyncHttpsRequest::perform_ssl_handshake(HttpResponse& res
     auto start = std::chrono::steady_clock::now();
     timeout_timer_.expires_after(timeout_duration_);
 
-    std::cout << "Starting SSL handshake" << std::endl;
 
     auto handshake_result = co_await (
         ssl_socket_.async_handshake(ssl::stream_base::client, asio::as_tuple(asio::use_awaitable)) ||
@@ -375,7 +367,6 @@ asio::awaitable<bool> AsyncHttpsRequest::perform_ssl_handshake(HttpResponse& res
 
     timeout_timer_.cancel();
     record_timing(start, response.timings.ssl_handshake_duration);
-    std::cout << "SSL handshake completed" << std::endl;
 
     co_return true;
 }
@@ -448,7 +439,6 @@ asio::awaitable<bool> AsyncHttpsRequest::send_http_request(
     auto start = std::chrono::steady_clock::now();
     timeout_timer_.expires_after(timeout_duration_);
 
-    std::cout << "Sending HTTP request (" << request.size() << " bytes)" << std::endl;
 
     auto write_result = co_await (
         asio::async_write(ssl_socket_, asio::buffer(request), asio::as_tuple(asio::use_awaitable)) ||
@@ -468,7 +458,6 @@ asio::awaitable<bool> AsyncHttpsRequest::send_http_request(
 
     timeout_timer_.cancel();
     record_timing(start, response.timings.write_duration);
-    std::cout << "HTTP request sent (" << bytes_written << " bytes written)" << std::endl;
 
     co_return true;
 }
@@ -482,8 +471,6 @@ asio::awaitable<bool> AsyncHttpsRequest::read_status_line(
     auto ttfb_start = std::chrono::steady_clock::now();
     auto read_start = std::chrono::steady_clock::now();
     timeout_timer_.expires_after(timeout_duration_);
-
-    std::cout << "Waiting for status line (TTFB measurement starts)..." << std::endl;
 
     auto read_result = co_await (
         asio::async_read_until(ssl_socket_, buffer, "\r\n", asio::as_tuple(asio::use_awaitable)) ||
@@ -517,9 +504,6 @@ asio::awaitable<bool> AsyncHttpsRequest::read_status_line(
     response_stream >> http_version >> response.status_code;
     std::string status_message;
     std::getline(response_stream, status_message);
-
-    std::cout << "Received status: " << response.status_code << std::endl;
-
     co_return true;
 }
 
@@ -569,9 +553,6 @@ asio::awaitable<bool> AsyncHttpsRequest::read_headers(
             response.headers[key] = value;
         }
     }
-
-    std::cout << "Received " << response.headers.size() << " headers" << std::endl;
-
     co_return true;
 }
 
@@ -591,8 +572,6 @@ asio::awaitable<bool> AsyncHttpsRequest::read_body(
 
     // Read remaining data until EOF
     timeout_timer_.expires_after(timeout_duration_);
-    std::cout << "Reading response body" << std::endl;
-
     while (true) {
         auto read_result = co_await (
             asio::async_read(ssl_socket_, buffer, asio::transfer_at_least(1),
@@ -628,8 +607,6 @@ asio::awaitable<bool> AsyncHttpsRequest::read_body(
     timeout_timer_.cancel();
 
     record_timing(start, response.timings.read_body_duration);
-    std::cout << "Received body (" << response.data.size() << " bytes)" << std::endl;
-
     co_return true;
 }
 
@@ -638,7 +615,6 @@ void AsyncHttpsRequest::decompress_if_needed(HttpResponse& response) {
         auto start = std::chrono::steady_clock::now();
         response.data = gunzip(response.data);
         record_timing(start, response.timings.decompress_duration);
-        std::cout << "Decompressed response (" << response.data.size() << " bytes)" << std::endl;
     }
 }
 

@@ -3,7 +3,6 @@
 #include <iomanip>
 #include <chrono>
 #include <thread>
-#include <filesystem>
 #include <algorithm>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -94,17 +93,46 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
 }
 
 ServerObserver::~ServerObserver() {
+    // Ensure stop() has been called
+    if (!stop_flag_) {
+        stop();
+    }
+
+    std::cout << "ServerObserver destructor complete" << std::endl;
+}
+
+void ServerObserver::stop() {
+    std::cout << "Stopping ServerObserver..." << std::endl;
     stop_flag_ = true;
     
-    // Stop the scan thread
+    // Stop the scan thread first
     if (scan_thread_ && scan_thread_->joinable()) {
+        std::cout << "Waiting for scan thread to finish..." << std::endl;
         scan_thread_->join();
     }
     
-    // Stop the dedicated update worker threads
+    // Wait for all active coroutines to complete with a timeout
+    std::cout << "Waiting for " << active_coroutines_.load()
+              << " active coroutines to complete..." << std::endl;
+
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (active_coroutines_.load() > 0 &&
+           std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    if (active_coroutines_.load() > 0) {
+        std::cerr << "Warning: " << active_coroutines_.load()
+                  << " coroutines still active after timeout" << std::endl;
+    }
+
+    // Now stop the io_context and join worker threads
     update_work_guard_.reset();  // Release the work guard to allow io_context to finish
     update_io_context_.stop();   // Stop the io_context
     
+    std::cout << "Waiting for " << update_worker_threads_.size()
+              << " worker threads to finish..." << std::endl;
+
     // Join all update worker threads
     for (auto& thread : update_worker_threads_) {
         if (thread.joinable()) {
@@ -112,7 +140,23 @@ ServerObserver::~ServerObserver() {
         }
     }
     
-    std::cout << "All update worker threads stopped" << std::endl;
+    std::cout << "All worker threads stopped" << std::endl;
+
+    // Clear observer sessions (this will destroy Python objects)
+    {
+        std::lock_guard<std::mutex> lock(sessions_lock_);
+        std::cout << "Clearing " << observer_sessions_.size()
+                  << " observer sessions..." << std::endl;
+        observer_sessions_.clear();
+    }
+
+    // Clear the listing interface (contains Python objects)
+    if (listing_interface_) {
+        std::cout << "Clearing listing interface..." << std::endl;
+        listing_interface_.reset();
+    }
+
+    std::cout << "ServerObserver stopped successfully" << std::endl;
 }
 
 void ServerObserver::initialize_listing_interface() {
@@ -301,93 +345,6 @@ void ServerObserver::resume_active() {
 
         int scenario_id = meta["scenario_id"].get<int>();
         start_observation_session(game_id, scenario_id);
-    }
-}
-
-void ServerObserver::run_single_update(ObservationSession* session) {
-    int game_id = session->game_id;
-    int attempt = 1;
-
-    while (true) {
-        try {
-            bool keep_running = session->run_update();
-            std::cout << "Finished update for game " << game_id << std::endl;
-            malloc_trim(0);
-
-            // Increment update counter and record timestamp
-            total_updates_completed_++;
-            {
-                std::lock_guard<std::mutex> lock(stats_lock_);
-                update_timestamps_.push_back(std::chrono::system_clock::now());
-            }
-
-            if (keep_running) {
-                // Schedule next update based on the previous scheduled time, not current time
-                // This ensures we maintain the actual update_interval_ between updates
-                session->next_update_at = session->next_update_at +
-                    std::chrono::seconds(static_cast<int>(update_interval_));
-
-                std::lock_guard<std::mutex> lock(queue_lock_);
-                update_queue_.push(session);
-            } else {
-                std::cout << "Finished recording game " << game_id << std::endl;
-                registry_->mark_completed(game_id);
-                if (account_pool_) {
-                    account_pool_->decrement_guest_join(session->account);
-                }
-
-                {
-                    std::lock_guard<std::mutex> lock(sessions_lock_);
-                    observer_sessions_.erase(game_id);
-                }
-
-                known_games_.insert(game_id);
-            }
-
-            {
-                std::lock_guard<std::mutex> lock(threads_lock_);
-                first_update_sessions_.erase(game_id);
-                running_first_updates_.erase(game_id);
-                active_threads_.erase(std::this_thread::get_id());
-            }
-
-            break;  // Success
-
-        } catch (const std::exception& e) {
-            if (attempt < MAX_UPDATE_RETRIES) {
-                std::cerr << "Observation for game " << game_id
-                         << " failed, retrying attempt " << attempt
-                         << "/" << MAX_UPDATE_RETRIES << "..." << std::endl;
-                attempt++;
-                continue;
-            }
-
-            std::cerr << "Observation for game " << game_id
-                     << " failed after " << MAX_UPDATE_RETRIES
-                     << " retries, marking as failed." << std::endl;
-
-            registry_->mark_failed(game_id, e.what());
-
-            if (account_pool_) {
-                account_pool_->decrement_guest_join(session->account);
-            }
-
-            {
-                std::lock_guard<std::mutex> lock(sessions_lock_);
-                observer_sessions_.erase(game_id);
-            }
-
-            known_games_.insert(game_id);
-
-            {
-                std::lock_guard<std::mutex> lock(threads_lock_);
-                first_update_sessions_.erase(game_id);
-                running_first_updates_.erase(game_id);
-                active_threads_.erase(std::this_thread::get_id());
-            }
-
-            break;
-        }
     }
 }
 
@@ -616,7 +573,7 @@ void ServerObserver::print_update_statistics() {
         now - last_stats_print_time_).count();
 
     // Only print every 60 seconds
-    if (duration_since_last < 60) {
+    if (duration_since_last < 30) {
         return;
     }
 

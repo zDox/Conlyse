@@ -57,97 +57,6 @@ json ObservationApi::parse_response(const std::string& response_data) {
     return response_json;
 }
 
-HttpResponse ObservationApi::request_game_state(std::map<std::string, std::string> &state_ids,
-                                                std::map<std::string, std::string> &time_stamps) {
-    bool include_state_meta = !state_ids.empty() && !time_stamps.empty();
-    
-    // Build state_ids and time_stamps as JSON objects
-    json state_ids_json = json::object();
-    json time_stamps_json = json::object();
-    
-    if (include_state_meta) {
-        for (const auto& [key, value] : state_ids) {
-            state_ids_json[key] = value;
-        }
-        for (const auto& [key, value] : time_stamps) {
-            time_stamps_json[key] = value;
-        }
-    }
-    
-    // Build action
-    json action = {
-        {"@c", "ultshared.action.UltUpdateGameStateAction"},
-        {"stateType", 0},
-        {"stateID", "0"},
-        {"addStateIDsOnSent", include_state_meta}
-    };
-
-    if (include_state_meta) {
-        action["stateIDs"] = state_ids_json;
-        action["stateIDs"]["@c"] = "java.util.HashMap";
-
-        action["timeStamps"] = time_stamps_json;
-        action["timeStamps"]["@c"] = "java.util.HashMap";
-    }
-
-    action["actions"] = json::array({
-        "java.util.LinkedList",
-        json::array()
-    });
-    
-    // Create HTTPS client
-    cli_->enable_server_certificate_verification(false);
-    cli_->set_follow_location(true);
-
-    // Configure proxy if provided
-    if (proxy_.enabled) {
-        cli_->set_proxy(proxy_.host, proxy_.port, proxy_.username, proxy_.password);
-    }
-
-    // Build request headers
-    Headers req_headers = {
-        {"Accept", "text/plain, */*; q=0.01"},
-        {"Accept-Encoding", "gzip, deflate, br"}
-    };
-
-    // Add custom headers
-    for (const auto& [key, value] : headers_) {
-        req_headers.insert({key, value});
-    }
-
-    // Build payload
-    std::string hash_input = "undefined" + std::to_string(current_time_ms());
-    std::string hash_hex = sha1_hex(hash_input);
-
-    json payload = {
-        {"requestID", request_id_},
-        {"language", "en"},
-        {"version", client_version_},
-        {"tstamp", std::to_string(auth_.auth_tstamp)},
-        {"client", "con-client"},
-        {"hash", hash_hex},
-        {"sessionTstamp", 0},
-        {"gameID", std::to_string(game_id_)},
-        {"playerID", player_id_},
-        {"siteUserID", std::to_string(auth_.user_id)},
-        {"adminLevel", nullptr},
-        {"rights", auth_.rights},
-        {"userAuth", auth_.auth},
-        {"lastCallDuration", 0}
-    };
-
-    // Merge parameters into payload
-    for (auto& [key, value] : action.items()) {
-        payload[key] = value;
-    }
-
-    request_id_++;
-
-    // Send request and return raw response
-    std::string body = payload.dump();
-    return cli_->Post(req_headers, body, "application/json");
-}
-
 asio::awaitable<HttpResponse> ObservationApi::request_game_state_async(std::map<std::string, std::string> &state_ids,
                                                                         std::map<std::string, std::string> &time_stamps) {
     bool include_state_meta = !state_ids.empty() && !time_stamps.empty();
@@ -282,7 +191,6 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
     }
 
     std::string result_class = response_result["@c"].get<std::string>();
-    std::cout << "Error class: " << result_class << std::endl;
 
     // Check for authentication errors
     if (result_class == "ultshared.UltAuthentificationException") {

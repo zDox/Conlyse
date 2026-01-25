@@ -32,7 +32,8 @@ public:
     void initialize_listing_interface();
 
     bool run();
-    
+    void stop();
+
 private:
     json config_;
     std::shared_ptr<AccountPool> account_pool_;
