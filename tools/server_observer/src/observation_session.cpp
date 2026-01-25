@@ -146,7 +146,7 @@ ObservationSession::ObservationSession(
       , metadata_path_(std::move(metadata_path))
       , long_term_storage_path_(std::move(long_term_storage_path))
       , file_size_threshold_(file_size_threshold)
-      , package_(), storage_(nullptr), api_(nullptr) {
+      , package_(), storage_(nullptr), api_(nullptr), attempt_(1) {
     next_update_at = std::chrono::system_clock::now();
 }
 
@@ -333,121 +333,100 @@ bool ObservationSession::is_game_ended(const json &response) {
 }
 
 bool ObservationSession::run_update() {
-    int attempt = 1;
+    std::cout << "Starting update for game " << game_id << " (attempt " << attempt_ << ")" << std::endl;
 
     // Setup storage logging
     ensure_storage()->setup_logging();
 
-    while (true) {
-        std::cout << "Starting update for game " << game_id << std::endl;
+    if (!ensure_observation_package()) {
+        std::cerr << "Failed to create observation package" << std::endl;
+        ensure_storage()->teardown_logging();
+        return false;
+    }
 
-        if (!ensure_observation_package()) {
-            std::cerr << "Failed to create observation package" << std::endl;
-            ensure_storage()->teardown_logging();
+    try {
+        // Fetch game state (returns raw HTTP response)
+        HttpResponse response = api_->request_game_state(package_.state_ids, package_.time_stamps);
+
+
+        // Parse and validate response, extracting state metadata
+        GameServerResult result = api_->parse_and_validate_response(response, package_.state_ids, package_.time_stamps);
+
+        // Check if the request was successful
+        if (!result.success()) {
+            throw std::runtime_error(result.error_message);
+        }
+
+        json game_state = result.data;
+
+        // Update package with new auth and connection details
+        package_.auth = api_->get_auth();
+        package_.cookies = api_->get_cookies();
+        package_.headers = api_->get_headers();
+        package_.game_server_address = api_->get_game_server_address();
+
+        // Check if game ended before processing and moving the JSON.
+        // We store the result now because game_state will be moved below.
+        bool game_ended = is_game_ended(game_state);
+
+        // Save response and release the large JSON immediately.
+        // After this point, game_state is in a moved-from state and should not be accessed.
+        on_request_response(std::move(game_state));
+
+        // Teardown storage logging before returning
+        ensure_storage()->teardown_logging();
+
+        // Reset attempt counter on success
+        attempt_ = 1;
+
+        // Check if game ended (using the bool we stored before the move)
+        if (game_ended) {
             return false;
         }
 
-        try {
-            // Fetch game state
-            json game_state = api_->request_game_state(package_.state_ids, package_.time_stamps);
+        return true;
+    } catch (const std::runtime_error &e) {
+        std::string error = e.what();
 
-            // Update package with new auth and connection details
-            package_.auth = api_->get_auth();
-            package_.cookies = api_->get_cookies();
-            package_.headers = api_->get_headers();
-            package_.game_server_address = api_->get_game_server_address();
-
-            // Check if game ended before processing and moving the JSON.
-            // We store the result now because game_state will be moved below.
-            bool game_ended = is_game_ended(game_state);
-            std::cout << "Game ended status: " << (game_ended ? "true" : "false") << std::endl;
-            // Extract map ID before moving game_state (if we need it).
-            // This avoids accessing the JSON after it's been moved.
-            std::string map_id_to_fetch = "-1";
-            try {
-                if (game_state.contains("result") && game_state["result"].is_object()) {
-                    const auto &result = game_state["result"];
-                    if (result.contains("states") && result["states"].is_object()) {
-                        const auto &states = result["states"];
-                        if (states.contains("3") && states["3"].is_object()) {
-                            const auto &state3 = states["3"];
-                            if (state3.contains("map") && state3["map"].is_object()) {
-                                const auto &map = state3["map"];
-                                if (map.contains("mapID")) {
-                                    map_id_to_fetch = map["mapID"].get<std::string>();
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (const std::exception &e) {
-                // Map data not available or invalid
-            }
-
-            // Save response and release the large JSON immediately.
-            // After this point, game_state is in a moved-from state and should not be accessed.
-            on_request_response(std::move(game_state));
-
-            // Fetch map data if needed (safe to do after game_state is moved)
-            if (map_id_to_fetch != "-1") {
-                // ensure_static_map_data(api, map_id_to_fetch);
-            }
-
-            // Teardown storage logging before returning
-            ensure_storage()->teardown_logging();
-
-            // Check if game ended (using the bool we stored before the move)
-            if (game_ended) {
+        // Handle authentication failure
+        if (error.find("Authentication failed") != std::string::npos) {
+            if (attempt_ >= MAX_RETRIES) {
+                std::cerr << "Authentication failed after " << MAX_RETRIES
+                        << " retries" << std::endl;
+                ensure_storage()->teardown_logging();
                 return false;
             }
 
-            return true;
-        } catch (const std::runtime_error &e) {
-            std::string error = e.what();
-
-            // Handle authentication failure
-            if (error.find("Authentication failed") != std::string::npos) {
-                if (attempt >= MAX_RETRIES) {
-                    std::cerr << "Authentication failed after " << MAX_RETRIES
-                            << " retries" << std::endl;
-                    ensure_storage()->teardown_logging();
-                    return false;
-                }
-
-                std::cerr << "Authentication failed, resetting package and retrying..."
-                        << std::endl;
-                reset_package();
-                attempt++;
-                continue;
-            }
-
-            // Handle server errors
-            if (error.find("HTTP status: 5") != std::string::npos) {
-                std::cerr << "GameServer returned error, retrying in "
-                        << TIME_TILL_RETRY << " seconds..." << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(TIME_TILL_RETRY));
-                continue;
-            }
-
-            // Handle network errors
-            if (error.find("failed") != std::string::npos ||
-                error.find("timeout") != std::string::npos) {
-                std::cerr << "GameServer is not responding, resetting package and retrying..." << std::endl;
-                reset_package();
-                attempt++;
-                continue;
-            }
-
-            // Unknown error
+            std::cerr << "Authentication failed, resetting package and will retry..."
+                    << std::endl;
+            reset_package();
+            attempt_++;
             ensure_storage()->teardown_logging();
-            throw;
+            return true; // Return true to indicate session should be requeued
         }
-    }
-}
 
-void ObservationSession::reset() {
-    package_ = ObservationPackage();
-    ensure_storage()->update_resume_metadata(json::object());
+        // Handle server errors
+        if (error.find("HTTP status: 5") != std::string::npos) {
+            std::cerr << "GameServer returned error, will retry in "
+                    << TIME_TILL_RETRY << " seconds..." << std::endl;
+            ensure_storage()->teardown_logging();
+            return true; // Return true to indicate session should be requeued
+        }
+
+        // Handle network errors
+        if (error.find("failed") != std::string::npos ||
+            error.find("timeout") != std::string::npos) {
+            std::cerr << "GameServer is not responding, resetting package and will retry..." << std::endl;
+            reset_package();
+            attempt_++;
+            ensure_storage()->teardown_logging();
+            return true; // Return true to indicate session should be requeued
+        }
+
+        // Unknown error - don't retry
+        ensure_storage()->teardown_logging();
+        throw;
+    }
 }
 
 RecordingStorage *ObservationSession::ensure_storage() {

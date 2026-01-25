@@ -14,6 +14,25 @@
 
 using json = nlohmann::json;
 
+// Error codes for game server requests
+enum class GameServerError {
+    SUCCESS = 0,
+    HTTP_ERROR,
+    PARSE_ERROR,
+    AUTH_ERROR,
+    SERVER_SWITCH,
+    UNKNOWN_ERROR
+};
+
+// Result structure for game server requests
+struct GameServerResult {
+    GameServerError error_code;
+    std::string error_message;
+    json data;
+
+    bool success() const { return error_code == GameServerError::SUCCESS; }
+};
+
 class ObservationApi {
 public:
     ObservationApi(
@@ -28,11 +47,19 @@ public:
     
     ~ObservationApi();
     
-    json request_game_state(std::map<std::string, std::string> &state_ids,
-                            std::map<std::string, std::string> &time_stamps);
-    
+    HttpResponse request_game_state(std::map<std::string, std::string> &state_ids,
+                                    std::map<std::string, std::string> &time_stamps);
+
+    GameServerResult parse_and_validate_response(HttpResponse& response,
+                                                  std::map<std::string, std::string> &state_ids,
+                                                  std::map<std::string, std::string> &time_stamps);
+
     json get_static_map_data(int map_id);
     
+    bool extract_state_metadata(const json& response,
+                                std::map<std::string, std::string> &state_ids,
+                                std::map<std::string, std::string> &time_stamps);
+
     AuthDetails get_auth() const { return auth_; }
     std::map<std::string, std::string> get_cookies() const;
     std::map<std::string, std::string> get_headers() const;
@@ -50,11 +77,8 @@ private:
     ProxyConfig proxy_;
     std::unique_ptr<HttpClient> cli_;
 
-    json make_game_server_request(const json& parameters);
-    void update_server_time(int64_t t_stamp_now);
-    bool extract_state_metadata(const json& response,
-                                std::map<std::string, std::string> &state_ids,
-                                std::map<std::string, std::string> &time_stamps);
+    // Helper methods for request processing
+    json parse_response(const std::string& response_data);
 };
 
 #endif // OBSERVATION_API_HPP

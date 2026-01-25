@@ -1,8 +1,6 @@
 #include "observation_api.hpp"
 
 
-static const int MAX_RETRIES = 3;
-
 static std::string sha1_hex(const std::string& input) {
     unsigned char hash[SHA_DIGEST_LENGTH];
     SHA1(reinterpret_cast<const unsigned char*>(input.c_str()), input.size(), hash);
@@ -44,111 +42,18 @@ ObservationApi::ObservationApi(
 
 ObservationApi::~ObservationApi() = default;
 
-json ObservationApi::make_game_server_request(const json& parameters) {
-    int attempt = 0;
-    while (true) {
-
-        // Create HTTPS client
-        cli_->enable_server_certificate_verification(false);
-        cli_->set_follow_location(true);
-
-        // Configure proxy if provided
-        if (proxy_.enabled) {
-            cli_->set_proxy(proxy_.host, proxy_.port, proxy_.username, proxy_.password);
-        }
-
-        // Build request headers
-        Headers req_headers = {
-            {"Accept", "text/plain, */*; q=0.01"},
-            {"Accept-Encoding", "gzip, deflate, br"}
-        };
-
-        // Add custom headers
-        for (const auto& [key, value] : headers_) {
-            req_headers.insert({key, value});
-        }
-
-        // Build payload
-        std::string hash_input = "undefined" + std::to_string(current_time_ms());
-        std::string hash_hex = sha1_hex(hash_input);
-
-        json payload = {
-            {"requestID", request_id_},
-            {"language", "en"},
-            {"version", client_version_},
-            {"tstamp", std::to_string(auth_.auth_tstamp)},
-            {"client", "con-client"},
-            {"hash", hash_hex},
-            {"sessionTstamp", 0},
-            {"gameID", std::to_string(game_id_)},
-            {"playerID", player_id_},
-            {"siteUserID", std::to_string(auth_.user_id)},
-            {"adminLevel", nullptr},
-            {"rights", auth_.rights},
-            {"userAuth", auth_.auth},
-            {"lastCallDuration", 0}
-        };
-
-        // Merge parameters into payload
-        for (auto& [key, value] : parameters.items()) {
-            payload[key] = value;
-        }
-
-        request_id_++;
-
-        // Send request
-        std::string body = payload.dump();
-        auto res = cli_->Post(req_headers, body, "application/json");
-        std::cout << "Latency:" << res.latency << " ms" << std::endl;
-        if (res.status_code != 200) {
-            throw std::runtime_error("HTTP status: " + std::to_string(res.status_code));
-        }
-
-        // Parse response and immediately clear the response body to free memory
-        json response_json;
-        try {
-            response_json = json::parse(res.data);
-            // Clear the response body string to free memory
-            res.data.clear();
-            res.data.shrink_to_fit();
-        } catch (const std::exception& e) {
-            throw std::runtime_error("Failed to parse response: " + std::string(e.what()));
-        }
-
-        // Handle errors
-        if (response_json.contains("result") && response_json["result"].is_object()) {
-            auto& result = response_json["result"];
-            if (result.contains("@c")) {
-                std::string err_class = result["@c"].get<std::string>();
-                std::cout << "Error class: " << err_class << std::endl;
-                if (err_class == "ultshared.UltAuthentificationException") {
-                    throw std::runtime_error("Authentication failed");
-                }
-                if (err_class == "ultshared.rpc.UltSwitchServerException") {
-                    // Update server address
-                    if (result.contains("newHostName")) {
-                        std::string new_server = "https://" + result["newHostName"].get<std::string>();
-                        std::cout << "Switching game server to " << new_server << std::endl;
-                        game_server_address_ = new_server;
-                        cli_->set_url(game_server_address_);
-                    }
-                    // Retry
-                    if (attempt >= MAX_RETRIES) {
-                        throw std::runtime_error("Exceeded retries after server switch suggestion");
-                    }
-                    attempt++;
-                    std::cout << "Retrying after UltSwitchServerException (attempt " << attempt << "/" << MAX_RETRIES << ")" << std::endl;
-                    continue;
-                }
-            }
-        }
-        
-        return response_json;
+json ObservationApi::parse_response(const std::string& response_data) {
+    json response_json;
+    try {
+        response_json = json::parse(response_data);
+    } catch (const std::exception& e) {
+        throw std::runtime_error("Failed to parse response: " + std::string(e.what()));
     }
+    return response_json;
 }
 
-json ObservationApi::request_game_state(std::map<std::string, std::string> &state_ids,
-                                        std::map<std::string, std::string> &time_stamps) {
+HttpResponse ObservationApi::request_game_state(std::map<std::string, std::string> &state_ids,
+                                                std::map<std::string, std::string> &time_stamps) {
     bool include_state_meta = !state_ids.empty() && !time_stamps.empty();
     
     // Build state_ids and time_stamps as JSON objects
@@ -185,13 +90,149 @@ json ObservationApi::request_game_state(std::map<std::string, std::string> &stat
         json::array()
     });
     
-    json response = make_game_server_request(action);
-    
-    if (!extract_state_metadata(response, state_ids, time_stamps)) {
-        throw std::runtime_error("Game state extraction failed");
+    // Create HTTPS client
+    cli_->enable_server_certificate_verification(false);
+    cli_->set_follow_location(true);
+
+    // Configure proxy if provided
+    if (proxy_.enabled) {
+        cli_->set_proxy(proxy_.host, proxy_.port, proxy_.username, proxy_.password);
     }
-    
-    return response;
+
+    // Build request headers
+    Headers req_headers = {
+        {"Accept", "text/plain, */*; q=0.01"},
+        {"Accept-Encoding", "gzip, deflate, br"}
+    };
+
+    // Add custom headers
+    for (const auto& [key, value] : headers_) {
+        req_headers.insert({key, value});
+    }
+
+    // Build payload
+    std::string hash_input = "undefined" + std::to_string(current_time_ms());
+    std::string hash_hex = sha1_hex(hash_input);
+
+    json payload = {
+        {"requestID", request_id_},
+        {"language", "en"},
+        {"version", client_version_},
+        {"tstamp", std::to_string(auth_.auth_tstamp)},
+        {"client", "con-client"},
+        {"hash", hash_hex},
+        {"sessionTstamp", 0},
+        {"gameID", std::to_string(game_id_)},
+        {"playerID", player_id_},
+        {"siteUserID", std::to_string(auth_.user_id)},
+        {"adminLevel", nullptr},
+        {"rights", auth_.rights},
+        {"userAuth", auth_.auth},
+        {"lastCallDuration", 0}
+    };
+
+    // Merge parameters into payload
+    for (auto& [key, value] : action.items()) {
+        payload[key] = value;
+    }
+
+    request_id_++;
+
+    // Send request and return raw response
+    std::string body = payload.dump();
+    return cli_->Post(req_headers, body, "application/json");
+}
+
+GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& response,
+                                                             std::map<std::string, std::string> &state_ids,
+                                                             std::map<std::string, std::string> &time_stamps) {
+    GameServerResult result;
+    result.error_code = GameServerError::SUCCESS;
+    result.error_message = "";
+
+    // Check for HTTP errors
+    if (response.status_code != 200) {
+        result.error_code = GameServerError::HTTP_ERROR;
+        result.error_message = "HTTP status: " + std::to_string(response.status_code);
+        return result;
+    }
+
+    // Parse JSON response
+    json game_state;
+    try {
+        game_state = json::parse(response.data);
+    } catch (const std::exception& e) {
+        result.error_code = GameServerError::PARSE_ERROR;
+        result.error_message = "JSON parse error: " + std::string(e.what());
+        return result;
+    }
+
+    // Clear the response data to free memory
+    response.data.clear();
+    response.data.shrink_to_fit();
+
+    // Validate response structure
+    if (!game_state.contains("result") || !game_state["result"].is_object()) {
+        result.error_code = GameServerError::UNKNOWN_ERROR;
+        result.error_message = "No result object in response";
+        return result;
+    }
+
+    const auto& response_result = game_state["result"];
+    if (!response_result.contains("@c")) {
+        result.error_code = GameServerError::UNKNOWN_ERROR;
+        result.error_message = "No @c field in result";
+        return result;
+    }
+
+    std::string result_class = response_result["@c"].get<std::string>();
+    std::cout << "Error class: " << result_class << std::endl;
+
+    // Check for authentication errors
+    if (result_class == "ultshared.UltAuthentificationException") {
+        result.error_code = GameServerError::AUTH_ERROR;
+        result.error_message = "Authentication failed: " + result_class;
+        if (response_result.contains("message")) {
+            result.error_message += " - " + response_result["message"].get<std::string>();
+        }
+        return result;
+    }
+
+    // Check for server switch
+    if (result_class == "ultshared.rpc.UltSwitchServerException") {
+        result.error_code = GameServerError::SERVER_SWITCH;
+        result.error_message = "Server switch required";
+        if (response_result.contains("newHostName")) {
+            std::string new_server = response_result["newHostName"].get<std::string>();
+            result.error_message += ": " + new_server;
+            result.data["newHostName"] = new_server;
+        }
+        result.data = game_state;
+        return result;
+    }
+
+    // Check for valid game state
+    if (result_class != "ultshared.UltAutoGameState" && result_class != "ultshared.UltGameState") {
+        result.error_code = GameServerError::UNKNOWN_ERROR;
+        result.error_message = "Unknown error class: " + result_class;
+        if (response_result.contains("message")) {
+            result.error_message += " - " + response_result["message"].get<std::string>();
+        }
+        return result;
+    }
+
+    // Extract state metadata
+    if (!extract_state_metadata(game_state, state_ids, time_stamps)) {
+        result.error_code = GameServerError::UNKNOWN_ERROR;
+        result.error_message = "Game state extraction failed";
+        return result;
+    }
+
+    // Success - return the game state
+    result.error_code = GameServerError::SUCCESS;
+    result.error_message = "";
+    result.data = game_state;
+    return result;
 }
 
 bool ObservationApi::extract_state_metadata(const json& response,

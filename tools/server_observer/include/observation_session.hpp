@@ -63,6 +63,7 @@ private:
     int file_size_threshold_;
     ObservationPackage package_;
     std::unique_ptr<RecordingStorage> storage_;
+    int attempt_;
 
     RecordingStorage *ensure_storage();
 
