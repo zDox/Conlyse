@@ -19,6 +19,7 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     , stop_flag_(false)
     , total_updates_completed_(0)
     , active_coroutines_(0)
+    , num_update_worker_threads_(config.value("update_worker_threads", 4))
 {
     // Initialize statistics timing
     stats_start_time_ = std::chrono::system_clock::now();
@@ -74,6 +75,17 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
         config.value("max_in_flight_requests", 100)
     );
     
+    // Initialize dedicated worker threads for update coroutines
+    update_work_guard_ = std::make_unique<asio::executor_work_guard<asio::io_context::executor_type>>(
+        asio::make_work_guard(update_io_context_)
+    );
+    std::cout << "Starting " << num_update_worker_threads_ << " worker threads for update coroutines" << std::endl;
+    for (int i = 0; i < num_update_worker_threads_; ++i) {
+        update_worker_threads_.emplace_back([this]() {
+            update_io_context_.run();
+        });
+    }
+    
     // Load known games from registry
     refresh_known_games_from_registry();
 
@@ -83,9 +95,24 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
 
 ServerObserver::~ServerObserver() {
     stop_flag_ = true;
+    
+    // Stop the scan thread
     if (scan_thread_ && scan_thread_->joinable()) {
         scan_thread_->join();
     }
+    
+    // Stop the dedicated update worker threads
+    update_work_guard_.reset();  // Release the work guard to allow io_context to finish
+    update_io_context_.stop();   // Stop the io_context
+    
+    // Join all update worker threads
+    for (auto& thread : update_worker_threads_) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    
+    std::cout << "All update worker threads stopped" << std::endl;
 }
 
 void ServerObserver::initialize_listing_interface() {
@@ -507,9 +534,9 @@ void ServerObserver::start_due_updates() {
         // Increment the active coroutine counter before spawning
         active_coroutines_++;
 
-        // Spawn async coroutine using the RequestManager's worker thread pool
+        // Spawn async coroutine using the dedicated update worker thread pool
         asio::co_spawn(
-            request_manager_->get_io_context(),
+            update_io_context_,
             run_single_update_async(observer),
             asio::detached
         );

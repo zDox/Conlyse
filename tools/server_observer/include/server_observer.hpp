@@ -39,6 +39,12 @@ private:
     std::shared_ptr<RequestManager> request_manager_;
     std::mutex sessions_lock_;
     
+    // Dedicated worker threads for update coroutines
+    asio::io_context update_io_context_;
+    std::unique_ptr<asio::executor_work_guard<asio::io_context::executor_type>> update_work_guard_;
+    std::vector<std::thread> update_worker_threads_;
+    int num_update_worker_threads_;
+    
     std::vector<int> scenario_ids_;
     int max_parallel_recordings_;
     int max_parallel_updates_;
