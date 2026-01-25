@@ -4,8 +4,6 @@
 #include <sstream>
 #include <iomanip>
 #include <iostream>
-#include <boost/asio/co_spawn.hpp>
-#include <boost/asio/detached.hpp>
 
 
 static std::string sha1_hex(const std::string& input) {

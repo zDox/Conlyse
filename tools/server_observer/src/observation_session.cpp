@@ -445,7 +445,6 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
         // Fetch game state asynchronously (returns raw HTTP response)
         HttpResponse response = co_await api_->request_game_state_async(package_.state_ids, package_.time_stamps);
 
-
         // Parse and validate response, extracting state metadata
         GameServerResult result = api_->parse_and_validate_response(response, package_.state_ids, package_.time_stamps);
 
