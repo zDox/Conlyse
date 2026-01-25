@@ -240,6 +240,7 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
     }
 
     // Process states to extract metadata
+    bool game_ended = false;
     for (auto [key, state_val] : states_obj) {
         simdjson::dom::object state;
         if (state_val.get(state) != simdjson::SUCCESS) {
@@ -261,6 +262,12 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
         if (state["timeStamp"].get(timestamp_view) == simdjson::SUCCESS) {
             time_stamps[std::string(key)] = std::string(timestamp_view);
         }
+
+        // Check if game has ended
+        bool ended;
+        if (state["gameEnded"].get(ended) == simdjson::SUCCESS && ended) {
+            game_ended = true;
+        }
     }
 
     if (state_ids.empty() || time_stamps.empty()) {
@@ -269,46 +276,12 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
         return result;
     }
 
-    // Success - only parse to JSON for the data field if needed for compatibility
-    // In this case, we keep minimal JSON parsing
+    // Success - return with minimal JSON parsing
     result.error_code = GameServerError::SUCCESS;
     result.error_message = "";
-    result.data = json::parse(result.raw_response);
+    result.game_ended = game_ended;
+    // No need to parse the full JSON for data field in the success case
     return result;
-}
-
-bool ObservationApi::extract_state_metadata(const json& response,
-                                            std::map<std::string, std::string> &state_ids,
-                                            std::map<std::string, std::string> &time_stamps) {
-
-    if (!response.contains("result") || !response["result"].is_object()) {
-        return false;
-    }
-    
-    const auto& result = response["result"];
-    if (!result.contains("states") || !result["states"].is_object()) {
-        return false;
-    }
-    
-    const auto& states = result["states"];
-    
-    for (const auto& [key, state] : states.items()) {
-        if (!state.is_object()) {
-            continue;
-        }
-        
-        if (state.contains("stateType")) {
-            if (state.contains("stateID") && state["stateID"].is_string()) {
-                state_ids[key] = state["stateID"].get<std::string>();
-            }
-
-            if (state.contains("timeStamp")) {
-                time_stamps[key] = state["timeStamp"].get<std::string>();
-            }
-        }
-    }
-    
-    return !state_ids.empty() && !time_stamps.empty();
 }
 
 json ObservationApi::get_static_map_data(int map_id) {

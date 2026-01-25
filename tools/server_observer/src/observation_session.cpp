@@ -356,16 +356,11 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
             throw std::runtime_error(result.error_message);
         }
 
-        json game_state = result.data;
-
         // Update package with new auth and connection details
         package_.auth = api_->get_auth();
         package_.cookies = api_->get_cookies();
         package_.headers = api_->get_headers();
         package_.game_server_address = api_->get_game_server_address();
-
-        // Check if game ended before processing.
-        bool game_ended = is_game_ended(game_state);
 
         // Save raw response string to storage.
         // We move the raw string to storage, avoiding the need to dump JSON.
@@ -377,8 +372,8 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
         // Reset attempt counter on success
         attempt_ = 1;
 
-        // Check if game ended
-        if (game_ended) {
+        // Check if game ended (extracted during simdjson parsing)
+        if (result.game_ended) {
             co_return false;
         }
 
