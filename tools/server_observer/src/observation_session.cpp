@@ -307,31 +307,6 @@ bool ObservationSession::ensure_static_map_data(ObservationApi &api, int map_id)
     }
 }
 
-bool ObservationSession::is_game_ended(const json &response) {
-    if (!response.is_object()) {
-        return false;
-    }
-
-    if (!response.contains("result") || !response["result"].is_object()) {
-        return false;
-    }
-
-    const auto &result = response["result"];
-    if (!result.contains("states") || !result["states"].is_object()) {
-        return false;
-    }
-
-    const auto &states = result["states"];
-    for (const auto &[key, state]: states.items()) {
-        if (state.is_object() && state.contains("gameEnded") &&
-            state["gameEnded"].is_boolean() && state["gameEnded"].get<bool>()) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 asio::awaitable<bool> ObservationSession::run_update_async() {
     std::cout << "Starting update for game " << game_id << " (attempt " << attempt_ << ")" << std::endl;
 

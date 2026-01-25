@@ -213,10 +213,9 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
         if (result_obj["newHostName"].get(new_server_view) == simdjson::SUCCESS) {
             std::string new_server(new_server_view);
             result.error_message += ": " + new_server;
+            // Store the new server name in data for later processing
             result.data["newHostName"] = new_server;
         }
-        // For server switch, we need the full JSON for later processing
-        result.data = json::parse(result.raw_response);
         return result;
     }
 

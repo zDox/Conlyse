@@ -79,8 +79,6 @@ private:
 
     bool ensure_static_map_data(ObservationApi &api, int map_id);
 
-    bool is_game_ended(const json &response);
-
     void on_request_response(std::string&& response_str);
 };
 
