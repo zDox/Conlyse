@@ -194,9 +194,10 @@ MIT License
 
 Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
 
-## Author
+## Authors
 
-zDox
+- zDox
+- NikNam3
 
 ## Links
 
