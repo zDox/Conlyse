@@ -1,6 +1,6 @@
 # ConflictInterface
 
-A Python interface for [Conflict of Nations](https://www.conflictoflations.com/), providing programmatic access to game state management, API interactions, and comprehensive replay functionality.
+A Python interface for [Conflict of Nations](https://www.conflictnations.com/), providing programmatic access to game state management, API interactions, and comprehensive replay functionality.
 
 ## Features
 
@@ -202,4 +202,4 @@ zDox
 
 - **GitHub**: https://github.com/zDox/ConflictInterface
 - **Documentation**: https://conflict-interface.readthedocs.io/
-- **Game Website**: https://www.conflictoflations.com/
+- **Game Website**: https://www.conflictnations.com/
