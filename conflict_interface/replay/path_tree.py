@@ -10,11 +10,13 @@ from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.replay.apply_replay_helper import get_reference_from_direct_parent
 from conflict_interface.replay.path_tree_node import PathTreeNode
+from conflict_interface.steiner_tree_cpp import build_steiner_tree as build_steiner_tree_cpp
 
 logger = getLogger()
 
 
 class PathTree:
+    _PRIMITIVES = frozenset({int, float, str, bool, type(None)})
     def __init__(self):
         self.root: PathTreeNode = PathTreeNode(parent = None, path_element="root", index=0)
         self.idx_counter: int = 1  # Start from 1 since root is 0
@@ -119,8 +121,6 @@ class PathTree:
         Build a virtual/Steiner tree *expanded* so every edge is an actual original tree edge.
         Returns adjacency list mapping node_idx -> list[node_idx] (directed edges, parent -> child).
         """
-        from conflict_interface.steiner_tree_cpp import build_steiner_tree as build_steiner_tree_cpp
-
         # Pass numpy arrays directly - zero copy!
         return build_steiner_tree_cpp(
             self.parent,  # numpy array
@@ -288,8 +288,10 @@ class PathTree:
                         if hook.attributes is None or attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
                             old_ref = getattr(attribute_node.reference, attribute_node.path_element,
                                               None)  # copy the attribute by acesssing the province
-
-                            old_value = deepcopy(old_ref)
+                            if old_ref in self._PRIMITIVES:
+                                old_value = old_ref
+                            else:
+                                old_value = deepcopy(old_ref)
                             out[hook_path][v][attribute_node.path_element] = [old_value, None]
 
         return out

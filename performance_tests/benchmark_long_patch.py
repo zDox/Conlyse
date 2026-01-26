@@ -168,4 +168,4 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     return results
 
 if __name__ == '__main__':
-    print(benchmark_across_indices(start_idx=1, end_idx=1840, step=100, runs=2))
+    print(benchmark_across_indices(start_idx=1000, end_idx=1000, step=100, runs=10))

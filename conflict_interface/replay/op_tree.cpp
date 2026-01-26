@@ -7,8 +7,8 @@
 namespace py = pybind11;
 
 constexpr int ADD_OPERATION = 1;
-constexpr int REMOVE_OPERATION = 3;
 constexpr int REPLACE_OPERATION = 2;
+constexpr int REMOVE_OPERATION = 3;
 
 struct OpNode {
     int op_type;
@@ -108,7 +108,6 @@ py::object build_op_tree_fast(
             }
         }
     }
-
     // Build result dict
     py::dict result;
     for (const auto& [idx, node] : idx_to_opnode) {

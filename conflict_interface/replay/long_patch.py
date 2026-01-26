@@ -1,104 +1,15 @@
+import time
 from collections import deque
 from datetime import datetime
 
 from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.op_tree_cpp import build_op_tree_fast
 from conflict_interface.replay.apply_replay_helper import apply_operation
-from conflict_interface.replay.constants import REPLACE_OPERATION, REMOVE_OPERATION, ADD_OPERATION
-from conflict_interface.replay.numba_long_patch import build_op_tree_2
+from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.path_tree import PathTree
-
-def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
-    """
-    Build an operation tree indexed by path-tree node indices.
-
-    This function walks the path tree (restricted to the Steiner tree `adj`)
-    and accumulates all patch operations along `patch_path` into a single
-    operation per path index.
-
-    Multiple operations affecting the same path are merged according to
-    semantic rules (e.g. REMOVE + ADD → REPLACE, ADD + REMOVE → NO-OP).
-    Invalid operation sequences violate invariants and are assumed not
-    to occur.
-
-    Each stored operation is represented as a tuple:
-        (op_type, path_index, value, creation_time, last_changed_time)
-
-    where `time` is a monotonically increasing counter used to preserve
-    relative ordering across merged operations.
-
-    Args:
-        patch_path: Ordered list of PatchGraphNode objects representing
-            the patch sequence from source to target.
-        adj: Adjacency list representing the Steiner subtree of the path tree
-            containing all modified paths.
-        root: Index of the root node in the path tree.
-
-    Returns:
-        A dictionary mapping path-tree node indices to their final merged
-        operation tuple, or None if no operation applies.
-    """
-    idx_to_opnode = {}
-    q = deque([root])
-    pop = q.popleft
-
-    while q:
-        u = pop()
-        idx_to_opnode[u] = None
-        children = adj.get(u, ())
-        if children:
-            q.extend(children)
-
-    t = -1
-    for patch_node in patch_path:
-        for op_type, path, value in zip(patch_node.op_types, patch_node.paths, patch_node.values):
-            t += 1
-            old_value = idx_to_opnode[path]
-            if old_value is None:
-                idx_to_opnode[path] = (op_type, path, value, t, t)
-                continue
-
-            old_op_type = old_value[0]
-            creation_time = old_value[3]
-
-            # REMOVE + ADD = REPLACE
-            if old_op_type == REMOVE_OPERATION and op_type == ADD_OPERATION:
-                idx_to_opnode[path] = (REPLACE_OPERATION, path, value, creation_time, t)
-
-            # ADD + REMOVE = NO OP
-            elif old_op_type == ADD_OPERATION and op_type == REMOVE_OPERATION:
-                idx_to_opnode[path] = (-1, -1, -1, creation_time, t)  # If a newly added value gets removed then nothing happened
-
-            # ADD + REPLACE = ADD
-            elif old_op_type == ADD_OPERATION and op_type == REPLACE_OPERATION:
-                idx_to_opnode[path] = (ADD_OPERATION, path, value, creation_time, t)
-
-            elif old_op_type == REPLACE_OPERATION and op_type == REMOVE_OPERATION:
-                idx_to_opnode[path] = (REMOVE_OPERATION, path, value, t, t)
-
-            # All other cases
-            else:
-                idx_to_opnode[path] = (op_type, path, value, creation_time, t)
-
-
-            # NONE + ADD -> ADD
-            # NONE + REPLACE -> REPLACE
-            # NONE + REMOVE -> REMOVE
-            # NO OP + ADD -> ADD
-            # NO OP + REPLACE -> REPLACE
-            # NO OP + REMOVE -> REMOVE
-            # REMOVE + ADD -> REPLACE
-            # REMOVE + REPLACE -> Error: Invariant Violated. You cannot replace a value that is not there
-            # REMOVE + REMOVE -> Error: Invariant Violated. You cannot remove a value that is not there
-            # ADD + REMOVE = NO OP
-            # ADD + REPLACE = ADD;
-            # ADD + ADD -> Error: Invariant Violated. You cannot add a value if there is already a value present
-            # REPLACE + ADD -> Error: Invariant Violated. You cannot add a value if there is already a value present
-            # REPLACE + REMOVE -> REMOVE
-            # REPLACE + REPLACE -> REPLACE
-
-    return idx_to_opnode
+from performance_tests.split_timer import SplitTimer
 
 
 def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
@@ -219,9 +130,8 @@ def get_child(value, path_element: int | str):
     and index/key-based access (for dicts or lists).
 
     Args:
-        v: Path-tree node index of the child.
-        value: Parent value.
-        path_tree: PathTree containing path metadata.
+        value:
+        path_element:
 
     Returns:
         The child value corresponding to the path element.
@@ -248,12 +158,51 @@ def create_adj_list(patch_path: list[PatchGraphNode], path_tree: PathTree):
         An adjacency list representing the Steiner subtree containing
         all changed paths.
     """
+
     changed_paths = set()
     for patch_node in patch_path:
         changed_paths.update(patch_node.paths)
 
+
     adj = path_tree.build_steiner_tree(list(changed_paths))
+
     return adj
+
+def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
+    """Original docstring..."""
+    # Pass PatchGraphNode data as nested lists (minimal overhead)
+    ops_per_patch = []
+    paths_per_patch = []
+
+    for patch_node in patch_path:
+        ops_per_patch.append(patch_node.op_types)
+        paths_per_patch.append(patch_node.paths)
+
+    # C++ returns: dict[int, tuple[int, int, int, int, int] | None]
+    # where tuple is (op_type, path, value_idx_in_patch, creation_time, last_changed_time)
+    t1 = time.perf_counter()
+    result = build_op_tree_fast(ops_per_patch, paths_per_patch, adj, root)
+    t2 = time.perf_counter()
+    print((t2-t1)*1000)
+    # Only reconstruct values for non-None entries
+    idx_to_opnode = {}
+    for path_idx, op_data in result.items():
+        if op_data is None:
+            idx_to_opnode[path_idx] = None
+        elif op_data[0] == -1:  # NO-OP
+            idx_to_opnode[path_idx] = op_data
+        else:
+            # Unpack: (op_type, path, value_composite, creation_time, last_changed_time)
+            # value_composite encodes: (patch_idx << 32) | value_idx_in_patch
+            op_type, path, value_composite, creation_time, last_changed_time = op_data
+            patch_idx = value_composite >> 32
+            value_idx = value_composite & 0xFFFFFFFF
+
+            actual_value = patch_path[patch_idx].values[value_idx]
+            idx_to_opnode[path_idx] = (op_type, path, actual_value, creation_time, last_changed_time)
+
+    return idx_to_opnode
+
 
 def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: PatchGraph, path_tree: PathTree) -> PatchGraphNode | None:
     """
@@ -276,10 +225,21 @@ def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: Patch
         A PatchGraphNode representing the consolidated patch over
         the given time range.
     """
+    timer = SplitTimer()
     shortest_path = patch_graph.find_patch_path(from_time, to_time)
+    timer.split("shortest_path")
+
     adj = create_adj_list(shortest_path, path_tree)
-    op_tree = build_op_tree_2(shortest_path, adj, path_tree.root.index)
+    timer.split("create_adj_list")
+
+    op_tree = build_op_tree(shortest_path, adj, path_tree.root.index)
+    timer.split("buld_op_tree")
+
     operations = collapse_op_tree(op_tree, adj, path_tree)
+    timer.split("collapse_op_tree")
+    timer.report()
     long_patch_node = PatchGraphNode(int(from_time.timestamp()), int(to_time.timestamp()), *operations)
+
     return long_patch_node
+
 
