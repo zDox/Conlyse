@@ -160,9 +160,9 @@ bool ObservationSession::needs_update(std::chrono::system_clock::time_point now)
     return now >= next_update_at;
 }
 
-void ObservationSession::on_request_response(json &&response) {
+void ObservationSession::on_request_response(std::string &&response_str) {
     ensure_storage()->update_resume_metadata(package_.to_json());
-    ensure_storage()->save_response(std::move(response));
+    ensure_storage()->save_response(std::move(response_str));
 }
 
 bool ObservationSession::ensure_observation_package() {
@@ -307,31 +307,6 @@ bool ObservationSession::ensure_static_map_data(ObservationApi &api, int map_id)
     }
 }
 
-bool ObservationSession::is_game_ended(const json &response) {
-    if (!response.is_object()) {
-        return false;
-    }
-
-    if (!response.contains("result") || !response["result"].is_object()) {
-        return false;
-    }
-
-    const auto &result = response["result"];
-    if (!result.contains("states") || !result["states"].is_object()) {
-        return false;
-    }
-
-    const auto &states = result["states"];
-    for (const auto &[key, state]: states.items()) {
-        if (state.is_object() && state.contains("gameEnded") &&
-            state["gameEnded"].is_boolean() && state["gameEnded"].get<bool>()) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 asio::awaitable<bool> ObservationSession::run_update_async() {
     std::cout << "Starting update for game " << game_id << " (attempt " << attempt_ << ")" << std::endl;
 
@@ -356,21 +331,15 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
             throw std::runtime_error(result.error_message);
         }
 
-        json game_state = result.data;
-
         // Update package with new auth and connection details
         package_.auth = api_->get_auth();
         package_.cookies = api_->get_cookies();
         package_.headers = api_->get_headers();
         package_.game_server_address = api_->get_game_server_address();
 
-        // Check if game ended before processing and moving the JSON.
-        // We store the result now because game_state will be moved below.
-        bool game_ended = is_game_ended(game_state);
-
-        // Save response and release the large JSON immediately.
-        // After this point, game_state is in a moved-from state and should not be accessed.
-        on_request_response(std::move(game_state));
+        // Save raw response string to storage.
+        // We move the raw string to storage, avoiding the need to dump JSON.
+        on_request_response(std::move(result.raw_response));
 
         // Teardown storage logging before returning
         ensure_storage()->teardown_logging();
@@ -378,8 +347,8 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
         // Reset attempt counter on success
         attempt_ = 1;
 
-        // Check if game ended (using the bool we stored before the move)
-        if (game_ended) {
+        // Check if game ended (extracted during simdjson parsing)
+        if (result.game_ended) {
             co_return false;
         }
 

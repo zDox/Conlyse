@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <iostream>
+#include <simdjson.h>
 
 
 static std::string sha1_hex(const std::string& input) {
@@ -46,16 +47,6 @@ ObservationApi::ObservationApi(
 }
 
 ObservationApi::~ObservationApi() = default;
-
-json ObservationApi::parse_response(const std::string& response_data) {
-    json response_json;
-    try {
-        response_json = json::parse(response_data);
-    } catch (const std::exception& e) {
-        throw std::runtime_error("Failed to parse response: " + std::string(e.what()));
-    }
-    return response_json;
-}
 
 asio::awaitable<HttpResponse> ObservationApi::request_game_state_async(std::map<std::string, std::string> &state_ids,
                                                                         std::map<std::string, std::string> &time_stamps) {
@@ -162,42 +153,44 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
         return result;
     }
 
-    // Parse JSON response
-    json game_state;
+    // Store the raw response string before parsing
+    result.raw_response = std::move(response.data);
+
+    // Parse JSON response using simdjson
+    simdjson::dom::parser parser;
+    simdjson::dom::element game_state;
     try {
-        game_state = json::parse(response.data);
-    } catch (const std::exception& e) {
+        game_state = parser.parse(result.raw_response);
+    } catch (const simdjson::simdjson_error& e) {
         result.error_code = GameServerError::PARSE_ERROR;
         result.error_message = "JSON parse error: " + std::string(e.what());
         return result;
     }
 
-    // Clear the response data to free memory
-    response.data.clear();
-    response.data.shrink_to_fit();
-
     // Validate response structure
-    if (!game_state.contains("result") || !game_state["result"].is_object()) {
+    simdjson::dom::object result_obj;
+    if (game_state["result"].get(result_obj) != simdjson::SUCCESS) {
         result.error_code = GameServerError::UNKNOWN_ERROR;
         result.error_message = "No result object in response";
         return result;
     }
 
-    const auto& response_result = game_state["result"];
-    if (!response_result.contains("@c")) {
+    std::string_view result_class_view;
+    if (result_obj["@c"].get(result_class_view) != simdjson::SUCCESS) {
         result.error_code = GameServerError::UNKNOWN_ERROR;
         result.error_message = "No @c field in result";
         return result;
     }
 
-    std::string result_class = response_result["@c"].get<std::string>();
+    std::string result_class(result_class_view);
 
     // Check for authentication errors
     if (result_class == "ultshared.UltAuthentificationException") {
         result.error_code = GameServerError::AUTH_ERROR;
         result.error_message = "Authentication failed: " + result_class;
-        if (response_result.contains("message")) {
-            result.error_message += " - " + response_result["message"].get<std::string>();
+        std::string_view message_view;
+        if (result_obj["message"].get(message_view) == simdjson::SUCCESS) {
+            result.error_message += " - " + std::string(message_view);
         }
         return result;
     }
@@ -206,12 +199,13 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
     if (result_class == "ultshared.rpc.UltSwitchServerException") {
         result.error_code = GameServerError::SERVER_SWITCH;
         result.error_message = "Server switch required";
-        if (response_result.contains("newHostName")) {
-            std::string new_server = response_result["newHostName"].get<std::string>();
+        std::string_view new_server_view;
+        if (result_obj["newHostName"].get(new_server_view) == simdjson::SUCCESS) {
+            std::string new_server(new_server_view);
             result.error_message += ": " + new_server;
+            // Store the new server name in data for later processing
             result.data["newHostName"] = new_server;
         }
-        result.data = game_state;
         return result;
     }
 
@@ -219,58 +213,64 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
     if (result_class != "ultshared.UltAutoGameState" && result_class != "ultshared.UltGameState") {
         result.error_code = GameServerError::UNKNOWN_ERROR;
         result.error_message = "Unknown error class: " + result_class;
-        if (response_result.contains("message")) {
-            result.error_message += " - " + response_result["message"].get<std::string>();
+        std::string_view message_view;
+        if (result_obj["message"].get(message_view) == simdjson::SUCCESS) {
+            result.error_message += " - " + std::string(message_view);
         }
         return result;
     }
 
-    // Extract state metadata
-    if (!extract_state_metadata(game_state, state_ids, time_stamps)) {
+    // Extract state metadata using simdjson
+    simdjson::dom::object states_obj;
+    if (result_obj["states"].get(states_obj) != simdjson::SUCCESS) {
         result.error_code = GameServerError::UNKNOWN_ERROR;
         result.error_message = "Game state extraction failed";
         return result;
     }
 
-    // Success - return the game state
-    result.error_code = GameServerError::SUCCESS;
-    result.error_message = "";
-    result.data = game_state;
-    return result;
-}
-
-bool ObservationApi::extract_state_metadata(const json& response,
-                                            std::map<std::string, std::string> &state_ids,
-                                            std::map<std::string, std::string> &time_stamps) {
-
-    if (!response.contains("result") || !response["result"].is_object()) {
-        return false;
-    }
-    
-    const auto& result = response["result"];
-    if (!result.contains("states") || !result["states"].is_object()) {
-        return false;
-    }
-    
-    const auto& states = result["states"];
-    
-    for (const auto& [key, state] : states.items()) {
-        if (!state.is_object()) {
+    // Process states to extract metadata
+    bool game_ended = false;
+    for (auto [key, state_val] : states_obj) {
+        simdjson::dom::object state;
+        if (state_val.get(state) != simdjson::SUCCESS) {
             continue;
         }
-        
-        if (state.contains("stateType")) {
-            if (state.contains("stateID") && state["stateID"].is_string()) {
-                state_ids[key] = state["stateID"].get<std::string>();
-            }
 
-            if (state.contains("timeStamp")) {
-                time_stamps[key] = state["timeStamp"].get<std::string>();
-            }
+        // Check if state has stateType field
+        uint64_t state_type;
+        if (state["stateType"].get(state_type) != simdjson::SUCCESS) {
+            continue;
+        }
+
+        std::string_view state_id_view;
+        if (state["stateID"].get(state_id_view) == simdjson::SUCCESS) {
+            state_ids[std::string(key)] = std::string(state_id_view);
+        }
+
+        std::string_view timestamp_view;
+        if (state["timeStamp"].get(timestamp_view) == simdjson::SUCCESS) {
+            time_stamps[std::string(key)] = std::string(timestamp_view);
+        }
+
+        // Check if game has ended
+        bool ended;
+        if (state["gameEnded"].get(ended) == simdjson::SUCCESS && ended) {
+            game_ended = true;
         }
     }
-    
-    return !state_ids.empty() && !time_stamps.empty();
+
+    if (state_ids.empty() || time_stamps.empty()) {
+        result.error_code = GameServerError::UNKNOWN_ERROR;
+        result.error_message = "Game state extraction failed";
+        return result;
+    }
+
+    // Success - return with minimal JSON parsing
+    result.error_code = GameServerError::SUCCESS;
+    result.error_message = "";
+    result.game_ended = game_ended;
+    // No need to parse the full JSON for data field in the success case
+    return result;
 }
 
 json ObservationApi::get_static_map_data(int map_id) {

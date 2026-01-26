@@ -31,6 +31,8 @@ struct GameServerResult {
     GameServerError error_code;
     std::string error_message;
     json data;
+    std::string raw_response;  // Raw JSON response string
+    bool game_ended = false;  // Whether the game has ended (extracted during parsing)
 
     bool success() const { return error_code == GameServerError::SUCCESS; }
 };
@@ -60,10 +62,6 @@ public:
                                                   std::map<std::string, std::string> &time_stamps);
 
     json get_static_map_data(int map_id);
-    
-    bool extract_state_metadata(const json& response,
-                                std::map<std::string, std::string> &state_ids,
-                                std::map<std::string, std::string> &time_stamps);
 
     AuthDetails get_auth() const { return auth_; }
     std::map<std::string, std::string> get_cookies() const;
@@ -81,9 +79,6 @@ private:
     std::map<std::string, std::string> cookies_;
     ProxyConfig proxy_;
     std::unique_ptr<HttpClient> cli_;
-
-    // Helper methods for request processing
-    json parse_response(const std::string& response_data);
 };
 
 #endif // OBSERVATION_API_HPP

@@ -48,3 +48,5 @@ tests/test_data/full_test_data_1_v206.json
 /tools/recording_converter/recording-json/
 /tests/test_data/
 /performance_tests/*.png
+
+_codeql_detected_source_root
