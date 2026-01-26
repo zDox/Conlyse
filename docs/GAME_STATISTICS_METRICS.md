@@ -13,6 +13,10 @@ This document provides a comprehensive list of metrics to analyze 1000+ recorded
   - [2.1 Global Metrics](#21-global-metrics)
   - [2.2 Per Country Aggregate](#22-per-country-aggregate)
   - [2.3 Per Province Aggregate](#23-per-province-aggregate)
+- [Additional Aggregation Levels](#additional-aggregation-levels)
+- [Advanced Analytics](#advanced-analytics)
+- [Implementation Notes](#implementation-notes)
+- [Glossary](#glossary)
 
 ---
 
