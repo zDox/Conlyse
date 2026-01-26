@@ -188,7 +188,7 @@ make html
 
 ## License
 
-MIT License
+Proprietary License - All Rights Reserved
 
 ## Contributing
 
