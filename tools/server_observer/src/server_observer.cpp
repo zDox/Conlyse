@@ -67,8 +67,9 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     game_finder_ = std::make_unique<GameFinder>(config, account_pool_, registry_);
 
     // Set the callback for starting observation sessions
+    // GameFinder runs in a separate thread, so it queues sessions instead of creating them directly
     game_finder_->set_observation_starter([this](int game_id, int scenario_id) {
-        this->start_observation_session(game_id, scenario_id);
+        this->scheduler_->queue_new_session(game_id, scenario_id);
     });
 
     // Set the callback for getting active session count
@@ -312,8 +313,8 @@ void ServerObserver::print_update_statistics() {
     auto duration_since_last = std::chrono::duration_cast<std::chrono::seconds>(
         now - last_stats_print_time_).count();
 
-    // Only print every 60 seconds
-    if (duration_since_last < 30) {
+    // Only print every 10 seconds
+    if (duration_since_last < 10) {
         return;
     }
 
@@ -351,6 +352,21 @@ void ServerObserver::print_update_statistics() {
     std::cout << "Rolling 30s window: " << updates_in_window << " updates, "
               << std::fixed << std::setprecision(3) << window_rate << " updates/sec" << std::endl;
     std::cout << "Active observation sessions: " << active_sessions << std::endl;
+
+    // Scheduler metrics
+    std::cout << "--- Scheduler Metrics ---" << std::endl;
+    std::cout << "Update queue size: " << scheduler_->get_queue_size() << std::endl;
+    std::cout << "Active coroutines: " << scheduler_->get_active_coroutines() << std::endl;
+    std::cout << "First updates tracked: " << scheduler_->get_first_update_count() << std::endl;
+    std::cout << "First updates running: " << scheduler_->get_running_first_updates_count() << std::endl;
+    double next_due = scheduler_->get_seconds_until_next_due();
+    if (next_due > 0) {
+        std::cout << "Next update due in: " << std::fixed << std::setprecision(1)
+                  << next_due << " seconds" << std::endl;
+    } else if (scheduler_->get_queue_size() > 0) {
+        std::cout << "Updates available for processing now" << std::endl;
+    }
+
     std::cout << "=========================" << std::endl;
 
     last_stats_print_time_ = now;
@@ -370,6 +386,18 @@ bool ServerObserver::run() {
 
     try {
         while (!stop_flag_) {
+            // Process any new sessions queued by GameFinder
+            auto pending_sessions = scheduler_->get_pending_new_sessions();
+            for (const auto& [game_id, scenario_id] : pending_sessions) {
+                // Check if we haven't exceeded max parallel recordings
+                if (observer_sessions_.size() < static_cast<size_t>(max_parallel_recordings_)) {
+                    start_observation_session(game_id, scenario_id);
+                } else {
+                    std::cout << "Max parallel recordings limit reached. Skipping game "
+                             << game_id << std::endl;
+                }
+            }
+
             start_due_updates();
             print_update_statistics();
         }

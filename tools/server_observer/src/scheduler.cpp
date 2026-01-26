@@ -71,8 +71,9 @@ void Scheduler::stop(int timeout_seconds) {
 }
 
 void Scheduler::schedule_update(ObservationSession* session) {
-    std::lock_guard lock(queue_lock_);
-    update_queue_.push(session);
+    // Thread-safe - can be called from worker threads (via handle_successful_update)
+    std::lock_guard<std::mutex> lock(update_queue_lock_);
+    update_queue_.insert({session->next_update_at, session});
 }
 
 void Scheduler::schedule_immediate_update(ObservationSession* session) {
@@ -81,26 +82,24 @@ void Scheduler::schedule_immediate_update(ObservationSession* session) {
 }
 
 void Scheduler::schedule_next_update(ObservationSession* session) {
-    session->next_update_at = std::chrono::system_clock::now() +
-        std::chrono::seconds(static_cast<int>(update_interval_));
+    session->next_update_at += std::chrono::seconds(static_cast<int>(update_interval_));
     schedule_update(session);
 }
 
 void Scheduler::mark_first_update(int game_id) {
-    std::lock_guard lock(first_update_lock_);
+    // No lock needed - called only from main thread
     first_update_sessions_.insert(game_id);
 }
 
 void Scheduler::cleanup_first_update_tracking(int game_id) {
-    std::lock_guard lock(first_update_lock_);
+    // No lock needed - called only from main thread
     first_update_sessions_.erase(game_id);
     running_first_updates_.erase(game_id);
 }
 
 bool Scheduler::can_start_update(ObservationSession* session) {
-    std::lock_guard lock(first_update_lock_);
-
-    if (first_update_sessions_.contains(session->game_id)) {
+    // No lock needed - called only from main thread
+    if (first_update_sessions_.count(session->game_id)) {
         // Count currently running first updates
         int running_first_updates_count = static_cast<int>(running_first_updates_.size());
 
@@ -116,98 +115,97 @@ bool Scheduler::can_start_update(ObservationSession* session) {
 }
 
 void Scheduler::mark_first_update_running(int game_id) {
-    std::lock_guard lock(first_update_lock_);
     running_first_updates_.insert(game_id);
 }
 
 std::vector<ObservationSession*> Scheduler::get_due_updates() {
     auto now = std::chrono::system_clock::now();
     std::vector<ObservationSession*> ready;
-    std::vector<ObservationSession*> deferred;
 
-    while (true) {
+    std::lock_guard<std::mutex> lock(update_queue_lock_);
+
+    // Process sessions in time order from the multimap
+    while (!update_queue_.empty()) {
         // Check if we've reached the limit of concurrent coroutines
         if (active_coroutines_.load() >= max_parallel_updates_) {
             break;
         }
 
-        ObservationSession* observer = nullptr;
-        {
-            std::lock_guard<std::mutex> lock(queue_lock_);
-            if (update_queue_.empty()) {
-                break;
-            }
-            observer = update_queue_.front();
-            update_queue_.pop();
+        // Get the earliest scheduled session
+        auto it = update_queue_.begin();
+        auto* observer = it->second;
+
+        // Check if it's due yet
+        if (!observer->needs_update(now)) {
+            // No more sessions are due (since they're time-ordered)
+            break;
         }
 
-        if (!observer->needs_update(now)) {
-            deferred.push_back(observer);
-            continue;
-        }
+        // Remove from queue
+        update_queue_.erase(it);
 
         // Check if this update can start (respecting first-update limits)
         if (!can_start_update(observer)) {
-            deferred.push_back(observer);
+            // Re-insert at the end with same time (will be retried next iteration)
+            update_queue_.insert({observer->next_update_at, observer});
             continue;
         }
 
         // Mark as running first update if needed
-        {
-            std::lock_guard lock(first_update_lock_);
-            if (first_update_sessions_.contains(observer->game_id)) {
-                mark_first_update_running(observer->game_id);
-            }
+        if (first_update_sessions_.count(observer->game_id)) {
+            mark_first_update_running(observer->game_id);
         }
 
         ready.push_back(observer);
     }
 
-    // Re-queue deferred updates
-    {
-        std::lock_guard<std::mutex> lock(queue_lock_);
-        for (auto* observer : deferred) {
-            update_queue_.push(observer);
-        }
-    }
 
     return ready;
 }
 
 void Scheduler::process_due_updates() {
     auto now = std::chrono::system_clock::now();
-    std::vector<ObservationSession*> deferred;
 
-    // Collect deferred updates to calculate wait time
+    std::chrono::system_clock::time_point next_due_time;
+    bool queue_empty;
+
     {
-        std::lock_guard<std::mutex> lock(queue_lock_);
-        auto temp_queue = update_queue_;
-        while (!temp_queue.empty()) {
-            auto* obs = temp_queue.front();
-            temp_queue.pop();
-            if (!obs->needs_update(now)) {
-                deferred.push_back(obs);
-            }
+        std::lock_guard<std::mutex> lock(update_queue_lock_);
+        queue_empty = update_queue_.empty();
+        if (!queue_empty) {
+            next_due_time = update_queue_.begin()->first;
         }
     }
 
-    // If we have deferred updates, wait a bit
-    if (!deferred.empty()) {
-        double min_wait = update_interval_;
-        for (auto* obs : deferred) {
-            auto wait_duration = obs->next_update_at - now;
-            double wait_seconds = std::chrono::duration<double>(wait_duration).count();
-            if (wait_seconds > 0 && wait_seconds < min_wait) {
-                min_wait = wait_seconds;
-            }
+    // Check if queue is empty
+    if (queue_empty) {
+        // No updates pending, sleep briefly to avoid busy-waiting
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        return;
+    }
+
+    // Check if we're at the concurrency limit
+    if (active_coroutines_.load() >= max_parallel_updates_) {
+        // At limit, wait a short time for some to complete
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        return;
+    }
+
+
+    // Calculate wait time
+    if (next_due_time > now) {
+        auto wait_duration = next_due_time - now;
+        double wait_seconds = std::chrono::duration<double>(wait_duration).count();
+
+        // Cap the wait time at update_interval to allow periodic checks
+        double actual_wait = std::min(wait_seconds, update_interval_);
+
+        if (actual_wait > 0.1) {  // Only log if waiting more than 100ms
+            std::cout << "Waiting " << actual_wait
+                     << " seconds for next due update..." << std::endl;
         }
 
-        if (min_wait > 0) {
-            std::cout << "Waiting " << min_wait
-                     << " seconds for next due update..." << std::endl;
-            std::this_thread::sleep_for(
-                std::chrono::duration<double>(std::min(min_wait, update_interval_)));
-        }
+        std::this_thread::sleep_for(std::chrono::duration<double>(actual_wait));
     }
 }
 
@@ -218,3 +216,41 @@ void Scheduler::spawn_update_coroutine(asio::awaitable<void> update_coro) {
         asio::detached
     );
 }
+
+void Scheduler::queue_new_session(int game_id, int scenario_id) {
+    // Thread-safe - can be called from GameFinder thread
+    std::lock_guard<std::mutex> lock(pending_sessions_lock_);
+    pending_new_sessions_.push({game_id, scenario_id});
+}
+
+std::vector<std::pair<int, int>> Scheduler::get_pending_new_sessions() {
+    // Called from main thread only
+    std::vector<std::pair<int, int>> result;
+
+    std::lock_guard<std::mutex> lock(pending_sessions_lock_);
+    while (!pending_new_sessions_.empty()) {
+        result.push_back(pending_new_sessions_.front());
+        pending_new_sessions_.pop();
+    }
+
+    return result;
+}
+
+double Scheduler::get_seconds_until_next_due() const {
+    std::lock_guard<std::mutex> lock(update_queue_lock_);
+
+    if (update_queue_.empty()) {
+        return 0.0;
+    }
+
+    auto now = std::chrono::system_clock::now();
+    auto next_due = update_queue_.begin()->first;
+
+    if (next_due <= now) {
+        return 0.0;
+    }
+
+    auto duration = next_due - now;
+    return std::chrono::duration<double>(duration).count();
+}
+
