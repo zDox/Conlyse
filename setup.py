@@ -140,7 +140,7 @@ setup(
             "recorder=tools.recorder.__main__:main",
             "replay-debug=tools.replay_debug.__main__:main",
             "recording-converter=tools.recording_converter.__main__:main",
-            "server-observer=tools.server_observer.__main__:main",
+            # server-observer is now a C++ binary, build from tools/server_observer/
         ],
     },
     zip_safe=False,
