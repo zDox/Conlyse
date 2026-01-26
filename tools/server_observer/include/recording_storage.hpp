@@ -40,6 +40,8 @@ private:
     json metadata_cache_;
     json resume_metadata_;
     mutable std::mutex lock_;
+    int updates_since_last_flush_;
+    static constexpr int METADATA_FLUSH_INTERVAL = 10;  // Flush every 10 updates
     
     void init_files();
     void save_metadata(const json& metadata);

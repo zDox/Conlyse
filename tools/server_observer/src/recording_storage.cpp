@@ -18,6 +18,7 @@ RecordingStorage::RecordingStorage(const std::string& output_path,
     , long_term_storage_path_(long_term_storage_path)
     , file_size_threshold_(file_size_threshold)
     , file_sequence_(0)
+    , updates_since_last_flush_(0)
 {
     // Validate configuration
     if ((long_term_storage_path_.empty() && file_size_threshold_ > 0) ||
@@ -109,6 +110,8 @@ json RecordingStorage::load_metadata() {
 void RecordingStorage::update_resume_metadata(const json& resume) {
     metadata_cache_["resume"] = resume;
     resume_metadata_ = resume;
+    // Persist immediately for crash recovery
+    save_metadata(metadata_cache_);
 }
 
 json RecordingStorage::get_resume_metadata() const {
@@ -284,6 +287,13 @@ void RecordingStorage::save_response(std::string&& response_str) {
         {"timestamp", timestamp},
         {"datetime", ss.str()}
     });
+    
+    // Periodically flush metadata to disk for crash recovery
+    updates_since_last_flush_++;
+    if (updates_since_last_flush_ >= METADATA_FLUSH_INTERVAL) {
+        save_metadata(metadata_cache_);
+        updates_since_last_flush_ = 0;
+    }
 }
 
 void RecordingStorage::setup_logging() {

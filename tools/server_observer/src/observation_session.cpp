@@ -340,7 +340,26 @@ asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
 
         // Check if the request was successful
         if (!result.success()) {
-            // Increment attempt counter for all failures that should be retried
+            // Handle SERVER_SWITCH specially - update server address and retry without incrementing attempts
+            if (result.error_code == GameServerError::SERVER_SWITCH && result.data.contains("newHostName")) {
+                std::string new_server = result.data["newHostName"];
+                std::cout << "Server switch detected for game " << game_id 
+                         << ": updating server to " << new_server << std::endl;
+                
+                // Update the package with new server address
+                package_.game_server_address = new_server;
+                
+                // Recreate the ObservationApi with new server
+                api_ = std::make_unique<ObservationApi>(manager_, package_.game_server_address, package_.proxy);
+                api_->set_auth(package_.auth);
+                api_->set_cookies(package_.cookies);
+                api_->set_headers(package_.headers);
+                
+                // Return a network error to trigger immediate retry with new server
+                co_return ObservationResult::make_network_error(false, "Server switch to " + new_server);
+            }
+            
+            // Increment attempt counter for all other failures that should be retried
             attempt_++;
             
             // Convert GameServerError to ObservationResult
