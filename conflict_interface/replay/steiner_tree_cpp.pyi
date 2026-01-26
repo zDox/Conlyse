@@ -1,4 +1,4 @@
-# conflict_interface/steiner_tree_cpp.pyi
+# conflict_interface/replay/steiner_tree_cpp.pyi
 import numpy as np
 from numpy.typing import NDArray
 

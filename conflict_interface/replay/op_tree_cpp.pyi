@@ -1,4 +1,4 @@
-# conflict_interface/op_tree_cpp.pyi
+# conflict_interface/replay/op_tree_cpp.pyi
 def build_op_tree_fast(
         ops_per_patch: list[list[int]],
         paths_per_patch: list[list[int]],

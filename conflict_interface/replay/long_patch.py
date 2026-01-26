@@ -167,7 +167,60 @@ def create_adj_list(patch_path: list[PatchGraphNode], path_tree: PathTree):
     return adj
 
 def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
-    """Original docstring..."""
+    """
+    Build the final operation-per-path mapping using the C++ op-tree builder.
+
+    This is a thin wrapper around :func:`build_op_tree_fast` that prepares
+    the input data for the C++ implementation and then decodes its result
+    into Python objects.
+
+    The C++ function is called with:
+
+      * ``ops_per_patch`` – a list where each element corresponds to a
+        :class:`PatchGraphNode` and is that node's ``op_types`` list.
+      * ``paths_per_patch`` – a list where each element corresponds to a
+        :class:`PatchGraphNode` and is that node's ``paths`` list.
+      * ``adj`` – an adjacency list for the Steiner subtree of the
+        :class:`PathTree`, typically produced by :func:`create_adj_list`.
+      * ``root`` – the index of the root node in the path tree / adjacency
+        list from which the traversal starts.
+
+    The C++ implementation returns a dictionary:
+
+        dict[int, tuple[int, int, int, int, int] | None]
+
+    where each key is a path-tree node index and each value is either:
+
+      * ``None`` – indicating that no operation applies at that path, or
+      * a 5-tuple ``(op_type, path, value_composite, creation_time,
+        last_changed_time)``.
+
+    For non-``None`` entries:
+
+      * ``op_type == -1`` denotes a NO-OP marker; this tuple is passed
+        through unchanged by this wrapper.
+      * Otherwise, ``value_composite`` encodes the location of the
+        operation's value in ``patch_path`` as:
+
+            value_composite = (patch_idx << 32) | value_idx_in_patch
+
+        where ``patch_idx`` is the index into ``patch_path`` and
+        ``value_idx_in_patch`` is the index into
+        ``patch_path[patch_idx].values``.
+
+    This Python wrapper decodes ``value_composite`` and replaces it with the
+    actual Python value from the corresponding ``PatchGraphNode.values``
+    list. The final result is a dictionary:
+
+        dict[int, None | tuple[int, int, object, int, int]]
+
+    where each non-``None`` and non-NO-OP entry is:
+
+        (op_type, path, actual_value, creation_time, last_changed_time)
+
+    and NO-OP entries are returned exactly as produced by the C++ code
+    (i.e. with ``op_type == -1`` and the original tuple layout).
+    """
     # Pass PatchGraphNode data as nested lists (minimal overhead)
     ops_per_patch = []
     paths_per_patch = []
@@ -177,7 +230,7 @@ def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
         paths_per_patch.append(patch_node.paths)
 
     # C++ returns: dict[int, tuple[int, int, int, int, int] | None]
-    # where tuple is (op_type, path, value_idx_in_patch, creation_time, last_changed_time)
+    # where tuple is (op_type, path, value_composite, creation_time, last_changed_time)
     result = build_op_tree_fast(ops_per_patch, paths_per_patch, adj, root)
 
     # Only reconstruct values for non-None entries
