@@ -278,6 +278,9 @@ void RecordingStorage::save_response(std::string&& response_str) {
     ss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
     
     // Use cached metadata instead of loading from disk
+    if (!metadata_cache_.contains("updates")) {
+        metadata_cache_["updates"] = json::array();
+    }
     metadata_cache_["updates"].push_back({
         {"timestamp", timestamp},
         {"datetime", ss.str()}
