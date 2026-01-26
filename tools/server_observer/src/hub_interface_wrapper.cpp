@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <mutex>
+#include <Python.h>
 
 namespace py = pybind11;
 
@@ -10,6 +11,25 @@ namespace py = pybind11;
 static bool python_initialized = false;
 static std::mutex python_init_mutex;
 static std::unique_ptr<py::scoped_interpreter> interpreter;
+
+// Static shutdown function to be called before program exit
+// This ensures Python cleanup happens before static destruction
+void HubInterfaceWrapper::shutdown_python() {
+    std::lock_guard<std::mutex> lock(python_init_mutex);
+
+    if (python_initialized && Py_IsInitialized()) {
+        std::cout << "Shutting down Python interpreter..." << std::endl;
+
+        // Re-acquire the GIL to properly finalize
+        py::gil_scoped_acquire acquire;
+
+        // Destroy the interpreter explicitly
+        interpreter.reset();
+        python_initialized = false;
+
+        std::cout << "Python interpreter shut down successfully" << std::endl;
+    }
+}
 
 json AuthDetails::to_json() const {
     return json{
@@ -52,19 +72,18 @@ HubInterfaceWrapper::~HubInterfaceWrapper() {
 void HubInterfaceWrapper::init_python() {
     std::lock_guard<std::mutex> lock(python_init_mutex);
 
-    PyGILState_STATE gstate;
-
     if (!python_initialized) {
         // Initialize Python interpreter using pybind11
         // Note: py::scoped_interpreter automatically acquires the GIL
         interpreter = std::make_unique<py::scoped_interpreter>();
         python_initialized = true;
         // Release the GIL immediately to allow multi-threading
+        // Without this, other threads cannot acquire the GIL
         PyEval_SaveThread();
     }
 
     // Acquire GIL for this thread to perform initialization
-    gstate = PyGILState_Ensure();
+    py::gil_scoped_acquire acquire;
 
     try {
         // Set up the Python path - INSERT at beginning
@@ -99,24 +118,36 @@ void HubInterfaceWrapper::init_python() {
         hub_interface_ = hub_interface_class(proxy_dict);
 
     } catch (const py::error_already_set& e) {
-        PyGILState_Release(gstate);
         throw std::runtime_error(std::string("Failed to initialize Python: ") + e.what());
     }
-    
-    // Release the GIL
-    PyGILState_Release(gstate);
+    // GIL is automatically released when 'acquire' goes out of scope
 }
 
 void HubInterfaceWrapper::cleanup_python() {
     // Clean up Python objects while holding the GIL
-    if (python_initialized) {
-        PyGILState_STATE gstate = PyGILState_Ensure();
+
+    // First check if Python is still initialized
+    if (!Py_IsInitialized()) {
+        // Python is already shut down, nothing we can safely do
+        return;
+    }
+
+    if (!python_initialized) {
+        return;
+    }
+
+    // Acquire GIL for cleanup - this should work now that we're not using PyEval_SaveThread
+    try {
+        py::gil_scoped_acquire acquire;
 
         // Explicitly reset/clear Python objects to decrement their reference counts
         hub_interface_ = py::object();  // Reset to empty object
         python_module_ = py::module_();  // Reset to empty module
 
-        PyGILState_Release(gstate);
+    } catch (const std::exception& e) {
+        std::cerr << "Warning: Exception during Python cleanup: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Warning: Unknown exception during Python cleanup" << std::endl;
     }
 }
 

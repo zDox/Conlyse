@@ -73,6 +73,9 @@ public:
     std::string get_proxy_http() const { return proxy_http_; }
     std::string get_proxy_https() const { return proxy_https_; }
     
+    // Static method to shutdown Python interpreter explicitly before program exit
+    static void shutdown_python();
+
 private:
     py::object hub_interface_;
     py::module_ python_module_;

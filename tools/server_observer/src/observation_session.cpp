@@ -2,88 +2,151 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <utility>
 
 static const int MAX_RETRIES = 3;
 static const int TIME_TILL_RETRY = 10;
 
 json ObservationPackage::to_json() const {
+    // Convert headers map to JSON
+    json headers_json = json::object();
+    for (const auto &[key, value]: headers) {
+        headers_json[key] = value;
+    }
+
+    // Convert cookies map to JSON
+    json cookies_json = json::object();
+    for (const auto &[key, value]: cookies) {
+        cookies_json[key] = value;
+    }
+
+    // Convert ProxyConfig to JSON
+    json proxy_json = json::object();
+    if (proxy.enabled) {
+        proxy_json["host"] = proxy.host;
+        proxy_json["port"] = proxy.port;
+        if (!proxy.username.empty()) {
+            proxy_json["username"] = proxy.username;
+        }
+        if (!proxy.password.empty()) {
+            proxy_json["password"] = proxy.password;
+        }
+    }
+
     json j = {
         {"game_id", game_id},
-        {"headers", headers},
-        {"cookies", cookies},
-        {"proxy", proxy},
+        {"headers", headers_json},
+        {"cookies", cookies_json},
+        {"proxy", proxy_json},
         {"auth", auth.to_json()},
         {"client_version", client_version},
         {"game_server_address", game_server_address}
     };
-    
+
     // Convert time_stamps map to JSON
     json ts = json::object();
-    for (const auto& [key, value] : time_stamps) {
+    for (const auto &[key, value]: time_stamps) {
         ts[key] = value;
     }
     j["time_stamps"] = ts;
-    
+
     // Convert state_ids map to JSON
     json si = json::object();
-    for (const auto& [key, value] : state_ids) {
+    for (const auto &[key, value]: state_ids) {
         si[key] = value;
     }
     j["state_ids"] = si;
-    
+
     return j;
 }
 
-ObservationPackage ObservationPackage::from_json(const json& j) {
+ObservationPackage ObservationPackage::from_json(const json &j) {
     ObservationPackage pkg;
     pkg.game_id = j.value("game_id", 0);
-    pkg.headers = j.value("headers", json::object());
-    pkg.cookies = j.value("cookies", json::object());
-    pkg.proxy = j.value("proxy", json::object());
     pkg.client_version = j.value("client_version", 207);
     pkg.game_server_address = j.value("game_server_address", "");
-    
+
+    // Convert headers from JSON to map
+    if (j.contains("headers") && j["headers"].is_object()) {
+        for (const auto &[key, value]: j["headers"].items()) {
+            try {
+                pkg.headers[key] = value.get<std::string>();
+            } catch (...) {
+            }
+        }
+    }
+
+    // Convert cookies from JSON to map
+    if (j.contains("cookies") && j["cookies"].is_object()) {
+        for (const auto &[key, value]: j["cookies"].items()) {
+            try {
+                pkg.cookies[key] = value.get<std::string>();
+            } catch (...) {
+            }
+        }
+    }
+
+    // Convert proxy from JSON to ProxyConfig
+    if (j.contains("proxy") && j["proxy"].is_object()) {
+        const auto &proxy_json = j["proxy"];
+        if (proxy_json.contains("host") && proxy_json.contains("port")) {
+            pkg.proxy.enabled = true;
+            pkg.proxy.host = proxy_json["host"].get<std::string>();
+            pkg.proxy.port = proxy_json["port"].get<int>();
+            if (proxy_json.contains("username")) {
+                pkg.proxy.username = proxy_json["username"].get<std::string>();
+            }
+            if (proxy_json.contains("password")) {
+                pkg.proxy.password = proxy_json["password"].get<std::string>();
+            }
+        }
+    }
+
     if (j.contains("auth")) {
         pkg.auth = AuthDetails::from_json(j["auth"]);
     }
-    
+
     // Convert time_stamps from JSON to map
     if (j.contains("time_stamps") && j["time_stamps"].is_object()) {
-        for (const auto& [key, value] : j["time_stamps"].items()) {
+        for (const auto &[key, value]: j["time_stamps"].items()) {
             try {
                 pkg.time_stamps[key] = value.get<std::string>();
-            } catch (...) {}
+            } catch (...) {
+            }
         }
     }
-    
+
     // Convert state_ids from JSON to map
     if (j.contains("state_ids") && j["state_ids"].is_object()) {
-        for (const auto& [key, value] : j["state_ids"].items()) {
+        for (const auto &[key, value]: j["state_ids"].items()) {
             try {
                 pkg.state_ids[key] = value.get<std::string>();
-            } catch (...) {}
+            } catch (...) {
+            }
         }
     }
-    
+
     return pkg;
 }
 
-ObservationSession::ObservationSession(int game_id,
-                                     std::shared_ptr<Account> account,
-                                     std::shared_ptr<StaticMapCache> map_cache,
-                                     const std::string& storage_path,
-                                     const std::string& metadata_path,
-                                     const std::string& long_term_storage_path,
-                                     int file_size_threshold)
+ObservationSession::ObservationSession(
+    std::shared_ptr<RequestManager> manager,
+    int game_id,
+    std::shared_ptr<Account> account,
+    std::shared_ptr<StaticMapCache> map_cache,
+    std::string storage_path,
+    std::string metadata_path,
+    std::string long_term_storage_path,
+    int file_size_threshold)
     : game_id(game_id)
-    , account(account)
-    , map_cache_(map_cache)
-    , storage_path_(storage_path)
-    , metadata_path_(metadata_path)
-    , long_term_storage_path_(long_term_storage_path)
-    , file_size_threshold_(file_size_threshold)
-    , storage_(nullptr)
-{
+      , account(std::move(account))
+      , manager_(std::move(manager))
+      , map_cache_(std::move(map_cache))
+      , storage_path_(std::move(storage_path))
+      , metadata_path_(std::move(metadata_path))
+      , long_term_storage_path_(std::move(long_term_storage_path))
+      , file_size_threshold_(file_size_threshold)
+      , package_(), storage_(nullptr), api_(nullptr), attempt_(1) {
     next_update_at = std::chrono::system_clock::now();
 }
 
@@ -97,25 +160,34 @@ bool ObservationSession::needs_update(std::chrono::system_clock::time_point now)
     return now >= next_update_at;
 }
 
-void ObservationSession::on_request_response(json&& response) {
+void ObservationSession::on_request_response(std::string &&response_str) {
     ensure_storage()->update_resume_metadata(package_.to_json());
-    ensure_storage()->save_response(std::move(response));
+    ensure_storage()->save_response(std::move(response_str));
 }
 
 bool ObservationSession::ensure_observation_package() {
     if (package_.game_id != 0) {
         return true;
     }
-    
+
     json resume_metadata = ensure_storage()->get_resume_metadata();
     if (!resume_metadata.empty() && resume_metadata.contains("auth")) {
         std::cout << "Resuming from Storage for game " << game_id << std::endl;
         package_ = ObservationPackage::from_json(resume_metadata);
+        api_ = std::make_unique<ObservationApi>(
+            manager_,
+            package_.headers,
+            package_.cookies,
+            package_.proxy,
+            package_.auth,
+            game_id,
+            package_.game_server_address,
+            package_.client_version);
         return true;
     }
-    
-    std::cout << "Observation package not yet created, building package for game " 
-             << game_id << std::endl;
+
+    std::cout << "Observation package not yet created, building package for game "
+            << game_id << std::endl;
     package_ = create_observation_package();
     return package_.game_id != 0;
 }
@@ -123,43 +195,95 @@ bool ObservationSession::ensure_observation_package() {
 ObservationPackage ObservationSession::create_observation_package() {
     auto hub_itf = account->get_interface();
     if (!hub_itf) {
-        return ObservationPackage();
+        return {};
     }
-    
+
     // Join the game as guest and load game site to get server address and auth
     std::cout << "Joining game " << game_id << " as guest to get game server data..." << std::endl;
-    
+
     try {
         auto game_data = hub_itf->join_game_as_guest(game_id);
-        
-        // Build proxy dict
-        json proxy = json::object();
-        if (!hub_itf->get_proxy_http().empty()) {
-            proxy["http"] = hub_itf->get_proxy_http();
+
+        // Convert JSON headers to std::map
+        std::map<std::string, std::string> headers_map;
+        if (game_data.headers.is_object()) {
+            for (const auto &[key, value]: game_data.headers.items()) {
+                if (value.is_string()) {
+                    headers_map[key] = value.get<std::string>();
+                }
+            }
         }
-        if (!hub_itf->get_proxy_https().empty()) {
-            proxy["https"] = hub_itf->get_proxy_https();
+
+        // Convert JSON cookies to std::map
+        std::map<std::string, std::string> cookies_map;
+        if (game_data.cookies.is_object()) {
+            for (const auto &[key, value]: game_data.cookies.items()) {
+                if (value.is_string()) {
+                    cookies_map[key] = value.get<std::string>();
+                }
+            }
         }
-        
-        // Create observation package with data from GameApi
+
+        // Build ProxyConfig from proxy strings
+        ProxyConfig proxy_config;
+        std::string proxy_https = hub_itf->get_proxy_https();
+        if (!proxy_https.empty()) {
+            // Parse proxy URL format: http://[username:password@]host:port
+            size_t proto_end = proxy_https.find("://");
+            if (proto_end != std::string::npos) {
+                std::string proxy_part = proxy_https.substr(proto_end + 3);
+
+                // Check for authentication
+                size_t at_pos = proxy_part.find('@');
+                if (at_pos != std::string::npos) {
+                    std::string auth_part = proxy_part.substr(0, at_pos);
+                    proxy_part = proxy_part.substr(at_pos + 1);
+
+                    size_t colon_pos = auth_part.find(':');
+                    if (colon_pos != std::string::npos) {
+                        proxy_config.username = auth_part.substr(0, colon_pos);
+                        proxy_config.password = auth_part.substr(colon_pos + 1);
+                    }
+                }
+
+                // Parse host:port
+                size_t colon_pos = proxy_part.find(':');
+                if (colon_pos != std::string::npos) {
+                    proxy_config.host = proxy_part.substr(0, colon_pos);
+                    proxy_config.port = std::stoi(proxy_part.substr(colon_pos + 1));
+                    proxy_config.enabled = true;
+                }
+            }
+        }
+
+        // Create an observation package with data from GameApi
         ObservationPackage pkg;
         pkg.game_id = game_id;
-        pkg.headers = game_data.headers;
-        pkg.cookies = game_data.cookies;
-        pkg.proxy = proxy;
+        pkg.headers = headers_map;
+        pkg.cookies = cookies_map;
+        pkg.proxy = proxy_config;
         pkg.auth = game_data.auth;
         pkg.client_version = game_data.client_version;
         pkg.game_server_address = game_data.game_server_address;
-        
+
         std::cout << "Successfully joined game " << game_id << std::endl;
         std::cout << "  Game server: " << pkg.game_server_address << std::endl;
         std::cout << "  Client version: " << pkg.client_version << std::endl;
         std::cout << "  Map ID: " << game_data.map_id << std::endl;
-        
+
+        api_ = std::make_unique<ObservationApi>(
+            manager_,
+            pkg.headers,
+            pkg.cookies,
+            pkg.proxy,
+            pkg.auth,
+            game_id,
+            pkg.game_server_address,
+            pkg.client_version);
         return pkg;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Failed to join game " << game_id << ": " << e.what() << std::endl;
-        return ObservationPackage();
+        return {};
     }
 }
 
@@ -168,177 +292,112 @@ void ObservationSession::reset_package() {
     package_ = create_observation_package();
 }
 
-bool ObservationSession::ensure_static_map_data(ObservationApi& api, int map_id) {
+bool ObservationSession::ensure_static_map_data(ObservationApi &api, int map_id) {
     if (map_cache_->is_cached(map_id)) {
         return true;
     }
-    
+
     try {
         json static_map_data = api.get_static_map_data(map_id);
         map_cache_->save(map_id, static_map_data);
         return true;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Failed to get static map data: " << e.what() << std::endl;
         return false;
     }
 }
 
-bool ObservationSession::is_game_ended(const json& response) {
-    if (!response.is_object()) {
-        return false;
-    }
-    
-    if (!response.contains("result") || !response["result"].is_object()) {
-        return false;
-    }
-    
-    const auto& result = response["result"];
-    if (!result.contains("states") || !result["states"].is_object()) {
-        return false;
-    }
-    
-    const auto& states = result["states"];
-    for (const auto& [key, state] : states.items()) {
-        if (state.is_object() && state.contains("gameEnded") && 
-            state["gameEnded"].is_boolean() && state["gameEnded"].get<bool>()) {
-            return true;
-        }
-    }
-    
-    return false;
-}
+asio::awaitable<bool> ObservationSession::run_update_async() {
+    std::cout << "Starting update for game " << game_id << " (attempt " << attempt_ << ")" << std::endl;
 
-bool ObservationSession::run_update() {
-    int attempt = 1;
-    
     // Setup storage logging
     ensure_storage()->setup_logging();
-    
-    while (true) {
-        std::cout << "Starting update for game " << game_id << std::endl;
-        
-        if (!ensure_observation_package()) {
-            std::cerr << "Failed to create observation package" << std::endl;
-            ensure_storage()->teardown_logging();
-            return false;
+
+    if (!ensure_observation_package()) {
+        std::cerr << "Failed to create observation package" << std::endl;
+        ensure_storage()->teardown_logging();
+        co_return false;
+    }
+
+    try {
+        // Fetch game state asynchronously (returns raw HTTP response)
+        HttpResponse response = co_await api_->request_game_state_async(package_.state_ids, package_.time_stamps);
+
+        // Parse and validate response, extracting state metadata
+        GameServerResult result = api_->parse_and_validate_response(response, package_.state_ids, package_.time_stamps);
+
+        // Check if the request was successful
+        if (!result.success()) {
+            throw std::runtime_error(result.error_message);
         }
-        
-        try {
-            // Create observation API
-            ObservationApi api(
-                package_.headers,
-                package_.cookies,
-                package_.proxy,
-                package_.auth,
-                game_id,
-                package_.game_server_address,
-                package_.client_version
-            );
-            
-            // Fetch game state
-            json game_state = api.request_game_state(package_.state_ids, package_.time_stamps);
-            
-            // Update package with new auth and connection details
-            package_.auth = api.get_auth();
-            package_.cookies = api.get_cookies();
-            package_.headers = api.get_headers();
-            package_.game_server_address = api.get_game_server_address();
-            
-            // Check if game ended before processing and moving the JSON.
-            // We store the result now because game_state will be moved below.
-            bool game_ended = is_game_ended(game_state);
-            
-            // Extract map ID before moving game_state (if we need it).
-            // This avoids accessing the JSON after it's been moved.
-            std::string map_id_to_fetch = "-1";
-            try {
-                if (game_state.contains("result") && game_state["result"].is_object()) {
-                    const auto& result = game_state["result"];
-                    if (result.contains("states") && result["states"].is_object()) {
-                        const auto& states = result["states"];
-                        if (states.contains("3") && states["3"].is_object()) {
-                            const auto& state3 = states["3"];
-                            if (state3.contains("map") && state3["map"].is_object()) {
-                                const auto& map = state3["map"];
-                                if (map.contains("mapID")) {
-                                    map_id_to_fetch = map["mapID"].get<std::string>();
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (const std::exception& e) {
-                // Map data not available or invalid
-            }
-            
-            // Save response and release the large JSON immediately.
-            // After this point, game_state is in a moved-from state and should not be accessed.
-            on_request_response(std::move(game_state));
-            
-            // Fetch map data if needed (safe to do after game_state is moved)
-            if (map_id_to_fetch != "-1") {
-                // ensure_static_map_data(api, map_id_to_fetch);
-            }
-            
-            // Teardown storage logging before returning
-            ensure_storage()->teardown_logging();
-            
-            // Check if game ended (using the bool we stored before the move)
-            if (game_ended) {
-                return false;
-            }
-            
-            return true;
-            
-        } catch (const std::runtime_error& e) {
-            std::string error = e.what();
-            
-            // Handle authentication failure
-            if (error.find("Authentication failed") != std::string::npos) {
-                if (attempt >= MAX_RETRIES) {
-                    std::cerr << "Authentication failed after " << MAX_RETRIES 
-                             << " retries" << std::endl;
-                    ensure_storage()->teardown_logging();
-                    return false;
-                }
-                
-                std::cerr << "Authentication failed, resetting package and retrying..." 
-                         << std::endl;
-                reset_package();
-                attempt++;
-                continue;
-            }
-            
-            // Handle server errors
-            if (error.find("HTTP status: 5") != std::string::npos) {
-                std::cerr << "GameServer returned error, retrying in " 
-                         << TIME_TILL_RETRY << " seconds..." << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(TIME_TILL_RETRY));
-                continue;
-            }
-            
-            // Handle network errors
-            if (error.find("failed") != std::string::npos || 
-                error.find("timeout") != std::string::npos) {
-                std::cerr << "GameServer is not responding, resetting package and retrying..." << std::endl;
-                reset_package();
-                attempt++;
-                continue;
-            }
-            
-            // Unknown error
-            ensure_storage()->teardown_logging();
-            throw;
+
+        // Update package with new auth and connection details
+        package_.auth = api_->get_auth();
+        package_.cookies = api_->get_cookies();
+        package_.headers = api_->get_headers();
+        package_.game_server_address = api_->get_game_server_address();
+
+        // Save raw response string to storage.
+        // We move the raw string to storage, avoiding the need to dump JSON.
+        on_request_response(std::move(result.raw_response));
+
+        // Teardown storage logging before returning
+        ensure_storage()->teardown_logging();
+
+        // Reset attempt counter on success
+        attempt_ = 1;
+
+        // Check if game ended (extracted during simdjson parsing)
+        if (result.game_ended) {
+            co_return false;
         }
+
+        co_return true;
+    } catch (const std::runtime_error &e) {
+        std::string error = e.what();
+
+        // Handle authentication failure
+        if (error.find("Authentication failed") != std::string::npos) {
+            if (attempt_ >= MAX_RETRIES) {
+                std::cerr << "Authentication failed after " << MAX_RETRIES
+                        << " retries" << std::endl;
+                ensure_storage()->teardown_logging();
+                co_return false;
+            }
+
+            std::cerr << "Authentication failed, resetting package and will retry..."
+                    << std::endl;
+            reset_package();
+            attempt_++;
+            ensure_storage()->teardown_logging();
+            co_return true; // Return true to indicate session should be requeued
+        }
+
+        // Handle server errors
+        if (error.find("HTTP status: 5") != std::string::npos) {
+            std::cerr << "GameServer returned error, will retry in "
+                    << TIME_TILL_RETRY << " seconds..." << std::endl;
+            ensure_storage()->teardown_logging();
+            co_return true; // Return true to indicate session should be requeued
+        }
+
+        // Handle network errors
+        if (error.find("failed") != std::string::npos ||
+            error.find("timeout") != std::string::npos) {
+            std::cerr << "GameServer is not responding, resetting package and will retry..." << std::endl;
+            reset_package();
+            attempt_++;
+            ensure_storage()->teardown_logging();
+            co_return true; // Return true to indicate session should be requeued
+        }
+
+        // Unknown error - don't retry
+        ensure_storage()->teardown_logging();
+        throw;
     }
 }
 
-void ObservationSession::reset() {
-    package_ = ObservationPackage();
-    ensure_storage()->update_resume_metadata(json::object());
-}
-
-RecordingStorage* ObservationSession::ensure_storage() {
+RecordingStorage *ObservationSession::ensure_storage() {
     if (!storage_) {
         storage_ = std::make_unique<RecordingStorage>(
             storage_path_,
