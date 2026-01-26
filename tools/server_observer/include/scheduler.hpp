@@ -120,7 +120,9 @@ public:
     /**
      * Get the update interval in seconds
      */
-    double get_update_interval() const { return update_interval_; }
+    double get_update_interval() const { 
+        return std::chrono::duration<double>(update_interval_).count(); 
+    }
 
     /**
      * Get the number of active coroutines

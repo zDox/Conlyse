@@ -272,7 +272,7 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
         }
 
         // Mark as failed in registry
-        registry_->mark_failed(game_id);
+        registry_->mark_failed(game_id, result.error_message);
 
         // Remove session from active tracking
         {

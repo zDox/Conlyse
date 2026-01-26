@@ -198,7 +198,8 @@ void Scheduler::process_due_updates() {
         double wait_seconds = std::chrono::duration<double>(wait_duration).count();
 
         // Cap the wait time at update_interval to allow periodic checks
-        double actual_wait = std::min(wait_seconds, update_interval_);
+        double update_interval_seconds = std::chrono::duration<double>(update_interval_).count();
+        double actual_wait = std::min(wait_seconds, update_interval_seconds);
 
         if (actual_wait > 0.1) {  // Only log if waiting more than 100ms
             std::cout << "Waiting " << actual_wait
