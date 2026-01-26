@@ -2,6 +2,7 @@ import sys
 from codecs import open
 from os import path
 
+import pybind11
 from setuptools import Extension
 from setuptools import find_packages
 from setuptools import setup
@@ -81,28 +82,17 @@ class BuildExt(build_ext):
         build_ext.build_extensions(self)
 
 
-# Helper function to get pybind11 includes
-def get_pybind_include():
-    """Get pybind11 include path, installing if necessary"""
-    try:
-        import pybind11
-        return pybind11.get_include()
-    except ImportError:
-        # pybind11 will be installed via setup_requires
-        return ''
-
-
 ext_modules = [
     Extension(
         'conflict_interface.steiner_tree_cpp',
         sources=['conflict_interface/replay/steiner_tree.cpp'],
-        include_dirs=[get_pybind_include()],
+        include_dirs=[pybind11.get_include()],
         language='c++',
     ),
     Extension(
         'conflict_interface.op_tree_cpp',
         sources=['conflict_interface/replay/op_tree.cpp'],
-        include_dirs=[get_pybind_include()],
+        include_dirs=[pybind11.get_include()],
         language='c++',
     ),
 ]
@@ -141,10 +131,6 @@ setup(
         "scipy",
         "orjson",
         "pybind11>=2.6.0",
-    ],
-    setup_requires=[
-        "pybind11>=2.6.0",  # Ensures pybind11 is installed before building
-        "numpy",  # Also needed at build time for numpy includes if you use them
     ],
     extras_require=extras_require,
     ext_modules=ext_modules,
