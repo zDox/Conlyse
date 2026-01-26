@@ -34,7 +34,7 @@ FetchContent_MakeAvailable(json)
 FetchContent_Declare(
         simdjson
         GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-        GIT_TAG v3.10.1
+        GIT_TAG v4.2.4
         DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(simdjson)
