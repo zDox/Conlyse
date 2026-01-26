@@ -320,11 +320,18 @@ asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
     // RAII guard to ensure teardown_logging is always called
     struct LoggingGuard {
         RecordingStorage* storage;
-        ~LoggingGuard() { 
+        
+        explicit LoggingGuard(RecordingStorage* s) : storage(s) {}
+        
+        // Prevent copying
+        LoggingGuard(const LoggingGuard&) = delete;
+        LoggingGuard& operator=(const LoggingGuard&) = delete;
+        
+        ~LoggingGuard() noexcept { 
             if (storage) storage->teardown_logging(); 
         }
     };
-    LoggingGuard guard{ensure_storage()};
+    LoggingGuard guard(ensure_storage());
 
     if (!ensure_observation_package()) {
         std::cerr << "Failed to create observation package" << std::endl;

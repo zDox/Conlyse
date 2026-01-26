@@ -189,7 +189,7 @@ void ServerObserver::resume_active() {
 
             if (observer_sessions_.size() >= static_cast<size_t>(max_parallel_recordings_)) {
                 std::cerr << "Skipping resume for game " << game_id
-                         << " due to max parallel limit reached " << observer_sessions_.size() << "observations"<< std::endl;
+                         << " due to max parallel limit reached " << observer_sessions_.size() << " observations" << std::endl;
                 continue;
             }
         }
