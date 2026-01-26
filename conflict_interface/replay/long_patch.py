@@ -9,7 +9,6 @@ from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.path_tree import PathTree
-from performance_tests.split_timer import SplitTimer
 
 
 def collapse_op_tree(idx_to_opnode: dict, adj, path_tree: PathTree):
@@ -225,19 +224,10 @@ def create_long_patch(from_time: datetime, to_time: datetime, patch_graph: Patch
         A PatchGraphNode representing the consolidated patch over
         the given time range.
     """
-    timer = SplitTimer()
     shortest_path = patch_graph.find_patch_path(from_time, to_time)
-    timer.split("shortest_path")
-
     adj = create_adj_list(shortest_path, path_tree)
-    timer.split("create_adj_list")
-
     op_tree = build_op_tree(shortest_path, adj, path_tree.root.index)
-    timer.split("buld_op_tree")
-
     operations = collapse_op_tree(op_tree, adj, path_tree)
-    timer.split("collapse_op_tree")
-    timer.report()
     long_patch_node = PatchGraphNode(int(from_time.timestamp()), int(to_time.timestamp()), *operations)
 
     return long_patch_node

@@ -54,7 +54,6 @@ class PathTree:
 
 
     def precompute(self):
-        print(f"Precomputing")
         self.precompute_euler_tour()
         self.precompute_rmq()
 
