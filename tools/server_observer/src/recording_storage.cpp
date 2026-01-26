@@ -110,7 +110,6 @@ void RecordingStorage::update_resume_metadata(const json& resume) {
     // Use cached metadata instead of loading from disk
     metadata_cache_["resume"] = resume;
     resume_metadata_ = resume;
-    // Don't save to disk here - will be saved on session close or package reset
 }
 
 json RecordingStorage::get_resume_metadata() const {
@@ -137,7 +136,6 @@ void RecordingStorage::update_file_sequence() {
     file_sequence_++;
     // Use cached metadata instead of loading from disk
     metadata_cache_["file_sequence"] = file_sequence_;
-    // Don't save to disk here - will be saved on session close or package reset
 }
 
 size_t RecordingStorage::get_file_size(const std::string& file_path) {
@@ -203,8 +201,6 @@ void RecordingStorage::rotate_to_long_term_storage() {
             {"destination", lts_file_path.string()},
             {"size_bytes", file_size}
         });
-        
-        // Don't save to disk here - will be saved on session close or package reset
     } catch (const std::exception& e) {
         std::cerr << "Failed to rotate file to long-term storage: " << e.what() << std::endl;
         throw;
@@ -285,7 +281,6 @@ void RecordingStorage::save_response(std::string&& response_str) {
         {"timestamp", timestamp},
         {"datetime", ss.str()}
     });
-    // Don't save to disk here - will be saved on session close or package reset
 }
 
 void RecordingStorage::setup_logging() {
