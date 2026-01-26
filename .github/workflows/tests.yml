@@ -19,10 +19,15 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install system build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[tests]
+          pip install -v -e .[tests]
 
 
       - name: get test data

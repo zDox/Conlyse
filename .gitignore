@@ -58,3 +58,6 @@ tests/test_data/full_test_data_1_v206.json
 /performance_tests/*.png
 json-output
 _codeql_detected_source_root
+/performance_tests/*.png
+*.pyd
+*.su
