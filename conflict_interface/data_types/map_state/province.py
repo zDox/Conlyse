@@ -9,7 +9,7 @@ from conflict_interface.data_types.custom_types import ProductionList
 from conflict_interface.data_types.custom_types import Vector
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.game_object_binary import binary_serializable
+from conflict_interface.data_types.decorators import binary_serializable
 from conflict_interface.data_types.map_state.impact import Impact
 from conflict_interface.data_types.map_state.map_state_enums import TerrainType
 from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
@@ -26,7 +26,7 @@ from conflict_interface.data_types.player_state.player_profile import PlayerProf
 from conflict_interface.data_types.point import Point
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.constants import PathNode
 from conflict_interface.utils.exceptions import ActionException
 
 logger = get_logger()
@@ -97,10 +97,10 @@ class Province(GameObject):
     impacts: Optional[ArrayList[Impact]]
 
     production: Optional[ProvinceProduction]
-    productions: Optional[ProductionList[ProvinceProduction]]
+    productions: Optional[ProductionList[Optional[ProvinceProduction]]]
     terrain_type: TerrainType
 
-    constructions: Optional[ProductionList[ProvinceProduction]]
+    constructions: Optional[ProductionList[Optional[ProvinceProduction]]]
     costal: bool = False
     money_production: int = 0
     morale: int = 70

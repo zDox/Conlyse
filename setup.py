@@ -31,6 +31,10 @@ extras_require = {
     "tools-recorder": [
         # Add dependencies for recorder tool here
     ],
+    "tools-server-observer": [
+        "httpx",
+        "httpx[socks]"
+    ],
     "test-long-patches":[
         "deepdiff"
     ]
@@ -86,7 +90,8 @@ setup(
         "zstandard",
         "lz4",
         "msgspec",
-        "scipy"
+        "scipy",
+        "orjson"
     ],
     extras_require=extras_require,
     entry_points={

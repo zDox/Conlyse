@@ -2,15 +2,15 @@ from dataclasses import dataclass
 from typing import Optional
 
 from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.game_object_binary import binary_serializable
+from conflict_interface.data_types.decorators import binary_serializable
 from conflict_interface.data_types.map_state.map import Map
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.map_state.province_property import ProvinceProperty
 from conflict_interface.data_types.state import State
-from conflict_interface.data_types.state import state_update
+from conflict_interface.data_types.update_helpers import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.constants import PathNode
 
 
 @binary_serializable(SerializationCategory.DATACLASS)
@@ -44,7 +44,7 @@ class MapState(State):
             for province in other.map.locations:
                 if province.id not in self.map.provinces:
                     if rp:
-                        rp.add(path + ["map", "locations", -1], self.map.provinces.get(province.id), province)
+                        rp.add(path + ["map", "locations", -1], province)
                     self.map.locations.append(province)
                 else:
                     self.map.provinces[province.id].update(

@@ -10,7 +10,7 @@ from conflict_interface.data_types.exploration_state import ExplorationState
 from conflict_interface.data_types.game_event_state.game_event_state import GameEventState
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.game_object_binary import binary_serializable
+from conflict_interface.data_types.decorators import binary_serializable
 from conflict_interface.data_types.in_game_alliance_state.in_game_alliance_state import InGameAllianceState
 from conflict_interface.data_types.location_state.location_state import LocationState
 from conflict_interface.data_types.map_info_state.map_info_state import MapInfoState
@@ -28,7 +28,7 @@ from conflict_interface.data_types.game_info_state.game_info_state import GameIn
 from conflict_interface.data_types.research_state.research_state import ResearchState
 from conflict_interface.data_types.configuration_state.configuration_state import ConfigurationState
 from conflict_interface.data_types.state import State
-from conflict_interface.data_types.state import state_update
+from conflict_interface.data_types.update_helpers import state_update
 from conflict_interface.data_types.statistic_state.statistic_state import StatisticState
 from conflict_interface.data_types.triggered_tutorial_state.triggered_tutorial_state import TriggeredTutorialState
 from conflict_interface.data_types.tutorial_state.tutorial_state import TutorialState
@@ -37,7 +37,7 @@ from conflict_interface.data_types.user_options_state.user_options_state import 
 from conflict_interface.data_types.user_sms_state.user_sms_state import UserSMSState
 from conflict_interface.data_types.wheel_of_fortune_state.wheel_of_fortune_state import WheelOfFortuneState
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.constants import PathNode
 
 """
 The following are all states but not every state
@@ -197,3 +197,4 @@ class GameState(State):
                 getattr(self.states, state).update(new_state, path + ["states", state], rp)
             else:
                 raise Exception(f"{type(new_state)} has no update function")
+

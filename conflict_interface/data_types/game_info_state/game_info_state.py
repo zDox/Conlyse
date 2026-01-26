@@ -9,11 +9,12 @@ from conflict_interface.data_types.custom_types import DateTimeSecondsInt
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.game_object_binary import binary_serializable
+from conflict_interface.data_types.decorators import binary_serializable
 from conflict_interface.data_types.state import State
-from conflict_interface.data_types.state import partial_universal_update
+from conflict_interface.data_types.update_helpers import partial_universal_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import PathNode
+from conflict_interface.replay.constants import PathNode
+
 
 @binary_serializable(SerializationCategory.DATACLASS)
 @dataclass

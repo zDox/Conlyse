@@ -1,28 +1,20 @@
 from __future__ import annotations
 
 import os
-from copy import deepcopy
+from collections import deque
 from datetime import UTC
 from datetime import datetime
 from logging import getLogger
 from pathlib import Path
-from typing import Any
-from typing import Iterator
 from typing import Literal
 from typing import TYPE_CHECKING
-from typing import Union
 
 from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.replay.apply_replay_helper import apply_operation
-from conflict_interface.replay.constants import ADD_OPERATION
-from conflict_interface.replay.constants import REMOVE_OPERATION
-from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
-from conflict_interface.replay.replay_patch import AddOperation
+
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replay_patch import RemoveOperation
-from conflict_interface.replay.replay_patch import ReplaceOperation
 from conflict_interface.replay.replay_storage import ReplayStorage
 from conflict_interface.utils.helper import create_parent_dirs
 
@@ -46,15 +38,23 @@ class Replay:
         self._op_counter = 0
         self._game: ReplayInterface | None = None
         self._max_patches = max_patches
+        self._append_que = deque([])
+
+    def is_open(self) -> bool:
+        return self._is_open
+
+    def set_mode(self, mode: Literal['r', 'w', 'a', 'rw']):
+        if self.is_open():
+            logger.error("Replay is open -> Cannot set Mode")
+            return
+
+        self.mode = mode
 
     def set_game(self, game: ReplayInterface):
         self._game = game
 
     def set_last_game_state(self, game_state: GameState):
         self.storage.last_game_state = game_state
-
-    def get_last_game_state(self) -> GameState:
-        return self.storage.last_game_state
 
     def set_max_patches(self, max_patches: int):
         self._max_patches = max_patches
@@ -72,6 +72,10 @@ class Replay:
         self._op_counter = 0
 
     def open(self):
+        if self._is_open:
+            logger.warning("Replay is already open")
+            return None
+
         if self.mode == 'r':
             if not os.path.exists(self.file_path):
                 raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
@@ -120,6 +124,10 @@ class Replay:
         self.storage.patch_graph.finalize()
 
     def close(self):
+        if not self._is_open:
+            logger.warning("Replay is already closed")
+            return
+
         self.validate_max_patches()
 
         if self.mode in ['w', 'rw']:
@@ -157,41 +165,45 @@ class Replay:
 
         self.storage.unload_static_map_data(static_map_data)
 
+    def _create_nodes_from_bireplay_patch(self, replay_patch: BidirectionalReplayPatch, from_timestamp: int, to_timestamp: int) -> tuple[PatchGraphNode, PatchGraphNode]:
+        forward = replay_patch.forward_patch
+        backward = replay_patch.backward_patch
+
+        forward_path_ids = [self.storage.path_tree.path_list_to_idx(p) for p in forward.paths]
+        backward_path_ids = [self.storage.path_tree.path_list_to_idx(p) for p in backward.paths]
+
+        forward_node = PatchGraphNode(
+            from_timestamp=from_timestamp,
+            to_timestamp=to_timestamp,
+            op_types=list(forward.op_types),
+            paths=forward_path_ids,
+            values=list(forward.values)
+        )
+        backward_node = PatchGraphNode(
+            from_timestamp=to_timestamp,
+            to_timestamp=from_timestamp,
+            op_types=list(backward.op_types),
+            paths=backward_path_ids,
+            values=list(backward.values)
+        )
+        return forward_node, backward_node
+
     def record_patch_in_rw_mode(
             self,
             time_stamp: datetime,
             game_id: int,
             player_id: int,
-            replay_patch: BidirectionalReplayPatch
-    ):
+            replay_patch: BidirectionalReplayPatch):
+
         self.validate_game(game_id, player_id)
         self.validate_max_patches(2)
 
         from_timestamp = self.storage.metadata.last_time
         to_timestamp = int(time_stamp.timestamp())
 
-        forward_operations = replay_patch.forward_patch.operations
-        backward_operations = reversed(replay_patch.backward_patch.operations)
+        self.storage.path_tree.fill_with_paths(replay_patch.forward_patch.paths)
 
-        self.storage.path_tree.fill_with_paths(forward_operations)
-
-        forward = self.ops_to_lists(forward_operations)
-        backward = self.ops_to_lists(backward_operations)
-
-        forward_node = PatchGraphNode(
-            from_timestamp=from_timestamp,
-            to_timestamp=to_timestamp,
-            op_types=forward['op_types'],
-            paths = forward['paths'],
-            values = forward['values']
-        )
-        backward_node = PatchGraphNode(
-            from_timestamp=to_timestamp,
-            to_timestamp=from_timestamp,
-            op_types=backward['op_types'],
-            paths=backward['paths'],
-            values=backward['values']
-        )
+        forward_node, backward_node = self._create_nodes_from_bireplay_patch(replay_patch, from_timestamp, to_timestamp)
 
         self.storage.patch_graph.add_edge_and_vertices(forward_node)
         self.storage.patch_graph.add_edge_and_vertices(backward_node)
@@ -200,9 +212,9 @@ class Replay:
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
-    def append_patches(self, time_stamp: datetime, game_id: int, player_id: int, replay_patches: list[BidirectionalReplayPatch]):
+    def que_append_patch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch):
         self.validate_game(game_id, player_id)
-        self.validate_max_patches(len(replay_patches)*2)
+        self.validate_max_patches(2)
 
         if not self._is_open:
             logger.warning("Can not append to an closed replay")
@@ -217,49 +229,42 @@ class Replay:
 
         nodes = []
         all_new_paths = []
-        for patch in replay_patches:
-            new_nodes = self.storage.path_tree.fill_with_paths(patch.forward_patch.operations)
-            new_paths = []
-            for node in new_nodes:
-                new_paths.append((node.index, node.parent.index if node.parent else 0, node.path_element))
+        new_nodes = self.storage.path_tree.fill_with_paths(replay_patch.forward_patch.paths)
+        new_paths = []
 
-            forward = self.ops_to_lists(patch.forward_patch.operations)
-            backward = self.ops_to_lists(reversed(patch.backward_patch.operations))
+        for node in new_nodes:
+            new_paths.append((node.index, node.parent.index if node.parent else 0, node.path_element))
 
-            forward_node = PatchGraphNode(
-                from_timestamp=from_timestamp,
-                to_timestamp=to_timestamp,
-                op_types=forward['op_types'],
-                paths=forward['paths'],
-                values=forward['values']
-            )
-            backward_node = PatchGraphNode(
-                from_timestamp=to_timestamp,
-                to_timestamp=from_timestamp,
-                op_types=backward['op_types'],
-                paths=backward['paths'],
-                values=backward['values']
-            )
+        forward_node, backward_node = self._create_nodes_from_bireplay_patch(replay_patch, from_timestamp, to_timestamp)
 
-            nodes.append(forward_node)
-            nodes.append(backward_node)
+        nodes.append(forward_node)
+        nodes.append(backward_node)
 
-            all_new_paths.append(new_paths)
-            all_new_paths.append([]) # Assume forward and backwards have the same paths
+        all_new_paths.append(new_paths)
+        all_new_paths.append([]) # Assume forward and backwards have the same paths
 
 
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
-        self.storage.append_patches_to_disk(nodes, all_new_paths, self.file_path)
+        self._append_que.append((nodes, all_new_paths))
+
+    def execute_append_que(self):
+        all_nodes = []
+        all_new_paths = []
+        while self._append_que:
+            nodes, new_paths = self._append_que.popleft()
+            all_nodes.extend(nodes)
+            all_new_paths.extend(new_paths)
+
+        self.storage.append_patches_to_disk(all_nodes, all_new_paths, self.file_path)
 
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node
 
-        def apply_op(_op_type, _value, _target, _pos, _node):
+        def apply_op(_op_type, _value, _target, _pos):
             apply_operation(_op_type, _value, _target, _pos)
             self._op_counter += 1
-            if _node and _op_type == REMOVE_OPERATION:
-                self.storage.path_tree.reset_child_references(_node.index)
+
 
         # Find operations that have unknown references
         unknown_ops, unknown_paths = [], []
@@ -288,14 +293,16 @@ class Replay:
         # Apply resolved operations
         it = zip(patch.op_types, patch.paths, patch.values)
         for op_type, path_idx, value in it:
+
             node = idx_to_node[path_idx]
-            apply_op(op_type, value, node.reference, node.path_element, node)
+            apply_op(op_type, value, node.reference, node.path_element)
+            self.storage.path_tree.reset_child_references(node.index)
 
         # Get new values and que the hooks
         if hook_system:
             for hook_path, references in hook_data.items():
                 for obj_path, attributes in references.items():
-                    reference = self.storage.path_tree.idx_to_node[obj_path]
+                    reference = self.storage.path_tree.idx_to_node[obj_path].reference
                     for attribute, value in attributes.items():
                         value[1] = getattr(reference, attribute, None)
                     hook_system.que_hook_path(hook_path, reference, attributes)
@@ -308,35 +315,6 @@ class Replay:
     def get_last_time(self) -> datetime:
         last_timestamp = self.storage.metadata.last_time
         return datetime.fromtimestamp(last_timestamp, tz=UTC)
-
-    def ops_to_lists(self, operations: list[Union[AddOperation, ReplaceOperation, RemoveOperation]] | Iterator[Any]) -> dict[str, list]:
-        op_types = []
-        paths = []
-        values = []
-
-        for op in operations:
-            idx = self.storage.path_tree.path_list_to_idx(op.path)
-            paths.append(idx)
-
-            value = deepcopy(op.new_value)
-
-            if op.Key == 'a':
-                op_types.append(ADD_OPERATION)
-                values.append(value)
-            elif op.Key == 'p':
-                op_types.append(REPLACE_OPERATION)
-                values.append(value)
-            elif op.Key == 'r':
-                op_types.append(REMOVE_OPERATION)
-                values.append(None)
-            else:
-                raise ValueError(f"Unknown operation type: {type(op)}")
-
-        return {
-            'op_types': op_types,
-            'paths': paths,
-            'values': values,
-        }
 
     def validate_game(self, game_id: int, player_id: int):
         if self.game_id != game_id or self.player_id != player_id:

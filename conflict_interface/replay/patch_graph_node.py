@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import struct
 from typing import Any
 from typing import TYPE_CHECKING
@@ -8,13 +9,13 @@ import numpy as np
 
 from conflict_interface.data_types.game_object import GameObject
 from conflict_interface.data_types.game_object_binary import GameObjectSerializer
+
 from conflict_interface.utils.binary import BinaryReader
 from conflict_interface.utils.binary import BinaryWriter
 from conflict_interface.utils.helper import is_primitive
 
 if TYPE_CHECKING:
-    from conflict_interface.interface.game_interface import GameInterface
-
+    from conflict_interface.interface import GameInterface
 
 class PatchGraphNode:
 
@@ -63,7 +64,6 @@ class PatchGraphNode:
                 primitives.append(v)
             else:
                 value_types.append(1)
-                GameObject.set_game_recursive(v, None)
                 complexes.append(v)
 
         writer.write_bytes(np.array(value_types, dtype=np.int8).tobytes())
@@ -76,6 +76,7 @@ class PatchGraphNode:
 
         writer.write_uint32(len(complex_blob))
         writer.write_bytes(complex_blob)
+
         return writer.getbuffer()
 
     @staticmethod
