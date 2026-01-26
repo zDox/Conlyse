@@ -10,7 +10,7 @@ Scheduler::Scheduler(int max_parallel_updates,
                      int num_worker_threads)
     : max_parallel_updates_(max_parallel_updates)
     , max_parallel_first_updates_(max_parallel_first_updates)
-    , update_interval_(update_interval)
+    , update_interval_(std::chrono::milliseconds(static_cast<int64_t>(update_interval * 1000)))
     , num_worker_threads_(num_worker_threads)
     , active_coroutines_(0)
     , stop_flag_(false)
@@ -82,7 +82,7 @@ void Scheduler::schedule_immediate_update(ObservationSession* session) {
 }
 
 void Scheduler::schedule_next_update(ObservationSession* session) {
-    session->next_update_at += std::chrono::seconds(static_cast<int>(update_interval_));
+    session->next_update_at += update_interval_;
     schedule_update(session);
 }
 
@@ -198,7 +198,8 @@ void Scheduler::process_due_updates() {
         double wait_seconds = std::chrono::duration<double>(wait_duration).count();
 
         // Cap the wait time at update_interval to allow periodic checks
-        double actual_wait = std::min(wait_seconds, update_interval_);
+        double update_interval_seconds = std::chrono::duration<double>(update_interval_).count();
+        double actual_wait = std::min(wait_seconds, update_interval_seconds);
 
         if (actual_wait > 0.1) {  // Only log if waiting more than 100ms
             std::cout << "Waiting " << actual_wait

@@ -211,7 +211,10 @@ if(BUILD_TESTS)
     # Helper target to check proxy connectivity
     add_custom_target(check-proxy
         COMMAND ${CMAKE_COMMAND} -E echo "Checking proxy connectivity at ${TEST_PROXY_HOST}:${TEST_PROXY_PORT}..."
-        COMMAND bash -c "timeout 2 bash -c '</dev/tcp/${TEST_PROXY_HOST}/${TEST_PROXY_PORT}' 2>/dev/null && echo 'Proxy is reachable!' || echo 'Proxy is NOT reachable. Tests may be skipped.'"
+        COMMAND ${CMAKE_COMMAND} -E env
+            TEST_PROXY_HOST=${TEST_PROXY_HOST}
+            TEST_PROXY_PORT=${TEST_PROXY_PORT}
+            bash -c "timeout 2 bash -c '</dev/tcp/$$TEST_PROXY_HOST/$$TEST_PROXY_PORT' 2>/dev/null && echo 'Proxy is reachable!' || echo 'Proxy is NOT reachable. Tests may be skipped.'"
         COMMENT "Testing proxy connectivity..."
     )
 

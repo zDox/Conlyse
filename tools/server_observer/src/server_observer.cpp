@@ -162,7 +162,10 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
     scheduler_->mark_first_update(game_id);
     scheduler_->schedule_update(observer.get());
 
-    observer_sessions_[game_id] = std::move(observer);
+    {
+        std::lock_guard<std::mutex> lock(sessions_lock_);
+        observer_sessions_[game_id] = std::move(observer);
+    }
 }
 
 void ServerObserver::resume_active() {
@@ -176,16 +179,19 @@ void ServerObserver::resume_active() {
             continue;
         }
 
-        if (observer_sessions_.find(game_id) != observer_sessions_.end()) {
-            continue;
-        }
+        {
+            std::lock_guard<std::mutex> lock(sessions_lock_);
+            if (observer_sessions_.find(game_id) != observer_sessions_.end()) {
+                continue;
+            }
 
-        std::cout << "Resuming observation for game " << game_id << std::endl;
+            std::cout << "Resuming observation for game " << game_id << std::endl;
 
-        if (observer_sessions_.size() >= static_cast<size_t>(max_parallel_recordings_)) {
-            std::cerr << "Skipping resume for game " << game_id
-                     << " due to max parallel limit reached " << observer_sessions_.size() << "observations"<< std::endl;
-            continue;
+            if (observer_sessions_.size() >= static_cast<size_t>(max_parallel_recordings_)) {
+                std::cerr << "Skipping resume for game " << game_id
+                         << " due to max parallel limit reached " << observer_sessions_.size() << " observations" << std::endl;
+                continue;
+            }
         }
 
         int scenario_id = meta["scenario_id"].get<int>();
@@ -258,6 +264,22 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
     if (session->get_attempt() >= MAX_UPDATE_RETRIES) {
         std::cout << "Max retries reached for game " << game_id
                  << ". Ending observation due to: " << result.error_message << std::endl;
+        
+        // Clean up resources when max retries reached
+        // Release account resources
+        if (account_pool_) {
+            account_pool_->decrement_guest_join(session->account);
+        }
+
+        // Mark as failed in registry
+        registry_->mark_failed(game_id, result.error_message);
+
+        // Remove session from active tracking
+        {
+            std::lock_guard lock(sessions_lock_);
+            observer_sessions_.erase(game_id);
+        }
+
         return;
     }
 
@@ -390,7 +412,13 @@ bool ServerObserver::run() {
             auto pending_sessions = scheduler_->get_pending_new_sessions();
             for (const auto& [game_id, scenario_id] : pending_sessions) {
                 // Check if we haven't exceeded max parallel recordings
-                if (observer_sessions_.size() < static_cast<size_t>(max_parallel_recordings_)) {
+                bool can_start = false;
+                {
+                    std::lock_guard<std::mutex> lock(sessions_lock_);
+                    can_start = observer_sessions_.size() < static_cast<size_t>(max_parallel_recordings_);
+                }
+                
+                if (can_start) {
                     start_observation_session(game_id, scenario_id);
                 } else {
                     std::cout << "Max parallel recordings limit reached. Skipping game "

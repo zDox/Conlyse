@@ -120,7 +120,9 @@ public:
     /**
      * Get the update interval in seconds
      */
-    double get_update_interval() const { return update_interval_; }
+    double get_update_interval() const { 
+        return std::chrono::duration<double>(update_interval_).count(); 
+    }
 
     /**
      * Get the number of active coroutines
@@ -130,7 +132,10 @@ public:
     /**
      * Get the current size of the update queue
      */
-    size_t get_queue_size() const { return update_queue_.size(); }
+    size_t get_queue_size() const { 
+        std::lock_guard<std::mutex> lock(update_queue_lock_);
+        return update_queue_.size(); 
+    }
 
     /**
      * Get the number of first updates being tracked
@@ -175,7 +180,7 @@ private:
     // Configuration
     int max_parallel_updates_;
     int max_parallel_first_updates_;
-    double update_interval_;
+    std::chrono::milliseconds update_interval_;
     int num_worker_threads_;
 
     // Worker thread pool for async updates

@@ -173,10 +173,13 @@ std::vector<std::pair<int, HubGameProperties>> GameFinder::select_games(
         for (int scenario_id : scenario_ids_) {
             std::vector<HubGameProperties> new_candidates;
 
-            for (const auto& game : games) {
-                if (game.scenario_id == scenario_id &&
-                    known_games_.find(game.game_id) == known_games_.end()) {
-                    new_candidates.push_back(game);
+            {
+                std::lock_guard<std::mutex> lock(known_games_mutex_);
+                for (const auto& game : games) {
+                    if (game.scenario_id == scenario_id &&
+                        known_games_.find(game.game_id) == known_games_.end()) {
+                        new_candidates.push_back(game);
+                    }
                 }
             }
 
@@ -207,6 +210,7 @@ std::vector<std::pair<int, HubGameProperties>> GameFinder::select_games(
 }
 
 void GameFinder::refresh_known_games_from_registry() {
+    std::lock_guard<std::mutex> lock(known_games_mutex_);
     known_games_.clear();
 
     auto active = registry_->active();
@@ -264,5 +268,6 @@ void GameFinder::scan_and_start_games(size_t max_active_sessions, size_t max_par
 }
 
 void GameFinder::mark_game_known(int game_id) {
+    std::lock_guard<std::mutex> lock(known_games_mutex_);
     known_games_.insert(game_id);
 }

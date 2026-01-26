@@ -86,18 +86,20 @@ void HubInterfaceWrapper::init_python() {
     py::gil_scoped_acquire acquire;
 
     try {
-        // Set up the Python path - INSERT at beginning
-        // NOTE: These paths are hard-coded to match the development environment
-        // In production, ensure PYTHONPATH is set appropriately or modify these paths
+        // Set up the Python path
+        // Use environment PYTHONPATH or current working directory
         py::module_ sys = py::module_::import("sys");
         py::list path = sys.attr("path");
         
-        // Insert our paths at the BEGINNING so they take priority
-        path.insert(0, "/home/zdox/PycharmProjects/ConflictInterface");
-        path.insert(1, "/home/zdox/PycharmProjects/ConflictInterface/.venv/lib/python3.12/site-packages");
-
-        // Debug: Print sys.path to verify
-        py::print("sys.path after setup:", path);
+        // Try to add the repository root to path if not already present
+        // This allows imports to work from the repository structure
+        const char* pythonpath_env = std::getenv("PYTHONPATH");
+        if (pythonpath_env) {
+            py::str pythonpath(pythonpath_env);
+            if (!path.contains(pythonpath)) {
+                path.insert(0, pythonpath);
+            }
+        }
 
         // Import the HubInterface module
         python_module_ = py::module_::import("conflict_interface.interface.hub_interface");

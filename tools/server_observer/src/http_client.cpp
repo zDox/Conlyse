@@ -5,9 +5,8 @@
 #include "async_https_request.hpp"
 
 HttpClient::HttpClient(std::shared_ptr<RequestManager> manager, const std::string& url)
-    : manager_(std::move(std::move(manager))),
-      timeout_(60),
-      verify_ssl_(true) {
+    : manager_(std::move(manager)),
+      timeout_(60) {
     
     if (!manager_) {
         throw std::runtime_error("HttpClient requires a valid RequestManager");
@@ -16,14 +15,6 @@ HttpClient::HttpClient(std::shared_ptr<RequestManager> manager, const std::strin
     parse_url(url);
 }
 HttpClient::~HttpClient() = default;
-
-void HttpClient::enable_server_certificate_verification(bool enable) {
-    verify_ssl_ = enable;
-}
-
-void HttpClient::set_follow_location(bool follow) {
-    follow_redirects_ = follow;
-}
 
 void HttpClient::set_connection_timeout(std::chrono::seconds timeout) {
     timeout_ = timeout;

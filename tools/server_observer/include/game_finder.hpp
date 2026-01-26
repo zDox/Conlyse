@@ -115,6 +115,7 @@ private:
     int max_guest_per_account_;
     int max_parallel_recordings_;
     std::set<int> known_games_;
+    mutable std::mutex known_games_mutex_;
 
     // Scan thread management
     std::unique_ptr<std::thread> scan_thread_;

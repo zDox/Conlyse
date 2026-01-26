@@ -18,6 +18,7 @@ RecordingStorage::RecordingStorage(const std::string& output_path,
     , long_term_storage_path_(long_term_storage_path)
     , file_size_threshold_(file_size_threshold)
     , file_sequence_(0)
+    , updates_since_last_flush_(0)
 {
     // Validate configuration
     if ((long_term_storage_path_.empty() && file_size_threshold_ > 0) ||
@@ -109,6 +110,7 @@ json RecordingStorage::load_metadata() {
 void RecordingStorage::update_resume_metadata(const json& resume) {
     metadata_cache_["resume"] = resume;
     resume_metadata_ = resume;
+    // Metadata will be persisted periodically via save_response() flush mechanism
 }
 
 json RecordingStorage::get_resume_metadata() const {
@@ -176,8 +178,15 @@ void RecordingStorage::rotate_to_long_term_storage() {
     fs::path lts_file_path = lts_game_dir / filename;
     
     try {
-        // Move the file
-        fs::rename(responses_file_, lts_file_path);
+        // Try to move the file (rename may fail across filesystems)
+        try {
+            fs::rename(responses_file_, lts_file_path);
+        } catch (const fs::filesystem_error& e) {
+            // If rename fails (e.g., across filesystems), use copy + remove
+            std::cout << "Rename failed, using copy for cross-filesystem move: " << e.what() << std::endl;
+            fs::copy_file(responses_file_, lts_file_path, fs::copy_options::overwrite_existing);
+            fs::remove(responses_file_);
+        }
         std::cout << "Rotated responses file to long-term storage: " << lts_file_path << std::endl;
         
         // Log the rotation in metadata
@@ -277,6 +286,13 @@ void RecordingStorage::save_response(std::string&& response_str) {
         {"timestamp", timestamp},
         {"datetime", ss.str()}
     });
+    
+    // Periodically flush metadata to disk for crash recovery
+    updates_since_last_flush_++;
+    if (updates_since_last_flush_ >= METADATA_FLUSH_INTERVAL) {
+        save_metadata(metadata_cache_);
+        updates_since_last_flush_ = 0;
+    }
 }
 
 void RecordingStorage::setup_logging() {
