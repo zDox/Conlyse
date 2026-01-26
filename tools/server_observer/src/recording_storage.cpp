@@ -107,9 +107,7 @@ json RecordingStorage::load_metadata() {
 }
 
 void RecordingStorage::update_resume_metadata(const json& resume) {
-    json metadata = load_metadata();
-    metadata["resume"] = resume;
-    save_metadata(metadata);
+    metadata_cache_["resume"] = resume;
     resume_metadata_ = resume;
 }
 
@@ -121,6 +119,11 @@ bool RecordingStorage::has_resume_metadata() const {
     return !resume_metadata_.empty() && resume_metadata_.contains("auth");
 }
 
+void RecordingStorage::flush_metadata() {
+    // Save the cached metadata to disk
+    save_metadata(metadata_cache_);
+}
+
 void RecordingStorage::restore_file_sequence() {
     json metadata = metadata_cache_;
     if (metadata.contains("file_sequence")) {
@@ -130,9 +133,7 @@ void RecordingStorage::restore_file_sequence() {
 
 void RecordingStorage::update_file_sequence() {
     file_sequence_++;
-    json metadata = load_metadata();
-    metadata["file_sequence"] = file_sequence_;
-    save_metadata(metadata);
+    metadata_cache_["file_sequence"] = file_sequence_;
 }
 
 size_t RecordingStorage::get_file_size(const std::string& file_path) {
@@ -185,12 +186,11 @@ void RecordingStorage::rotate_to_long_term_storage() {
         std::stringstream ss;
         ss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
         
-        json metadata = load_metadata();
-        if (!metadata.contains("rotations")) {
-            metadata["rotations"] = json::array();
+        if (!metadata_cache_.contains("rotations")) {
+            metadata_cache_["rotations"] = json::array();
         }
         
-        metadata["rotations"].push_back({
+        metadata_cache_["rotations"].push_back({
             {"sequence", file_sequence_},
             {"timestamp", std::chrono::duration_cast<std::chrono::seconds>(
                 now.time_since_epoch()).count()},
@@ -198,8 +198,6 @@ void RecordingStorage::rotate_to_long_term_storage() {
             {"destination", lts_file_path.string()},
             {"size_bytes", file_size}
         });
-        
-        save_metadata(metadata);
     } catch (const std::exception& e) {
         std::cerr << "Failed to rotate file to long-term storage: " << e.what() << std::endl;
         throw;
@@ -272,12 +270,13 @@ void RecordingStorage::save_response(std::string&& response_str) {
     std::stringstream ss;
     ss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
     
-    json metadata = load_metadata();
-    metadata["updates"].push_back({
+    if (!metadata_cache_.contains("updates")) {
+        metadata_cache_["updates"] = json::array();
+    }
+    metadata_cache_["updates"].push_back({
         {"timestamp", timestamp},
         {"datetime", ss.str()}
     });
-    save_metadata(metadata);
 }
 
 void RecordingStorage::setup_logging() {

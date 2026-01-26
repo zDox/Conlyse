@@ -152,6 +152,7 @@ ObservationSession::ObservationSession(
 
 ObservationSession::~ObservationSession() {
     if (storage_) {
+        storage_->flush_metadata();  // Save metadata when session closes
         storage_->teardown_logging();
     }
 }
@@ -288,6 +289,9 @@ ObservationPackage ObservationSession::create_observation_package() {
 }
 
 void ObservationSession::reset_package() {
+    if (storage_) {
+        storage_->flush_metadata();  // Save metadata when package is reset
+    }
     account->reset_interface();
     package_ = create_observation_package();
 }
