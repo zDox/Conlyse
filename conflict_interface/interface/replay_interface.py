@@ -1,4 +1,5 @@
 import bisect
+import gc
 from bisect import bisect_right
 
 from datetime import UTC
@@ -135,6 +136,7 @@ class ReplayInterface(GameInterface):
 
         Returns applied patches
         """
+
         if self.current_time == time_stamp:
             return
 
@@ -142,7 +144,7 @@ class ReplayInterface(GameInterface):
             self.game_state = self._replay.storage.initial_game_state
             self.game_state.set_game(self)
             return
-
+        gc.disable()
         patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, time_stamp)
         if PatchGraph.cost(patches) > LONG_PATCH_THRESHOLD and len(patches) > 1 and create_long_patches:
             patches = [self.create_and_save_long_patch(self.current_time, time_stamp)]
@@ -151,7 +153,8 @@ class ReplayInterface(GameInterface):
 
         # Update the current timestamp index for O(1) next/previous operations
         self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
-
+        gc.collect(0)
+        gc.enable()
         # DEBUG ----------------
         #return patches
         # ----------------------

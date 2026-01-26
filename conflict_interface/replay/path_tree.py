@@ -288,7 +288,7 @@ class PathTree:
                         if hook.attributes is None or attribute_node.path_element in hook.attributes:  # if attribute name in listening hook attribures
                             old_ref = getattr(attribute_node.reference, attribute_node.path_element,
                                               None)  # copy the attribute by acesssing the province
-                            if old_ref in self._PRIMITIVES:
+                            if type(old_ref) in self._PRIMITIVES:
                                 old_value = old_ref
                             else:
                                 old_value = deepcopy(old_ref)
