@@ -1,8 +1,12 @@
-from setuptools import find_packages
-from setuptools import setup
-# To use a consistent encoding
+import sys
 from codecs import open
 from os import path
+
+import pybind11
+from setuptools import Extension
+from setuptools import find_packages
+from setuptools import setup
+from setuptools.command.build_ext import build_ext
 
 # The directory containing this file
 HERE = path.abspath(path.dirname(__file__))
@@ -21,6 +25,7 @@ extras_require = {
     ],
     "dev": [
         "setuptools",
+        "pybind11>=2.6.0",
     ],
     "tools-replay-debug": [
         "python-dateutil",
@@ -35,7 +40,7 @@ extras_require = {
         "httpx",
         "httpx[socks]"
     ],
-    "test-long-patches":[
+    "test-long-patches": [
         "deepdiff"
     ]
 }
@@ -58,8 +63,41 @@ test_extras = [
 extras_require["tests"] = tools_extras + test_extras
 
 
+class BuildExt(build_ext):
+    """A custom build extension for adding compiler-specific options."""
+
+    def build_extensions(self):
+        ct = self.compiler.compiler_type
+
+        # Compiler-specific options
+        if ct == 'msvc':
+            for ext in self.extensions:
+                ext.extra_compile_args = ['/std:c++17', '/O2', '/EHsc']
+        elif ct == 'unix':
+            for ext in self.extensions:
+                ext.extra_compile_args = ['-std=c++17', '-O3', '-march=native']
+                if sys.platform == 'darwin':
+                    ext.extra_compile_args += ['-stdlib=libc++', '-mmacosx-version-min=10.14']
+
+        build_ext.build_extensions(self)
+
+
+ext_modules = [
+    Extension(
+        'conflict_interface.replay.steiner_tree_cpp',
+        sources=['conflict_interface/replay/steiner_tree.cpp'],
+        include_dirs=[pybind11.get_include()],
+        language='c++',
+    ),
+    Extension(
+        'conflict_interface.replay.op_tree_cpp',
+        sources=['conflict_interface/replay/op_tree.cpp'],
+        include_dirs=[pybind11.get_include()],
+        language='c++',
+    ),
+]
+
 # This call to setup() does all the work
-# noinspection PyPackageRequirements
 setup(
     name="conflict-interface",
     version="0.1.2",
@@ -91,9 +129,12 @@ setup(
         "lz4",
         "msgspec",
         "scipy",
-        "orjson"
+        "orjson",
+        "pybind11>=2.6.0",
     ],
     extras_require=extras_require,
+    ext_modules=ext_modules,
+    cmdclass={'build_ext': BuildExt},
     entry_points={
         "console_scripts": [
             "recorder=tools.recorder.__main__:main",
@@ -102,4 +143,5 @@ setup(
             "server-observer=tools.server_observer.__main__:main",
         ],
     },
+    zip_safe=False,
 )
