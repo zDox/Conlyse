@@ -60,9 +60,9 @@ class PathTree:
     def precompute_euler_tour(self):
         N = self.idx_counter
         self.euler = array('I')  # empty array of unsigned ints
-        self.tin = np.zeros(N, dtype=np.uint32)  # equivalent to [0]*N
-        self.tout = np.zeros(N, dtype=np.uint32)
-        self.depth = np.zeros(N, dtype=np.uint32)
+        self.tin = np.zeros(N, dtype=np.int32)  # equivalent to [0]*N
+        self.tout = np.zeros(N, dtype=np.int32)
+        self.depth = np.zeros(N, dtype=np.int32)
         self.parent = np.full(N, -1, dtype=np.int32)  # equivalent to [-1]*N
         self.first = np.full(N, -1, dtype=np.int32)
 
@@ -97,12 +97,12 @@ class PathTree:
 
     def precompute_rmq(self):
         euler_len = len(self.euler)
-        self.log = np.zeros(euler_len + 1, dtype=np.uint32)
+        self.log = np.zeros(euler_len + 1, dtype=np.int32)
         for i in range(2, euler_len + 1):
             self.log[i] = self.log[i // 2] + 1
 
         K = self.log[euler_len] + 1
-        self.st = np.zeros((K, euler_len), dtype=np.uint32)
+        self.st = np.zeros((K, euler_len), dtype=np.int32)
 
         # initialize Level 0 of Sparse Table
         for i in range(euler_len):
