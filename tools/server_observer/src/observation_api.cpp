@@ -86,10 +86,6 @@ asio::awaitable<HttpResponse> ObservationApi::request_game_state_async(std::map<
         json::array()
     });
     
-    // Create HTTPS client
-    cli_->enable_server_certificate_verification(false);
-    cli_->set_follow_location(true);
-
     // Configure proxy if provided
     if (proxy_.enabled) {
         cli_->set_proxy(proxy_.host, proxy_.port, proxy_.username, proxy_.password);
@@ -145,16 +141,21 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
     GameServerResult result;
     result.error_code = GameServerError::SUCCESS;
     result.error_message = "";
+    
+    // Check for timeout first
+    if (response.timeout) {
+        result.error_code = GameServerError::NETWORK_ERROR;
+        result.error_message = response.error_message.empty() ? "Request timed out" : response.error_message;
+        return result;
+    }
+    
     // Check for HTTP errors
     if (response.status_code != 200) {
         result.error_code = GameServerError::HTTP_ERROR;
         result.error_message = "HTTP status: " + std::to_string(response.status_code);
-        return result;
-    }
-
-    if (response.timeout) {
-        result.error_code = GameServerError::NETWORK_ERROR;
-        result.error_message = "Request timed out";
+        if (!response.error_message.empty()) {
+            result.error_message += " - " + response.error_message;
+        }
         return result;
     }
 

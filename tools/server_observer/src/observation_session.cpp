@@ -314,12 +314,20 @@ bool ObservationSession::ensure_static_map_data(ObservationApi &api, int map_id)
 asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
     std::cout << "Starting update for game " << game_id << " (attempt " << attempt_ << ")" << std::endl;
 
-    // Setup storage logging
+    // Setup storage logging - use RAII pattern to ensure teardown
     ensure_storage()->setup_logging();
+    
+    // RAII guard to ensure teardown_logging is always called
+    struct LoggingGuard {
+        RecordingStorage* storage;
+        ~LoggingGuard() { 
+            if (storage) storage->teardown_logging(); 
+        }
+    };
+    LoggingGuard guard{ensure_storage()};
 
     if (!ensure_observation_package()) {
         std::cerr << "Failed to create observation package" << std::endl;
-        ensure_storage()->teardown_logging();
         co_return ObservationResult::make_package_failed();
     }
 
@@ -332,12 +340,13 @@ asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
 
         // Check if the request was successful
         if (!result.success()) {
-            ensure_storage()->teardown_logging();
+            // Increment attempt counter for all failures that should be retried
+            attempt_++;
+            
             // Convert GameServerError to ObservationResult
             switch (result.error_code) {
                 case GameServerError::AUTH_ERROR:
                     reset_package();
-                    attempt_++;
                     co_return ObservationResult::make_auth_failed(false, result.error_message);
                 case GameServerError::HTTP_ERROR:
                     co_return ObservationResult::make_server_error(result.error_message);
@@ -351,6 +360,9 @@ asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
             }
         }
 
+        // Reset attempt counter on success
+        attempt_ = 0;
+
         // Update package with new auth and connection details
         package_.auth = api_->get_auth();
         package_.cookies = api_->get_cookies();
@@ -360,12 +372,6 @@ asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
         // Save raw response string to storage.
         // We move the raw string to storage, avoiding the need to dump JSON.
         on_request_response(std::move(result.raw_response));
-
-        // Teardown storage logging before returning
-        ensure_storage()->teardown_logging();
-
-        // Reset attempt counter on success
-        attempt_ = 1;
 
         // Check if game ended in this update
         if (result.game_ended) {

@@ -7,7 +7,7 @@ This directory contains unit tests for the AsyncHttpsRequest class.
 The tests are built automatically when you build the project with the `BUILD_TESTS` option enabled (which is ON by default).
 
 ```bash
-cd /home/zdox/PycharmProjects/ConflictInterface/tools/server_observer
+cd tools/server_observer
 mkdir -p build
 cd build
 cmake ..

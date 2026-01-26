@@ -4,6 +4,8 @@
 #include <string>
 #include <fstream>
 #include <mutex>
+#include <vector>
+#include <cstdint>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;

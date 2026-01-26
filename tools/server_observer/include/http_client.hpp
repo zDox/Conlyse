@@ -26,10 +26,6 @@ public:
 
     ~HttpClient();
 
-    void enable_server_certificate_verification(bool enable);
-
-    void set_follow_location(bool follow);
-
     void set_connection_timeout(std::chrono::seconds timeout);
 
     void set_url(const std::string &url);
@@ -69,8 +65,6 @@ private:
     std::string base_path_;
     int port_{};
     std::chrono::seconds timeout_;
-    bool verify_ssl_;
-    bool follow_redirects_ = false;
     ProxyConfig proxy_;
 };
 

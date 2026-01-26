@@ -176,8 +176,15 @@ void RecordingStorage::rotate_to_long_term_storage() {
     fs::path lts_file_path = lts_game_dir / filename;
     
     try {
-        // Move the file
-        fs::rename(responses_file_, lts_file_path);
+        // Try to move the file (rename may fail across filesystems)
+        try {
+            fs::rename(responses_file_, lts_file_path);
+        } catch (const fs::filesystem_error& e) {
+            // If rename fails (e.g., across filesystems), use copy + remove
+            std::cout << "Rename failed, using copy for cross-filesystem move: " << e.what() << std::endl;
+            fs::copy_file(responses_file_, lts_file_path, fs::copy_options::overwrite_existing);
+            fs::remove(responses_file_);
+        }
         std::cout << "Rotated responses file to long-term storage: " << lts_file_path << std::endl;
         
         // Log the rotation in metadata

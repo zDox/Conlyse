@@ -91,6 +91,11 @@ void Account::ensure_games_loaded_internal() {
         return;
     }
     
+    // Ensure hub_interface_ is initialized
+    if (!hub_interface_) {
+        get_interface();
+    }
+    
     if (!hub_interface_->is_authenticated()) {
         login_internal();
     }
