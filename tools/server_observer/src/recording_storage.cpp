@@ -110,8 +110,7 @@ json RecordingStorage::load_metadata() {
 void RecordingStorage::update_resume_metadata(const json& resume) {
     metadata_cache_["resume"] = resume;
     resume_metadata_ = resume;
-    // Persist immediately for crash recovery
-    save_metadata(metadata_cache_);
+    // Metadata will be persisted periodically via save_response() flush mechanism
 }
 
 json RecordingStorage::get_resume_metadata() const {
