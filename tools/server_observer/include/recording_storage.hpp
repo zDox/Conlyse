@@ -19,6 +19,7 @@ public:
     void update_resume_metadata(const json& resume);
     json get_resume_metadata() const;
     bool has_resume_metadata() const;
+    void flush_metadata();  // Save cached metadata to disk
     
     void setup_logging();
     void teardown_logging();
