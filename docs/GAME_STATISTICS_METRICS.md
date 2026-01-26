@@ -14,8 +14,6 @@ This document provides a comprehensive list of metrics to analyze 1000+ recorded
   - [2.2 Per Country Aggregate](#22-per-country-aggregate)
   - [2.3 Per Province Aggregate](#23-per-province-aggregate)
 - [Additional Aggregation Levels](#additional-aggregation-levels)
-- [Advanced Analytics](#advanced-analytics)
-- [Implementation Notes](#implementation-notes)
 - [Glossary](#glossary)
 
 ---
@@ -29,23 +27,18 @@ This document provides a comprehensive list of metrics to analyze 1000+ recorded
 - **Game start timestamp**
 - **Game end timestamp**
 - **Number of game days simulated**
-- **Average time between state updates**
-- **Total number of recorded timestamps**
+- **Average time between updates**
+- **Total number of updates**
 
 #### Victory & Outcome
-- **Winner player ID**
-- **Winner country/faction**
-- **Victory type** (conquest, victory points, alliance victory, etc.)
-- **Final victory points distribution**
-- **Victory points threshold reached**
-- **Time to victory** (from game start)
+- **Winner player IDs**
+- **Victory type** (Solo or Coalition)
 
 #### Participation Metrics
 - **Total number of players**
 - **Number of active players at start**
 - **Number of active players at end**
 - **Player dropout rate**
-- **Average player activity duration**
 - **Number of AI players**
 - **Number of human players**
 
@@ -58,11 +51,6 @@ This document provides a comprehensive list of metrics to analyze 1000+ recorded
 - **Resource price volatility**
 
 #### Military Overview
-- **Total units produced** (all players)
-- **Total units destroyed** (all players)
-- **Total number of battles**
-- **Total armies created**
-- **Total army movements**
 - **Number of provinces that changed ownership**
 
 #### Diplomatic Overview
@@ -70,7 +58,7 @@ This document provides a comprehensive list of metrics to analyze 1000+ recorded
 - **Number of alliance dissolutions**
 - **Number of wars declared**
 - **Number of peace treaties**
-- **Number of trade agreements**
+- **Number of right of way agreements**
 
 #### Map Control
 - **Total number of provinces in game**
@@ -593,13 +581,4 @@ Metrics aggregated per province across all games.
 
 ## Glossary
 
-- **Game Day**: A unit of time within the game simulation
-- **Timestamp**: A recorded state update in the replay
-- **Province**: The smallest territorial unit in the game
-- **Country/Faction**: A player's controlled nation
-- **Army**: A collection of military units
-- **Unit**: Individual military asset
-- **Morale**: Province happiness/stability metric
-- **Victory Points**: Points earned toward winning the game
-- **Resources**: Tradeable commodities (food, goods, etc.)
-- **Upgrades**: Buildings/improvements in provinces
+- **Peace Trity**: Switches from war to peace relation and both parties are still alive
