@@ -107,7 +107,6 @@ json RecordingStorage::load_metadata() {
 }
 
 void RecordingStorage::update_resume_metadata(const json& resume) {
-    // Use cached metadata instead of loading from disk
     metadata_cache_["resume"] = resume;
     resume_metadata_ = resume;
 }
@@ -134,7 +133,6 @@ void RecordingStorage::restore_file_sequence() {
 
 void RecordingStorage::update_file_sequence() {
     file_sequence_++;
-    // Use cached metadata instead of loading from disk
     metadata_cache_["file_sequence"] = file_sequence_;
 }
 
@@ -188,7 +186,6 @@ void RecordingStorage::rotate_to_long_term_storage() {
         std::stringstream ss;
         ss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
         
-        // Use cached metadata instead of loading from disk
         if (!metadata_cache_.contains("rotations")) {
             metadata_cache_["rotations"] = json::array();
         }
@@ -273,7 +270,6 @@ void RecordingStorage::save_response(std::string&& response_str) {
     std::stringstream ss;
     ss << std::put_time(std::gmtime(&now_time_t), "%Y-%m-%dT%H:%M:%SZ");
     
-    // Use cached metadata instead of loading from disk
     if (!metadata_cache_.contains("updates")) {
         metadata_cache_["updates"] = json::array();
     }
