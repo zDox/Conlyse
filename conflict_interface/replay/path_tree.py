@@ -10,7 +10,7 @@ from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.replay.apply_replay_helper import get_reference_from_direct_parent
 from conflict_interface.replay.path_tree_node import PathTreeNode
-from conflict_interface.steiner_tree_cpp import build_steiner_tree as build_steiner_tree_cpp
+from conflict_interface.replay.steiner_tree_cpp import build_steiner_tree as build_steiner_tree_cpp
 
 logger = getLogger()
 

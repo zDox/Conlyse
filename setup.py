@@ -84,13 +84,13 @@ class BuildExt(build_ext):
 
 ext_modules = [
     Extension(
-        'conflict_interface.steiner_tree_cpp',
+        'conflict_interface.replay.steiner_tree_cpp',
         sources=['conflict_interface/replay/steiner_tree.cpp'],
         include_dirs=[pybind11.get_include()],
         language='c++',
     ),
     Extension(
-        'conflict_interface.op_tree_cpp',
+        'conflict_interface.replay.op_tree_cpp',
         sources=['conflict_interface/replay/op_tree.cpp'],
         include_dirs=[pybind11.get_include()],
         language='c++',

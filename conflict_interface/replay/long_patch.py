@@ -3,7 +3,7 @@ from collections import deque
 from datetime import datetime
 
 from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.op_tree_cpp import build_op_tree_fast
+from conflict_interface.replay.op_tree_cpp import build_op_tree_fast
 from conflict_interface.replay.apply_replay_helper import apply_operation
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.patch_graph import PatchGraph
@@ -179,10 +179,8 @@ def build_op_tree(patch_path: list[PatchGraphNode], adj, root):
 
     # C++ returns: dict[int, tuple[int, int, int, int, int] | None]
     # where tuple is (op_type, path, value_idx_in_patch, creation_time, last_changed_time)
-    t1 = time.perf_counter()
     result = build_op_tree_fast(ops_per_patch, paths_per_patch, adj, root)
-    t2 = time.perf_counter()
-    print((t2-t1)*1000)
+
     # Only reconstruct values for non-None entries
     idx_to_opnode = {}
     for path_idx, op_data in result.items():
