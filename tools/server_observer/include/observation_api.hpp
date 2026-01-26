@@ -23,6 +23,7 @@ enum class GameServerError {
     PARSE_ERROR,
     AUTH_ERROR,
     SERVER_SWITCH,
+    NETWORK_ERROR,
     UNKNOWN_ERROR
 };
 
@@ -47,7 +48,7 @@ public:
                 AuthDetails auth_details,
                 int game_id,
                 const std::string& game_server_address,
-                int client_version = 207);
+                int client_version);
     
     ~ObservationApi();
     

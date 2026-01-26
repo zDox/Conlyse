@@ -311,7 +311,7 @@ bool ObservationSession::ensure_static_map_data(ObservationApi &api, int map_id)
     }
 }
 
-asio::awaitable<bool> ObservationSession::run_update_async() {
+asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
     std::cout << "Starting update for game " << game_id << " (attempt " << attempt_ << ")" << std::endl;
 
     // Setup storage logging
@@ -320,7 +320,7 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
     if (!ensure_observation_package()) {
         std::cerr << "Failed to create observation package" << std::endl;
         ensure_storage()->teardown_logging();
-        co_return false;
+        co_return ObservationResult::make_package_failed();
     }
 
     try {
@@ -332,7 +332,23 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
 
         // Check if the request was successful
         if (!result.success()) {
-            throw std::runtime_error(result.error_message);
+            ensure_storage()->teardown_logging();
+            // Convert GameServerError to ObservationResult
+            switch (result.error_code) {
+                case GameServerError::AUTH_ERROR:
+                    reset_package();
+                    attempt_++;
+                    co_return ObservationResult::make_auth_failed(false, result.error_message);
+                case GameServerError::HTTP_ERROR:
+                    co_return ObservationResult::make_server_error(result.error_message);
+                case GameServerError::NETWORK_ERROR:
+                    co_return ObservationResult::make_network_error(false, result.error_message);
+                case GameServerError::PARSE_ERROR:
+                case GameServerError::SERVER_SWITCH:
+                case GameServerError::UNKNOWN_ERROR:
+                default:
+                    co_return ObservationResult::make_unknown_error(result.error_message);
+            }
         }
 
         // Update package with new auth and connection details
@@ -351,54 +367,24 @@ asio::awaitable<bool> ObservationSession::run_update_async() {
         // Reset attempt counter on success
         attempt_ = 1;
 
-        // Check if game ended (extracted during simdjson parsing)
+        // Check if game ended in this update
         if (result.game_ended) {
-            co_return false;
+            co_return ObservationResult::make_game_ended();
         }
 
-        co_return true;
+        co_return ObservationResult::make_success(false);
     } catch (const std::runtime_error &e) {
         std::string error = e.what();
-
-        // Handle authentication failure
-        if (error.find("Authentication failed") != std::string::npos) {
-            if (attempt_ >= MAX_RETRIES) {
-                std::cerr << "Authentication failed after " << MAX_RETRIES
-                        << " retries" << std::endl;
-                ensure_storage()->teardown_logging();
-                co_return false;
-            }
-
-            std::cerr << "Authentication failed, resetting package and will retry..."
-                    << std::endl;
-            reset_package();
-            attempt_++;
-            ensure_storage()->teardown_logging();
-            co_return true; // Return true to indicate session should be requeued
-        }
-
-        // Handle server errors
-        if (error.find("HTTP status: 5") != std::string::npos) {
-            std::cerr << "GameServer returned error, will retry in "
-                    << TIME_TILL_RETRY << " seconds..." << std::endl;
-            ensure_storage()->teardown_logging();
-            co_return true; // Return true to indicate session should be requeued
-        }
-
-        // Handle network errors
-        if (error.find("failed") != std::string::npos ||
-            error.find("timeout") != std::string::npos) {
-            std::cerr << "GameServer is not responding, resetting package and will retry..." << std::endl;
-            reset_package();
-            attempt_++;
-            ensure_storage()->teardown_logging();
-            co_return true; // Return true to indicate session should be requeued
-        }
-
-        // Unknown error - don't retry
-        ensure_storage()->teardown_logging();
-        throw;
+        co_return ObservationResult::make_unknown_error(error);
     }
+}
+
+void ObservationSession::set_attempt(const int attempt) {
+    attempt_ = attempt;
+}
+
+int ObservationSession::get_attempt() {
+    return attempt_;
 }
 
 RecordingStorage *ObservationSession::ensure_storage() {

@@ -76,6 +76,8 @@ include_directories(
 set(SOURCES
         src/main.cpp
         src/server_observer.cpp
+        src/scheduler.cpp
+        src/game_finder.cpp
         src/account.cpp
         src/account_pool.cpp
         src/observation_session.cpp

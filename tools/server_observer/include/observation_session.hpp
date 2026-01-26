@@ -15,6 +15,57 @@
 using json = nlohmann::json;
 namespace asio = boost::asio;
 
+// Error codes for observation updates
+enum class ObservationError {
+    SUCCESS = 0,
+    GAME_ENDED,
+    AUTH_FAILED,
+    SERVER_ERROR,
+    NETWORK_ERROR,
+    PACKAGE_CREATION_FAILED,
+    UNKNOWN_ERROR
+};
+
+// Result structure for observation updates
+struct ObservationResult {
+    ObservationError error_code;
+    std::string error_message;
+    bool game_ended; // True -> stop observing, False -> reschedule
+
+    ObservationResult(ObservationError code, bool game_ended = false, std::string msg = "")
+        : error_code(code), error_message(std::move(msg)), game_ended(game_ended) {}
+
+    static ObservationResult make_success(bool game_ended) {
+        return ObservationResult(ObservationError::SUCCESS, game_ended, "");
+    }
+
+    static ObservationResult make_game_ended() {
+        return ObservationResult(ObservationError::GAME_ENDED, true, "Game has ended");
+    }
+
+    static ObservationResult make_auth_failed(bool game_ended = true, const std::string& msg = "Authentication failed") {
+        return ObservationResult(ObservationError::AUTH_FAILED, game_ended, msg);
+    }
+
+    static ObservationResult make_server_error(const std::string& msg = "Server error") {
+        return ObservationResult(ObservationError::SERVER_ERROR, false, msg);
+    }
+
+    static ObservationResult make_network_error(bool game_ended = true, const std::string& msg = "Network error") {
+        return ObservationResult(ObservationError::NETWORK_ERROR, game_ended, msg);
+    }
+
+    static ObservationResult make_package_failed(const std::string& msg = "Failed to create observation package") {
+        return ObservationResult(ObservationError::PACKAGE_CREATION_FAILED, false, msg);
+    }
+
+    static ObservationResult make_unknown_error(const std::string& msg = "Unknown error") {
+        return ObservationResult(ObservationError::UNKNOWN_ERROR, false, msg);
+    }
+
+    bool is_success() const { return error_code == ObservationError::SUCCESS; }
+};
+
 struct ObservationPackage {
     int game_id = 0;
     std::map<std::string, std::string> headers;
@@ -50,13 +101,11 @@ public:
     std::chrono::system_clock::time_point next_update_at;
 
     bool needs_update(std::chrono::system_clock::time_point now) const;
+    void reset_package();
 
-    bool run_update();
-
-    asio::awaitable<bool> run_update_async();
-
-    void reset();
-
+    asio::awaitable<ObservationResult> run_update_async();
+    void set_attempt(int attempt);
+    int get_attempt();
 private:
     std::shared_ptr<RequestManager> manager_;
     std::shared_ptr<StaticMapCache> map_cache_;
@@ -75,7 +124,6 @@ private:
 
     ObservationPackage create_observation_package();
 
-    void reset_package();
 
     bool ensure_static_map_data(ObservationApi &api, int map_id);
 

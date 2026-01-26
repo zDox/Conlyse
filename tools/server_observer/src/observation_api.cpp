@@ -145,11 +145,16 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
     GameServerResult result;
     result.error_code = GameServerError::SUCCESS;
     result.error_message = "";
-
     // Check for HTTP errors
     if (response.status_code != 200) {
         result.error_code = GameServerError::HTTP_ERROR;
         result.error_message = "HTTP status: " + std::to_string(response.status_code);
+        return result;
+    }
+
+    if (response.timeout) {
+        result.error_code = GameServerError::NETWORK_ERROR;
+        result.error_message = "Request timed out";
         return result;
     }
 
