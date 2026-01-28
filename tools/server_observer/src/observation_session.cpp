@@ -161,11 +161,6 @@ bool ObservationSession::needs_update(std::chrono::system_clock::time_point now)
     return now >= next_update_at;
 }
 
-void ObservationSession::on_request_response(std::string &&response_str) {
-    ensure_storage()->update_resume_metadata(package_.to_json());
-    ensure_storage()->save_response(std::move(response_str));
-}
-
 bool ObservationSession::ensure_observation_package() {
     if (package_.game_id != 0) {
         return true;
@@ -311,109 +306,134 @@ bool ObservationSession::ensure_static_map_data(ObservationApi &api, int map_id)
     }
 }
 
-asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
-    std::cout << "Starting update for game " << game_id << " (attempt " << attempt_ << ")" << std::endl;
+// LoggingGuard implementation
+ObservationSession::LoggingGuard::LoggingGuard(RecordingStorage* storage)
+    : storage_(storage) {
+    if (storage_) {
+        storage_->setup_logging();
+    }
+}
 
-    // Setup storage logging - use RAII pattern to ensure teardown
-    ensure_storage()->setup_logging();
-    
-    // RAII guard to ensure teardown_logging is always called
-    struct LoggingGuard {
-        RecordingStorage* storage;
-        
-        explicit LoggingGuard(RecordingStorage* s) : storage(s) {}
-        
-        // Prevent copying
-        LoggingGuard(const LoggingGuard&) = delete;
-        LoggingGuard& operator=(const LoggingGuard&) = delete;
-        
-        ~LoggingGuard() noexcept { 
-            if (storage) storage->teardown_logging(); 
-        }
-    };
+ObservationSession::LoggingGuard::~LoggingGuard() noexcept {
+    if (storage_) {
+        storage_->teardown_logging();
+    }
+}
+
+// Handle server switch scenario
+ObservationResult ObservationSession::handle_server_switch(const GameServerResult& result) {
+    if (!result.data.contains("newHostName")) {
+        return ObservationResult::make_unknown_error("Server switch without new hostname");
+    }
+
+    std::string new_server = "https://" + result.data["newHostName"].get<std::string>();
+    std::cout << "Server switch detected for game " << game_id
+              << ": updating server to " << new_server << std::endl;
+
+    // Update the package with new server address
+    package_.game_server_address = new_server;
+
+    // Recreate the ObservationApi with new server address
+    api_->update_server_address(new_server);
+
+    // Return a network error to trigger immediate retry with new server
+    return ObservationResult::make_network_error(false, "Server switch to " + new_server);
+}
+
+// Convert GameServerError to ObservationResult
+ObservationResult ObservationSession::handle_game_server_error(const GameServerResult& result) {
+    // Handle SERVER_SWITCH specially - no attempt increment
+    if (result.error_code == GameServerError::SERVER_SWITCH) {
+        return handle_server_switch(result);
+    }
+
+    // Increment attempt counter for all other failures
+    attempt_++;
+
+    switch (result.error_code) {
+        case GameServerError::AUTH_ERROR:
+            reset_package();
+            return ObservationResult::make_auth_failed(false, result.error_message);
+        case GameServerError::HTTP_ERROR:
+            reset_package();
+            return ObservationResult::make_server_error(result.error_message);
+        case GameServerError::NETWORK_ERROR:
+            reset_package();
+            return ObservationResult::make_network_error(false, result.error_message);
+        case GameServerError::PARSE_ERROR:
+            return ObservationResult::make_unknown_error(result.error_message);
+        case GameServerError::UNKNOWN_ERROR:
+        default:
+            reset_package();
+            return ObservationResult::make_unknown_error(result.error_message);
+    }
+}
+
+// Update package with latest API state
+void ObservationSession::update_package_from_api() {
+    package_.auth = api_->get_auth();
+    package_.cookies = api_->get_cookies();
+    package_.headers = api_->get_headers();
+    package_.game_server_address = api_->get_game_server_address();
+}
+
+// Process successful game state response
+void ObservationSession::process_successful_response(GameServerResult& result) {
+    // Reset attempt counter on success
+    attempt_ = 0;
+
+    // Update package with new auth and connection details
+    update_package_from_api();
+
+    // Save raw response string to storage
+    ensure_storage()->update_resume_metadata(package_.to_json());
+    ensure_storage()->save_response(std::move(result.raw_response));
+}
+
+asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
+    std::cout << "Starting update for game " << game_id
+              << " (attempt " << attempt_ << ")" << std::endl;
+
+    // RAII guard to manage storage logging lifecycle
     LoggingGuard guard(ensure_storage());
 
+    // Ensure we have a valid observation package
     if (!ensure_observation_package()) {
         std::cerr << "Failed to create observation package" << std::endl;
         co_return ObservationResult::make_package_failed();
     }
 
     try {
-        // Fetch game state asynchronously (returns raw HTTP response)
-        HttpResponse response = co_await api_->request_game_state_async(package_.state_ids, package_.time_stamps);
+        // Fetch game state asynchronously
+        HttpResponse response = co_await api_->request_game_state_async(
+            package_.state_ids,
+            package_.time_stamps
+        );
 
-        // Parse and validate response, extracting state metadata
-        GameServerResult result = api_->parse_and_validate_response(response, package_.state_ids, package_.time_stamps);
+        // Parse and validate response
+        GameServerResult result = api_->parse_and_validate_response(
+            response,
+            package_.state_ids,
+            package_.time_stamps
+        );
 
-        // Check if the request was successful
+        // Handle errors
         if (!result.success()) {
-            // Handle SERVER_SWITCH specially - update server address and retry without incrementing attempts
-            if (result.error_code == GameServerError::SERVER_SWITCH && result.data.contains("newHostName")) {
-                std::string new_server = result.data["newHostName"];
-                std::cout << "Server switch detected for game " << game_id 
-                         << ": updating server to " << new_server << std::endl;
-                
-                // Update the package with new server address
-                package_.game_server_address = new_server;
-                
-                // Recreate the ObservationApi with new server address
-                api_ = std::make_unique<ObservationApi>(
-                    manager_,
-                    package_.headers,
-                    package_.cookies,
-                    package_.proxy,
-                    package_.auth,
-                    package_.game_id,
-                    new_server,  // Use new server address
-                    package_.client_version
-                );
-                
-                // Return a network error to trigger immediate retry with new server
-                co_return ObservationResult::make_network_error(false, "Server switch to " + new_server);
-            }
-            
-            // Increment attempt counter for all other failures that should be retried
-            attempt_++;
-            
-            // Convert GameServerError to ObservationResult
-            switch (result.error_code) {
-                case GameServerError::AUTH_ERROR:
-                    reset_package();
-                    co_return ObservationResult::make_auth_failed(false, result.error_message);
-                case GameServerError::HTTP_ERROR:
-                    co_return ObservationResult::make_server_error(result.error_message);
-                case GameServerError::NETWORK_ERROR:
-                    co_return ObservationResult::make_network_error(false, result.error_message);
-                case GameServerError::PARSE_ERROR:
-                case GameServerError::SERVER_SWITCH:
-                case GameServerError::UNKNOWN_ERROR:
-                default:
-                    co_return ObservationResult::make_unknown_error(result.error_message);
-            }
+            co_return handle_game_server_error(result);
         }
 
-        // Reset attempt counter on success
-        attempt_ = 0;
+        // Process successful response
+        process_successful_response(result);
 
-        // Update package with new auth and connection details
-        package_.auth = api_->get_auth();
-        package_.cookies = api_->get_cookies();
-        package_.headers = api_->get_headers();
-        package_.game_server_address = api_->get_game_server_address();
-
-        // Save raw response string to storage.
-        // We move the raw string to storage, avoiding the need to dump JSON.
-        on_request_response(std::move(result.raw_response));
-
-        // Check if game ended in this update
+        // Check if game ended
         if (result.game_ended) {
             co_return ObservationResult::make_game_ended();
         }
 
         co_return ObservationResult::make_success(false);
+
     } catch (const std::runtime_error &e) {
-        std::string error = e.what();
-        co_return ObservationResult::make_unknown_error(error);
+        co_return ObservationResult::make_unknown_error(e.what());
     }
 }
 

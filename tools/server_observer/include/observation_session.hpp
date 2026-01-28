@@ -107,6 +107,18 @@ public:
     void set_attempt(int attempt);
     int get_attempt();
 private:
+    // RAII guard for storage logging lifecycle
+    class LoggingGuard {
+    public:
+        explicit LoggingGuard(RecordingStorage* storage);
+        ~LoggingGuard() noexcept;
+
+        LoggingGuard(const LoggingGuard&) = delete;
+        LoggingGuard& operator=(const LoggingGuard&) = delete;
+    private:
+        RecordingStorage* storage_;
+    };
+
     std::shared_ptr<RequestManager> manager_;
     std::shared_ptr<StaticMapCache> map_cache_;
     std::unique_ptr<ObservationApi> api_;
@@ -124,10 +136,15 @@ private:
 
     ObservationPackage create_observation_package();
 
-
     bool ensure_static_map_data(ObservationApi &api, int map_id);
 
     void on_request_response(std::string&& response_str);
+
+    // Helper methods for run_update_async
+    ObservationResult handle_server_switch(const GameServerResult& result);
+    ObservationResult handle_game_server_error(const GameServerResult& result);
+    void update_package_from_api();
+    void process_successful_response(GameServerResult& result);
 };
 
 #endif // OBSERVATION_SESSION_HPP

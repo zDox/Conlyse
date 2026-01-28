@@ -68,7 +68,9 @@ public:
     std::map<std::string, std::string> get_cookies() const;
     std::map<std::string, std::string> get_headers() const;
     std::string get_game_server_address() const { return game_server_address_; }
-    
+
+    void update_server_address(const std::string & url);
+
 private:
     int game_id_;
     int player_id_;

@@ -320,3 +320,8 @@ std::map<std::string, std::string> ObservationApi::get_cookies() const {
 std::map<std::string, std::string> ObservationApi::get_headers() const {
     return headers_;
 }
+
+void ObservationApi::update_server_address(const std::string &url) {
+    cli_->set_url(url);
+    game_server_address_ = url;
+}
