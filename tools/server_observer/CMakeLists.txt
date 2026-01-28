@@ -81,6 +81,7 @@ set(SOURCES
         src/account.cpp
         src/account_pool.cpp
         src/observation_session.cpp
+        src/observation_package.cpp
         src/observation_api.cpp
         src/recording_registry.cpp
         src/static_map_cache.cpp
@@ -89,6 +90,7 @@ set(SOURCES
         src/async_https_request.cpp
         src/http_client.cpp
         src/request_manager.cpp
+        src/proxy_config.cpp
 )
 
 # Create executable

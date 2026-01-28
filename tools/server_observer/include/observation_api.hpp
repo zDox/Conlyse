@@ -11,6 +11,7 @@
 
 #include "http_client.hpp"
 #include "hub_interface_wrapper.hpp"
+#include "observation_package.hpp"
 #include "proxy_config.hpp"
 
 using json = nlohmann::json;
@@ -23,6 +24,7 @@ enum class GameServerError {
     PARSE_ERROR,
     AUTH_ERROR,
     SERVER_SWITCH,
+    CLIENT_VERSION_MISMATCH,
     NETWORK_ERROR,
     UNKNOWN_ERROR
 };
@@ -44,7 +46,7 @@ public:
                 std::shared_ptr<RequestManager> manager,
                 const std::map<std::string, std::string>& headers,
                 const std::map<std::string, std::string>& cookies,
-                const ProxyConfig& proxy,
+                std::shared_ptr<ProxyConfig> proxy,
                 AuthDetails auth_details,
                 int game_id,
                 const std::string& game_server_address,
@@ -64,11 +66,8 @@ public:
 
     json get_static_map_data(int map_id);
 
-    AuthDetails get_auth() const { return auth_; }
-    std::map<std::string, std::string> get_cookies() const;
-    std::map<std::string, std::string> get_headers() const;
-    std::string get_game_server_address() const { return game_server_address_; }
-    
+    void update_package(ObservationPackage& pkg) const;
+
 private:
     int game_id_;
     int player_id_;
@@ -78,7 +77,7 @@ private:
     std::string game_server_address_;
     std::map<std::string, std::string> headers_;
     std::map<std::string, std::string> cookies_;
-    ProxyConfig proxy_;
+    std::shared_ptr<ProxyConfig> proxy_;
     std::unique_ptr<HttpClient> cli_;
 };
 

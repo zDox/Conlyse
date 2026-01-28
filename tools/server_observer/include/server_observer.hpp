@@ -30,6 +30,9 @@ public:
     bool run();
     void stop();
 
+    // Reset proxy for all sessions using the specified account
+    void reset_sessions_for_account(std::shared_ptr<Account> account);
+
 private:
     json config_;
     std::shared_ptr<AccountPool> account_pool_;

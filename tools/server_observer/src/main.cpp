@@ -8,7 +8,6 @@
 static std::unique_ptr<ServerObserver> g_observer;
 
 void signal_handler(int signal) {
-    std::cout << "\nReceived signal " << signal << ", stopping..." << std::endl;
     if (g_observer) {
         g_observer->stop();
     }

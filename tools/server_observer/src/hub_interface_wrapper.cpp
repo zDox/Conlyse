@@ -18,16 +18,12 @@ void HubInterfaceWrapper::shutdown_python() {
     std::lock_guard<std::mutex> lock(python_init_mutex);
 
     if (python_initialized && Py_IsInitialized()) {
-        std::cout << "Shutting down Python interpreter..." << std::endl;
-
         // Re-acquire the GIL to properly finalize
         py::gil_scoped_acquire acquire;
 
         // Destroy the interpreter explicitly
         interpreter.reset();
         python_initialized = false;
-
-        std::cout << "Python interpreter shut down successfully" << std::endl;
     }
 }
 

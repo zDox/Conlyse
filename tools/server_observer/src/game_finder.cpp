@@ -121,32 +121,26 @@ void GameFinder::scan_loop() {
 }
 
 void GameFinder::initialize_listing_interface() {
-    try {
-        if (!config_.contains("listing_account") || config_["listing_account"].is_null()) {
-            std::cerr << "No listing_account configuration found. Please add a dedicated account for listing." << std::endl;
-            return;
-        }
-
-        auto listing_config = config_["listing_account"];
-        std::string username = listing_config.value("username", "");
-        std::string password = listing_config.value("password", "");
-        std::string proxy_url = listing_config.value("proxy_url", "");
-
-        if (username.empty() || password.empty()) {
-            std::cerr << "Invalid listing account configuration: missing username or password" << std::endl;
-            return;
-        }
-
-        listing_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
-        listing_interface_->login(username, password);
-
-        std::cout << "Initialized dedicated listing interface with account: "
-                 << username << std::endl;
-
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to initialize listing interface: " << e.what() << std::endl;
-        listing_interface_ = nullptr;
+    if (!config_.contains("listing_account") || config_["listing_account"].is_null()) {
+        std::cerr << "No listing_account configuration found. Please add a dedicated account for listing." << std::endl;
+        return;
     }
+
+    auto listing_config = config_["listing_account"];
+    std::string username = listing_config.value("username", "");
+    std::string password = listing_config.value("password", "");
+    std::string proxy_url = listing_config.value("proxy_url", "");
+
+    if (username.empty() || password.empty()) {
+        std::cerr << "Invalid listing account configuration: missing username or password" << std::endl;
+        return;
+    }
+
+    listing_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
+    listing_interface_->login(username, password);
+
+    std::cout << "Initialized dedicated listing interface with account: "
+             << username << std::endl;
 }
 
 std::shared_ptr<HubInterfaceWrapper> GameFinder::get_listing_interface() {

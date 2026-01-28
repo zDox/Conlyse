@@ -77,6 +77,11 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
         std::lock_guard<std::mutex> lock(sessions_lock_);
         return observer_sessions_.size();
     });
+
+    // Set the callback for when an account's proxy is reset
+    account_pool_->set_proxy_reset_callback([this](std::shared_ptr<Account> account) {
+        this->reset_sessions_for_account(account);
+    });
 }
 
 ServerObserver::~ServerObserver() {
@@ -120,7 +125,7 @@ void ServerObserver::stop() {
 }
 
 void ServerObserver::start_observation_session(int game_id, int scenario_id) {
-    auto account = account_pool_ ? account_pool_->next_guest_account(-1) : nullptr;
+    auto account = account_pool_->next_guest_account(-1);
     if (!account && account_pool_) {
         std::cerr << "No free account available to start new observation" << std::endl;
         return;
@@ -152,9 +157,7 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
         game_finder_->mark_game_known(game_id);
     }
 
-    if (account_pool_) {
-        account_pool_->increment_guest_join(account);
-    }
+    account_pool_->increment_guest_join(account);
 
     observer->next_update_at = std::chrono::system_clock::now();
 
@@ -237,9 +240,7 @@ void ServerObserver::handle_game_ended(ObservationSession* session) {
     std::cout << "Finished recording game " << game_id << " (game ended)" << std::endl;
 
     // Release account resources
-    if (account_pool_) {
-        account_pool_->decrement_guest_join(session->account);
-    }
+    account_pool_->decrement_guest_join(session->account);
 
     // Remove session from active tracking
     {
@@ -267,9 +268,7 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
         
         // Clean up resources when max retries reached
         // Release account resources
-        if (account_pool_) {
-            account_pool_->decrement_guest_join(session->account);
-        }
+        account_pool_->decrement_guest_join(session->account);
 
         // Mark as failed in registry
         registry_->mark_failed(game_id, result.error_message);
@@ -281,6 +280,16 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
         }
 
         return;
+    }
+    if (result.error_code == ObservationError::NETWORK_ERROR) {
+        // Reset Proxy
+        if (account_pool_->reset_account_proxy(session->account)) {
+            std::cout << "Reset proxy for account " << session->account->username
+                     << " due to network error on game " << game_id << std::endl;
+        } else {
+            std::cerr << "Failed to reset proxy for account " << session->account->username
+                     << " on game " << game_id << std::endl;
+        }
     }
 
     // Determine retry timing based on error type
@@ -305,6 +314,22 @@ void ServerObserver::schedule_retry(ObservationSession* session, bool immediate,
         std::cout << "Retrying update for game " << game_id
                  << " after interval due to: " << error_message << std::endl;
         scheduler_->schedule_next_update(session);
+    }
+}
+
+void ServerObserver::reset_sessions_for_account(std::shared_ptr<Account> account) {
+    if (!account) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(sessions_lock_);
+
+    for (auto& [game_id, session] : observer_sessions_) {
+        if (session && session->account == account) {
+            std::cout << "Resetting proxy for game " << game_id
+                     << " (account: " << account->username << ")" << std::endl;
+            session->set_proxy(*account->proxy_config);
+        }
     }
 }
 
