@@ -10,6 +10,7 @@
 #include <deque>
 #include <atomic>
 #include <chrono>
+#include <filesystem>
 #include <boost/asio/awaitable.hpp>
 #include <nlohmann/json.hpp>
 #include "account_pool.hpp"
@@ -25,6 +26,7 @@ namespace asio = boost::asio;
 class ServerObserver {
 public:
     ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool);
+    ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool, const std::string& config_path);
     ~ServerObserver();
 
     bool run();
@@ -63,6 +65,10 @@ private:
     std::mutex stats_lock_;
     std::deque<std::chrono::system_clock::time_point> update_timestamps_;  // Rolling window of update times
 
+    // Config file watching
+    std::string config_file_path_;
+    std::filesystem::file_time_type last_config_modified_time_;
+
     void start_observation_session(int game_id, int scenario_id);
     void resume_active();
     asio::awaitable<void> run_single_update_async(ObservationSession* session);
@@ -77,6 +83,10 @@ private:
     void handle_failed_update(ObservationSession* session, const ObservationResult& result);
     bool should_retry_immediately(ObservationError error_code) const;
     void schedule_retry(ObservationSession* session, bool immediate, const std::string& error_message);
+
+    // Config reload functionality
+    void check_and_reload_config();
+    void reload_config(const json& new_config);
 };
 
 #endif // SERVER_OBSERVER_HPP

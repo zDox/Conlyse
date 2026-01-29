@@ -2,6 +2,7 @@
 #include "game_finder.hpp"
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <chrono>
 #include <algorithm>
 
@@ -10,10 +11,16 @@ namespace fs = std::filesystem;
 static const int MAX_UPDATE_RETRIES = 3;
 
 ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool)
+    : ServerObserver(config, account_pool, "")
+{
+}
+
+ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool, const std::string& config_path)
     : config_(config)
     , account_pool_(account_pool)
     , stop_flag_(false)
     , total_updates_completed_(0)
+    , config_file_path_(config_path)
 {
     // Initialize statistics timing
     stats_start_time_ = std::chrono::system_clock::now();
@@ -82,6 +89,16 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     account_pool_->set_proxy_reset_callback([this](std::shared_ptr<Account> account) {
         this->reset_sessions_for_account(account);
     });
+
+    // Initialize config file modification time tracking
+    if (!config_file_path_.empty() && fs::exists(config_file_path_)) {
+        try {
+            last_config_modified_time_ = fs::last_write_time(config_file_path_);
+        } catch (const std::exception& e) {
+            std::cerr << "Warning: Could not get initial modification time for config file: " 
+                     << e.what() << std::endl;
+        }
+    }
 }
 
 ServerObserver::~ServerObserver() {
@@ -453,11 +470,95 @@ bool ServerObserver::run() {
 
             start_due_updates();
             print_update_statistics();
+            
+            // Check for config file changes
+            check_and_reload_config();
         }
         return true;
     } catch (const std::exception& e) {
         std::cerr << "Error in main loop: " << e.what() << std::endl;
         stop_flag_ = true;
         return false;
+    }
+}
+
+void ServerObserver::check_and_reload_config() {
+    // Skip if no config file path was provided
+    if (config_file_path_.empty()) {
+        return;
+    }
+
+    try {
+        // Check if config file exists
+        if (!fs::exists(config_file_path_)) {
+            return;
+        }
+
+        // Get current modification time
+        auto current_modified_time = fs::last_write_time(config_file_path_);
+
+        // Compare with last known modification time
+        if (current_modified_time != last_config_modified_time_) {
+            std::cout << "Config file change detected, reloading..." << std::endl;
+            
+            // Load the new config
+            std::ifstream config_stream(config_file_path_);
+            if (!config_stream.is_open()) {
+                std::cerr << "Error: Could not open config file for reload: " 
+                         << config_file_path_ << std::endl;
+                return;
+            }
+
+            json new_config;
+            try {
+                config_stream >> new_config;
+            } catch (const std::exception& e) {
+                std::cerr << "Error parsing config file during reload: " << e.what() << std::endl;
+                return;
+            }
+
+            // Apply the new config
+            reload_config(new_config);
+
+            // Update the last modified time
+            last_config_modified_time_ = current_modified_time;
+            
+            std::cout << "Config reloaded successfully" << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error checking config file: " << e.what() << std::endl;
+    }
+}
+
+void ServerObserver::reload_config(const json& new_config) {
+    // Update the stored config
+    config_ = new_config;
+
+    // Reload max_parallel_recordings
+    int new_max_parallel_recordings = new_config.value("max_parallel_recordings", 1);
+    if (new_max_parallel_recordings != max_parallel_recordings_) {
+        std::cout << "Updated max_parallel_recordings: " << max_parallel_recordings_ 
+                 << " -> " << new_max_parallel_recordings << std::endl;
+        max_parallel_recordings_ = new_max_parallel_recordings;
+    }
+
+    // Reload update_interval (note: this affects future scheduling)
+    double new_update_interval = new_config.value("update_interval", 60.0);
+    if (new_update_interval != update_interval_) {
+        std::cout << "Updated update_interval: " << update_interval_ 
+                 << " -> " << new_update_interval << std::endl;
+        update_interval_ = new_update_interval;
+        
+        // Update scheduler's update interval if it has such a method
+        // Note: Current Scheduler implementation doesn't support runtime interval changes
+        // This would require adding a setter method to Scheduler class
+    }
+
+    // Reload GameFinder configuration if needed
+    // GameFinder may have its own reload mechanism for scan_interval and scenario_ids
+    if (game_finder_) {
+        // Note: This would require GameFinder to expose a reload method
+        // For now, we just log that GameFinder config might need manual restart
+        std::cout << "Note: GameFinder configuration changes require restart to take effect" << std::endl;
     }
 }
