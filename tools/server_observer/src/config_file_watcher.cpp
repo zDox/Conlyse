@@ -90,6 +90,7 @@ void ConfigFileWatcher::watch_loop_inotify() {
     struct pollfd pfd;
     pfd.fd = inotify_fd;
     pfd.events = POLLIN;
+    auto last_callback = std::chrono::steady_clock::now() - std::chrono::milliseconds(1000);
 
     while (running_.load()) {
         // Poll with timeout to allow checking running_ flag
@@ -126,15 +127,18 @@ void ConfigFileWatcher::watch_loop_inotify() {
 
             // Check if this event is for our config file
             if (event->len > 0 && filename == event->name) {
+
                 // File was modified, created, or moved into place
                 if (event->mask & (IN_MODIFY | IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE)) {
                     std::cout << "ConfigFileWatcher: Detected change to " << file_path_ << std::endl;
                     
                     // Small delay to ensure file write is complete
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    
+
+                    auto now = std::chrono::steady_clock::now();
                     // Call the callback
-                    if (callback_) {
+                    if (now - last_callback > std::chrono::seconds(1) && callback_) {
+                        last_callback = now;
                         callback_();
                     }
                 }

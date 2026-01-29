@@ -8,8 +8,31 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(FetchContent)
 cmake_policy(SET CMP0135 NEW)
 
-# Find required packages
+# ============== Python Configuration ==============
+# Allow specifying Python executable via environment variable or cache variable
+# Priority: 1. CMake cache variable, 2. Environment variable, 3. Auto-detect
+if(DEFINED ENV{PYTHON_EXECUTABLE})
+    set(Python3_EXECUTABLE "$ENV{PYTHON_EXECUTABLE}" CACHE FILEPATH "Python executable to use")
+    message(STATUS "Using Python from environment: $ENV{PYTHON_EXECUTABLE}")
+endif()
+
+# Find Python with the specified or detected executable
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+
+# Verify we got the right Python
+message(STATUS "Python Configuration:")
+message(STATUS "  Executable: ${Python3_EXECUTABLE}")
+message(STATUS "  Version: ${Python3_VERSION}")
+message(STATUS "  Include dirs: ${Python3_INCLUDE_DIRS}")
+message(STATUS "  Libraries: ${Python3_LIBRARIES}")
+message(STATUS "  Library dirs: ${Python3_LIBRARY_DIRS}")
+
+# Optional: Set PYTHONHOME at runtime (add to your code)
+# This will be embedded in the binary
+set(PYTHON_HOME "${Python3_PREFIX}" CACHE STRING "Python home directory")
+message(STATUS "  Python home: ${PYTHON_HOME}")
+
+# Find required packages
 find_package(Threads REQUIRED)
 
 # pybind11
@@ -97,6 +120,12 @@ set(SOURCES
 # Create executable
 add_executable(server_observer ${SOURCES})
 
+# Define PYTHON_HOME as a compile definition (optional - for runtime use)
+target_compile_definitions(server_observer
+        PRIVATE
+        PYTHON_HOME_PATH="${PYTHON_HOME}"
+)
+
 # Link libraries
 target_link_libraries(server_observer
         PRIVATE
@@ -109,6 +138,7 @@ target_link_libraries(server_observer
         ZLIB::ZLIB
         Threads::Threads
         pybind11::embed
+        Python3::Python  # Explicitly link to the found Python
 )
 
 target_include_directories(server_observer
@@ -135,10 +165,10 @@ if(BUILD_TESTS)
 
     # Fetch Google Test
     FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.14.0
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+            googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG v1.14.0
+            DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -146,79 +176,79 @@ if(BUILD_TESTS)
 
     # Test executable
     add_executable(test_async_https_request
-        tests/test_async_https_request.cpp
-        src/async_https_request.cpp
+            tests/test_async_https_request.cpp
+            src/async_https_request.cpp
     )
 
     target_link_libraries(test_async_https_request
-        PRIVATE
-        gtest
-        gtest_main
-        OpenSSL::SSL
-        OpenSSL::Crypto
-        ZLIB::ZLIB
-        Threads::Threads
+            PRIVATE
+            gtest
+            gtest_main
+            OpenSSL::SSL
+            OpenSSL::Crypto
+            ZLIB::ZLIB
+            Threads::Threads
     )
 
     target_include_directories(test_async_https_request
-        PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${boost_SOURCE_DIR}
+            PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${boost_SOURCE_DIR}
     )
 
     # Register tests with CTest
     include(GoogleTest)
     gtest_discover_tests(test_async_https_request
-        PROPERTIES
+            PROPERTIES
             ENVIRONMENT "TEST_PROXY_HOST=${TEST_PROXY_HOST};TEST_PROXY_PORT=${TEST_PROXY_PORT};TEST_PROXY_USER=${TEST_PROXY_USER};TEST_PROXY_PASS=${TEST_PROXY_PASS}"
     )
 
     # Custom test targets
     # Run all tests (note: use "make test" for CTest, or "make run-tests" for this target)
     add_custom_target(run-tests
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS test_async_https_request
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Running all tests..."
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+            DEPENDS test_async_https_request
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Running all tests..."
     )
 
     # Run only non-proxy tests
     add_custom_target(test-no-proxy
-        COMMAND test_async_https_request --gtest_filter=-*Proxy*:*RequestThroughProxy*
-        DEPENDS test_async_https_request
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Running tests without proxy tests..."
+            COMMAND test_async_https_request --gtest_filter=-*Proxy*:*RequestThroughProxy*
+            DEPENDS test_async_https_request
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Running tests without proxy tests..."
     )
 
     # Run only proxy tests
     add_custom_target(test-proxy
-        COMMAND ${CMAKE_COMMAND} -E env
+            COMMAND ${CMAKE_COMMAND} -E env
             TEST_PROXY_HOST=${TEST_PROXY_HOST}
             TEST_PROXY_PORT=${TEST_PROXY_PORT}
             TEST_PROXY_USER=${TEST_PROXY_USER}
             TEST_PROXY_PASS=${TEST_PROXY_PASS}
             $<TARGET_FILE:test_async_https_request> --gtest_filter=*Proxy*
-        DEPENDS test_async_https_request
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Running proxy tests with TEST_PROXY_HOST=${TEST_PROXY_HOST}:${TEST_PROXY_PORT}..."
+            DEPENDS test_async_https_request
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Running proxy tests with TEST_PROXY_HOST=${TEST_PROXY_HOST}:${TEST_PROXY_PORT}..."
     )
 
     # Verbose test output
     add_custom_target(test-verbose
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
-        DEPENDS test_async_https_request
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Running all tests with verbose output..."
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure --verbose
+            DEPENDS test_async_https_request
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Running all tests with verbose output..."
     )
 
     # Helper target to check proxy connectivity
     add_custom_target(check-proxy
-        COMMAND ${CMAKE_COMMAND} -E echo "Checking proxy connectivity at ${TEST_PROXY_HOST}:${TEST_PROXY_PORT}..."
-        COMMAND ${CMAKE_COMMAND} -E env
+            COMMAND ${CMAKE_COMMAND} -E echo "Checking proxy connectivity at ${TEST_PROXY_HOST}:${TEST_PROXY_PORT}..."
+            COMMAND ${CMAKE_COMMAND} -E env
             TEST_PROXY_HOST=${TEST_PROXY_HOST}
             TEST_PROXY_PORT=${TEST_PROXY_PORT}
             bash -c "timeout 2 bash -c '</dev/tcp/$$TEST_PROXY_HOST/$$TEST_PROXY_PORT' 2>/dev/null && echo 'Proxy is reachable!' || echo 'Proxy is NOT reachable. Tests may be skipped.'"
-        COMMENT "Testing proxy connectivity..."
+            COMMENT "Testing proxy connectivity..."
     )
 
     # Print test configuration
@@ -241,4 +271,3 @@ if(BUILD_TESTS)
     message(STATUS "  make test-verbose       - Run all tests with verbose output")
     message(STATUS "  make check-proxy        - Check if proxy is reachable")
 endif()
-
