@@ -7,6 +7,7 @@
 #include <boost/asio/awaitable.hpp>
 #include <nlohmann/json.hpp>
 #include "account.hpp"
+#include "observation_api.hpp"
 #include "static_map_cache.hpp"
 #include "recording_storage.hpp"
 #include "observation_package.hpp"
@@ -131,9 +132,8 @@ private:
     void on_request_response(std::string&& response_str);
 
     // Helper methods for run_update_async
-    ObservationResult handle_server_switch(const GameServerResult& result);
     ObservationResult handle_game_server_error(const GameServerResult& result);
-    void update_package_from_api();
+
     void process_successful_response(GameServerResult& result);
 };
 

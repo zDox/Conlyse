@@ -167,33 +167,8 @@ ObservationSession::LoggingGuard::~LoggingGuard() noexcept {
     }
 }
 
-// Handle server switch scenario
-ObservationResult ObservationSession::handle_server_switch(const GameServerResult& result) {
-    if (!result.data.contains("newHostName")) {
-        return ObservationResult::make_unknown_error("Server switch without new hostname");
-    }
-
-    std::string new_server = "https://" + result.data["newHostName"].get<std::string>();
-    std::cout << "Server switch detected for game " << game_id
-              << ": updating server to " << new_server << std::endl;
-
-    // Update the package with new server address
-    package_.game_server_address = new_server;
-
-    // Recreate the ObservationApi with new server address
-    api_->update_server_address(new_server);
-
-    // Return a network error to trigger immediate retry with new server
-    return ObservationResult::make_network_error(false, "Server switch to " + new_server);
-}
-
 // Convert GameServerError to ObservationResult
 ObservationResult ObservationSession::handle_game_server_error(const GameServerResult& result) {
-    // Handle SERVER_SWITCH specially - no attempt increment
-    if (result.error_code == GameServerError::SERVER_SWITCH) {
-        return handle_server_switch(result);
-    }
-
     // Increment attempt counter for all other failures
     attempt_++;
 
@@ -207,6 +182,10 @@ ObservationResult ObservationSession::handle_game_server_error(const GameServerR
         case GameServerError::NETWORK_ERROR:
             reset_package();
             return ObservationResult::make_network_error(false, result.error_message);
+        case GameServerError::CLIENT_VERSION_MISMATCH:
+            return ObservationResult::make_unknown_error(result.error_message);
+        case GameServerError::SERVER_SWITCH:
+            return ObservationResult::make_unknown_error(result.error_message);
         case GameServerError::PARSE_ERROR:
             return ObservationResult::make_unknown_error(result.error_message);
         case GameServerError::UNKNOWN_ERROR:
@@ -216,21 +195,13 @@ ObservationResult ObservationSession::handle_game_server_error(const GameServerR
     }
 }
 
-// Update package with latest API state
-void ObservationSession::update_package_from_api() {
-    package_.auth = api_->get_auth();
-    package_.cookies = api_->get_cookies();
-    package_.headers = api_->get_headers();
-    package_.game_server_address = api_->get_game_server_address();
-}
-
 // Process successful game state response
 void ObservationSession::process_successful_response(GameServerResult& result) {
     // Reset attempt counter on success
     attempt_ = 0;
 
     // Update package with new auth and connection details
-    update_package_from_api();
+    api_->update_package(package_);
 
     // Save raw response string to storage
     ensure_storage()->update_resume_metadata(package_.to_json());

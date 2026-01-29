@@ -54,8 +54,6 @@ void ConfigFileWatcher::watch_loop_inotify() {
     int inotify_fd = inotify_init1(IN_NONBLOCK);
     if (inotify_fd < 0) {
         std::cerr << "Failed to initialize inotify: " << strerror(errno) << std::endl;
-        std::cerr << "Falling back to polling-based file watching" << std::endl;
-        watch_loop_polling();
         return;
     }
 
@@ -77,7 +75,6 @@ void ConfigFileWatcher::watch_loop_inotify() {
         std::cerr << "Failed to add inotify watch for " << dir_path << ": " 
                  << strerror(errno) << std::endl;
         close(inotify_fd);
-        watch_loop_polling();
         return;
     }
 
@@ -86,7 +83,7 @@ void ConfigFileWatcher::watch_loop_inotify() {
     // Buffer for inotify events
     char buffer[4096] __attribute__((aligned(__alignof__(struct inotify_event))));
     
-    struct pollfd pfd;
+    struct pollfd pfd{};
     pfd.fd = inotify_fd;
     pfd.events = POLLIN;
     auto last_callback = std::chrono::steady_clock::now() - std::chrono::milliseconds(1000);

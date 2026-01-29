@@ -44,11 +44,6 @@ private:
      * Watch loop implementation for Linux (inotify)
      */
     void watch_loop_inotify();
-
-    /**
-     * Watch loop implementation fallback (polling)
-     */
-    void watch_loop_polling();
 };
 
 #endif // CONFIG_FILE_WATCHER_HPP
