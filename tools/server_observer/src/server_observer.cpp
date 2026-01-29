@@ -607,6 +607,51 @@ void ServerObserver::reload_config(const json& new_config) {
         }
         game_finder_->set_scenario_ids(new_scenario_ids);
     }
+
+    // Reload max_parallel_updates
+    if (scheduler_ && new_config.contains("max_parallel_updates")) {
+        int new_max_parallel_updates = new_config.value("max_parallel_updates", 1);
+        if (new_max_parallel_updates >= 1) {
+            scheduler_->set_max_parallel_updates(new_max_parallel_updates);
+        }
+    }
+
+    // Reload max_parallel_first_updates
+    if (scheduler_ && new_config.contains("max_parallel_first_updates")) {
+        int new_max_parallel_first_updates = new_config.value("max_parallel_first_updates", 1);
+        if (new_max_parallel_first_updates >= 1) {
+            scheduler_->set_max_parallel_first_updates(new_max_parallel_first_updates);
+        }
+    }
+
+    // Reload max_guest_games_per_account
+    if (game_finder_ && new_config.contains("max_guest_games_per_account")) {
+        int new_max_guest = new_config.value("max_guest_games_per_account", -1);
+        game_finder_->set_max_guest_per_account(new_max_guest);
+    }
+
+    // Reload enabled_scanning
+    if (game_finder_ && new_config.contains("enabled_scanning")) {
+        bool new_enabled_scanning = new_config.value("enabled_scanning", true);
+        game_finder_->set_enabled_scanning(new_enabled_scanning);
+    }
+
+    // Reload file_size_threshold
+    if (new_config.contains("file_size_threshold")) {
+        int new_file_size_threshold = new_config.value("file_size_threshold", 0);
+        if (new_file_size_threshold != file_size_threshold_) {
+            std::cout << "Updated file_size_threshold: " << file_size_threshold_ 
+                     << " -> " << new_file_size_threshold << std::endl;
+            std::cout << "Note: file_size_threshold change only affects new observation sessions" << std::endl;
+            file_size_threshold_ = new_file_size_threshold;
+        }
+    }
+
+    // Note: update_worker_threads and request_manager_threads cannot be changed at runtime
+    // as they control thread pool sizes that are set during initialization
+    if (new_config.contains("update_worker_threads") || new_config.contains("request_manager_threads")) {
+        std::cout << "Note: update_worker_threads and request_manager_threads changes require restart to take effect" << std::endl;
+    }
 }
 
 void ServerObserver::reload_config_from_file() {

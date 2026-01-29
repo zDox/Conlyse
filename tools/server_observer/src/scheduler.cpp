@@ -265,3 +265,22 @@ void Scheduler::set_update_interval(double interval_seconds) {
     }
 }
 
+void Scheduler::set_max_parallel_updates(int max_updates) {
+    if (max_updates >= 1) {
+        max_parallel_updates_ = max_updates;
+        std::cout << "Scheduler: Updated max_parallel_updates to " << max_updates << std::endl;
+    } else {
+        std::cerr << "Scheduler: Invalid max_parallel_updates " << max_updates << ", must be >= 1" << std::endl;
+    }
+}
+
+void Scheduler::set_max_parallel_first_updates(int max_first_updates) {
+    if (max_first_updates >= 1) {
+        max_parallel_first_updates_ = max_first_updates;
+        std::cout << "Scheduler: Updated max_parallel_first_updates to " << max_first_updates << std::endl;
+    } else {
+        std::cerr << "Scheduler: Invalid max_parallel_first_updates " << max_first_updates 
+                 << ", must be >= 1" << std::endl;
+    }
+}
+

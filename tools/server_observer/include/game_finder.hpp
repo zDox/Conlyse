@@ -116,6 +116,16 @@ public:
      */
     void set_max_parallel_recordings(int max_recordings);
 
+    /**
+     * Update max guest games per account
+     */
+    void set_max_guest_per_account(int max_guest);
+
+    /**
+     * Update enabled scanning flag
+     */
+    void set_enabled_scanning(bool enabled);
+
 private:
     json config_;
     std::shared_ptr<AccountPool> account_pool_;

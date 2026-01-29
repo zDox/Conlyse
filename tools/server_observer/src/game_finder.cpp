@@ -294,3 +294,27 @@ void GameFinder::set_max_parallel_recordings(int max_recordings) {
                  << ", must be >= 1" << std::endl;
     }
 }
+
+void GameFinder::set_max_guest_per_account(int max_guest) {
+    if (max_guest >= -1) {  // -1 means no limit
+        max_guest_per_account_ = max_guest;
+        std::cout << "GameFinder: Updated max_guest_per_account to " << max_guest;
+        if (max_guest == -1) {
+            std::cout << " (no limit)";
+        }
+        std::cout << std::endl;
+    } else {
+        std::cerr << "GameFinder: Invalid max_guest_per_account " << max_guest 
+                 << ", must be >= -1" << std::endl;
+    }
+}
+
+void GameFinder::set_enabled_scanning(bool enabled) {
+    enabled_scanning_ = enabled;
+    std::cout << "GameFinder: " << (enabled ? "Enabled" : "Disabled") << " scanning" << std::endl;
+    
+    // If we're enabling scanning and there's no scan thread, start it
+    if (enabled && (!scan_thread_ || !scan_thread_->joinable())) {
+        start_scanning();
+    }
+}
