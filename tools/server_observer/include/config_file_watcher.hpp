@@ -16,7 +16,7 @@ class ConfigFileWatcher {
 public:
     using ChangeCallback = std::function<void()>;
 
-    ConfigFileWatcher(const std::string& file_path, ChangeCallback callback);
+    ConfigFileWatcher(std::string  file_path, ChangeCallback callback);
     ~ConfigFileWatcher();
 
     /**

@@ -3,18 +3,22 @@
 #include <chrono>
 #include <filesystem>
 
-#ifdef __linux__
+#ifndef __linux__
+// Raise error
+#error "ConfigFileWatcher is only implemented for Linux using inotify"
+#endif
+
 #include <sys/inotify.h>
 #include <unistd.h>
 #include <poll.h>
 #include <cstring>
-#endif
+#include <utility>
 
 namespace fs = std::filesystem;
 
-ConfigFileWatcher::ConfigFileWatcher(const std::string& file_path, ChangeCallback callback)
-    : file_path_(file_path)
-    , callback_(callback)
+ConfigFileWatcher::ConfigFileWatcher(std::string  file_path, ChangeCallback callback)
+    : file_path_(std::move(file_path))
+    , callback_(std::move(callback))
     , running_(false)
 {
 }
@@ -30,11 +34,7 @@ void ConfigFileWatcher::start() {
 
     running_ = true;
 
-#ifdef __linux__
     watch_thread_ = std::make_unique<std::thread>(&ConfigFileWatcher::watch_loop_inotify, this);
-#else
-    watch_thread_ = std::make_unique<std::thread>(&ConfigFileWatcher::watch_loop_polling, this);
-#endif
 }
 
 void ConfigFileWatcher::stop() {
@@ -49,7 +49,6 @@ void ConfigFileWatcher::stop() {
     }
 }
 
-#ifdef __linux__
 void ConfigFileWatcher::watch_loop_inotify() {
     // Initialize inotify
     int inotify_fd = inotify_init1(IN_NONBLOCK);
@@ -130,14 +129,14 @@ void ConfigFileWatcher::watch_loop_inotify() {
 
                 // File was modified, created, or moved into place
                 if (event->mask & (IN_MODIFY | IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE)) {
-                    std::cout << "ConfigFileWatcher: Detected change to " << file_path_ << std::endl;
-                    
+
                     // Small delay to ensure file write is complete
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
                     auto now = std::chrono::steady_clock::now();
                     // Call the callback
                     if (now - last_callback > std::chrono::seconds(1) && callback_) {
+                        std::cout << "ConfigFileWatcher: Detected change to " << file_path_ << std::endl;
                         last_callback = now;
                         callback_();
                     }
@@ -149,46 +148,4 @@ void ConfigFileWatcher::watch_loop_inotify() {
     // Cleanup
     inotify_rm_watch(inotify_fd, watch_fd);
     close(inotify_fd);
-}
-#endif
-
-void ConfigFileWatcher::watch_loop_polling() {
-    std::cout << "ConfigFileWatcher: Using polling to watch " << file_path_ << std::endl;
-
-    fs::file_time_type last_modified;
-    
-    try {
-        if (fs::exists(file_path_)) {
-            last_modified = fs::last_write_time(file_path_);
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Error getting initial modification time: " << e.what() << std::endl;
-    }
-
-    while (running_.load()) {
-        // Sleep for 1 second between checks
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        try {
-            if (!fs::exists(file_path_)) {
-                continue;
-            }
-
-            auto current_modified = fs::last_write_time(file_path_);
-            if (current_modified != last_modified) {
-                std::cout << "ConfigFileWatcher: Detected change to " << file_path_ << std::endl;
-                last_modified = current_modified;
-                
-                // Small delay to ensure file write is complete
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                
-                // Call the callback
-                if (callback_) {
-                    callback_();
-                }
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Error checking file modification: " << e.what() << std::endl;
-        }
-    }
 }
