@@ -21,10 +21,13 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     , stop_flag_(false)
     , total_updates_completed_(0)
     , config_file_path_(config_path)
+    , last_config_modified_time_()  // Initialize to default
+    , last_config_check_time_()     // Initialize to default
 {
     // Initialize statistics timing
     stats_start_time_ = std::chrono::system_clock::now();
     last_stats_print_time_ = stats_start_time_;
+    last_config_check_time_ = stats_start_time_;
 
     max_parallel_recordings_ = config.value("max_parallel_recordings", 1);
     int max_parallel_updates = config.value("max_parallel_updates", 1);
@@ -488,6 +491,17 @@ void ServerObserver::check_and_reload_config() {
         return;
     }
 
+    // Rate limit config file checks to once per second
+    auto now = std::chrono::system_clock::now();
+    auto duration_since_last_check = std::chrono::duration_cast<std::chrono::seconds>(
+        now - last_config_check_time_).count();
+    
+    if (duration_since_last_check < 1) {
+        return;
+    }
+    
+    last_config_check_time_ = now;
+
     try {
         // Check if config file exists
         if (!fs::exists(config_file_path_)) {
@@ -534,31 +548,27 @@ void ServerObserver::reload_config(const json& new_config) {
     // Update the stored config
     config_ = new_config;
 
-    // Reload max_parallel_recordings
+    // Reload max_parallel_recordings with validation
     int new_max_parallel_recordings = new_config.value("max_parallel_recordings", 1);
-    if (new_max_parallel_recordings != max_parallel_recordings_) {
-        std::cout << "Updated max_parallel_recordings: " << max_parallel_recordings_ 
+    if (new_max_parallel_recordings < 1) {
+        std::cerr << "Warning: Invalid max_parallel_recordings value " 
+                 << new_max_parallel_recordings << ", must be >= 1. Keeping current value." << std::endl;
+    } else if (new_max_parallel_recordings != max_parallel_recordings_.load()) {
+        std::cout << "Updated max_parallel_recordings: " << max_parallel_recordings_.load() 
                  << " -> " << new_max_parallel_recordings << std::endl;
-        max_parallel_recordings_ = new_max_parallel_recordings;
+        max_parallel_recordings_.store(new_max_parallel_recordings);
     }
 
-    // Reload update_interval (note: this affects future scheduling)
+    // Note: update_interval is stored but not currently reloadable at runtime
+    // The Scheduler is created once with this value and doesn't support dynamic updates
     double new_update_interval = new_config.value("update_interval", 60.0);
-    if (new_update_interval != update_interval_) {
-        std::cout << "Updated update_interval: " << update_interval_ 
-                 << " -> " << new_update_interval << std::endl;
-        update_interval_ = new_update_interval;
-        
-        // Update scheduler's update interval if it has such a method
-        // Note: Current Scheduler implementation doesn't support runtime interval changes
-        // This would require adding a setter method to Scheduler class
-    }
-
-    // Reload GameFinder configuration if needed
-    // GameFinder may have its own reload mechanism for scan_interval and scenario_ids
-    if (game_finder_) {
-        // Note: This would require GameFinder to expose a reload method
-        // For now, we just log that GameFinder config might need manual restart
-        std::cout << "Note: GameFinder configuration changes require restart to take effect" << std::endl;
+    if (new_update_interval <= 0.0) {
+        std::cerr << "Warning: Invalid update_interval value " 
+                 << new_update_interval << ", must be > 0. Keeping current value." << std::endl;
+    } else if (new_update_interval != update_interval_) {
+        std::cout << "Note: update_interval changed from " << update_interval_ 
+                 << " to " << new_update_interval 
+                 << " but requires restart to take effect (Scheduler limitation)" << std::endl;
+        // Don't update update_interval_ as it's not actually used after initialization
     }
 }

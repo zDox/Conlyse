@@ -44,7 +44,7 @@ private:
     // Scheduler for managing update execution
     std::unique_ptr<Scheduler> scheduler_;
 
-    int max_parallel_recordings_;
+    std::atomic<int> max_parallel_recordings_;
     double update_interval_;
     std::string output_dir_;
     std::string output_metadata_dir_;
@@ -68,6 +68,7 @@ private:
     // Config file watching
     std::string config_file_path_;
     std::filesystem::file_time_type last_config_modified_time_;
+    std::chrono::system_clock::time_point last_config_check_time_;
 
     void start_observation_session(int game_id, int scenario_id);
     void resume_active();
