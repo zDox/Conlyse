@@ -19,6 +19,7 @@
 #include "static_map_cache.hpp"
 #include "game_finder.hpp"
 #include "scheduler.hpp"
+#include "config_file_watcher.hpp"
 
 using json = nlohmann::json;
 namespace asio = boost::asio;
@@ -69,6 +70,7 @@ private:
     std::string config_file_path_;
     std::filesystem::file_time_type last_config_modified_time_;
     std::chrono::system_clock::time_point last_config_check_time_;
+    std::unique_ptr<ConfigFileWatcher> config_watcher_;
 
     void start_observation_session(int game_id, int scenario_id);
     void resume_active();
@@ -88,6 +90,7 @@ private:
     // Config reload functionality
     void check_and_reload_config();
     void reload_config(const json& new_config);
+    void reload_config_from_file();
 };
 
 #endif // SERVER_OBSERVER_HPP

@@ -97,6 +97,16 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     if (!config_file_path_.empty() && fs::exists(config_file_path_)) {
         try {
             last_config_modified_time_ = fs::last_write_time(config_file_path_);
+            
+            // Start the config file watcher
+            config_watcher_ = std::make_unique<ConfigFileWatcher>(
+                config_file_path_,
+                [this]() {
+                    this->reload_config_from_file();
+                }
+            );
+            config_watcher_->start();
+            std::cout << "Config file watcher started for: " << config_file_path_ << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "Warning: Could not get initial modification time for config file: " 
                      << e.what() << std::endl;
@@ -105,6 +115,12 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
 }
 
 ServerObserver::~ServerObserver() {
+    // Stop the config file watcher
+    if (config_watcher_) {
+        config_watcher_->stop();
+        config_watcher_.reset();
+    }
+
     // Ensure stop() has been called
     if (!stop_flag_) {
         stop();
@@ -473,9 +489,6 @@ bool ServerObserver::run() {
 
             start_due_updates();
             print_update_statistics();
-            
-            // Check for config file changes
-            check_and_reload_config();
         }
         return true;
     } catch (const std::exception& e) {
@@ -557,18 +570,80 @@ void ServerObserver::reload_config(const json& new_config) {
         std::cout << "Updated max_parallel_recordings: " << max_parallel_recordings_.load() 
                  << " -> " << new_max_parallel_recordings << std::endl;
         max_parallel_recordings_.store(new_max_parallel_recordings);
+        
+        // Update GameFinder as well
+        if (game_finder_) {
+            game_finder_->set_max_parallel_recordings(new_max_parallel_recordings);
+        }
     }
 
-    // Note: update_interval is stored but not currently reloadable at runtime
-    // The Scheduler is created once with this value and doesn't support dynamic updates
+    // Reload update_interval with validation
     double new_update_interval = new_config.value("update_interval", 60.0);
     if (new_update_interval <= 0.0) {
         std::cerr << "Warning: Invalid update_interval value " 
                  << new_update_interval << ", must be > 0. Keeping current value." << std::endl;
     } else if (new_update_interval != update_interval_) {
-        std::cout << "Note: update_interval changed from " << update_interval_ 
-                 << " to " << new_update_interval 
-                 << " but requires restart to take effect (Scheduler limitation)" << std::endl;
-        // Don't update update_interval_ as it's not actually used after initialization
+        update_interval_ = new_update_interval;
+        
+        // Update scheduler with new interval
+        if (scheduler_) {
+            scheduler_->set_update_interval(new_update_interval);
+        }
+    }
+
+    // Reload GameFinder scan_interval
+    if (game_finder_ && new_config.contains("scan_interval")) {
+        double new_scan_interval = new_config.value("scan_interval", 30.0);
+        if (new_scan_interval > 0.0) {
+            game_finder_->set_scan_interval(new_scan_interval);
+        }
+    }
+
+    // Reload GameFinder scenario_ids
+    if (game_finder_ && new_config.contains("scenario_ids") && new_config["scenario_ids"].is_array()) {
+        std::vector<int> new_scenario_ids;
+        for (const auto& id : new_config["scenario_ids"]) {
+            new_scenario_ids.push_back(id.get<int>());
+        }
+        game_finder_->set_scenario_ids(new_scenario_ids);
+    }
+}
+
+void ServerObserver::reload_config_from_file() {
+    if (config_file_path_.empty()) {
+        return;
+    }
+
+    try {
+        // Check if config file exists
+        if (!fs::exists(config_file_path_)) {
+            std::cerr << "Config file not found: " << config_file_path_ << std::endl;
+            return;
+        }
+
+        std::cout << "Reloading config from: " << config_file_path_ << std::endl;
+
+        // Load the new config
+        std::ifstream config_stream(config_file_path_);
+        if (!config_stream.is_open()) {
+            std::cerr << "Error: Could not open config file for reload: " 
+                     << config_file_path_ << std::endl;
+            return;
+        }
+
+        json new_config;
+        try {
+            config_stream >> new_config;
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing config file during reload: " << e.what() << std::endl;
+            return;
+        }
+
+        // Apply the new config
+        reload_config(new_config);
+
+        std::cout << "Config reloaded successfully" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error reloading config file: " << e.what() << std::endl;
     }
 }

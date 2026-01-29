@@ -265,3 +265,32 @@ void GameFinder::mark_game_known(int game_id) {
     std::lock_guard<std::mutex> lock(known_games_mutex_);
     known_games_.insert(game_id);
 }
+
+void GameFinder::set_scan_interval(double interval) {
+    if (interval > 0.0) {
+        scan_interval_ = interval;
+        std::cout << "GameFinder: Updated scan_interval to " << interval << " seconds" << std::endl;
+    } else {
+        std::cerr << "GameFinder: Invalid scan_interval " << interval << ", must be > 0" << std::endl;
+    }
+}
+
+void GameFinder::set_scenario_ids(const std::vector<int>& scenario_ids) {
+    scenario_ids_ = scenario_ids;
+    std::cout << "GameFinder: Updated scenario_ids to [";
+    for (size_t i = 0; i < scenario_ids.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << scenario_ids[i];
+    }
+    std::cout << "]" << std::endl;
+}
+
+void GameFinder::set_max_parallel_recordings(int max_recordings) {
+    if (max_recordings >= 1) {
+        max_parallel_recordings_ = max_recordings;
+        std::cout << "GameFinder: Updated max_parallel_recordings to " << max_recordings << std::endl;
+    } else {
+        std::cerr << "GameFinder: Invalid max_parallel_recordings " << max_recordings 
+                 << ", must be >= 1" << std::endl;
+    }
+}

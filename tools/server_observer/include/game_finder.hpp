@@ -101,6 +101,21 @@ public:
      */
     void mark_game_known(int game_id);
 
+    /**
+     * Update the scan interval at runtime
+     */
+    void set_scan_interval(double interval);
+
+    /**
+     * Update the scenario IDs to scan for
+     */
+    void set_scenario_ids(const std::vector<int>& scenario_ids);
+
+    /**
+     * Update max parallel recordings limit
+     */
+    void set_max_parallel_recordings(int max_recordings);
+
 private:
     json config_;
     std::shared_ptr<AccountPool> account_pool_;

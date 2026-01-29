@@ -255,3 +255,13 @@ double Scheduler::get_seconds_until_next_due() const {
     return std::chrono::duration<double>(duration).count();
 }
 
+void Scheduler::set_update_interval(double interval_seconds) {
+    if (interval_seconds > 0.0) {
+        update_interval_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::duration<double>(interval_seconds));
+        std::cout << "Scheduler: Updated update_interval to " << interval_seconds << " seconds" << std::endl;
+    } else {
+        std::cerr << "Scheduler: Invalid update_interval " << interval_seconds << ", must be > 0" << std::endl;
+    }
+}
+
