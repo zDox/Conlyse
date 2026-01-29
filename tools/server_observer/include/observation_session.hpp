@@ -9,11 +9,15 @@
 #include "account.hpp"
 #include "static_map_cache.hpp"
 #include "recording_storage.hpp"
-#include "observation_api.hpp"
+#include "observation_package.hpp"
+#include "request_manager.hpp"
 #include "proxy_config.hpp"
 
 using json = nlohmann::json;
 namespace asio = boost::asio;
+
+// Forward declaration
+class ObservationApi;
 
 // Error codes for observation updates
 enum class ObservationError {
@@ -32,7 +36,7 @@ struct ObservationResult {
     std::string error_message;
     bool game_ended; // True -> stop observing, False -> reschedule
 
-    ObservationResult(ObservationError code, bool game_ended = false, std::string msg = "")
+    explicit ObservationResult(ObservationError code, bool game_ended = false, std::string msg = "")
         : error_code(code), error_message(std::move(msg)), game_ended(game_ended) {}
 
     static ObservationResult make_success(bool game_ended) {
@@ -66,22 +70,6 @@ struct ObservationResult {
     bool is_success() const { return error_code == ObservationError::SUCCESS; }
 };
 
-struct ObservationPackage {
-    int game_id = 0;
-    std::map<std::string, std::string> headers;
-    std::map<std::string, std::string> cookies;
-    ProxyConfig proxy;
-    AuthDetails auth;
-    int client_version = 0;
-    std::string game_server_address;
-    std::map<std::string, std::string> time_stamps;
-    std::map<std::string, std::string> state_ids;
-
-    json to_json() const;
-
-    static ObservationPackage from_json(const json &j);
-};
-
 class ObservationSession {
 public:
     ObservationSession(
@@ -95,6 +83,8 @@ public:
         int file_size_threshold = 0);
 
     ~ObservationSession();
+
+    void set_proxy(const ProxyConfig &proxy_config);
 
     int game_id;
     std::shared_ptr<Account> account;

@@ -2,13 +2,12 @@
 #include <iostream>
 
 Account::Account(const std::string& username, const std::string& password,
-                const std::string& email, const std::string& proxy_id,
-                const std::string& proxy_url)
+                const std::string& email,
+                std::shared_ptr<ProxyConfig> proxy_config)
     : username(username)
     , password(password)
     , email(email)
-    , proxy_id(proxy_id)
-    , proxy_url(proxy_url)
+    , proxy_config(proxy_config)
     , hub_interface_(nullptr)
     , games_loaded_(false)
 {}
@@ -18,6 +17,7 @@ Account::~Account() {
 
 bool Account::login_internal() {
     if (!hub_interface_) {
+        std::string proxy_url = proxy_config ? proxy_config->to_url() : "";
         hub_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
     }
     
@@ -37,6 +37,7 @@ std::shared_ptr<HubInterfaceWrapper> Account::get_interface() {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (!hub_interface_) {
+        std::string proxy_url = proxy_config ? proxy_config->to_url() : "";
         hub_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
     }
     
@@ -49,6 +50,17 @@ std::shared_ptr<HubInterfaceWrapper> Account::get_interface() {
 
 void Account::reset_interface() {
     std::lock_guard<std::mutex> lock(mutex_);
+    std::string proxy_url = proxy_config ? proxy_config->to_url() : "";
+    hub_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
+    games_.clear();
+    games_loaded_ = false;
+    login_internal();
+}
+
+void Account::reset_proxy(std::shared_ptr<ProxyConfig> new_proxy_config) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    proxy_config = new_proxy_config;
+    std::string proxy_url = proxy_config ? proxy_config->to_url() : "";
     hub_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
     games_.clear();
     games_loaded_ = false;
@@ -115,17 +127,20 @@ json Account::to_json() const {
         {"username", username},
         {"password", password},
         {"email", email},
-        {"proxy_id", proxy_id},
-        {"proxy_url", proxy_url}
+        {"proxy_id", proxy_config ? proxy_config->proxy_id : ""},
+        {"proxy_url", proxy_config ? proxy_config->to_url() : ""}
     };
 }
 
 std::shared_ptr<Account> Account::from_json(const json& j) {
+    std::string proxy_url = j.value("proxy_url", "");
+    auto proxy_config = std::make_shared<ProxyConfig>(ProxyConfig::from_url(proxy_url));
+    proxy_config->proxy_id = j.value("proxy_id", "");
+
     return std::make_shared<Account>(
         j.value("username", ""),
         j.value("password", ""),
         j.value("email", ""),
-        j.value("proxy_id", ""),
-        j.value("proxy_url", "")
+        proxy_config
     );
 }

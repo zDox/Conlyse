@@ -10,6 +10,7 @@
 #include <deque>
 #include <atomic>
 #include <chrono>
+#include <filesystem>
 #include <boost/asio/awaitable.hpp>
 #include <nlohmann/json.hpp>
 #include "account_pool.hpp"
@@ -18,6 +19,7 @@
 #include "static_map_cache.hpp"
 #include "game_finder.hpp"
 #include "scheduler.hpp"
+#include "config_file_watcher.hpp"
 
 using json = nlohmann::json;
 namespace asio = boost::asio;
@@ -25,10 +27,14 @@ namespace asio = boost::asio;
 class ServerObserver {
 public:
     ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool);
+    ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool, const std::string& config_path);
     ~ServerObserver();
 
     bool run();
     void stop();
+
+    // Reset proxy for all sessions using the specified account
+    void reset_sessions_for_account(std::shared_ptr<Account> account);
 
 private:
     json config_;
@@ -39,7 +45,7 @@ private:
     // Scheduler for managing update execution
     std::unique_ptr<Scheduler> scheduler_;
 
-    int max_parallel_recordings_;
+    std::atomic<int> max_parallel_recordings_;
     double update_interval_;
     std::string output_dir_;
     std::string output_metadata_dir_;
@@ -60,6 +66,12 @@ private:
     std::mutex stats_lock_;
     std::deque<std::chrono::system_clock::time_point> update_timestamps_;  // Rolling window of update times
 
+    // Config file watching
+    std::string config_file_path_;
+    std::filesystem::file_time_type last_config_modified_time_;
+    std::chrono::system_clock::time_point last_config_check_time_;
+    std::unique_ptr<ConfigFileWatcher> config_watcher_;
+
     void start_observation_session(int game_id, int scenario_id);
     void resume_active();
     asio::awaitable<void> run_single_update_async(ObservationSession* session);
@@ -74,6 +86,11 @@ private:
     void handle_failed_update(ObservationSession* session, const ObservationResult& result);
     bool should_retry_immediately(ObservationError error_code) const;
     void schedule_retry(ObservationSession* session, bool immediate, const std::string& error_message);
+
+    // Config reload functionality
+    void check_and_reload_config();
+    void reload_config(const json& new_config);
+    void reload_config_from_file();
 };
 
 #endif // SERVER_OBSERVER_HPP

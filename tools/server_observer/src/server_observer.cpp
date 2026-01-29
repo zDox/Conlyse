@@ -2,6 +2,7 @@
 #include "game_finder.hpp"
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <chrono>
 #include <algorithm>
 
@@ -10,14 +11,23 @@ namespace fs = std::filesystem;
 static const int MAX_UPDATE_RETRIES = 3;
 
 ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool)
+    : ServerObserver(config, account_pool, "")
+{
+}
+
+ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool, const std::string& config_path)
     : config_(config)
     , account_pool_(account_pool)
     , stop_flag_(false)
     , total_updates_completed_(0)
+    , config_file_path_(config_path)
+    , last_config_modified_time_()  // Initialize to default
+    , last_config_check_time_()     // Initialize to default
 {
     // Initialize statistics timing
     stats_start_time_ = std::chrono::system_clock::now();
     last_stats_print_time_ = stats_start_time_;
+    last_config_check_time_ = stats_start_time_;
 
     max_parallel_recordings_ = config.value("max_parallel_recordings", 1);
     int max_parallel_updates = config.value("max_parallel_updates", 1);
@@ -77,9 +87,40 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
         std::lock_guard<std::mutex> lock(sessions_lock_);
         return observer_sessions_.size();
     });
+
+    // Set the callback for when an account's proxy is reset
+    account_pool_->set_proxy_reset_callback([this](std::shared_ptr<Account> account) {
+        this->reset_sessions_for_account(account);
+    });
+
+    // Initialize config file modification time tracking
+    if (!config_file_path_.empty() && fs::exists(config_file_path_)) {
+        try {
+            last_config_modified_time_ = fs::last_write_time(config_file_path_);
+            
+            // Start the config file watcher
+            config_watcher_ = std::make_unique<ConfigFileWatcher>(
+                config_file_path_,
+                [this]() {
+                    this->reload_config_from_file();
+                }
+            );
+            config_watcher_->start();
+            std::cout << "Config file watcher started for: " << config_file_path_ << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Warning: Could not get initial modification time for config file: " 
+                     << e.what() << std::endl;
+        }
+    }
 }
 
 ServerObserver::~ServerObserver() {
+    // Stop the config file watcher
+    if (config_watcher_) {
+        config_watcher_->stop();
+        config_watcher_.reset();
+    }
+
     // Ensure stop() has been called
     if (!stop_flag_) {
         stop();
@@ -120,7 +161,7 @@ void ServerObserver::stop() {
 }
 
 void ServerObserver::start_observation_session(int game_id, int scenario_id) {
-    auto account = account_pool_ ? account_pool_->next_guest_account(-1) : nullptr;
+    auto account = account_pool_->next_guest_account(-1);
     if (!account && account_pool_) {
         std::cerr << "No free account available to start new observation" << std::endl;
         return;
@@ -152,9 +193,7 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
         game_finder_->mark_game_known(game_id);
     }
 
-    if (account_pool_) {
-        account_pool_->increment_guest_join(account);
-    }
+    account_pool_->increment_guest_join(account);
 
     observer->next_update_at = std::chrono::system_clock::now();
 
@@ -237,9 +276,7 @@ void ServerObserver::handle_game_ended(ObservationSession* session) {
     std::cout << "Finished recording game " << game_id << " (game ended)" << std::endl;
 
     // Release account resources
-    if (account_pool_) {
-        account_pool_->decrement_guest_join(session->account);
-    }
+    account_pool_->decrement_guest_join(session->account);
 
     // Remove session from active tracking
     {
@@ -267,9 +304,7 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
         
         // Clean up resources when max retries reached
         // Release account resources
-        if (account_pool_) {
-            account_pool_->decrement_guest_join(session->account);
-        }
+        account_pool_->decrement_guest_join(session->account);
 
         // Mark as failed in registry
         registry_->mark_failed(game_id, result.error_message);
@@ -281,6 +316,16 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
         }
 
         return;
+    }
+    if (result.error_code == ObservationError::NETWORK_ERROR) {
+        // Reset Proxy
+        if (account_pool_->reset_account_proxy(session->account)) {
+            std::cout << "Reset proxy for account " << session->account->username
+                     << " due to network error on game " << game_id << std::endl;
+        } else {
+            std::cerr << "Failed to reset proxy for account " << session->account->username
+                     << " on game " << game_id << std::endl;
+        }
     }
 
     // Determine retry timing based on error type
@@ -305,6 +350,22 @@ void ServerObserver::schedule_retry(ObservationSession* session, bool immediate,
         std::cout << "Retrying update for game " << game_id
                  << " after interval due to: " << error_message << std::endl;
         scheduler_->schedule_next_update(session);
+    }
+}
+
+void ServerObserver::reset_sessions_for_account(std::shared_ptr<Account> account) {
+    if (!account) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(sessions_lock_);
+
+    for (auto& [game_id, session] : observer_sessions_) {
+        if (session && session->account == account) {
+            std::cout << "Resetting proxy for game " << game_id
+                     << " (account: " << account->username << ")" << std::endl;
+            session->set_proxy(*account->proxy_config);
+        }
     }
 }
 
@@ -434,5 +495,200 @@ bool ServerObserver::run() {
         std::cerr << "Error in main loop: " << e.what() << std::endl;
         stop_flag_ = true;
         return false;
+    }
+}
+
+void ServerObserver::check_and_reload_config() {
+    // Skip if no config file path was provided
+    if (config_file_path_.empty()) {
+        return;
+    }
+
+    // Rate limit config file checks to once per second
+    auto now = std::chrono::system_clock::now();
+    auto duration_since_last_check = std::chrono::duration_cast<std::chrono::seconds>(
+        now - last_config_check_time_).count();
+    
+    if (duration_since_last_check < 1) {
+        return;
+    }
+    
+    last_config_check_time_ = now;
+
+    try {
+        // Check if config file exists
+        if (!fs::exists(config_file_path_)) {
+            return;
+        }
+
+        // Get current modification time
+        auto current_modified_time = fs::last_write_time(config_file_path_);
+
+        // Compare with last known modification time
+        if (current_modified_time != last_config_modified_time_) {
+            std::cout << "Config file change detected, reloading..." << std::endl;
+            
+            // Load the new config
+            std::ifstream config_stream(config_file_path_);
+            if (!config_stream.is_open()) {
+                std::cerr << "Error: Could not open config file for reload: " 
+                         << config_file_path_ << std::endl;
+                return;
+            }
+
+            json new_config;
+            try {
+                config_stream >> new_config;
+            } catch (const std::exception& e) {
+                std::cerr << "Error parsing config file during reload: " << e.what() << std::endl;
+                return;
+            }
+
+            // Apply the new config
+            reload_config(new_config);
+
+            // Update the last modified time
+            last_config_modified_time_ = current_modified_time;
+            
+            std::cout << "Config reloaded successfully" << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error checking config file: " << e.what() << std::endl;
+    }
+}
+
+void ServerObserver::reload_config(const json& new_config) {
+    // Update the stored config
+    config_ = new_config;
+
+    // Reload max_parallel_recordings with validation
+    int new_max_parallel_recordings = new_config.value("max_parallel_recordings", 1);
+    if (new_max_parallel_recordings < 1) {
+        std::cerr << "Warning: Invalid max_parallel_recordings value " 
+                 << new_max_parallel_recordings << ", must be >= 1. Keeping current value." << std::endl;
+    } else if (new_max_parallel_recordings != max_parallel_recordings_.load()) {
+        std::cout << "Updated max_parallel_recordings: " << max_parallel_recordings_.load() 
+                 << " -> " << new_max_parallel_recordings << std::endl;
+        max_parallel_recordings_.store(new_max_parallel_recordings);
+        
+        // Update GameFinder as well
+        if (game_finder_) {
+            game_finder_->set_max_parallel_recordings(new_max_parallel_recordings);
+        }
+    }
+
+    // Reload update_interval with validation
+    double new_update_interval = new_config.value("update_interval", 60.0);
+    if (new_update_interval <= 0.0) {
+        std::cerr << "Warning: Invalid update_interval value " 
+                 << new_update_interval << ", must be > 0. Keeping current value." << std::endl;
+    } else if (new_update_interval != update_interval_) {
+        update_interval_ = new_update_interval;
+        
+        // Update scheduler with new interval
+        if (scheduler_) {
+            scheduler_->set_update_interval(new_update_interval);
+        }
+    }
+
+    // Reload GameFinder scan_interval
+    if (game_finder_ && new_config.contains("scan_interval")) {
+        double new_scan_interval = new_config.value("scan_interval", 30.0);
+        if (new_scan_interval > 0.0) {
+            game_finder_->set_scan_interval(new_scan_interval);
+        }
+    }
+
+    // Reload GameFinder scenario_ids
+    if (game_finder_ && new_config.contains("scenario_ids") && new_config["scenario_ids"].is_array()) {
+        std::vector<int> new_scenario_ids;
+        for (const auto& id : new_config["scenario_ids"]) {
+            new_scenario_ids.push_back(id.get<int>());
+        }
+        game_finder_->set_scenario_ids(new_scenario_ids);
+    }
+
+    // Reload max_parallel_updates
+    if (scheduler_ && new_config.contains("max_parallel_updates")) {
+        int new_max_parallel_updates = new_config.value("max_parallel_updates", 1);
+        if (new_max_parallel_updates >= 1) {
+            scheduler_->set_max_parallel_updates(new_max_parallel_updates);
+        }
+    }
+
+    // Reload max_parallel_first_updates
+    if (scheduler_ && new_config.contains("max_parallel_first_updates")) {
+        int new_max_parallel_first_updates = new_config.value("max_parallel_first_updates", 1);
+        if (new_max_parallel_first_updates >= 1) {
+            scheduler_->set_max_parallel_first_updates(new_max_parallel_first_updates);
+        }
+    }
+
+    // Reload max_guest_games_per_account
+    if (game_finder_ && new_config.contains("max_guest_games_per_account")) {
+        int new_max_guest = new_config.value("max_guest_games_per_account", -1);
+        game_finder_->set_max_guest_per_account(new_max_guest);
+    }
+
+    // Reload enabled_scanning
+    if (game_finder_ && new_config.contains("enabled_scanning")) {
+        bool new_enabled_scanning = new_config.value("enabled_scanning", true);
+        game_finder_->set_enabled_scanning(new_enabled_scanning);
+    }
+
+    // Reload file_size_threshold
+    if (new_config.contains("file_size_threshold")) {
+        int new_file_size_threshold = new_config.value("file_size_threshold", 0);
+        if (new_file_size_threshold != file_size_threshold_) {
+            std::cout << "Updated file_size_threshold: " << file_size_threshold_ 
+                     << " -> " << new_file_size_threshold << std::endl;
+            std::cout << "Note: file_size_threshold change only affects new observation sessions" << std::endl;
+            file_size_threshold_ = new_file_size_threshold;
+        }
+    }
+
+    // Note: update_worker_threads and request_manager_threads cannot be changed at runtime
+    // as they control thread pool sizes that are set during initialization
+    if (new_config.contains("update_worker_threads") || new_config.contains("request_manager_threads")) {
+        std::cout << "Note: update_worker_threads and request_manager_threads changes require restart to take effect" << std::endl;
+    }
+}
+
+void ServerObserver::reload_config_from_file() {
+    if (config_file_path_.empty()) {
+        return;
+    }
+
+    try {
+        // Check if config file exists
+        if (!fs::exists(config_file_path_)) {
+            std::cerr << "Config file not found: " << config_file_path_ << std::endl;
+            return;
+        }
+
+        std::cout << "Reloading config from: " << config_file_path_ << std::endl;
+
+        // Load the new config
+        std::ifstream config_stream(config_file_path_);
+        if (!config_stream.is_open()) {
+            std::cerr << "Error: Could not open config file for reload: " 
+                     << config_file_path_ << std::endl;
+            return;
+        }
+
+        json new_config;
+        try {
+            config_stream >> new_config;
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing config file during reload: " << e.what() << std::endl;
+            return;
+        }
+
+        // Apply the new config
+        reload_config(new_config);
+
+        std::cout << "Config reloaded successfully" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error reloading config file: " << e.what() << std::endl;
     }
 }

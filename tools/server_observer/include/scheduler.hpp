@@ -176,6 +176,24 @@ public:
      */
     void decrement_active_coroutines() { --active_coroutines_; }
 
+    /**
+     * Set the update interval at runtime
+     * Note: This affects the scheduling of future updates
+     */
+    void set_update_interval(double interval_seconds);
+
+    /**
+     * Set max parallel updates at runtime
+     * Note: This affects how many updates can run simultaneously
+     */
+    void set_max_parallel_updates(int max_updates);
+
+    /**
+     * Set max parallel first updates at runtime
+     * Note: This affects how many first updates can run simultaneously
+     */
+    void set_max_parallel_first_updates(int max_first_updates);
+
 private:
     // Configuration
     int max_parallel_updates_;

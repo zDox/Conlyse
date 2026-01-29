@@ -1,4 +1,5 @@
 #include "observation_session.hpp"
+#include "observation_api.hpp"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -7,127 +8,6 @@
 static const int MAX_RETRIES = 3;
 static const int TIME_TILL_RETRY = 10;
 
-json ObservationPackage::to_json() const {
-    // Convert headers map to JSON
-    json headers_json = json::object();
-    for (const auto &[key, value]: headers) {
-        headers_json[key] = value;
-    }
-
-    // Convert cookies map to JSON
-    json cookies_json = json::object();
-    for (const auto &[key, value]: cookies) {
-        cookies_json[key] = value;
-    }
-
-    // Convert ProxyConfig to JSON
-    json proxy_json = json::object();
-    if (proxy.enabled) {
-        proxy_json["host"] = proxy.host;
-        proxy_json["port"] = proxy.port;
-        if (!proxy.username.empty()) {
-            proxy_json["username"] = proxy.username;
-        }
-        if (!proxy.password.empty()) {
-            proxy_json["password"] = proxy.password;
-        }
-    }
-
-    json j = {
-        {"game_id", game_id},
-        {"headers", headers_json},
-        {"cookies", cookies_json},
-        {"proxy", proxy_json},
-        {"auth", auth.to_json()},
-        {"client_version", client_version},
-        {"game_server_address", game_server_address}
-    };
-
-    // Convert time_stamps map to JSON
-    json ts = json::object();
-    for (const auto &[key, value]: time_stamps) {
-        ts[key] = value;
-    }
-    j["time_stamps"] = ts;
-
-    // Convert state_ids map to JSON
-    json si = json::object();
-    for (const auto &[key, value]: state_ids) {
-        si[key] = value;
-    }
-    j["state_ids"] = si;
-
-    return j;
-}
-
-ObservationPackage ObservationPackage::from_json(const json &j) {
-    ObservationPackage pkg;
-    pkg.game_id = j.value("game_id", 0);
-    pkg.client_version = j.value("client_version", 207);
-    pkg.game_server_address = j.value("game_server_address", "");
-
-    // Convert headers from JSON to map
-    if (j.contains("headers") && j["headers"].is_object()) {
-        for (const auto &[key, value]: j["headers"].items()) {
-            try {
-                pkg.headers[key] = value.get<std::string>();
-            } catch (...) {
-            }
-        }
-    }
-
-    // Convert cookies from JSON to map
-    if (j.contains("cookies") && j["cookies"].is_object()) {
-        for (const auto &[key, value]: j["cookies"].items()) {
-            try {
-                pkg.cookies[key] = value.get<std::string>();
-            } catch (...) {
-            }
-        }
-    }
-
-    // Convert proxy from JSON to ProxyConfig
-    if (j.contains("proxy") && j["proxy"].is_object()) {
-        const auto &proxy_json = j["proxy"];
-        if (proxy_json.contains("host") && proxy_json.contains("port")) {
-            pkg.proxy.enabled = true;
-            pkg.proxy.host = proxy_json["host"].get<std::string>();
-            pkg.proxy.port = proxy_json["port"].get<int>();
-            if (proxy_json.contains("username")) {
-                pkg.proxy.username = proxy_json["username"].get<std::string>();
-            }
-            if (proxy_json.contains("password")) {
-                pkg.proxy.password = proxy_json["password"].get<std::string>();
-            }
-        }
-    }
-
-    if (j.contains("auth")) {
-        pkg.auth = AuthDetails::from_json(j["auth"]);
-    }
-
-    // Convert time_stamps from JSON to map
-    if (j.contains("time_stamps") && j["time_stamps"].is_object()) {
-        for (const auto &[key, value]: j["time_stamps"].items()) {
-            try {
-                pkg.time_stamps[key] = value.get<std::string>();
-            } catch (...) {
-            }
-        }
-    }
-
-    // Convert state_ids from JSON to map
-    if (j.contains("state_ids") && j["state_ids"].is_object()) {
-        for (const auto &[key, value]: j["state_ids"].items()) {
-            try {
-                pkg.state_ids[key] = value.get<std::string>();
-            } catch (...) {
-            }
-        }
-    }
-
-    return pkg;
-}
 
 ObservationSession::ObservationSession(
     std::shared_ptr<RequestManager> manager,
@@ -157,6 +37,10 @@ ObservationSession::~ObservationSession() {
     }
 }
 
+void ObservationSession::set_proxy(const ProxyConfig& proxy_config) {
+    package_.proxy = proxy_config;
+}
+
 bool ObservationSession::needs_update(std::chrono::system_clock::time_point now) const {
     return now >= next_update_at;
 }
@@ -174,7 +58,7 @@ bool ObservationSession::ensure_observation_package() {
             manager_,
             package_.headers,
             package_.cookies,
-            package_.proxy,
+            account->proxy_config,
             package_.auth,
             game_id,
             package_.game_server_address,
@@ -220,58 +104,21 @@ ObservationPackage ObservationSession::create_observation_package() {
             }
         }
 
-        // Build ProxyConfig from proxy strings
-        ProxyConfig proxy_config;
-        std::string proxy_https = hub_itf->get_proxy_https();
-        if (!proxy_https.empty()) {
-            // Parse proxy URL format: http://[username:password@]host:port
-            size_t proto_end = proxy_https.find("://");
-            if (proto_end != std::string::npos) {
-                std::string proxy_part = proxy_https.substr(proto_end + 3);
-
-                // Check for authentication
-                size_t at_pos = proxy_part.find('@');
-                if (at_pos != std::string::npos) {
-                    std::string auth_part = proxy_part.substr(0, at_pos);
-                    proxy_part = proxy_part.substr(at_pos + 1);
-
-                    size_t colon_pos = auth_part.find(':');
-                    if (colon_pos != std::string::npos) {
-                        proxy_config.username = auth_part.substr(0, colon_pos);
-                        proxy_config.password = auth_part.substr(colon_pos + 1);
-                    }
-                }
-
-                // Parse host:port
-                size_t colon_pos = proxy_part.find(':');
-                if (colon_pos != std::string::npos) {
-                    proxy_config.host = proxy_part.substr(0, colon_pos);
-                    proxy_config.port = std::stoi(proxy_part.substr(colon_pos + 1));
-                    proxy_config.enabled = true;
-                }
-            }
-        }
-
         // Create an observation package with data from GameApi
         ObservationPackage pkg;
         pkg.game_id = game_id;
         pkg.headers = headers_map;
         pkg.cookies = cookies_map;
-        pkg.proxy = proxy_config;
+        pkg.proxy = *account->proxy_config;
         pkg.auth = game_data.auth;
         pkg.client_version = game_data.client_version;
         pkg.game_server_address = game_data.game_server_address;
-
-        std::cout << "Successfully joined game " << game_id << std::endl;
-        std::cout << "  Game server: " << pkg.game_server_address << std::endl;
-        std::cout << "  Client version: " << pkg.client_version << std::endl;
-        std::cout << "  Map ID: " << game_data.map_id << std::endl;
 
         api_ = std::make_unique<ObservationApi>(
             manager_,
             pkg.headers,
             pkg.cookies,
-            pkg.proxy,
+            account->proxy_config,
             pkg.auth,
             game_id,
             pkg.game_server_address,
@@ -431,7 +278,6 @@ asio::awaitable<ObservationResult> ObservationSession::run_update_async() {
         }
 
         co_return ObservationResult::make_success(false);
-
     } catch (const std::runtime_error &e) {
         co_return ObservationResult::make_unknown_error(e.what());
     }
