@@ -255,3 +255,32 @@ double Scheduler::get_seconds_until_next_due() const {
     return std::chrono::duration<double>(duration).count();
 }
 
+void Scheduler::set_update_interval(double interval_seconds) {
+    if (interval_seconds > 0.0) {
+        update_interval_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::duration<double>(interval_seconds));
+        std::cout << "Scheduler: Updated update_interval to " << interval_seconds << " seconds" << std::endl;
+    } else {
+        std::cerr << "Scheduler: Invalid update_interval " << interval_seconds << ", must be > 0" << std::endl;
+    }
+}
+
+void Scheduler::set_max_parallel_updates(int max_updates) {
+    if (max_updates >= 1) {
+        max_parallel_updates_ = max_updates;
+        std::cout << "Scheduler: Updated max_parallel_updates to " << max_updates << std::endl;
+    } else {
+        std::cerr << "Scheduler: Invalid max_parallel_updates " << max_updates << ", must be >= 1" << std::endl;
+    }
+}
+
+void Scheduler::set_max_parallel_first_updates(int max_first_updates) {
+    if (max_first_updates >= 1) {
+        max_parallel_first_updates_ = max_first_updates;
+        std::cout << "Scheduler: Updated max_parallel_first_updates to " << max_first_updates << std::endl;
+    } else {
+        std::cerr << "Scheduler: Invalid max_parallel_first_updates " << max_first_updates 
+                 << ", must be >= 1" << std::endl;
+    }
+}
+

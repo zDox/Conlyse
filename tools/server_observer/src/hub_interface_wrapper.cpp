@@ -69,32 +69,75 @@ void HubInterfaceWrapper::init_python() {
     std::lock_guard<std::mutex> lock(python_init_mutex);
 
     if (!python_initialized) {
-        // Initialize Python interpreter using pybind11
-        // Note: py::scoped_interpreter automatically acquires the GIL
+        // Check for VIRTUAL_ENV environment variable
+        const char* virtual_env = std::getenv("VIRTUAL_ENV");
+
+        // Only set PYTHONHOME if NOT using a virtual environment
+        // Virtual environments handle their own path configuration
+        if (!virtual_env) {
+#ifdef PYTHON_HOME_PATH
+            std::cout << "Setting PYTHONHOME to: " << PYTHON_HOME_PATH << std::endl;
+            std::string python_home_str = PYTHON_HOME_PATH;
+            std::wstring python_home(python_home_str.begin(), python_home_str.end());
+            Py_SetPythonHome(python_home.c_str());
+#endif
+        } else {
+            std::cout << "Virtual environment detected, not setting PYTHONHOME" << std::endl;
+        }
+
         interpreter = std::make_unique<py::scoped_interpreter>();
         python_initialized = true;
-        // Release the GIL immediately to allow multi-threading
-        // Without this, other threads cannot acquire the GIL
         PyEval_SaveThread();
     }
 
-    // Acquire GIL for this thread to perform initialization
     py::gil_scoped_acquire acquire;
 
     try {
-        // Set up the Python path
-        // Use environment PYTHONPATH or current working directory
         py::module_ sys = py::module_::import("sys");
+        py::module_ site = py::module_::import("site");
         py::list path = sys.attr("path");
-        
-        // Try to add the repository root to path if not already present
-        // This allows imports to work from the repository structure
-        const char* pythonpath_env = std::getenv("PYTHONPATH");
-        if (pythonpath_env) {
-            py::str pythonpath(pythonpath_env);
-            if (!path.contains(pythonpath)) {
-                path.insert(0, pythonpath);
+
+        // Get sys.prefix to see what Python thinks its home is
+        py::str prefix = sys.attr("prefix");
+        std::string prefix_str = prefix.cast<std::string>();
+
+        // Check if VIRTUAL_ENV is set and verify site-packages is in path
+        const char* virtual_env = std::getenv("VIRTUAL_ENV");
+        if (virtual_env) {
+            std::string venv_path(virtual_env);
+            std::cout << "Virtual environment: " << venv_path << std::endl;
+
+            // Get Python version
+            py::object version_info = sys.attr("version_info");
+            int major = version_info.attr("major").cast<int>();
+            int minor = version_info.attr("minor").cast<int>();
+
+            // Build site-packages path for the venv
+            std::string venv_site_packages = venv_path + "/lib/python" +
+                                            std::to_string(major) + "." +
+                                            std::to_string(minor) + "/site-packages";
+
+            // Verify it's in the path, add if missing
+            py::str venv_site_py(venv_site_packages);
+            if (!path.contains(venv_site_py)) {
+                path.insert(0, venv_site_py);
             }
+        }
+
+        // Use site.getsitepackages() for additional packages
+        try {
+            py::list site_packages = site.attr("getsitepackages")();
+            std::cout << "Site packages from site.getsitepackages():" << std::endl;
+            for (auto sp : site_packages) {
+                std::string sp_str = py::str(sp).cast<std::string>();
+
+                py::str sp_py = py::str(sp);
+                if (!path.contains(sp_py)) {
+                    path.append(sp_py);
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Warning: Could not get site-packages: " << e.what() << std::endl;
         }
 
         // Import the HubInterface module
@@ -116,9 +159,10 @@ void HubInterfaceWrapper::init_python() {
         hub_interface_ = hub_interface_class(proxy_dict);
 
     } catch (const py::error_already_set& e) {
+        std::cerr << "\nPython error details:" << std::endl;
+        std::cerr << e.what() << std::endl;
         throw std::runtime_error(std::string("Failed to initialize Python: ") + e.what());
     }
-    // GIL is automatically released when 'acquire' goes out of scope
 }
 
 void HubInterfaceWrapper::cleanup_python() {

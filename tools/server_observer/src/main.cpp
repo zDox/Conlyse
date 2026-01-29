@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
     // Create and run server observer
     int exit_code = 0;
     try {
-        g_observer = std::make_unique<ServerObserver>(config, account_pool);
+        g_observer = std::make_unique<ServerObserver>(config, account_pool, config_file);
         
         std::cout << "Starting server observer..." << std::endl;
         bool success = g_observer->run();
