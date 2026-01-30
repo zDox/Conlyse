@@ -1,5 +1,6 @@
 #include "server_observer.hpp"
 #include "game_finder.hpp"
+#include "metrics.hpp"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -205,6 +206,9 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
         std::lock_guard<std::mutex> lock(sessions_lock_);
         observer_sessions_[game_id] = std::move(observer);
     }
+    
+    // Record game started metric
+    Metrics::getInstance().recordGameStarted(scenario_id);
 }
 
 void ServerObserver::resume_active() {
@@ -240,6 +244,22 @@ void ServerObserver::resume_active() {
 
 asio::awaitable<void> ServerObserver::run_single_update_async(ObservationSession* session) {
     int game_id = session->game_id;
+    
+    // Calculate scheduled latency (how late we are vs. scheduled time)
+    auto now = std::chrono::system_clock::now();
+    auto scheduled_time = session->next_update_at;
+    if (now > scheduled_time) {
+        auto latency = std::chrono::duration_cast<std::chrono::seconds>(now - scheduled_time);
+        double latency_seconds = latency.count();
+        
+        // Record scheduled update latency metric
+        Metrics::getInstance().recordScheduledUpdateLatency(latency_seconds);
+        
+        // Record missed interval if more than 10 seconds late
+        if (latency_seconds > 10.0) {
+            Metrics::getInstance().recordMissedInterval();
+        }
+    }
 
     // Execute the update
     ObservationResult result = co_await session->run_update_async();
@@ -275,6 +295,17 @@ void ServerObserver::handle_game_ended(ObservationSession* session) {
     int game_id = session->game_id;
     std::cout << "Finished recording game " << game_id << " (game ended)" << std::endl;
 
+    // Get scenario_id before marking complete
+    int scenario_id = registry_->get_scenario_id(game_id);
+    
+    // Mark game complete in registry
+    registry_->mark_completed(game_id);
+    
+    // Record game completed metric
+    if (scenario_id >= 0) {
+        Metrics::getInstance().recordGameCompleted(scenario_id);
+    }
+    
     // Release account resources
     account_pool_->decrement_guest_join(session->account);
 
@@ -301,6 +332,29 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
     if (session->get_attempt() >= MAX_UPDATE_RETRIES) {
         std::cout << "Max retries reached for game " << game_id
                  << ". Ending observation due to: " << result.error_message << std::endl;
+        
+        // Convert error code to string for metrics
+        std::string error_type;
+        switch (result.error_code) {
+            case ObservationError::AUTH_FAILED:
+                error_type = "auth_failed";
+                break;
+            case ObservationError::SERVER_ERROR:
+                error_type = "server_error";
+                break;
+            case ObservationError::NETWORK_ERROR:
+                error_type = "network_error";
+                break;
+            case ObservationError::PACKAGE_CREATION_FAILED:
+                error_type = "package_creation_failed";
+                break;
+            default:
+                error_type = "unknown_error";
+                break;
+        }
+        
+        // Record game failed metric
+        Metrics::getInstance().recordGameFailed(error_type);
         
         // Clean up resources when max retries reached
         // Release account resources
@@ -453,6 +507,26 @@ void ServerObserver::print_update_statistics() {
     std::cout << "=========================" << std::endl;
 
     last_stats_print_time_ = now;
+    
+    // Update Prometheus metrics
+    Metrics::getInstance().updateRequestMetrics();
+    
+    // Update active games metrics by scenario
+    std::map<int, int> active_by_scenario;
+    {
+        std::lock_guard<std::mutex> session_lock(sessions_lock_);
+        for (const auto& [game_id, session] : observer_sessions_) {
+            int scenario_id = registry_->get_scenario_id(game_id);
+            if (scenario_id >= 0) {
+                active_by_scenario[scenario_id]++;
+            }
+        }
+    }
+    
+    // Set active games gauge for each scenario
+    for (const auto& [scenario_id, count] : active_by_scenario) {
+        Metrics::getInstance().setActiveGames(scenario_id, count);
+    }
 }
 
 bool ServerObserver::run() {

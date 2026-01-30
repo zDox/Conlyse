@@ -90,6 +90,19 @@ find_package(ZLIB REQUIRED)
 # OpenSSL for SHA1
 find_package(OpenSSL REQUIRED)
 
+# Prometheus C++ client library
+FetchContent_Declare(
+        prometheus-cpp
+        GIT_REPOSITORY https://github.com/jupp0r/prometheus-cpp.git
+        GIT_TAG v1.2.4
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+# Disable tests and benchmarks for prometheus-cpp
+set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(ENABLE_PUSH OFF CACHE BOOL "" FORCE)
+set(ENABLE_COMPRESSION ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(prometheus-cpp)
+
 # Include directories
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -115,6 +128,7 @@ set(SOURCES
         src/http_client.cpp
         src/request_manager.cpp
         src/proxy_config.cpp
+        src/metrics.cpp
 )
 
 # Create executable
@@ -139,6 +153,8 @@ target_link_libraries(server_observer
         Threads::Threads
         pybind11::embed
         Python3::Python  # Explicitly link to the found Python
+        prometheus-cpp::core
+        prometheus-cpp::pull
 )
 
 target_include_directories(server_observer
