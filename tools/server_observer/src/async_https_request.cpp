@@ -164,11 +164,6 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         response.timings.total_duration = response.latency;
 
         response.success = true;
-        
-        // Record latency for metrics
-        Metrics::getInstance().recordRequestLatency(
-            std::chrono::duration<double>(response.latency).count()
-        );
 
     } catch (const std::exception& e) {
         auto end_time = std::chrono::steady_clock::now();
@@ -177,6 +172,11 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         response.error_message = e.what();
         std::cerr << "Request failed: " << e.what() << std::endl;
     }
+    
+    // Record latency for metrics (both success and failure cases)
+    Metrics::getInstance().recordRequestLatency(
+        std::chrono::duration<double>(response.latency).count()
+    );
 
     co_return response;
 }

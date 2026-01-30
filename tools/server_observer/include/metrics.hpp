@@ -73,6 +73,7 @@ private:
     prometheus::Family<prometheus::Counter>* games_failed_family_;
     prometheus::Family<prometheus::Gauge>* active_games_family_;
     prometheus::Family<prometheus::Counter>* missed_intervals_counter_;
+    prometheus::Counter* missed_intervals_;
     
     prometheus::Family<prometheus::Gauge>* inflight_requests_gauge_;
     prometheus::Gauge* inflight_requests_current_;

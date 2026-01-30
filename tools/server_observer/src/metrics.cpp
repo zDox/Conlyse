@@ -21,6 +21,7 @@ Metrics::Metrics()
     , games_failed_family_(nullptr)
     , active_games_family_(nullptr)
     , missed_intervals_counter_(nullptr)
+    , missed_intervals_(nullptr)
     , inflight_requests_gauge_(nullptr)
     , inflight_requests_current_(nullptr)
     , requests_total_family_(nullptr)
@@ -85,6 +86,8 @@ bool Metrics::initialize(int port) {
             .Name("missed_update_intervals_total")
             .Help("Number of update intervals missed (>10s off schedule)")
             .Register(*registry_);
+        
+        missed_intervals_ = &missed_intervals_counter_->Add({});
         
         // Inflight requests gauge (Prometheus will calculate min/max/avg over time)
         inflight_requests_gauge_ = &prometheus::BuildGauge()
@@ -176,15 +179,15 @@ void Metrics::setActiveGames(int scenario_id, int count) {
 void Metrics::recordRequestStarted() {
     if (!enabled_) return;
     
-    current_inflight_++;
-    inflight_requests_current_->Set(current_inflight_.load());
+    size_t current = current_inflight_.fetch_add(1) + 1;
+    inflight_requests_current_->Set(current);
 }
 
 void Metrics::recordRequestCompleted() {
     if (!enabled_) return;
     
-    current_inflight_--;
-    inflight_requests_current_->Set(current_inflight_.load());
+    size_t current = current_inflight_.fetch_sub(1) - 1;
+    inflight_requests_current_->Set(current);
     requests_total_counter_->Increment();
 }
 
@@ -197,7 +200,7 @@ void Metrics::recordRequestLatency(double duration_seconds) {
 void Metrics::recordMissedInterval() {
     if (!enabled_) return;
     
-    missed_intervals_counter_->Add({}).Increment();
+    missed_intervals_->Increment();
 }
 
 void Metrics::recordScheduledUpdateLatency(double latency_seconds) {

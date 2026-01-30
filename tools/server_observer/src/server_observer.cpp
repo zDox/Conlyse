@@ -209,6 +209,9 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
     
     // Record game started metric
     Metrics::getInstance().recordGameStarted(scenario_id);
+    
+    // Update active games metrics
+    update_active_games_metrics();
 }
 
 void ServerObserver::resume_active() {
@@ -319,6 +322,9 @@ void ServerObserver::handle_game_ended(ObservationSession* session) {
     if (game_finder_) {
         game_finder_->mark_game_known(game_id);
     }
+    
+    // Update active games metrics
+    update_active_games_metrics();
 }
 
 void ServerObserver::handle_successful_update(ObservationSession* session) {
@@ -368,6 +374,9 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
             std::lock_guard lock(sessions_lock_);
             observer_sessions_.erase(game_id);
         }
+        
+        // Update active games metrics
+        update_active_games_metrics();
 
         return;
     }
@@ -508,6 +517,11 @@ void ServerObserver::print_update_statistics() {
 
     last_stats_print_time_ = now;
     
+    // Update active games metrics
+    update_active_games_metrics();
+}
+
+void ServerObserver::update_active_games_metrics() {
     // Update active games metrics by scenario
     std::map<int, int> active_by_scenario;
     {
