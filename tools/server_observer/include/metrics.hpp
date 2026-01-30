@@ -4,9 +4,6 @@
 #include <memory>
 #include <string>
 #include <atomic>
-#include <mutex>
-#include <deque>
-#include <chrono>
 #include <prometheus/registry.h>
 #include <prometheus/counter.h>
 #include <prometheus/gauge.h>
@@ -22,10 +19,11 @@
  * - Failed games (counter, by error type)
  * - Started games (counter, by scenario_id)
  * - Active games (gauge, by scenario_id)
- * - Inflight requests (gauge with histogram for min/max/avg over 300s)
- * - Requests per second (histogram for min/max/avg over 300s)
+ * - Inflight requests (gauge) - Prometheus will calculate min/max/avg over time
+ * - Request counter (counter) - Prometheus will calculate rate/rps over time
  * - Missed update intervals (counter)
  * - HTTP request latency (histogram)
+ * - Scheduled update latency (histogram)
  */
 class Metrics {
 public:
@@ -57,9 +55,6 @@ public:
     void recordMissedInterval();
     void recordScheduledUpdateLatency(double latency_seconds);
     
-    // Rolling window metrics for requests per second and inflight count
-    void updateRequestMetrics();
-    
 private:
     Metrics();
     ~Metrics();
@@ -79,17 +74,11 @@ private:
     prometheus::Family<prometheus::Gauge>* active_games_family_;
     prometheus::Family<prometheus::Counter>* missed_intervals_counter_;
     
-    prometheus::Family<prometheus::Gauge>* inflight_requests_family_;
+    prometheus::Family<prometheus::Gauge>* inflight_requests_gauge_;
     prometheus::Gauge* inflight_requests_current_;
-    prometheus::Gauge* inflight_requests_min_;
-    prometheus::Gauge* inflight_requests_max_;
-    prometheus::Gauge* inflight_requests_avg_;
     
-    prometheus::Family<prometheus::Gauge>* requests_per_second_family_;
-    prometheus::Gauge* requests_per_second_current_;
-    prometheus::Gauge* requests_per_second_min_;
-    prometheus::Gauge* requests_per_second_max_;
-    prometheus::Gauge* requests_per_second_avg_;
+    prometheus::Family<prometheus::Counter>* requests_total_family_;
+    prometheus::Counter* requests_total_counter_;
     
     prometheus::Family<prometheus::Histogram>* request_latency_family_;
     prometheus::Histogram* request_latency_histogram_;
@@ -97,27 +86,8 @@ private:
     prometheus::Family<prometheus::Histogram>* scheduled_update_latency_family_;
     prometheus::Histogram* scheduled_update_latency_histogram_;
     
-    // Rolling window tracking for min/max/avg calculations
-    std::mutex rolling_window_mutex_;
-    
-    struct RequestSnapshot {
-        std::chrono::system_clock::time_point timestamp;
-        size_t inflight_count;
-    };
-    
-    struct RpsSnapshot {
-        std::chrono::system_clock::time_point timestamp;
-        size_t completed_count;
-    };
-    
-    std::deque<RequestSnapshot> inflight_snapshots_;
-    std::deque<RpsSnapshot> rps_snapshots_;
-    std::atomic<size_t> total_requests_completed_;
+    // Simple atomic counter for inflight tracking
     std::atomic<size_t> current_inflight_;
-    
-    // Helper to calculate min/max/avg from rolling window
-    void updateInflightMetrics();
-    void updateRpsMetrics();
 };
 
 #endif // METRICS_HPP

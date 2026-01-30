@@ -508,9 +508,6 @@ void ServerObserver::print_update_statistics() {
 
     last_stats_print_time_ = now;
     
-    // Update Prometheus metrics
-    Metrics::getInstance().updateRequestMetrics();
-    
     // Update active games metrics by scenario
     std::map<int, int> active_by_scenario;
     {

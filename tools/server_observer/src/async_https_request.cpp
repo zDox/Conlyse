@@ -1,4 +1,5 @@
 #include "async_https_request.hpp"
+#include "metrics.hpp"
 #include <iostream>
 #include <zlib.h>
 #include <openssl/ssl.h>

@@ -1,15 +1,11 @@
 #include "metrics.hpp"
 #include <iostream>
-#include <algorithm>
 
 // Histogram buckets for request latency (in seconds)
 // Covers 10ms to 60s with exponential buckets
 static const std::vector<double> LATENCY_BUCKETS = {
     0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0
 };
-
-// Time window for rolling metrics (300 seconds = 5 minutes)
-static const auto ROLLING_WINDOW_DURATION = std::chrono::seconds(300);
 
 Metrics& Metrics::getInstance() {
     static Metrics instance;
@@ -25,21 +21,14 @@ Metrics::Metrics()
     , games_failed_family_(nullptr)
     , active_games_family_(nullptr)
     , missed_intervals_counter_(nullptr)
-    , inflight_requests_family_(nullptr)
+    , inflight_requests_gauge_(nullptr)
     , inflight_requests_current_(nullptr)
-    , inflight_requests_min_(nullptr)
-    , inflight_requests_max_(nullptr)
-    , inflight_requests_avg_(nullptr)
-    , requests_per_second_family_(nullptr)
-    , requests_per_second_current_(nullptr)
-    , requests_per_second_min_(nullptr)
-    , requests_per_second_max_(nullptr)
-    , requests_per_second_avg_(nullptr)
+    , requests_total_family_(nullptr)
+    , requests_total_counter_(nullptr)
     , request_latency_family_(nullptr)
     , request_latency_histogram_(nullptr)
     , scheduled_update_latency_family_(nullptr)
     , scheduled_update_latency_histogram_(nullptr)
-    , total_requests_completed_(0)
     , current_inflight_(0)
 {
 }
@@ -97,27 +86,21 @@ bool Metrics::initialize(int port) {
             .Help("Number of update intervals missed (>10s off schedule)")
             .Register(*registry_);
         
-        // Inflight requests metrics
-        inflight_requests_family_ = &prometheus::BuildGauge()
+        // Inflight requests gauge (Prometheus will calculate min/max/avg over time)
+        inflight_requests_gauge_ = &prometheus::BuildGauge()
             .Name("inflight_requests")
-            .Help("Number of in-flight HTTP requests")
+            .Help("Current number of in-flight HTTP requests")
             .Register(*registry_);
         
-        inflight_requests_current_ = &inflight_requests_family_->Add({{"stat", "current"}});
-        inflight_requests_min_ = &inflight_requests_family_->Add({{"stat", "min_300s"}});
-        inflight_requests_max_ = &inflight_requests_family_->Add({{"stat", "max_300s"}});
-        inflight_requests_avg_ = &inflight_requests_family_->Add({{"stat", "avg_300s"}});
+        inflight_requests_current_ = &inflight_requests_gauge_->Add({});
         
-        // Requests per second metrics
-        requests_per_second_family_ = &prometheus::BuildGauge()
-            .Name("requests_per_second")
-            .Help("HTTP requests per second statistics")
+        // Total requests counter (Prometheus will calculate rate/rps using rate() function)
+        requests_total_family_ = &prometheus::BuildCounter()
+            .Name("http_requests_total")
+            .Help("Total number of HTTP requests completed")
             .Register(*registry_);
         
-        requests_per_second_current_ = &requests_per_second_family_->Add({{"stat", "current"}});
-        requests_per_second_min_ = &requests_per_second_family_->Add({{"stat", "min_300s"}});
-        requests_per_second_max_ = &requests_per_second_family_->Add({{"stat", "max_300s"}});
-        requests_per_second_avg_ = &requests_per_second_family_->Add({{"stat", "avg_300s"}});
+        requests_total_counter_ = &requests_total_family_->Add({});
         
         // Request latency histogram
         request_latency_family_ = &prometheus::BuildHistogram()
@@ -143,6 +126,11 @@ bool Metrics::initialize(int port) {
         
         enabled_ = true;
         std::cout << "Metrics exposition started on " << bind_address << std::endl;
+        std::cout << "Use Prometheus queries like:" << std::endl;
+        std::cout << "  - rate(http_requests_total[5m]) for requests per second" << std::endl;
+        std::cout << "  - min_over_time(inflight_requests[5m]) for min inflight requests" << std::endl;
+        std::cout << "  - max_over_time(inflight_requests[5m]) for max inflight requests" << std::endl;
+        std::cout << "  - avg_over_time(inflight_requests[5m]) for avg inflight requests" << std::endl;
         return true;
         
     } catch (const std::exception& e) {
@@ -189,27 +177,15 @@ void Metrics::recordRequestStarted() {
     if (!enabled_) return;
     
     current_inflight_++;
-    
-    // Record snapshot for rolling window
-    std::lock_guard<std::mutex> lock(rolling_window_mutex_);
-    inflight_snapshots_.push_back({
-        std::chrono::system_clock::now(),
-        current_inflight_.load()
-    });
+    inflight_requests_current_->Set(current_inflight_.load());
 }
 
 void Metrics::recordRequestCompleted() {
     if (!enabled_) return;
     
     current_inflight_--;
-    total_requests_completed_++;
-    
-    // Record snapshot for RPS calculation
-    std::lock_guard<std::mutex> lock(rolling_window_mutex_);
-    rps_snapshots_.push_back({
-        std::chrono::system_clock::now(),
-        total_requests_completed_.load()
-    });
+    inflight_requests_current_->Set(current_inflight_.load());
+    requests_total_counter_->Increment();
 }
 
 void Metrics::recordRequestLatency(double duration_seconds) {
@@ -228,107 +204,4 @@ void Metrics::recordScheduledUpdateLatency(double latency_seconds) {
     if (!enabled_) return;
     
     scheduled_update_latency_histogram_->Observe(latency_seconds);
-}
-
-void Metrics::updateRequestMetrics() {
-    if (!enabled_) return;
-    
-    std::lock_guard<std::mutex> lock(rolling_window_mutex_);
-    
-    auto now = std::chrono::system_clock::now();
-    auto cutoff_time = now - ROLLING_WINDOW_DURATION;
-    
-    // Remove old snapshots
-    while (!inflight_snapshots_.empty() && 
-           inflight_snapshots_.front().timestamp < cutoff_time) {
-        inflight_snapshots_.pop_front();
-    }
-    
-    while (!rps_snapshots_.empty() && 
-           rps_snapshots_.front().timestamp < cutoff_time) {
-        rps_snapshots_.pop_front();
-    }
-    
-    // Update inflight metrics
-    updateInflightMetrics();
-    
-    // Update RPS metrics
-    updateRpsMetrics();
-}
-
-void Metrics::updateInflightMetrics() {
-    // Assumes lock is already held
-    
-    if (inflight_snapshots_.empty()) {
-        inflight_requests_current_->Set(0);
-        inflight_requests_min_->Set(0);
-        inflight_requests_max_->Set(0);
-        inflight_requests_avg_->Set(0);
-        return;
-    }
-    
-    size_t current = current_inflight_.load();
-    size_t min_val = current;
-    size_t max_val = current;
-    size_t sum = 0;
-    
-    for (const auto& snapshot : inflight_snapshots_) {
-        min_val = std::min(min_val, snapshot.inflight_count);
-        max_val = std::max(max_val, snapshot.inflight_count);
-        sum += snapshot.inflight_count;
-    }
-    
-    double avg = static_cast<double>(sum) / inflight_snapshots_.size();
-    
-    inflight_requests_current_->Set(current);
-    inflight_requests_min_->Set(min_val);
-    inflight_requests_max_->Set(max_val);
-    inflight_requests_avg_->Set(avg);
-}
-
-void Metrics::updateRpsMetrics() {
-    // Assumes lock is already held
-    
-    if (rps_snapshots_.size() < 2) {
-        requests_per_second_current_->Set(0);
-        requests_per_second_min_->Set(0);
-        requests_per_second_max_->Set(0);
-        requests_per_second_avg_->Set(0);
-        return;
-    }
-    
-    // Calculate RPS over 1-second windows
-    std::vector<double> rps_values;
-    
-    for (size_t i = 1; i < rps_snapshots_.size(); ++i) {
-        auto& prev = rps_snapshots_[i - 1];
-        auto& curr = rps_snapshots_[i];
-        
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            curr.timestamp - prev.timestamp
-        ).count() / 1000.0;
-        
-        if (duration > 0) {
-            double rps = static_cast<double>(curr.completed_count - prev.completed_count) / duration;
-            rps_values.push_back(rps);
-        }
-    }
-    
-    if (rps_values.empty()) {
-        requests_per_second_current_->Set(0);
-        requests_per_second_min_->Set(0);
-        requests_per_second_max_->Set(0);
-        requests_per_second_avg_->Set(0);
-        return;
-    }
-    
-    double current_rps = rps_values.back();
-    double min_rps = *std::min_element(rps_values.begin(), rps_values.end());
-    double max_rps = *std::max_element(rps_values.begin(), rps_values.end());
-    double avg_rps = std::accumulate(rps_values.begin(), rps_values.end(), 0.0) / rps_values.size();
-    
-    requests_per_second_current_->Set(current_rps);
-    requests_per_second_min_->Set(min_rps);
-    requests_per_second_max_->Set(max_rps);
-    requests_per_second_avg_->Set(avg_rps);
 }
