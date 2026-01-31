@@ -1,14 +1,7 @@
 services:
   server-observer:
-    # Option 1: Build from source (default)
-    build:
-      context: ../..
-      dockerfile: tools/server_observer/Dockerfile
-    image: server-observer:latest
-    
-    # Option 2: Use pre-built image from GHCR (comment out 'build' section above and uncomment below)
-    # image: ghcr.io/zdox/server-observer:latest
-    
+    # Use pre-built image from GitHub Container Registry
+    image: ghcr.io/zdox/server-observer:latest
     container_name: server-observer
     volumes:
       # Mount configuration directory

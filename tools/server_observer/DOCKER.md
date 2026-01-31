@@ -122,6 +122,8 @@ Mount these files into the `/app` directory in the container.
 
 ## Using Docker Compose (Recommended)
 
+### Option 1: Build from Source
+
 A `docker-compose.yml` file is provided for easier deployment:
 
 ```bash
@@ -130,10 +132,26 @@ docker-compose up --build
 ```
 
 This will:
-- Build the Docker image
+- Build the Docker image from source
 - Mount the `config` directory to `/app`
 - Mount `recordings` and `long_term_storage` directories for persistent data
 - Restart the container automatically unless stopped
+
+### Option 2: Use Pre-built Image from GHCR
+
+Use the `docker-compose.ghcr.yml` file to run the pre-built image:
+
+```bash
+# From the tools/server_observer directory
+docker-compose -f docker-compose.ghcr.yml up
+```
+
+This will:
+- Pull the latest image from GitHub Container Registry
+- No build step required - faster startup
+- Same volume mounts and configuration
+
+### Managing the Service
 
 To stop the service:
 ```bash
