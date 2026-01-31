@@ -4,11 +4,11 @@
 #include "server_observer.hpp"
 #include "account_pool.hpp"
 #include "hub_interface_wrapper.hpp"
+#include "metrics.hpp"
 
 static std::unique_ptr<ServerObserver> g_observer;
 
 void signal_handler(int signal) {
-    std::cout << "\nReceived signal " << signal << ", stopping..." << std::endl;
     if (g_observer) {
         g_observer->stop();
     }
@@ -66,7 +66,17 @@ int main(int argc, char* argv[]) {
     // Create and run server observer
     int exit_code = 0;
     try {
-        g_observer = std::make_unique<ServerObserver>(config, account_pool);
+        // Initialize metrics if enabled in config
+        if (config.contains("metrics_port") && !config["metrics_port"].is_null()) {
+            int metrics_port = config["metrics_port"].get<int>();
+            if (Metrics::getInstance().initialize(metrics_port)) {
+                std::cout << "Prometheus metrics enabled on port " << metrics_port << std::endl;
+            } else {
+                std::cerr << "Warning: Failed to initialize metrics on port " << metrics_port << std::endl;
+            }
+        }
+        
+        g_observer = std::make_unique<ServerObserver>(config, account_pool, config_file);
         
         std::cout << "Starting server observer..." << std::endl;
         bool success = g_observer->run();
@@ -87,6 +97,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Cleaning up observer..." << std::endl;
     g_observer.reset();
     std::cout << "Observer cleanup complete" << std::endl;
+    
+    // Shutdown metrics
+    Metrics::getInstance().shutdown();
 
     // Explicitly shutdown the Python interpreter to ensure proper cleanup order
     HubInterfaceWrapper::shutdown_python();

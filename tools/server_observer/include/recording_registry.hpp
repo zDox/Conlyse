@@ -18,6 +18,7 @@ public:
     
     bool is_known(int game_id) const;
     std::map<int, json> active() const;
+    int get_scenario_id(int game_id) const;
     
 private:
     std::string path_;

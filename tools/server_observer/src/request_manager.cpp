@@ -3,6 +3,7 @@
 //
 
 #include "request_manager.hpp"
+#include "metrics.hpp"
 #include <openssl/ssl.h>
 
 RequestManager::RequestManager(size_t num_threads, size_t max_in_flight)
@@ -54,9 +55,15 @@ void RequestManager::acquire_slot() {
         return in_flight_requests_.load() < max_in_flight_;
     });
     in_flight_requests_++;
+    
+    // Record request started for metrics
+    Metrics::getInstance().recordRequestStarted();
 }
 
 void RequestManager::release_slot() {
     in_flight_requests_--;
     slot_cv_.notify_one();
+    
+    // Record request completed for metrics
+    Metrics::getInstance().recordRequestCompleted();
 }
