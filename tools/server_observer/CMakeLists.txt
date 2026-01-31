@@ -94,7 +94,7 @@ find_package(OpenSSL REQUIRED)
 FetchContent_Declare(
         prometheus-cpp
         GIT_REPOSITORY https://github.com/jupp0r/prometheus-cpp.git
-        GIT_TAG v1.2.4
+        GIT_TAG v1.3.0
         DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 # Disable tests and benchmarks for prometheus-cpp
@@ -102,6 +102,15 @@ set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(ENABLE_PUSH OFF CACHE BOOL "" FORCE)
 set(ENABLE_COMPRESSION ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(prometheus-cpp)
+
+# Magic Enum (header-only enum reflection)
+FetchContent_Declare(
+        magic_enum
+        GIT_REPOSITORY https://github.com/Neargye/magic_enum.git
+        GIT_TAG v0.9.7
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(magic_enum)
 
 # Include directories
 include_directories(
@@ -161,6 +170,7 @@ target_include_directories(server_observer
         PRIVATE
         ${ZSTD_INCLUDE_DIRS}
         ${boost_SOURCE_DIR}
+        ${magic_enum_SOURCE_DIR}/include
 )
 
 # Installation
