@@ -13,7 +13,6 @@
 #include "observation_package.hpp"
 #include "request_manager.hpp"
 #include "proxy_config.hpp"
-#include <magic_enum.hpp>
 
 using json = nlohmann::json;
 namespace asio = boost::asio;
