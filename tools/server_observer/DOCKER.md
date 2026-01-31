@@ -95,16 +95,27 @@ docker run -v $(pwd)/config:/app server-observer:latest
 
 This mounts your local `config` directory to `/app` in the container where the application expects to find its configuration files.
 
+**Note for SELinux systems (Fedora, RHEL, CentOS):** Add `:z` to volume mounts:
+```bash
+docker run -v $(pwd)/config:/app:z server-observer:latest
+```
+
 ### With custom config files
 
 ```bash
 docker run -v /path/to/your/config:/app server-observer:latest server_observer /app/config.json /app/account_pool.json
+
+# On SELinux systems:
+docker run -v /path/to/your/config:/app:z server-observer:latest server_observer /app/config.json /app/account_pool.json
 ```
 
 ### Interactive mode
 
 ```bash
 docker run -it -v $(pwd)/config:/app server-observer:latest /bin/bash
+
+# On SELinux systems:
+docker run -it -v $(pwd)/config:/app:z server-observer:latest /bin/bash
 ```
 
 ## Configuration Files
@@ -173,12 +184,86 @@ To view logs:
 docker-compose logs -f
 ```
 
+## Troubleshooting
+
+### SELinux Permission Issues (Fedora, RHEL, CentOS)
+
+If you encounter the error:
+```
+error while loading shared libraries: cannot apply additional memory protection after relocation: Permission denied
+```
+
+This is caused by SELinux enforcing security policies on volume mounts. You have three options:
+
+**Option 1: Add `:z` or `:Z` to volume mounts (Recommended)**
+
+The `:z` flag allows sharing volumes between containers, while `:Z` provides private unshared volumes:
+
+```bash
+# For individual file mounts
+docker run \
+  -v $(pwd)/config.json:/app/config.json:z \
+  -v $(pwd)/account_pool.json:/app/account_pool.json:z \
+  server-observer:latest
+
+# For directory mounts
+docker run -v $(pwd)/config:/app:z server-observer:latest
+```
+
+For docker-compose, add `:z` to volume definitions:
+```yaml
+volumes:
+  - ./config:/app:z
+  - ./recordings:/app/recordings:z
+```
+
+**Option 2: Set SELinux context on host files**
+
+```bash
+# Apply the container file context
+chcon -Rt svirt_sandbox_file_t config.json account_pool.json
+
+# Or for a directory
+chcon -Rt svirt_sandbox_file_t config/
+```
+
+**Option 3: Temporarily disable SELinux enforcement (Not recommended for production)**
+
+```bash
+# Check SELinux status
+getenforce
+
+# Temporarily set to permissive mode
+sudo setenforce 0
+
+# Re-enable after testing
+sudo setenforce 1
+```
+
+**Note:** Using `--privileged` is NOT recommended as it grants excessive permissions to the container.
+
+### Other Common Issues
+
+**Python module not found:**
+- Ensure you're using the correct image tag
+- Check that the virtual environment is properly configured (should be automatic in the image)
+
+**Container exits immediately:**
+- Verify config files are properly mounted
+- Check container logs: `docker logs <container_id>`
+- Ensure config.json and account_pool.json have valid JSON syntax
+
+**Build failures:**
+- Ensure Docker has enough memory (recommend 4GB+)
+- Check that you're building from the repository root
+- Clear Docker build cache: `docker builder prune`
+
 ## Development
 
 For development with live code changes, you can mount the source code:
 
 ```bash
-docker run -it -v $(pwd):/src -v $(pwd)/config:/app server-observer:latest /bin/bash
+docker run -it -v $(pwd):/src:z -v $(pwd)/config:/app:z server-observer:latest /bin/bash
 ```
 
 Then rebuild inside the container as needed.

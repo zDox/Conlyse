@@ -5,6 +5,8 @@ services:
     container_name: server-observer
     volumes:
       # Mount configuration directory
+      # Note: On SELinux systems (Fedora/RHEL/CentOS), add :z flag if you get permission errors
+      # Example: - ./config:/app:z
       - ./config:/app
       # Mount recordings directory (optional - for persistent storage)
       - ./recordings:/app/recordings

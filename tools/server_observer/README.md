@@ -40,6 +40,8 @@ docker-compose up --build
 
 **The config files are mounted as volumes** - they are NOT built into the image.
 
+**SELinux users (Fedora, RHEL, CentOS):** If you get permission errors, add `:z` to volume mounts or see [DOCKER.md](DOCKER.md) troubleshooting section.
+
 ## Building from Source
 
 See [CMakeLists.txt](CMakeLists.txt) for build requirements.
