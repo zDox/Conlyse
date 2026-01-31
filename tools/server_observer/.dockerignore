@@ -1,0 +1,52 @@
+# Git files
+.git
+.github
+.gitignore
+
+# Python cache and build artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+*.whl
+.eggs
+.pytest_cache
+.coverage
+htmlcov
+
+# Documentation
+docs/_build
+docs/build
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test files
+tests
+performance_tests
+examples
+
+# CMake build artifacts (in server_observer)
+tools/server_observer/build
+tools/server_observer/.cache
+
+# Other tools
+tools/recorder
+tools/replay_debug
+tools/recording_converter
+
+# Temporary files
+*.log
+tmp
+temp
