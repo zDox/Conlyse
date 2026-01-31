@@ -14,6 +14,28 @@ The ServerObserver is a C++ application that embeds Python and uses the `conflic
 - Docker installed on your system
 - The repository cloned locally
 
+## Quick Start
+
+1. **Navigate to the server_observer directory**:
+   ```bash
+   cd tools/server_observer
+   ```
+
+2. **Copy and configure the example files**:
+   ```bash
+   mkdir -p config
+   cp config.example.json config/config.json
+   cp account_pool.example.json config/account_pool.json
+   # Edit config/config.json and config/account_pool.json with your settings
+   ```
+
+3. **Build and run with docker-compose**:
+   ```bash
+   docker-compose up --build
+   ```
+
+That's it! The ServerObserver will start and connect using your configured accounts.
+
 ## Building the Docker Image
 
 ### Using the build script (recommended)
@@ -68,7 +90,36 @@ The ServerObserver expects the following configuration files:
 - `config.json` - Main configuration file
 - `account_pool.json` - Account pool configuration
 
+Example configuration files are provided:
+- `config.example.json` - Copy this to `config.json` and customize
+- `account_pool.example.json` - Copy this to `account_pool.json` and add your accounts
+
 Mount these files into the `/app` directory in the container.
+
+## Using Docker Compose (Recommended)
+
+A `docker-compose.yml` file is provided for easier deployment:
+
+```bash
+# From the tools/server_observer directory
+docker-compose up --build
+```
+
+This will:
+- Build the Docker image
+- Mount the `config` directory to `/app`
+- Mount `recordings` and `long_term_storage` directories for persistent data
+- Restart the container automatically unless stopped
+
+To stop the service:
+```bash
+docker-compose down
+```
+
+To view logs:
+```bash
+docker-compose logs -f
+```
 
 ## Architecture Details
 
