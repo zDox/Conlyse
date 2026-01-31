@@ -1,15 +1,16 @@
 #include "server_observer.hpp"
 #include "game_finder.hpp"
+#include "metrics.hpp"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <chrono>
 #include <algorithm>
+#include <magic_enum/magic_enum.hpp>
 
 namespace fs = std::filesystem;
 
 static const int MAX_UPDATE_RETRIES = 3;
-
 ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> account_pool)
     : ServerObserver(config, account_pool, "")
 {
@@ -205,6 +206,12 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
         std::lock_guard<std::mutex> lock(sessions_lock_);
         observer_sessions_[game_id] = std::move(observer);
     }
+    
+    // Record game started metric
+    Metrics::getInstance().recordGameStarted(scenario_id);
+    
+    // Update active games metrics
+    update_active_games_metrics();
 }
 
 void ServerObserver::resume_active() {
@@ -240,6 +247,21 @@ void ServerObserver::resume_active() {
 
 asio::awaitable<void> ServerObserver::run_single_update_async(ObservationSession* session) {
     int game_id = session->game_id;
+    
+    // Calculate scheduled latency (how late we are vs. scheduled time)
+    auto now = std::chrono::system_clock::now();
+    auto scheduled_time = session->next_update_at;
+    if (now > scheduled_time) {
+        auto latency = std::chrono::duration<double>(now - scheduled_time).count();
+        
+        // Record scheduled update latency metric
+        Metrics::getInstance().recordScheduledUpdateLatency(latency);
+        
+        // Record missed interval if more than 10 seconds late
+        if (latency > 10.0) {
+            Metrics::getInstance().recordMissedInterval();
+        }
+    }
 
     // Execute the update
     ObservationResult result = co_await session->run_update_async();
@@ -275,6 +297,17 @@ void ServerObserver::handle_game_ended(ObservationSession* session) {
     int game_id = session->game_id;
     std::cout << "Finished recording game " << game_id << " (game ended)" << std::endl;
 
+    // Get scenario_id before marking complete
+    int scenario_id = registry_->get_scenario_id(game_id);
+    
+    // Mark game complete in registry
+    registry_->mark_completed(game_id);
+    
+    // Record game completed metric
+    if (scenario_id >= 0) {
+        Metrics::getInstance().recordGameCompleted(scenario_id);
+    }
+    
     // Release account resources
     account_pool_->decrement_guest_join(session->account);
 
@@ -288,6 +321,9 @@ void ServerObserver::handle_game_ended(ObservationSession* session) {
     if (game_finder_) {
         game_finder_->mark_game_known(game_id);
     }
+    
+    // Update active games metrics
+    update_active_games_metrics();
 }
 
 void ServerObserver::handle_successful_update(ObservationSession* session) {
@@ -302,6 +338,12 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
         std::cout << "Max retries reached for game " << game_id
                  << ". Ending observation due to: " << result.error_message << std::endl;
         
+        // Convert error code to string for metrics
+        std::string error_type = std::string(magic_enum::enum_name(result.error_code));
+
+        // Record game failed metric
+        Metrics::getInstance().recordGameFailed(error_type);
+
         // Clean up resources when max retries reached
         // Release account resources
         account_pool_->decrement_guest_join(session->account);
@@ -314,6 +356,9 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
             std::lock_guard lock(sessions_lock_);
             observer_sessions_.erase(game_id);
         }
+
+        // Update active games metrics
+        update_active_games_metrics();
 
         return;
     }
@@ -453,6 +498,28 @@ void ServerObserver::print_update_statistics() {
     std::cout << "=========================" << std::endl;
 
     last_stats_print_time_ = now;
+
+    // Update active games metrics
+    update_active_games_metrics();
+}
+
+void ServerObserver::update_active_games_metrics() {
+    // Update active games metrics by scenario
+    std::map<int, int> active_by_scenario;
+    {
+        std::lock_guard<std::mutex> session_lock(sessions_lock_);
+        for (const auto& [game_id, session] : observer_sessions_) {
+            int scenario_id = registry_->get_scenario_id(game_id);
+            if (scenario_id >= 0) {
+                active_by_scenario[scenario_id]++;
+            }
+        }
+    }
+
+    // Set active games gauge for each scenario
+    for (const auto& [scenario_id, count] : active_by_scenario) {
+        Metrics::getInstance().setActiveGames(scenario_id, count);
+    }
 }
 
 bool ServerObserver::run() {
@@ -478,7 +545,7 @@ bool ServerObserver::run() {
                     std::lock_guard<std::mutex> lock(sessions_lock_);
                     can_start = observer_sessions_.size() < static_cast<size_t>(max_parallel_recordings_);
                 }
-                
+
                 if (can_start) {
                     start_observation_session(game_id, scenario_id);
                 } else {
@@ -508,11 +575,11 @@ void ServerObserver::check_and_reload_config() {
     auto now = std::chrono::system_clock::now();
     auto duration_since_last_check = std::chrono::duration_cast<std::chrono::seconds>(
         now - last_config_check_time_).count();
-    
+
     if (duration_since_last_check < 1) {
         return;
     }
-    
+
     last_config_check_time_ = now;
 
     try {
@@ -527,11 +594,11 @@ void ServerObserver::check_and_reload_config() {
         // Compare with last known modification time
         if (current_modified_time != last_config_modified_time_) {
             std::cout << "Config file change detected, reloading..." << std::endl;
-            
+
             // Load the new config
             std::ifstream config_stream(config_file_path_);
             if (!config_stream.is_open()) {
-                std::cerr << "Error: Could not open config file for reload: " 
+                std::cerr << "Error: Could not open config file for reload: "
                          << config_file_path_ << std::endl;
                 return;
             }
@@ -549,7 +616,7 @@ void ServerObserver::check_and_reload_config() {
 
             // Update the last modified time
             last_config_modified_time_ = current_modified_time;
-            
+
             std::cout << "Config reloaded successfully" << std::endl;
         }
     } catch (const std::exception& e) {
@@ -564,13 +631,13 @@ void ServerObserver::reload_config(const json& new_config) {
     // Reload max_parallel_recordings with validation
     int new_max_parallel_recordings = new_config.value("max_parallel_recordings", 1);
     if (new_max_parallel_recordings < 1) {
-        std::cerr << "Warning: Invalid max_parallel_recordings value " 
+        std::cerr << "Warning: Invalid max_parallel_recordings value "
                  << new_max_parallel_recordings << ", must be >= 1. Keeping current value." << std::endl;
     } else if (new_max_parallel_recordings != max_parallel_recordings_.load()) {
-        std::cout << "Updated max_parallel_recordings: " << max_parallel_recordings_.load() 
+        std::cout << "Updated max_parallel_recordings: " << max_parallel_recordings_.load()
                  << " -> " << new_max_parallel_recordings << std::endl;
         max_parallel_recordings_.store(new_max_parallel_recordings);
-        
+
         // Update GameFinder as well
         if (game_finder_) {
             game_finder_->set_max_parallel_recordings(new_max_parallel_recordings);
@@ -580,11 +647,11 @@ void ServerObserver::reload_config(const json& new_config) {
     // Reload update_interval with validation
     double new_update_interval = new_config.value("update_interval", 60.0);
     if (new_update_interval <= 0.0) {
-        std::cerr << "Warning: Invalid update_interval value " 
+        std::cerr << "Warning: Invalid update_interval value "
                  << new_update_interval << ", must be > 0. Keeping current value." << std::endl;
     } else if (new_update_interval != update_interval_) {
         update_interval_ = new_update_interval;
-        
+
         // Update scheduler with new interval
         if (scheduler_) {
             scheduler_->set_update_interval(new_update_interval);
@@ -640,7 +707,7 @@ void ServerObserver::reload_config(const json& new_config) {
     if (new_config.contains("file_size_threshold")) {
         int new_file_size_threshold = new_config.value("file_size_threshold", 0);
         if (new_file_size_threshold != file_size_threshold_) {
-            std::cout << "Updated file_size_threshold: " << file_size_threshold_ 
+            std::cout << "Updated file_size_threshold: " << file_size_threshold_
                      << " -> " << new_file_size_threshold << std::endl;
             std::cout << "Note: file_size_threshold change only affects new observation sessions" << std::endl;
             file_size_threshold_ = new_file_size_threshold;
@@ -671,7 +738,7 @@ void ServerObserver::reload_config_from_file() {
         // Load the new config
         std::ifstream config_stream(config_file_path_);
         if (!config_stream.is_open()) {
-            std::cerr << "Error: Could not open config file for reload: " 
+            std::cerr << "Error: Could not open config file for reload: "
                      << config_file_path_ << std::endl;
             return;
         }
