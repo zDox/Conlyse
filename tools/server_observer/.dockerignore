@@ -50,3 +50,11 @@ tools/recording_converter
 *.log
 tmp
 temp
+
+# Configuration files - these MUST be mounted at runtime, not embedded in the image
+tools/server_observer/config.json
+tools/server_observer/account_pool.json
+config.json
+account_pool.json
+*.config.json
+*account_pool.json

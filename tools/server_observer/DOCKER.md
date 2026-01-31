@@ -9,6 +9,15 @@ The ServerObserver is a C++ application that embeds Python and uses the `conflic
 1. **Build Stage**: Compile the C++ application with all dependencies and install the Python package
 2. **Runtime Stage**: Create a minimal image with only runtime dependencies
 
+## ⚠️ Important: Configuration Files
+
+**Configuration files are NOT embedded in the Docker image.** The image is built without `config.json` and `account_pool.json` to ensure:
+- Sensitive credentials are never stored in the image
+- Configuration can be updated without rebuilding the image
+- Different environments can use the same image with different configs
+
+**You MUST mount these files at runtime** using volume mounts. See the Quick Start section below.
+
 ## Prerequisites
 
 - Docker installed on your system
@@ -109,16 +118,26 @@ docker run -it -v $(pwd)/config:/app server-observer:latest /bin/bash
 
 ## Configuration Files
 
-The ServerObserver expects the following configuration files:
+**⚠️ CRITICAL: Configuration files are NOT included in the Docker image.**
+
+The ServerObserver expects the following configuration files to be mounted at runtime:
 
 - `config.json` - Main configuration file
 - `account_pool.json` - Account pool configuration
 
-Example configuration files are provided:
+### Why configuration files are not embedded:
+
+1. **Security**: Prevents credentials from being stored in the Docker image
+2. **Flexibility**: Update configuration without rebuilding the image
+3. **Multi-environment**: Use the same image with different configurations
+
+### Setup Instructions:
+
+Example configuration files are provided in this directory:
 - `config.example.json` - Copy this to `config.json` and customize
 - `account_pool.example.json` - Copy this to `account_pool.json` and add your accounts
 
-Mount these files into the `/app` directory in the container.
+**These files MUST be mounted** into the `/app` directory in the container using volume mounts (see examples below).
 
 ## Using Docker Compose (Recommended)
 

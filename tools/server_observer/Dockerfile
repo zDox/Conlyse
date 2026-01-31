@@ -62,5 +62,10 @@ ENV PYTHONUNBUFFERED=1
 # Create working directory for config files
 WORKDIR /app
 
+# IMPORTANT: config.json and account_pool.json are NOT included in this image
+# These files MUST be mounted at runtime via volume mount to /app
+# Example: docker run -v $(pwd)/config:/app server-observer:latest
+# See DOCKER.md for details on configuration
+
 # Default command
 CMD ["server_observer"]
