@@ -87,21 +87,15 @@ docker build \
     -t "${FULL_IMAGE_NAME}" \
     "${BUILD_CONTEXT}"
 
-# Check if build was successful
-if [ $? -eq 0 ]; then
-    echo ""
-    print_info "✓ Build completed successfully!"
-    echo ""
-    print_info "Image details:"
-    docker images "${IMAGE_NAME}" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
-    echo ""
-    print_info "To run the container:"
-    echo "  docker run -v \$(pwd)/config:/app ${FULL_IMAGE_NAME}"
-    echo ""
-    print_info "To run with custom config:"
-    echo "  docker run -v /path/to/config:/app ${FULL_IMAGE_NAME} server_observer /app/config.json /app/account_pool.json"
-else
-    echo ""
-    print_error "Build failed!"
-    exit 1
-fi
+# With set -e, we only reach here if the build succeeded
+echo ""
+print_info "✓ Build completed successfully!"
+echo ""
+print_info "Image details:"
+docker images "${IMAGE_NAME}" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
+echo ""
+print_info "To run the container:"
+echo "  docker run -v \$(pwd)/config:/app ${FULL_IMAGE_NAME}"
+echo ""
+print_info "To run with custom config:"
+echo "  docker run -v /path/to/config:/app ${FULL_IMAGE_NAME} server_observer /app/config.json /app/account_pool.json"

@@ -41,10 +41,14 @@ That's it! The ServerObserver will start and connect using your configured accou
 ### Using the build script (recommended)
 
 ```bash
+# Make sure the script is executable
+chmod +x tools/server_observer/build_docker.sh
+
 # From the repository root
 ./tools/server_observer/build_docker.sh
 
 # Or from the tools/server_observer directory
+chmod +x build_docker.sh
 ./build_docker.sh
 ```
 
