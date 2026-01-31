@@ -9,15 +9,6 @@ The ServerObserver is a C++ application that embeds Python and uses the `conflic
 1. **Build Stage**: Compile the C++ application with all dependencies and install the Python package
 2. **Runtime Stage**: Create a minimal image with only runtime dependencies
 
-## ⚠️ Important: Configuration Files
-
-**Configuration files are NOT embedded in the Docker image.** The image is built without `config.json` and `account_pool.json` to ensure:
-- Sensitive credentials are never stored in the image
-- Configuration can be updated without rebuilding the image
-- Different environments can use the same image with different configs
-
-**You MUST mount these files at runtime** using volume mounts. See the Quick Start section below.
-
 ## Prerequisites
 
 - Docker installed on your system
@@ -181,57 +172,6 @@ To view logs:
 ```bash
 docker-compose logs -f
 ```
-
-## Architecture Details
-
-### Python Integration
-
-The application embeds Python 3.12 using pybind11. The Dockerfile ensures:
-
-1. Python 3.12 is installed with development headers
-2. The `conflict_interface` package is installed in a virtual environment at `/opt/venv`
-3. The virtual environment is activated via environment variables (`VIRTUAL_ENV`, `PATH`)
-4. The CMake build uses the virtual environment's Python executable
-
-### Build Process
-
-1. **Dependencies**: System packages (cmake, gcc, libraries) are installed
-2. **Python Setup**: A virtual environment is created and the `conflict_interface` package is installed with the `tools-server-observer` extra
-3. **CMake Build**: The C++ application is built, linking against the virtual environment's Python
-4. **Runtime Image**: Only the compiled binary and virtual environment are copied to the final image
-
-### Environment Variables
-
-- `VIRTUAL_ENV=/opt/venv` - Points to the Python virtual environment
-- `PATH=/opt/venv/bin:$PATH` - Ensures virtual environment binaries are used
-- `PYTHONUNBUFFERED=1` - Ensures Python output is not buffered
-
-## Troubleshooting
-
-### Python module not found
-
-If you get errors about missing Python modules, ensure the `conflict_interface` package and its dependencies are properly installed. The build process should handle this automatically.
-
-### Build failures
-
-Check that:
-- Docker has enough memory (recommend 4GB+)
-- You're building from the repository root
-- All required files are present
-
-### Runtime errors
-
-If the application fails to start:
-- Verify your config files are properly mounted
-- Check the container logs: `docker logs <container_id>`
-- Ensure the virtual environment is activated (it should be by default)
-
-## Image Size Optimization
-
-The multi-stage build significantly reduces the final image size by:
-- Not including build tools in the runtime image
-- Only copying necessary runtime dependencies
-- Using Python slim image as the base
 
 ## Development
 

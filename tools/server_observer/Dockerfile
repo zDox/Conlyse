@@ -27,7 +27,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Install the conflict_interface package with all its dependencies
 # Use the tools-server-observer extra to get httpx with socks support
-RUN pip install --no-cache-dir -e ".[tools-server-observer]"
+RUN pip install --no-cache-dir ".[tools-server-observer]"
 
 # Build the C++ application
 WORKDIR /build/tools/server_observer
@@ -61,11 +61,6 @@ ENV PYTHONUNBUFFERED=1
 
 # Create working directory for config files
 WORKDIR /app
-
-# IMPORTANT: config.json and account_pool.json are NOT included in this image
-# These files MUST be mounted at runtime via volume mount to /app
-# Example: docker run -v $(pwd)/config:/app server-observer:latest
-# See DOCKER.md for details on configuration
 
 # Default command
 CMD ["server_observer"]
