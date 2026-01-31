@@ -36,6 +36,26 @@ The ServerObserver is a C++ application that embeds Python and uses the `conflic
 
 That's it! The ServerObserver will start and connect using your configured accounts.
 
+## Pre-built Images
+
+Docker images are automatically built and published to GitHub Container Registry (GHCR) on every push to the `main` branch.
+
+### Pull from GHCR
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/zdox/server-observer:latest
+
+# Run the pre-built image
+docker run -v $(pwd)/config:/app ghcr.io/zdox/server-observer:latest
+```
+
+### Available Tags
+
+- `latest` - Latest build from the main branch
+- `main-<sha>` - Specific commit from main branch
+- `main` - Latest from main branch
+
 ## Building the Docker Image
 
 ### Using the build script (recommended)
@@ -185,3 +205,42 @@ docker run -it -v $(pwd):/src -v $(pwd)/config:/app server-observer:latest /bin/
 ```
 
 Then rebuild inside the container as needed.
+
+## GitHub Actions CI/CD
+
+The repository includes a GitHub Actions workflow that automatically builds and publishes Docker images.
+
+### Workflow Details
+
+- **Trigger**: Automatically runs on push to `main` branch when changes are made to:
+  - `tools/server_observer/**`
+  - `conflict_interface/**`
+  - `setup.py` or `pyproject.toml`
+  - The workflow file itself
+  
+- **Manual Trigger**: Can also be triggered manually via workflow_dispatch
+
+- **Output**: Images are pushed to GitHub Container Registry (GHCR) at `ghcr.io/zdox/server-observer`
+
+### Using CI-Built Images
+
+```bash
+# Pull the latest automatically-built image
+docker pull ghcr.io/zdox/server-observer:latest
+
+# Run it
+docker run -v $(pwd)/config:/app ghcr.io/zdox/server-observer:latest
+```
+
+### Workflow File
+
+The workflow is defined in `.github/workflows/docker-build.yml` and includes:
+- Docker Buildx setup for optimized builds
+- Multi-platform support (linux/amd64)
+- Layer caching for faster builds
+- Automatic tagging with git SHA and branch name
+- Push to GHCR with proper authentication
+
+### Viewing Build Status
+
+Check the Actions tab in the GitHub repository to see the status of Docker builds: `https://github.com/zDox/ConflictInterface/actions`
