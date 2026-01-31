@@ -1,0 +1,10 @@
+{
+  "COMMENT": "Example account pool for ServerObserver - Copy to account_pool.json and add your accounts",
+  "accounts": [
+    {
+      "username": "your_username",
+      "password": "your_password"
+    }
+  ],
+  "proxies": []
+}
