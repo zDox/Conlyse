@@ -252,14 +252,13 @@ asio::awaitable<void> ServerObserver::run_single_update_async(ObservationSession
     auto now = std::chrono::system_clock::now();
     auto scheduled_time = session->next_update_at;
     if (now > scheduled_time) {
-        auto latency = std::chrono::duration_cast<std::chrono::seconds>(now - scheduled_time);
-        double latency_seconds = latency.count();
+        auto latency = std::chrono::duration<double>(now - scheduled_time).count();
         
         // Record scheduled update latency metric
-        Metrics::getInstance().recordScheduledUpdateLatency(latency_seconds);
+        Metrics::getInstance().recordScheduledUpdateLatency(latency);
         
         // Record missed interval if more than 10 seconds late
-        if (latency_seconds > 10.0) {
+        if (latency > 10.0) {
             Metrics::getInstance().recordMissedInterval();
         }
     }

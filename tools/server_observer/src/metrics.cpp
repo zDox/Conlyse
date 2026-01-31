@@ -3,7 +3,7 @@
 
 // Histogram buckets for request latency (in seconds)
 // Covers 10ms to 60s with exponential buckets
-static const std::vector<double> LATENCY_BUCKETS = {
+static const std::vector LATENCY_BUCKETS = {
     0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0
 };
 
@@ -130,10 +130,6 @@ bool Metrics::initialize(int port) {
         enabled_ = true;
         std::cout << "Metrics exposition started on " << bind_address << std::endl;
         std::cout << "Use Prometheus queries like:" << std::endl;
-        std::cout << "  - rate(http_requests_total[5m]) for requests per second" << std::endl;
-        std::cout << "  - min_over_time(inflight_requests[5m]) for min inflight requests" << std::endl;
-        std::cout << "  - max_over_time(inflight_requests[5m]) for max inflight requests" << std::endl;
-        std::cout << "  - avg_over_time(inflight_requests[5m]) for avg inflight requests" << std::endl;
         return true;
         
     } catch (const std::exception& e) {
