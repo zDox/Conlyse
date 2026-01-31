@@ -135,3 +135,19 @@ std::map<int, json> RecordingRegistry::active() const {
     
     return result;
 }
+
+int RecordingRegistry::get_scenario_id(int game_id) const {
+    std::lock_guard<std::mutex> lock(lock_);
+    std::string game_id_str = std::to_string(game_id);
+    
+    // Check recording bucket
+    if (state_.contains("recording") && state_["recording"].is_object() && 
+        state_["recording"].contains(game_id_str)) {
+        const auto& meta = state_["recording"][game_id_str];
+        if (meta.contains("scenario_id")) {
+            return meta["scenario_id"].get<int>();
+        }
+    }
+    
+    return -1; // Unknown scenario
+}

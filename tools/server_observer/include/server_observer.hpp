@@ -78,6 +78,7 @@ private:
     void start_due_updates();
 
     void print_update_statistics();
+    void update_active_games_metrics();
 
     // Helper methods for run_single_update_async
     void record_update_completion();
