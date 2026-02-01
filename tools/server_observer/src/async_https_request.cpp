@@ -177,6 +177,9 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
     Metrics::getInstance().recordRequestLatency(
         std::chrono::duration<double>(response.latency).count()
     );
+    
+    // Record request completed for metrics
+    Metrics::getInstance().recordRequestCompleted();
 
     co_return response;
 }
