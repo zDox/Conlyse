@@ -115,11 +115,22 @@ int64_t Scheduler::calculate_offset_ms(int game_id) const {
 
 int64_t Scheduler::calculate_next_k(int64_t current_time_ms, int64_t offset_ms) const {
     auto update_interval_ms = std::chrono::duration_cast<std::chrono::milliseconds>(update_interval_);
+    int64_t interval_count = update_interval_ms.count();
+    
+    // Safety check: interval must be positive
+    if (interval_count <= 0) {
+        std::cerr << "Error: update_interval must be positive" << std::endl;
+        return 1;  // Return safe default
+    }
+    
+    // Handle case where current time is before the offset
+    if (current_time_ms <= offset_ms) {
+        return 0;  // Next update is at k=0 (at offset_ms)
+    }
     
     // Find smallest k where k * update_interval + offset > current_time
-    int64_t k = (current_time_ms - offset_ms) / update_interval_ms.count();
-    if ((current_time_ms - offset_ms) % update_interval_ms.count() > 0 || 
-        current_time_ms <= offset_ms) {
+    int64_t k = (current_time_ms - offset_ms) / interval_count;
+    if ((current_time_ms - offset_ms) % interval_count > 0) {
         k++;  // Round up to ensure next_update_time > current_time
     }
     
