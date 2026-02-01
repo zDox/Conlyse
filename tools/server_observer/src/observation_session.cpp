@@ -26,7 +26,7 @@ ObservationSession::ObservationSession(
       , metadata_path_(std::move(metadata_path))
       , long_term_storage_path_(std::move(long_term_storage_path))
       , file_size_threshold_(file_size_threshold)
-      , package_(), storage_(nullptr), api_(nullptr), attempt_(1) {
+      , package_(), storage_(nullptr), api_(nullptr), attempt_(1), update_sequence_number(0) {
     next_update_at = std::chrono::system_clock::now();
 }
 

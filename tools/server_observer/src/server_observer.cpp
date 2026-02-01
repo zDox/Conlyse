@@ -195,7 +195,8 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
 
     account_pool_->increment_guest_join(account);
 
-    observer->next_update_at = std::chrono::system_clock::now();
+    // Initialize the session's schedule using the new formula
+    scheduler_->initialize_session_schedule(observer.get());
 
     // Mark as first update and schedule
     scheduler_->mark_first_update(game_id);
@@ -332,8 +333,18 @@ void ServerObserver::handle_game_ended(ObservationSession* session) {
 }
 
 void ServerObserver::handle_successful_update(ObservationSession* session) {
+    // Check if we're running late and missed an update interval
+    auto now = std::chrono::system_clock::now();
+    auto latency = now - session->next_update_at;
+    
+    // Convert update_interval to the same units for comparison
+    auto update_interval_duration = std::chrono::duration<double>(update_interval_);
+    
+    // If we're more than one update interval late, we missed an update
+    bool missed_update = std::chrono::duration<double>(latency).count() > update_interval_duration.count();
+    
     // Schedule next update at standard interval
-    scheduler_->schedule_next_update(session);
+    scheduler_->schedule_next_update(session, missed_update);
 }
 
 void ServerObserver::handle_failed_update(ObservationSession* session, const ObservationResult& result) {
