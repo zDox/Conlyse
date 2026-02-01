@@ -82,26 +82,18 @@ void Scheduler::schedule_immediate_update(ObservationSession* session) {
 }
 
 void Scheduler::schedule_next_update(ObservationSession* session, bool missed_update) {
-    // Calculate the offset based on game_id: offset = game_id % update_interval
     auto update_interval_ms = std::chrono::duration_cast<std::chrono::milliseconds>(update_interval_);
-    int64_t offset_ms = session->game_id % update_interval_ms.count();
-    auto offset = std::chrono::milliseconds(offset_ms);
+    int64_t offset_ms = calculate_offset_ms(session->game_id);
     
     auto now = std::chrono::system_clock::now();
     
-    // If we missed an update, calculate how many intervals were missed
     if (missed_update) {
-        // Calculate what k should be for now
+        // Recalculate k based on current time
         auto time_since_epoch_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             now.time_since_epoch()
         ).count();
         
-        int64_t current_k = (time_since_epoch_ms - offset_ms) / update_interval_ms.count();
-        if ((time_since_epoch_ms - offset_ms) % update_interval_ms.count() > 0) {
-            current_k++;  // Round up to get the next k
-        }
-        
-        session->update_sequence_number = static_cast<int>(current_k);
+        session->update_sequence_number = calculate_next_k(time_since_epoch_ms, offset_ms);
     } else {
         // Normal case: increment k by 1
         session->update_sequence_number++;
@@ -114,6 +106,24 @@ void Scheduler::schedule_next_update(ObservationSession* session, bool missed_up
     session->next_update_at = std::chrono::system_clock::time_point(time_since_epoch);
     
     schedule_update(session);
+}
+
+int64_t Scheduler::calculate_offset_ms(int game_id) const {
+    auto update_interval_ms = std::chrono::duration_cast<std::chrono::milliseconds>(update_interval_);
+    return game_id % update_interval_ms.count();
+}
+
+int64_t Scheduler::calculate_next_k(int64_t current_time_ms, int64_t offset_ms) const {
+    auto update_interval_ms = std::chrono::duration_cast<std::chrono::milliseconds>(update_interval_);
+    
+    // Find smallest k where k * update_interval + offset > current_time
+    int64_t k = (current_time_ms - offset_ms) / update_interval_ms.count();
+    if ((current_time_ms - offset_ms) % update_interval_ms.count() > 0 || 
+        current_time_ms <= offset_ms) {
+        k++;  // Round up to ensure next_update_time > current_time
+    }
+    
+    return k;
 }
 
 void Scheduler::mark_first_update(int game_id) {
@@ -315,28 +325,20 @@ void Scheduler::set_max_parallel_first_updates(int max_first_updates) {
 }
 
 void Scheduler::initialize_session_schedule(ObservationSession* session) {
-    // Calculate the offset based on game_id: offset = game_id % update_interval
     auto update_interval_ms = std::chrono::duration_cast<std::chrono::milliseconds>(update_interval_);
-    int64_t offset_ms = session->game_id % update_interval_ms.count();
+    int64_t offset_ms = calculate_offset_ms(session->game_id);
     
     auto now = std::chrono::system_clock::now();
     auto time_since_epoch_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         now.time_since_epoch()
     ).count();
     
-    // Find smallest k where k * update_interval + offset > current_time
-    // k = ceil((current_time - offset) / update_interval)
-    int64_t k = (time_since_epoch_ms - offset_ms) / update_interval_ms.count();
-    if ((time_since_epoch_ms - offset_ms) % update_interval_ms.count() > 0 || 
-        time_since_epoch_ms <= offset_ms) {
-        k++;  // Round up to ensure next_update_time > current_time
-    }
-    
-    session->update_sequence_number = static_cast<int>(k);
+    // Calculate smallest k where k * update_interval + offset > current_time
+    session->update_sequence_number = calculate_next_k(time_since_epoch_ms, offset_ms);
     
     // Calculate next update time: k * update_interval + offset
     auto time_since_epoch = std::chrono::milliseconds(
-        k * update_interval_ms.count() + offset_ms
+        session->update_sequence_number * update_interval_ms.count() + offset_ms
     );
     session->next_update_at = std::chrono::system_clock::time_point(time_since_epoch);
 }

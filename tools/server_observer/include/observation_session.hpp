@@ -90,7 +90,7 @@ public:
     int game_id;
     std::shared_ptr<Account> account;
     std::chrono::system_clock::time_point next_update_at;
-    int update_sequence_number;  // Tracks k value in the formula: k*update_interval + game_id % update_interval
+    int64_t update_sequence_number;  // Tracks k value in the formula: k*update_interval + game_id % update_interval
 
     bool needs_update(std::chrono::system_clock::time_point now) const;
     void reset_package();

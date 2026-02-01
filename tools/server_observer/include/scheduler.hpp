@@ -235,6 +235,24 @@ private:
     std::atomic<bool> stop_flag_;
 
     /**
+     * Calculate the time offset for a given game_id
+     * Offset = game_id % update_interval
+     *
+     * @param game_id The game ID
+     * @return The offset in milliseconds
+     */
+    int64_t calculate_offset_ms(int game_id) const;
+
+    /**
+     * Calculate the smallest k where k * update_interval + offset > current_time
+     *
+     * @param current_time_ms Current time in milliseconds since epoch
+     * @param offset_ms Offset in milliseconds
+     * @return The calculated k value
+     */
+    int64_t calculate_next_k(int64_t current_time_ms, int64_t offset_ms) const;
+
+    /**
      * Check if a session can start its update based on concurrency limits
      *
      * @param session The session to check
