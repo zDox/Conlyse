@@ -211,6 +211,7 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
             std::string new_server(new_server_view);
             result.error_message += ": " + new_server;
             cli_->set_url("https://" + new_server);
+            game_server_address_ = "https://" + new_server;
         }
         return result;
     }

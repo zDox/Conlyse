@@ -90,6 +90,7 @@ public:
     int game_id;
     std::shared_ptr<Account> account;
     std::chrono::system_clock::time_point next_update_at;
+    int64_t update_sequence_number;  // Tracks k value in the formula: k*update_interval + game_id % update_interval
 
     bool needs_update(std::chrono::system_clock::time_point now) const;
     void reset_package();
@@ -97,6 +98,9 @@ public:
     asio::awaitable<ObservationResult> run_update_async();
     void set_attempt(int attempt);
     int get_attempt();
+
+    void increment_attempt();
+    void reset_attempt();
 private:
     // RAII guard for storage logging lifecycle
     class LoggingGuard {

@@ -22,15 +22,15 @@ Metrics::Metrics()
     , active_games_family_(nullptr)
     , missed_intervals_counter_(nullptr)
     , missed_intervals_(nullptr)
-    , inflight_requests_gauge_(nullptr)
-    , inflight_requests_current_(nullptr)
+    , inflight_game_updates_gauge_(nullptr)
+    , inflight_game_updates_current_(nullptr)
     , requests_total_family_(nullptr)
     , requests_total_counter_(nullptr)
     , request_latency_family_(nullptr)
     , request_latency_histogram_(nullptr)
     , scheduled_update_latency_family_(nullptr)
     , scheduled_update_latency_histogram_(nullptr)
-    , current_inflight_(0)
+    , current_inflight_game_updates_(0)
 {
 }
 
@@ -89,13 +89,13 @@ bool Metrics::initialize(int port) {
         
         missed_intervals_ = &missed_intervals_counter_->Add({});
         
-        // Inflight requests gauge (Prometheus will calculate min/max/avg over time)
-        inflight_requests_gauge_ = &prometheus::BuildGauge()
-            .Name("inflight_requests")
-            .Help("Current number of in-flight HTTP requests")
+        // Inflight game updates gauge (Prometheus will calculate min/max/avg over time)
+        inflight_game_updates_gauge_ = &prometheus::BuildGauge()
+            .Name("inflight_game_updates")
+            .Help("Current number of in-flight game update operations")
             .Register(*registry_);
         
-        inflight_requests_current_ = &inflight_requests_gauge_->Add({});
+        inflight_game_updates_current_ = &inflight_game_updates_gauge_->Add({});
         
         // Total requests counter (Prometheus will calculate rate/rps using rate() function)
         requests_total_family_ = &prometheus::BuildCounter()
@@ -172,18 +172,23 @@ void Metrics::setActiveGames(int scenario_id, int count) {
     active_games_family_->Add({{"scenario_id", std::to_string(scenario_id)}}).Set(count);
 }
 
-void Metrics::recordRequestStarted() {
+void Metrics::recordGameUpdateStarted() {
     if (!enabled_) return;
     
-    size_t current = current_inflight_.fetch_add(1) + 1;
-    inflight_requests_current_->Set(current);
+    size_t current = current_inflight_game_updates_.fetch_add(1) + 1;
+    inflight_game_updates_current_->Set(current);
+}
+
+void Metrics::recordGameUpdateCompleted() {
+    if (!enabled_) return;
+    
+    size_t current = current_inflight_game_updates_.fetch_sub(1) - 1;
+    inflight_game_updates_current_->Set(current);
 }
 
 void Metrics::recordRequestCompleted() {
     if (!enabled_) return;
     
-    size_t current = current_inflight_.fetch_sub(1) - 1;
-    inflight_requests_current_->Set(current);
     requests_total_counter_->Increment();
 }
 

@@ -53,7 +53,7 @@ http://localhost:9090/metrics
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
 | `http_requests_total` | Counter | - | Total number of HTTP requests completed |
-| `inflight_requests` | Gauge | - | Current number of in-flight HTTP requests |
+| `inflight_game_updates` | Gauge | - | Current number of in-flight game update operations |
 | `http_request_duration_seconds` | Histogram | `client=httpclient` | HTTP request latency distribution |
 
 **Histogram Buckets:** 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0 seconds

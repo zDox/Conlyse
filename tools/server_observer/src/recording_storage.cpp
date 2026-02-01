@@ -6,6 +6,8 @@
 #include <zstd.h>
 #include <ctime>
 #include <iomanip>
+#include <cerrno>
+#include <cstring>
 
 namespace fs = std::filesystem;
 
@@ -217,7 +219,9 @@ void RecordingStorage::append_bytes_to_file(const std::string& file_path,
                                             const std::vector<uint8_t>& data) {
     std::ofstream file(file_path, std::ios::binary | std::ios::app);
     if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file for appending: " + file_path);
+        const char* reason = std::strerror(errno);
+        throw std::runtime_error(std::string("Failed to open file for appending: ") + file_path +
+                                 " (" + reason + ")");
     }
     
     // Write timestamp (8 bytes, big-endian)
@@ -234,7 +238,7 @@ void RecordingStorage::append_bytes_to_file(const std::string& file_path,
     }
     
     // Write compressed data
-    file.write(reinterpret_cast<const char*>(data.data()), data.size());
+    file.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
 }
 
 void RecordingStorage::save_response(std::string&& response_str) {
