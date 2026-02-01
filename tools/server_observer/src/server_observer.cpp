@@ -62,8 +62,7 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     map_cache_ = std::make_shared<StaticMapCache>(output_dir_ + "/static_maps");
 
     request_manager_ = std::make_shared<RequestManager>(
-        config.value("request_manager_threads", 1),
-        config.value("max_in_flight_requests", 100)
+        config.value("request_manager_threads", 1)
     );
     
     // Initialize Scheduler
@@ -248,6 +247,9 @@ void ServerObserver::resume_active() {
 asio::awaitable<void> ServerObserver::run_single_update_async(ObservationSession* session) {
     int game_id = session->game_id;
     
+    // Record game update started for metrics
+    Metrics::getInstance().recordGameUpdateStarted();
+    
     // Calculate scheduled latency (how late we are vs. scheduled time)
     auto now = std::chrono::system_clock::now();
     auto scheduled_time = session->next_update_at;
@@ -283,6 +285,9 @@ asio::awaitable<void> ServerObserver::run_single_update_async(ObservationSession
     // Cleanup first update tracking
     scheduler_->cleanup_first_update_tracking(game_id);
 
+    // Record game update completed for metrics
+    Metrics::getInstance().recordGameUpdateCompleted();
+    
     // Decrement the active coroutine counter to allow new updates to start
     scheduler_->decrement_active_coroutines();
 }

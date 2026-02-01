@@ -61,9 +61,6 @@ asio::awaitable<HttpResponse> HttpClient::Post_async(
     const std::string& body,
     const std::string& content_type) {
     
-    // Acquire a request slot (blocks if max in-flight reached)
-    RequestManager::RequestSlot slot(*manager_);
-
     auto request = std::make_shared<AsyncHttpsRequest>(
         manager_->get_io_context(), manager_->get_ssl_context(), timeout_, proxy_);
 
@@ -93,9 +90,6 @@ HttpResponse HttpClient::Get(const Headers& headers) {
 asio::awaitable<HttpResponse> HttpClient::Get_async(
     const Headers& headers) {
     
-    // Acquire a request slot (blocks if max in-flight reached)
-    RequestManager::RequestSlot slot(*manager_);
-
     auto request = std::make_shared<AsyncHttpsRequest>(
         manager_->get_io_context(), manager_->get_ssl_context(), timeout_, proxy_);
 

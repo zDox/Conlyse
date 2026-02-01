@@ -6,11 +6,9 @@
 #include "metrics.hpp"
 #include <openssl/ssl.h>
 
-RequestManager::RequestManager(size_t num_threads, size_t max_in_flight)
+RequestManager::RequestManager(size_t num_threads)
     : ssl_context_(ssl::context::tls_client),
-      work_guard_(asio::make_work_guard(io_context_)),
-      max_in_flight_(max_in_flight),
-      in_flight_requests_(0) {
+      work_guard_(asio::make_work_guard(io_context_)) {
 
     // Configure SSL context
     ssl_context_.set_default_verify_paths();
@@ -47,23 +45,4 @@ RequestManager::~RequestManager() {
     for (auto& t : threads_) {
         if (t.joinable()) t.join();
     }
-}
-
-void RequestManager::acquire_slot() {
-    std::unique_lock<std::mutex> lock(slot_mutex_);
-    slot_cv_.wait(lock, [this]() {
-        return in_flight_requests_.load() < max_in_flight_;
-    });
-    in_flight_requests_++;
-    
-    // Record request started for metrics
-    Metrics::getInstance().recordRequestStarted();
-}
-
-void RequestManager::release_slot() {
-    in_flight_requests_--;
-    slot_cv_.notify_one();
-    
-    // Record request completed for metrics
-    Metrics::getInstance().recordRequestCompleted();
 }

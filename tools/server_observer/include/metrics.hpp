@@ -19,7 +19,7 @@
  * - Failed games (counter, by error type)
  * - Started games (counter, by scenario_id)
  * - Active games (gauge, by scenario_id)
- * - Inflight requests (gauge) - Prometheus will calculate min/max/avg over time
+ * - Inflight game updates (gauge) - Current number of in-flight game update operations
  * - Request counter (counter) - Prometheus will calculate rate/rps over time
  * - Missed update intervals (counter)
  * - HTTP request latency (histogram)
@@ -46,8 +46,11 @@ public:
     void recordGameFailed(const std::string& error_type);
     void setActiveGames(int scenario_id, int count);
     
+    // Game update metrics
+    void recordGameUpdateStarted();
+    void recordGameUpdateCompleted();
+    
     // Request metrics
-    void recordRequestStarted();
     void recordRequestCompleted();
     void recordRequestLatency(double duration_seconds);
     
@@ -75,8 +78,8 @@ private:
     prometheus::Family<prometheus::Counter>* missed_intervals_counter_;
     prometheus::Counter* missed_intervals_;
     
-    prometheus::Family<prometheus::Gauge>* inflight_requests_gauge_;
-    prometheus::Gauge* inflight_requests_current_;
+    prometheus::Family<prometheus::Gauge>* inflight_game_updates_gauge_;
+    prometheus::Gauge* inflight_game_updates_current_;
     
     prometheus::Family<prometheus::Counter>* requests_total_family_;
     prometheus::Counter* requests_total_counter_;
@@ -87,8 +90,8 @@ private:
     prometheus::Family<prometheus::Histogram>* scheduled_update_latency_family_;
     prometheus::Histogram* scheduled_update_latency_histogram_;
     
-    // Simple atomic counter for inflight tracking
-    std::atomic<size_t> current_inflight_;
+    // Simple atomic counter for inflight game updates tracking
+    std::atomic<size_t> current_inflight_game_updates_;
 };
 
 #endif // METRICS_HPP
