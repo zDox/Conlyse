@@ -119,7 +119,7 @@ int64_t Scheduler::calculate_next_k(int64_t current_time_ms, int64_t offset_ms) 
     
     // Safety check: interval must be positive
     if (interval_count <= 0) {
-        std::cerr << "Error: update_interval must be positive" << std::endl;
+        std::cerr << "Error: update_interval must be positive, got " << interval_count << " ms" << std::endl;
         return 1;  // Return safe default
     }
     

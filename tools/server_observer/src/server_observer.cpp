@@ -337,11 +337,11 @@ void ServerObserver::handle_successful_update(ObservationSession* session) {
     auto now = std::chrono::system_clock::now();
     auto latency = now - session->next_update_at;
     
-    // Convert update_interval to the same units for comparison
-    auto update_interval_duration = std::chrono::duration<double>(update_interval_);
+    // Convert update_interval to seconds for comparison
+    auto update_interval_seconds = std::chrono::duration<double>(update_interval_);
     
     // If we're more than one update interval late, we missed an update
-    bool missed_update = std::chrono::duration<double>(latency).count() > update_interval_duration.count();
+    bool missed_update = std::chrono::duration<double>(latency).count() > update_interval_seconds.count();
     
     // Schedule next update at standard interval
     scheduler_->schedule_next_update(session, missed_update);
