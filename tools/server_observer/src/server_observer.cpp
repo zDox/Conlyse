@@ -2,7 +2,6 @@
 #include "game_finder.hpp"
 #include "metrics.hpp"
 #include <iostream>
-#include <iomanip>
 #include <fstream>
 #include <chrono>
 #include <algorithm>
@@ -20,16 +19,10 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     : config_(config)
     , account_pool_(account_pool)
     , stop_flag_(false)
-    , total_updates_completed_(0)
     , config_file_path_(config_path)
     , last_config_modified_time_()  // Initialize to default
     , last_config_check_time_()     // Initialize to default
 {
-    // Initialize statistics timing
-    stats_start_time_ = std::chrono::system_clock::now();
-    last_stats_print_time_ = stats_start_time_;
-    last_config_check_time_ = stats_start_time_;
-
     max_parallel_recordings_ = config.value("max_parallel_recordings", 1);
     int max_parallel_updates = config.value("max_parallel_updates", 1);
     int max_parallel_first_updates = config.value("max_parallel_first_updates", 1);
@@ -271,9 +264,6 @@ asio::awaitable<void> ServerObserver::run_single_update_async(ObservationSession
 
     std::cout << "Finished update for game " << game_id << std::endl;
 
-    // Record completion statistics
-    record_update_completion();
-
     // Handle the result based on game state
     if (result.game_ended) {
         handle_game_ended(session);
@@ -291,12 +281,6 @@ asio::awaitable<void> ServerObserver::run_single_update_async(ObservationSession
     
     // Decrement the active coroutine counter to allow new updates to start
     scheduler_->decrement_active_coroutines();
-}
-
-void ServerObserver::record_update_completion() {
-    ++total_updates_completed_;
-    std::lock_guard lock(stats_lock_);
-    update_timestamps_.push_back(std::chrono::system_clock::now());
 }
 
 void ServerObserver::handle_game_ended(ObservationSession* session) {
@@ -345,6 +329,9 @@ void ServerObserver::handle_successful_update(ObservationSession* session) {
     
     // Schedule next update at standard interval
     scheduler_->schedule_next_update(session, missed_update);
+
+    // Reset attempt counter on success
+    session->reset_attempt();
 }
 
 void ServerObserver::handle_failed_update(ObservationSession* session, const ObservationResult& result) {
@@ -378,6 +365,7 @@ void ServerObserver::handle_failed_update(ObservationSession* session, const Obs
 
         return;
     }
+    session->increment_attempt();
     if (result.error_code == ObservationError::NETWORK_ERROR) {
         // Reset Proxy
         if (account_pool_->reset_account_proxy(session->account)) {
@@ -447,78 +435,6 @@ void ServerObserver::start_due_updates() {
     scheduler_->process_due_updates();
 }
 
-
-void ServerObserver::print_update_statistics() {
-    auto now = std::chrono::system_clock::now();
-
-    std::lock_guard<std::mutex> lock(stats_lock_);
-
-    // Calculate time since last print
-    auto duration_since_last = std::chrono::duration_cast<std::chrono::seconds>(
-        now - last_stats_print_time_).count();
-
-    // Only print every 10 seconds
-    if (duration_since_last < 10) {
-        return;
-    }
-
-    // Remove timestamps older than 30 seconds from the rolling window
-    auto window_start = now - std::chrono::seconds(30);
-    while (!update_timestamps_.empty() && update_timestamps_.front() < window_start) {
-        update_timestamps_.pop_front();
-    }
-
-    // Calculate rolling window statistics
-    size_t updates_in_window = update_timestamps_.size();
-    double window_rate = updates_in_window / 30.0;  // Updates per second in the last 30 seconds
-
-    // Calculate overall statistics
-    auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(
-        now - stats_start_time_).count();
-
-    uint64_t total_updates = total_updates_completed_.load();
-
-    double overall_rate = (total_duration > 0) ?
-        static_cast<double>(total_updates) / total_duration : 0.0;
-
-    // Get current active sessions count
-    size_t active_sessions = 0;
-    {
-        std::lock_guard<std::mutex> session_lock(sessions_lock_);
-        active_sessions = observer_sessions_.size();
-    }
-
-    std::cout << "=== Update Statistics ===" << std::endl;
-    std::cout << "Total updates completed: " << total_updates << std::endl;
-    std::cout << "Total runtime: " << total_duration << " seconds" << std::endl;
-    std::cout << "Overall average updates/sec: " << std::fixed << std::setprecision(3)
-              << overall_rate << std::endl;
-    std::cout << "Rolling 30s window: " << updates_in_window << " updates, "
-              << std::fixed << std::setprecision(3) << window_rate << " updates/sec" << std::endl;
-    std::cout << "Active observation sessions: " << active_sessions << std::endl;
-
-    // Scheduler metrics
-    std::cout << "--- Scheduler Metrics ---" << std::endl;
-    std::cout << "Update queue size: " << scheduler_->get_queue_size() << std::endl;
-    std::cout << "Active coroutines: " << scheduler_->get_active_coroutines() << std::endl;
-    std::cout << "First updates tracked: " << scheduler_->get_first_update_count() << std::endl;
-    std::cout << "First updates running: " << scheduler_->get_running_first_updates_count() << std::endl;
-    double next_due = scheduler_->get_seconds_until_next_due();
-    if (next_due > 0) {
-        std::cout << "Next update due in: " << std::fixed << std::setprecision(1)
-                  << next_due << " seconds" << std::endl;
-    } else if (scheduler_->get_queue_size() > 0) {
-        std::cout << "Updates available for processing now" << std::endl;
-    }
-
-    std::cout << "=========================" << std::endl;
-
-    last_stats_print_time_ = now;
-
-    // Update active games metrics
-    update_active_games_metrics();
-}
-
 void ServerObserver::update_active_games_metrics() {
     // Update active games metrics by scenario
     std::map<int, int> active_by_scenario;
@@ -571,7 +487,6 @@ bool ServerObserver::run() {
             }
 
             start_due_updates();
-            print_update_statistics();
         }
         return true;
     } catch (const std::exception& e) {

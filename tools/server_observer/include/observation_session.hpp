@@ -98,6 +98,9 @@ public:
     asio::awaitable<ObservationResult> run_update_async();
     void set_attempt(int attempt);
     int get_attempt();
+
+    void increment_attempt();
+    void reset_attempt();
 private:
     // RAII guard for storage logging lifecycle
     class LoggingGuard {

@@ -59,13 +59,6 @@ private:
     std::condition_variable stop_cv_;
     std::shared_ptr<StaticMapCache> map_cache_;
 
-    // Statistics tracking
-    std::atomic<uint64_t> total_updates_completed_;
-    std::chrono::system_clock::time_point stats_start_time_;
-    std::chrono::system_clock::time_point last_stats_print_time_;
-    std::mutex stats_lock_;
-    std::deque<std::chrono::system_clock::time_point> update_timestamps_;  // Rolling window of update times
-
     // Config file watching
     std::string config_file_path_;
     std::filesystem::file_time_type last_config_modified_time_;
@@ -77,11 +70,9 @@ private:
     asio::awaitable<void> run_single_update_async(ObservationSession* session);
     void start_due_updates();
 
-    void print_update_statistics();
     void update_active_games_metrics();
 
     // Helper methods for run_single_update_async
-    void record_update_completion();
     void handle_game_ended(ObservationSession* session);
     void handle_successful_update(ObservationSession* session);
     void handle_failed_update(ObservationSession* session, const ObservationResult& result);

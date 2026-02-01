@@ -351,5 +351,13 @@ void Scheduler::initialize_session_schedule(ObservationSession* session) {
         session->update_sequence_number * update_interval_ms.count() + offset_ms
     );
     session->next_update_at = std::chrono::system_clock::time_point(time_since_epoch);
+
+    // Log a positive wait duration until the first update
+    auto wait_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(
+        session->next_update_at - now
+    ).count();
+    std::cout << "First update for game " << session->game_id
+              << " scheduled at " << session->next_update_at
+              << " in " << wait_seconds << "ms" << std::endl;
 }
 

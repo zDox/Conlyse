@@ -36,20 +36,11 @@ public:
 
     void clear_proxy();
 
-    // Synchronous POST request
-    HttpResponse Post(
-        const Headers &headers,
-        const std::string &body,
-        const std::string &content_type);
-
     // Asynchronous POST request
     asio::awaitable<HttpResponse> Post_async(
         const Headers &headers,
         const std::string &body,
         const std::string &content_type);
-
-    // Synchronous GET request
-    HttpResponse Get(const Headers &headers = {});
 
     // Asynchronous GET request
     asio::awaitable<HttpResponse> Get_async(

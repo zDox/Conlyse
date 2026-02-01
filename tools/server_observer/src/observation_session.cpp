@@ -41,6 +41,14 @@ void ObservationSession::set_proxy(const ProxyConfig& proxy_config) {
     package_.proxy = proxy_config;
 }
 
+void ObservationSession::increment_attempt() {
+    attempt_++;
+}
+
+void ObservationSession::reset_attempt() {
+    attempt_ = 1;
+}
+
 bool ObservationSession::needs_update(std::chrono::system_clock::time_point now) const {
     return now >= next_update_at;
 }
@@ -170,8 +178,6 @@ ObservationSession::LoggingGuard::~LoggingGuard() noexcept {
 // Convert GameServerError to ObservationResult
 ObservationResult ObservationSession::handle_game_server_error(const GameServerResult& result) {
     // Increment attempt counter for all other failures
-    attempt_++;
-
     switch (result.error_code) {
         case GameServerError::AUTH_ERROR:
             reset_package();
@@ -197,9 +203,6 @@ ObservationResult ObservationSession::handle_game_server_error(const GameServerR
 
 // Process successful game state response
 void ObservationSession::process_successful_response(GameServerResult& result) {
-    // Reset attempt counter on success
-    attempt_ = 0;
-
     // Update package with new auth and connection details
     api_->update_package(package_);
 
