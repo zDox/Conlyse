@@ -124,15 +124,14 @@ int64_t Scheduler::calculate_next_k(int64_t current_time_ms, int64_t offset_ms) 
     }
     
     // Handle case where current time is before the offset
-    if (current_time_ms <= offset_ms) {
+    if (current_time_ms < offset_ms) {
         return 0;  // Next update is at k=0 (at offset_ms)
     }
     
-    // Find smallest k where k * update_interval + offset > current_time
-    int64_t k = (current_time_ms - offset_ms) / interval_count;
-    if ((current_time_ms - offset_ms) % interval_count > 0) {
-        k++;  // Round up to ensure next_update_time > current_time
-    }
+    // Find smallest k where k * interval_count + offset_ms > current_time_ms
+    // This is equivalent to: k > (current_time_ms - offset_ms) / interval_count
+    // So k = floor((current_time_ms - offset_ms) / interval_count) + 1
+    int64_t k = (current_time_ms - offset_ms) / interval_count + 1;
     
     return k;
 }
