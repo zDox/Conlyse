@@ -124,16 +124,29 @@ def make_replay_patch_dict(rp: BidirectionalReplayPatch, path: list[str], origin
     """
     removed_keys = set(original.keys())
     for item_key, item_value in other.items():
+        str_item_key = item_key
+        if type(item_key) not in (int, str):
+            if isinstance(item_key, Enum):
+                str_item_key = item_key.value
+            else:
+                raise TypeError("Dict Key is neither int,str nor enum")
+
         if item_key in removed_keys:
             removed_keys.remove(item_key)
 
         if item_key not in original:
-            rp.add(path + [item_key], item_value)
+            rp.add(path + [str_item_key], item_value)
         elif original.get(item_key) != item_value:
-            make_replay_patch_any(rp, path + [item_key], original[item_key], item_value)
+            make_replay_patch_any(rp, path + [str_item_key], original[item_key], item_value)
 
     for removed_key in removed_keys:
-        rp.remove(path + [removed_key], original[removed_key])
+        str_removed_key = removed_key
+        if type(removed_key) not in (int, str):
+            if isinstance(removed_key, Enum):
+                str_removed_key = removed_key.value
+            else:
+                raise TypeError("Dict Key is neither int,str nor enum")
+        rp.remove(path + [str_removed_key], original[removed_key])
 
 
 def make_replay_patch_simple(rp: BidirectionalReplayPatch, path: list[str], original: Any, other: Any):
