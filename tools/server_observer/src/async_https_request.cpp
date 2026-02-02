@@ -155,6 +155,9 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
             co_return response;
         }
 
+        // Record compressed response size for metrics
+        Metrics::getInstance().recordResponseSize(response.data.size());
+
         // Step 7: Post-processing
         decompress_if_needed(response);
 

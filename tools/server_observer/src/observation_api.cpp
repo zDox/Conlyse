@@ -78,8 +78,8 @@ asio::awaitable<HttpResponse> ObservationApi::request_game_state_async(std::map<
         action["stateIDs"] = state_ids_json;
         action["stateIDs"]["@c"] = "java.util.HashMap";
 
-        action["timeStamps"] = time_stamps_json;
-        action["timeStamps"]["@c"] = "java.util.HashMap";
+        action["tstamps"] = time_stamps_json;
+        action["tstamps"]["@c"] = "java.util.HashMap";
     }
 
     action["actions"] = json::array({
@@ -133,6 +133,7 @@ asio::awaitable<HttpResponse> ObservationApi::request_game_state_async(std::map<
 
     // Send request asynchronously and return awaitable response
     std::string body = payload.dump();
+    std::cout << "Sending body" << game_id_ << " " << body << std::endl;
     co_return co_await cli_->Post_async(req_headers, body, "application/json");
 }
 
