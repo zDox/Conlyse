@@ -7,13 +7,18 @@
 #include <boost/asio/awaitable.hpp>
 #include <nlohmann/json.hpp>
 #include "account.hpp"
+#include "observation_api.hpp"
 #include "static_map_cache.hpp"
 #include "recording_storage.hpp"
-#include "observation_api.hpp"
+#include "observation_package.hpp"
+#include "request_manager.hpp"
 #include "proxy_config.hpp"
 
 using json = nlohmann::json;
 namespace asio = boost::asio;
+
+// Forward declaration
+class ObservationApi;
 
 // Error codes for observation updates
 enum class ObservationError {
@@ -32,7 +37,7 @@ struct ObservationResult {
     std::string error_message;
     bool game_ended; // True -> stop observing, False -> reschedule
 
-    ObservationResult(ObservationError code, bool game_ended = false, std::string msg = "")
+    explicit ObservationResult(ObservationError code, bool game_ended = false, std::string msg = "")
         : error_code(code), error_message(std::move(msg)), game_ended(game_ended) {}
 
     static ObservationResult make_success(bool game_ended) {
@@ -66,22 +71,6 @@ struct ObservationResult {
     bool is_success() const { return error_code == ObservationError::SUCCESS; }
 };
 
-struct ObservationPackage {
-    int game_id = 0;
-    std::map<std::string, std::string> headers;
-    std::map<std::string, std::string> cookies;
-    ProxyConfig proxy;
-    AuthDetails auth;
-    int client_version = 0;
-    std::string game_server_address;
-    std::map<std::string, std::string> time_stamps;
-    std::map<std::string, std::string> state_ids;
-
-    json to_json() const;
-
-    static ObservationPackage from_json(const json &j);
-};
-
 class ObservationSession {
 public:
     ObservationSession(
@@ -96,9 +85,12 @@ public:
 
     ~ObservationSession();
 
+    void set_proxy(const ProxyConfig &proxy_config);
+
     int game_id;
     std::shared_ptr<Account> account;
     std::chrono::system_clock::time_point next_update_at;
+    int64_t update_sequence_number;  // Tracks k value in the formula: k*update_interval + game_id % update_interval
 
     bool needs_update(std::chrono::system_clock::time_point now) const;
     void reset_package();
@@ -106,7 +98,22 @@ public:
     asio::awaitable<ObservationResult> run_update_async();
     void set_attempt(int attempt);
     int get_attempt();
+
+    void increment_attempt();
+    void reset_attempt();
 private:
+    // RAII guard for storage logging lifecycle
+    class LoggingGuard {
+    public:
+        explicit LoggingGuard(RecordingStorage* storage);
+        ~LoggingGuard() noexcept;
+
+        LoggingGuard(const LoggingGuard&) = delete;
+        LoggingGuard& operator=(const LoggingGuard&) = delete;
+    private:
+        RecordingStorage* storage_;
+    };
+
     std::shared_ptr<RequestManager> manager_;
     std::shared_ptr<StaticMapCache> map_cache_;
     std::unique_ptr<ObservationApi> api_;
@@ -124,10 +131,14 @@ private:
 
     ObservationPackage create_observation_package();
 
-
     bool ensure_static_map_data(ObservationApi &api, int map_id);
 
     void on_request_response(std::string&& response_str);
+
+    // Helper methods for run_update_async
+    ObservationResult handle_game_server_error(const GameServerResult& result);
+
+    void process_successful_response(GameServerResult& result);
 };
 
 #endif // OBSERVATION_SESSION_HPP

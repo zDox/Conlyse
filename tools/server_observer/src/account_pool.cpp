@@ -128,18 +128,19 @@ void AccountPool::load_accounts() {
     }
     
     std::vector<std::shared_ptr<Account>> accounts_missing_proxies;
-    
+
     for (auto& account : accounts) {
-        if (proxies.find(account->proxy_id) == proxies.end()) {
-            std::cerr << "Warning: Account " << account->username 
-                     << " has a proxy ID " << account->proxy_id 
+        std::string account_proxy_id = account->proxy_config ? account->proxy_config->proxy_id : "";
+        if (proxies.find(account_proxy_id) == proxies.end()) {
+            std::cerr << "Warning: Account " << account->username
+                     << " has a proxy ID " << account_proxy_id
                      << " that does not exist" << std::endl;
             accounts_missing_proxies.push_back(account);
-        } else if (assigned_proxy_ids.find(account->proxy_id) != assigned_proxy_ids.end()) {
+        } else if (assigned_proxy_ids.find(account_proxy_id) != assigned_proxy_ids.end()) {
             accounts_missing_proxies.push_back(account);
         } else {
-            assigned_proxy_ids.insert(account->proxy_id);
-            unassigned_proxy_ids.erase(account->proxy_id);
+            assigned_proxy_ids.insert(account_proxy_id);
+            unassigned_proxy_ids.erase(account_proxy_id);
         }
     }
     
@@ -159,8 +160,9 @@ void AccountPool::load_accounts() {
         unassigned_proxy_ids.erase(proxy_id);
         
         Proxy& proxy = proxies[proxy_id];
-        account->proxy_id = proxy.id;
-        account->proxy_url = proxy.get_proxy_url();
+        auto new_proxy_config = std::make_shared<ProxyConfig>(ProxyConfig::from_url(proxy.get_proxy_url()));
+        new_proxy_config->proxy_id = proxy.id;
+        account->proxy_config = new_proxy_config;
     }
 }
 
@@ -224,3 +226,72 @@ void AccountPool::decrement_guest_join(std::shared_ptr<Account> account) {
         guest_join_counts_[account->username] = std::max(0, guest_join_counts_[account->username] - 1);
     }
 }
+
+void AccountPool::set_proxy_reset_callback(ProxyResetCallback callback) {
+    proxy_reset_callback_ = std::move(callback);
+}
+
+bool AccountPool::reset_account_proxy(const std::shared_ptr<Account> &account) {
+    if (!account) {
+        return false;
+    }
+
+    std::string old_proxy_id = account->proxy_config ? account->proxy_config->proxy_id : "";
+
+    // Refresh the proxy list from WebShare
+    std::map<std::string, Proxy> updated_proxies = get_proxies(webshare_token_);
+
+    if (updated_proxies.empty()) {
+        std::cerr << "Error: No proxies available from WebShare" << std::endl;
+        return false;
+    }
+
+    // Update the global proxies map
+    proxies = updated_proxies;
+
+    // Find all currently assigned proxy IDs (excluding this account)
+    std::set<std::string> assigned_proxy_ids;
+    for (const auto& acc : accounts) {
+        if (acc != account && acc->proxy_config) {
+            std::string acc_proxy_id = acc->proxy_config->proxy_id;
+            if (proxies.find(acc_proxy_id) != proxies.end()) {
+                assigned_proxy_ids.insert(acc_proxy_id);
+            }
+        }
+    }
+
+    // Find an unassigned proxy
+    std::string new_proxy_id;
+    for (const auto& [id, proxy] : proxies) {
+        if (assigned_proxy_ids.find(id) == assigned_proxy_ids.end()) {
+            new_proxy_id = id;
+            break;
+        }
+    }
+
+    // If no unassigned proxy found, use any proxy
+    if (new_proxy_id.empty()) {
+        std::cerr << "Error: No unassigned proxies available, reusing an existing proxy" << std::endl;
+        return false;
+    }
+
+    // Get the new proxy information
+    const Proxy& new_proxy = proxies[new_proxy_id];
+
+    // Reset the account's proxy with new credentials
+    auto new_proxy_config = std::make_shared<ProxyConfig>(ProxyConfig::from_url(new_proxy.get_proxy_url()));
+    new_proxy_config->proxy_id = new_proxy.id;
+    account->reset_proxy(new_proxy_config);
+
+    std::cout << "Successfully reset proxy for account " << account->username
+              << " from proxy ID " << old_proxy_id
+              << " to proxy ID " << new_proxy_id << std::endl;
+
+    // Notify ServerObserver that the proxy has been reset
+    if (proxy_reset_callback_) {
+        proxy_reset_callback_(account);
+    }
+
+    return true;
+}
+

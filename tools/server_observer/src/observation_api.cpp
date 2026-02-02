@@ -3,8 +3,9 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
-#include <iostream>
 #include <simdjson.h>
+#include <regex>
+#include <utility>
 
 
 static std::string sha1_hex(const std::string& input) {
@@ -28,7 +29,7 @@ ObservationApi::ObservationApi(
     std::shared_ptr<RequestManager> manager,
     const std::map<std::string, std::string>& headers,
     const std::map<std::string, std::string>& cookies,
-    const ProxyConfig& proxy,
+    std::shared_ptr<ProxyConfig> proxy,
     AuthDetails  auth_details,
     int game_id,
     const std::string& game_server_address,
@@ -41,7 +42,7 @@ ObservationApi::ObservationApi(
     , game_server_address_(game_server_address)
     , headers_(headers)
     , cookies_(cookies)
-    , proxy_(proxy)
+    , proxy_(std::move(std::move(proxy)))
 {
     cli_ = std::make_unique<HttpClient>(manager, game_server_address);
 }
@@ -87,8 +88,8 @@ asio::awaitable<HttpResponse> ObservationApi::request_game_state_async(std::map<
     });
     
     // Configure proxy if provided
-    if (proxy_.enabled) {
-        cli_->set_proxy(proxy_.host, proxy_.port, proxy_.username, proxy_.password);
+    if (proxy_->enabled) {
+        cli_->set_proxy(proxy_->host, proxy_->port, proxy_->username, proxy_->password);
     }
 
     // Build request headers
@@ -209,12 +210,45 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
         if (result_obj["newHostName"].get(new_server_view) == simdjson::SUCCESS) {
             std::string new_server(new_server_view);
             result.error_message += ": " + new_server;
-            // Store the new server name in data for later processing
-            result.data["newHostName"] = new_server;
+            cli_->set_url("https://" + new_server);
+            game_server_address_ = "https://" + new_server;
         }
         return result;
     }
 
+    // Check for client version mismatch
+    if (result_class == "ultshared.UltClientVersionMismatchException") {
+        result.error_code = GameServerError::CLIENT_VERSION_MISMATCH;
+        result.error_message = "Client version mismatch";
+
+        std::string_view message_view;
+        if (result_obj["detailMessage"].get(message_view) == simdjson::SUCCESS) {
+            int old_client_version = -1;
+            int new_client_version = -1;
+            std::string message(message_view); // convert string_view to string for regex
+
+            std::regex re1("con-client: #(\\d+)");
+            std::regex re2("con-client_live\\.txt: #(\\d+)");
+
+            std::smatch match1, match2;
+
+            if (std::regex_search(message, match1, re1)) {
+                old_client_version = std::stoi(match1[1]);
+            }
+
+            if (std::regex_search(message, match2, re2)) { // use 'message' here
+                new_client_version = std::stoi(match2[1]);
+            }
+            if (old_client_version != -1 && new_client_version != -1) {
+                result.error_message += ": old version " + std::to_string(old_client_version) +
+                                        ", new version " + std::to_string(new_client_version);
+                client_version_ = new_client_version;
+            }
+            else {
+                result.error_message += ": " + message;
+            }
+        }
+    }
     // Check for valid game state
     if (result_class != "ultshared.UltAutoGameState" && result_class != "ultshared.UltGameState") {
         result.error_code = GameServerError::UNKNOWN_ERROR;
@@ -286,12 +320,12 @@ json ObservationApi::get_static_map_data(int map_id) {
     cli.set_follow_location(true);
 
     // Configure proxy if provided
-    if (proxy_.enabled) {
-        cli.set_proxy(proxy_.host.c_str(), proxy_.port);
+    if (proxy_->enabled) {
+        cli.set_proxy(proxy_->host, proxy_->port);
 
         // Set proxy authentication if provided
-        if (!proxy_.username.empty() && !proxy_.password.empty()) {
-            cli.set_proxy_basic_auth(proxy_.username.c_str(), proxy_.password.c_str());
+        if (!proxy_->username.empty() && !proxy_->password.empty()) {
+            cli.set_proxy_basic_auth(proxy_->username, proxy_->password);
         }
     }
 
@@ -300,7 +334,7 @@ json ObservationApi::get_static_map_data(int map_id) {
     };
 
     std::string path = "/fileadmin/mapjson/live/" + std::to_string(map_id) + ".json";
-    auto res = cli.Get(path.c_str(), headers);
+    auto res = cli.Get(path, headers);
 
     if (!res || res->status != 200) {
         throw std::runtime_error("Failed to fetch static map data");
@@ -313,10 +347,15 @@ json ObservationApi::get_static_map_data(int map_id) {
     return result;
 }
 
-std::map<std::string, std::string> ObservationApi::get_cookies() const {
-    return cookies_;
+void ObservationApi::update_package(ObservationPackage &pkg) const {
+    pkg.client_version = client_version_;
+    pkg.game_server_address = game_server_address_;
+    pkg.headers = headers_;
+    pkg.cookies = cookies_;
+    pkg.auth = auth_;
 }
 
-std::map<std::string, std::string> ObservationApi::get_headers() const {
-    return headers_;
+void ObservationApi::update_server_address(const std::string &url) {
+    cli_->set_url(url);
+    game_server_address_ = url;
 }

@@ -5,7 +5,10 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <functional>
 #include "account.hpp"
+#include "proxy_config.hpp"
+#include <nlohmann/json.hpp>
 
 struct Proxy {
     std::string id;
@@ -34,6 +37,12 @@ public:
     void increment_guest_join(std::shared_ptr<Account> account);
     void decrement_guest_join(std::shared_ptr<Account> account);
     
+    bool reset_account_proxy(const std::shared_ptr<Account> &account);
+
+    // Callback to notify when an account's proxy is reset
+    using ProxyResetCallback = std::function<void(std::shared_ptr<Account>)>;
+    void set_proxy_reset_callback(ProxyResetCallback callback);
+
     size_t free_account_pointer;
     size_t guest_account_pointer;
     
@@ -41,7 +50,8 @@ private:
     std::string pool_path_;
     std::string webshare_token_;
     std::map<std::string, int> guest_join_counts_;
-    
+    ProxyResetCallback proxy_reset_callback_;
+
     void load_token();
     void load_proxies();
     void load_accounts();

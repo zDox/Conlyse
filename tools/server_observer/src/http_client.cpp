@@ -34,36 +34,11 @@ void HttpClient::clear_proxy() {
     proxy_ = ProxyConfig();
 }
 
-HttpResponse HttpClient::Post(
-                 const Headers& headers,
-                 const std::string& body,
-                 const std::string& content_type) {
-    
-    std::promise<HttpResponse> promise;
-    auto future = promise.get_future();
-    
-    asio::co_spawn(manager_->get_io_context(),
-        [this, headers, body, content_type, &promise]() -> asio::awaitable<void> {
-            try {
-                auto response = co_await Post_async(headers, body, content_type);
-                promise.set_value(response);
-            } catch (...) {
-                promise.set_exception(std::current_exception());
-            }
-        },
-        asio::detached);
-    
-    return future.get();
-}
-
 asio::awaitable<HttpResponse> HttpClient::Post_async(
     const Headers& headers,
     const std::string& body,
     const std::string& content_type) {
     
-    // Acquire a request slot (blocks if max in-flight reached)
-    RequestManager::RequestSlot slot(*manager_);
-
     auto request = std::make_shared<AsyncHttpsRequest>(
         manager_->get_io_context(), manager_->get_ssl_context(), timeout_, proxy_);
 
@@ -72,30 +47,9 @@ asio::awaitable<HttpResponse> HttpClient::Post_async(
         headers, body, content_type);
 }
 
-HttpResponse HttpClient::Get(const Headers& headers) {
-    std::promise<HttpResponse> promise;
-    auto future = promise.get_future();
-    
-    asio::co_spawn(manager_->get_io_context(),
-        [this, headers, &promise]() -> asio::awaitable<void> {
-            try {
-                auto response = co_await Get_async(headers);
-                promise.set_value(response);
-            } catch (...) {
-                promise.set_exception(std::current_exception());
-            }
-        },
-        asio::detached);
-    
-    return future.get();
-}
-
 asio::awaitable<HttpResponse> HttpClient::Get_async(
     const Headers& headers) {
     
-    // Acquire a request slot (blocks if max in-flight reached)
-    RequestManager::RequestSlot slot(*manager_);
-
     auto request = std::make_shared<AsyncHttpsRequest>(
         manager_->get_io_context(), manager_->get_ssl_context(), timeout_, proxy_);
 

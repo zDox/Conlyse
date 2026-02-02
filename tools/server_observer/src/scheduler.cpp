@@ -81,9 +81,59 @@ void Scheduler::schedule_immediate_update(ObservationSession* session) {
     schedule_update(session);
 }
 
-void Scheduler::schedule_next_update(ObservationSession* session) {
-    session->next_update_at += update_interval_;
+void Scheduler::schedule_next_update(ObservationSession* session, bool missed_update) {
+    auto update_interval_ms = std::chrono::duration_cast<std::chrono::milliseconds>(update_interval_);
+    int64_t offset_ms = calculate_offset_ms(session->game_id);
+    
+    auto now = std::chrono::system_clock::now();
+    
+    if (missed_update) {
+        // Recalculate k based on current time
+        auto time_since_epoch_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch()
+        ).count();
+        
+        session->update_sequence_number = calculate_next_k(time_since_epoch_ms, offset_ms);
+    } else {
+        // Normal case: increment k by 1
+        session->update_sequence_number++;
+    }
+    
+    // Calculate next update time: k * update_interval + offset
+    auto time_since_epoch = std::chrono::milliseconds(
+        session->update_sequence_number * update_interval_ms.count() + offset_ms
+    );
+    session->next_update_at = std::chrono::system_clock::time_point(time_since_epoch);
+    
     schedule_update(session);
+}
+
+int64_t Scheduler::calculate_offset_ms(int game_id) const {
+    auto update_interval_ms = std::chrono::duration_cast<std::chrono::milliseconds>(update_interval_);
+    return game_id % update_interval_ms.count();
+}
+
+int64_t Scheduler::calculate_next_k(int64_t current_time_ms, int64_t offset_ms) const {
+    auto update_interval_ms = std::chrono::duration_cast<std::chrono::milliseconds>(update_interval_);
+    int64_t interval_count = update_interval_ms.count();
+    
+    // Safety check: interval must be positive
+    if (interval_count <= 0) {
+        std::cerr << "Error: update_interval must be positive, got " << interval_count << " ms" << std::endl;
+        return 1;  // Return safe default
+    }
+    
+    // Handle case where current time is before the offset
+    if (current_time_ms < offset_ms) {
+        return 0;  // Next update is at k=0 (at offset_ms)
+    }
+    
+    // Find smallest k where k * interval_count + offset_ms > current_time_ms
+    // This is equivalent to: k > (current_time_ms - offset_ms) / interval_count
+    // So k = floor((current_time_ms - offset_ms) / interval_count) + 1
+    int64_t k = (current_time_ms - offset_ms) / interval_count + 1;
+    
+    return k;
 }
 
 void Scheduler::mark_first_update(int game_id) {
@@ -253,5 +303,61 @@ double Scheduler::get_seconds_until_next_due() const {
 
     auto duration = next_due - now;
     return std::chrono::duration<double>(duration).count();
+}
+
+void Scheduler::set_update_interval(double interval_seconds) {
+    if (interval_seconds > 0.0) {
+        update_interval_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::duration<double>(interval_seconds));
+        std::cout << "Scheduler: Updated update_interval to " << interval_seconds << " seconds" << std::endl;
+    } else {
+        std::cerr << "Scheduler: Invalid update_interval " << interval_seconds << ", must be > 0" << std::endl;
+    }
+}
+
+void Scheduler::set_max_parallel_updates(int max_updates) {
+    if (max_updates >= 1) {
+        max_parallel_updates_ = max_updates;
+        std::cout << "Scheduler: Updated max_parallel_updates to " << max_updates << std::endl;
+    } else {
+        std::cerr << "Scheduler: Invalid max_parallel_updates " << max_updates << ", must be >= 1" << std::endl;
+    }
+}
+
+void Scheduler::set_max_parallel_first_updates(int max_first_updates) {
+    if (max_first_updates >= 1) {
+        max_parallel_first_updates_ = max_first_updates;
+        std::cout << "Scheduler: Updated max_parallel_first_updates to " << max_first_updates << std::endl;
+    } else {
+        std::cerr << "Scheduler: Invalid max_parallel_first_updates " << max_first_updates 
+                 << ", must be >= 1" << std::endl;
+    }
+}
+
+void Scheduler::initialize_session_schedule(ObservationSession* session) {
+    auto update_interval_ms = std::chrono::duration_cast<std::chrono::milliseconds>(update_interval_);
+    int64_t offset_ms = calculate_offset_ms(session->game_id);
+    
+    auto now = std::chrono::system_clock::now();
+    auto time_since_epoch_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()
+    ).count();
+    
+    // Calculate smallest k where k * update_interval + offset > current_time
+    session->update_sequence_number = calculate_next_k(time_since_epoch_ms, offset_ms);
+    
+    // Calculate next update time: k * update_interval + offset
+    auto time_since_epoch = std::chrono::milliseconds(
+        session->update_sequence_number * update_interval_ms.count() + offset_ms
+    );
+    session->next_update_at = std::chrono::system_clock::time_point(time_since_epoch);
+
+    // Log a positive wait duration until the first update
+    auto wait_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(
+        session->next_update_at - now
+    ).count();
+    std::cout << "First update for game " << session->game_id
+              << " scheduled at " << session->next_update_at
+              << " in " << wait_seconds << "ms" << std::endl;
 }
 

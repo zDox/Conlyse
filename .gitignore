@@ -55,6 +55,7 @@ tests/test_data/full_test_data_1_v206.json
 /tools/server_observer/long_term_storage
 /tools/server_observer/accounts.json
 /tools/server_observer/config.json
+/tools/server_observer/account_pool.json
 /performance_tests/*.png
 json-output
 _codeql_detected_source_root

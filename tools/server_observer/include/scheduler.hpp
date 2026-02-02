@@ -68,8 +68,9 @@ public:
      * Schedule a session for update after the standard interval
      *
      * @param session The observation session to schedule
+     * @param missed_update Whether we missed the previous scheduled update
      */
-    void schedule_next_update(ObservationSession* session);
+    void schedule_next_update(ObservationSession* session, bool missed_update = false);
 
     /**
      * Mark a session as requiring first update tracking
@@ -176,6 +177,33 @@ public:
      */
     void decrement_active_coroutines() { --active_coroutines_; }
 
+    /**
+     * Set the update interval at runtime
+     * Note: This affects the scheduling of future updates
+     */
+    void set_update_interval(double interval_seconds);
+
+    /**
+     * Set max parallel updates at runtime
+     * Note: This affects how many updates can run simultaneously
+     */
+    void set_max_parallel_updates(int max_updates);
+
+    /**
+     * Set max parallel first updates at runtime
+     * Note: This affects how many first updates can run simultaneously
+     */
+    void set_max_parallel_first_updates(int max_first_updates);
+
+    /**
+     * Calculate and set the initial update time for a new session
+     * Uses formula: k * update_interval + game_id % update_interval
+     * where k is the smallest value such that update_time > current_time
+     *
+     * @param session The observation session to initialize
+     */
+    void initialize_session_schedule(ObservationSession* session);
+
 private:
     // Configuration
     int max_parallel_updates_;
@@ -205,6 +233,24 @@ private:
 
     // Stop flag
     std::atomic<bool> stop_flag_;
+
+    /**
+     * Calculate the time offset for a given game_id
+     * Offset = game_id % update_interval
+     *
+     * @param game_id The game ID
+     * @return The offset in milliseconds
+     */
+    int64_t calculate_offset_ms(int game_id) const;
+
+    /**
+     * Calculate the smallest k where k * update_interval + offset > current_time
+     *
+     * @param current_time_ms Current time in milliseconds since epoch
+     * @param offset_ms Offset in milliseconds
+     * @return The calculated k value
+     */
+    int64_t calculate_next_k(int64_t current_time_ms, int64_t offset_ms) const;
 
     /**
      * Check if a session can start its update based on concurrency limits

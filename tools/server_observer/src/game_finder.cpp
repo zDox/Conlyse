@@ -121,32 +121,26 @@ void GameFinder::scan_loop() {
 }
 
 void GameFinder::initialize_listing_interface() {
-    try {
-        if (!config_.contains("listing_account") || config_["listing_account"].is_null()) {
-            std::cerr << "No listing_account configuration found. Please add a dedicated account for listing." << std::endl;
-            return;
-        }
-
-        auto listing_config = config_["listing_account"];
-        std::string username = listing_config.value("username", "");
-        std::string password = listing_config.value("password", "");
-        std::string proxy_url = listing_config.value("proxy_url", "");
-
-        if (username.empty() || password.empty()) {
-            std::cerr << "Invalid listing account configuration: missing username or password" << std::endl;
-            return;
-        }
-
-        listing_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
-        listing_interface_->login(username, password);
-
-        std::cout << "Initialized dedicated listing interface with account: "
-                 << username << std::endl;
-
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to initialize listing interface: " << e.what() << std::endl;
-        listing_interface_ = nullptr;
+    if (!config_.contains("listing_account") || config_["listing_account"].is_null()) {
+        std::cerr << "No listing_account configuration found. Please add a dedicated account for listing." << std::endl;
+        return;
     }
+
+    auto listing_config = config_["listing_account"];
+    std::string username = listing_config.value("username", "");
+    std::string password = listing_config.value("password", "");
+    std::string proxy_url = listing_config.value("proxy_url", "");
+
+    if (username.empty() || password.empty()) {
+        std::cerr << "Invalid listing account configuration: missing username or password" << std::endl;
+        return;
+    }
+
+    listing_interface_ = std::make_shared<HubInterfaceWrapper>(proxy_url, proxy_url);
+    listing_interface_->login(username, password);
+
+    std::cout << "Initialized dedicated listing interface with account: "
+             << username << std::endl;
 }
 
 std::shared_ptr<HubInterfaceWrapper> GameFinder::get_listing_interface() {
@@ -270,4 +264,57 @@ void GameFinder::scan_and_start_games(size_t max_active_sessions, size_t max_par
 void GameFinder::mark_game_known(int game_id) {
     std::lock_guard<std::mutex> lock(known_games_mutex_);
     known_games_.insert(game_id);
+}
+
+void GameFinder::set_scan_interval(double interval) {
+    if (interval > 0.0) {
+        scan_interval_ = interval;
+        std::cout << "GameFinder: Updated scan_interval to " << interval << " seconds" << std::endl;
+    } else {
+        std::cerr << "GameFinder: Invalid scan_interval " << interval << ", must be > 0" << std::endl;
+    }
+}
+
+void GameFinder::set_scenario_ids(const std::vector<int>& scenario_ids) {
+    scenario_ids_ = scenario_ids;
+    std::cout << "GameFinder: Updated scenario_ids to [";
+    for (size_t i = 0; i < scenario_ids.size(); ++i) {
+        if (i > 0) std::cout << ", ";
+        std::cout << scenario_ids[i];
+    }
+    std::cout << "]" << std::endl;
+}
+
+void GameFinder::set_max_parallel_recordings(int max_recordings) {
+    if (max_recordings >= 1) {
+        max_parallel_recordings_ = max_recordings;
+        std::cout << "GameFinder: Updated max_parallel_recordings to " << max_recordings << std::endl;
+    } else {
+        std::cerr << "GameFinder: Invalid max_parallel_recordings " << max_recordings 
+                 << ", must be >= 1" << std::endl;
+    }
+}
+
+void GameFinder::set_max_guest_per_account(int max_guest) {
+    if (max_guest >= -1) {  // -1 means no limit
+        max_guest_per_account_ = max_guest;
+        std::cout << "GameFinder: Updated max_guest_per_account to " << max_guest;
+        if (max_guest == -1) {
+            std::cout << " (no limit)";
+        }
+        std::cout << std::endl;
+    } else {
+        std::cerr << "GameFinder: Invalid max_guest_per_account " << max_guest 
+                 << ", must be >= -1" << std::endl;
+    }
+}
+
+void GameFinder::set_enabled_scanning(bool enabled) {
+    enabled_scanning_ = enabled;
+    std::cout << "GameFinder: " << (enabled ? "Enabled" : "Disabled") << " scanning" << std::endl;
+    
+    // If we're enabling scanning and there's no scan thread, start it
+    if (enabled && (!scan_thread_ || !scan_thread_->joinable())) {
+        start_scanning();
+    }
 }

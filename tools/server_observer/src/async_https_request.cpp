@@ -1,4 +1,5 @@
 #include "async_https_request.hpp"
+#include "metrics.hpp"
 #include <iostream>
 #include <zlib.h>
 #include <openssl/ssl.h>
@@ -171,6 +172,14 @@ asio::awaitable<HttpResponse> AsyncHttpsRequest::execute(
         response.error_message = e.what();
         std::cerr << "Request failed: " << e.what() << std::endl;
     }
+    
+    // Record latency for metrics (both success and failure cases)
+    Metrics::getInstance().recordRequestLatency(
+        std::chrono::duration<double>(response.latency).count()
+    );
+    
+    // Record request completed for metrics
+    Metrics::getInstance().recordRequestCompleted();
 
     co_return response;
 }
