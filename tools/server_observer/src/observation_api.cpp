@@ -78,8 +78,8 @@ asio::awaitable<HttpResponse> ObservationApi::request_game_state_async(std::map<
         action["stateIDs"] = state_ids_json;
         action["stateIDs"]["@c"] = "java.util.HashMap";
 
-        action["timeStamps"] = time_stamps_json;
-        action["timeStamps"]["@c"] = "java.util.HashMap";
+        action["tstamps"] = time_stamps_json;
+        action["tstamps"]["@c"] = "java.util.HashMap";
     }
 
     action["actions"] = json::array({

@@ -24,6 +24,7 @@
  * - Missed update intervals (counter)
  * - HTTP request latency (histogram)
  * - Scheduled update latency (histogram)
+ * - HTTP response size (histogram, compressed bytes)
  */
 class Metrics {
 public:
@@ -53,7 +54,8 @@ public:
     // Request metrics
     void recordRequestCompleted();
     void recordRequestLatency(double duration_seconds);
-    
+    void recordResponseSize(size_t bytes);
+
     // Update interval metrics
     void recordMissedInterval();
     void recordScheduledUpdateLatency(double latency_seconds);
@@ -90,6 +92,9 @@ private:
     prometheus::Family<prometheus::Histogram>* scheduled_update_latency_family_;
     prometheus::Histogram* scheduled_update_latency_histogram_;
     
+    prometheus::Family<prometheus::Histogram>* response_size_family_;
+    prometheus::Histogram* response_size_histogram_;
+
     // Simple atomic counter for inflight game updates tracking
     std::atomic<size_t> current_inflight_game_updates_;
 };
