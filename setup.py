@@ -107,7 +107,7 @@ setup(
     url="https://conflict-interface.readthedocs.io/",
     author="zDox",
     author_email="",
-    license="MIT",
+    license="Proprietary",
     classifiers=[
         "Intended Audience :: Developers",
         "Programming Language :: Python :: 3.12",
