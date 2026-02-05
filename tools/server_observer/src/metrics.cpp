@@ -7,6 +7,12 @@ static const std::vector LATENCY_BUCKETS = {
     0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0
 };
 
+// Histogram buckets for response size (in bytes)
+// Covers 100B to 100MB with exponential buckets
+static const std::vector RESPONSE_SIZE_BUCKETS = {
+    100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0, 100000000.0
+};
+
 Metrics& Metrics::getInstance() {
     static Metrics instance;
     return instance;
@@ -30,6 +36,8 @@ Metrics::Metrics()
     , request_latency_histogram_(nullptr)
     , scheduled_update_latency_family_(nullptr)
     , scheduled_update_latency_histogram_(nullptr)
+    , response_size_family_(nullptr)
+    , response_size_histogram_(nullptr)
     , current_inflight_game_updates_(0)
 {
 }
@@ -127,6 +135,17 @@ bool Metrics::initialize(int port) {
             LATENCY_BUCKETS
         );
         
+        // HTTP response size histogram (compressed bytes)
+        response_size_family_ = &prometheus::BuildHistogram()
+            .Name("http_response_size_bytes")
+            .Help("HTTP response size in bytes (compressed)")
+            .Register(*registry_);
+
+        response_size_histogram_ = &response_size_family_->Add(
+            {{"compression", "true"}},
+            RESPONSE_SIZE_BUCKETS
+        );
+
         enabled_ = true;
         std::cout << "Metrics exposition started on " << bind_address << std::endl;
         std::cout << "Use Prometheus queries like:" << std::endl;
@@ -209,3 +228,10 @@ void Metrics::recordScheduledUpdateLatency(double latency_seconds) {
     
     scheduled_update_latency_histogram_->Observe(latency_seconds);
 }
+
+void Metrics::recordResponseSize(size_t bytes) {
+    if (!enabled_) return;
+
+    response_size_histogram_->Observe(static_cast<double>(bytes));
+}
+
