@@ -23,8 +23,7 @@ class ProductionList(list):
 
 @binary_serializable(SerializationCategory.LIST, version=VERSION)
 class BidListOuter(list):
-    C = "[Lultshared.UltBidList;"  # TODO maby a better way to do this but its the most generic also
-    # They are just stupid for using 2 different types of lists
+    C = "[Lultshared.UltBidList;"  # TODO maby a better way to do this but its the most generic also they are just stupid for using 2 different types of lists
 
 
 @binary_serializable(SerializationCategory.LIST, version=VERSION)

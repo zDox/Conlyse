@@ -263,8 +263,9 @@ DATETIME_MAPPING = {
 class JsonParser:
     _PRIMITIVES = frozenset({int, float, str, bool, type(None)})
 
-    def __init__(self):
-        self.type_graph = TypeGraph()
+    def __init__(self, version):
+        self.version = version
+        self.type_graph = TypeGraph(version)
 
     def parse_any(self, cls: Any, json_obj: dict | list | int | str, game: GameInterface = None):
         return self._parse_any(json_obj, [self.type_graph.type_to_node[cls]], game = game)
@@ -393,7 +394,7 @@ class JsonParser:
                 raise ValueError(f"Unknown enum value {json_obj} for {t}")
 
     def get_actual_type(self, json_obj, types: list[TypeGraphNode]) -> TypeGraphNode | None:
-        # Fast path: 90%+ of calls probably have len(types) == 1
+        # Fast path: 95%+ of calls have len(types) == 1 and are not a union
         if len(types) == 1:
             possible_type = types[0]
             # Skip _try_match_type overhead for common case
@@ -491,62 +492,6 @@ class JsonParser:
             return possible_type
 
         return None
-
-
-import time
-from collections import defaultdict
-
-
-class TimedJsonParser(JsonParser):
-    def __init__(self):
-        super().__init__()
-        self.timings = defaultdict(float)
-        self.counts = defaultdict(int)
-
-    def _parse_any(self, json_obj, types, game=None):
-        start = time.perf_counter()
-        result = super()._parse_any(json_obj, types, game)
-        self.timings['_parse_any'] += time.perf_counter() - start
-        self.counts['_parse_any'] += 1
-        return result
-
-    def parse_data_class(self, json_obj, t):
-        start = time.perf_counter()
-        result = super().parse_data_class(json_obj, t)
-        self.timings['parse_data_class'] += time.perf_counter() - start
-        self.counts['parse_data_class'] += 1
-        return result
-
-    def parse_game_object(self, json_obj, t, game):
-        start = time.perf_counter()
-        result = super().parse_game_object(json_obj, t, game)
-        self.timings['parse_game_object'] += time.perf_counter() - start
-        self.counts['parse_game_object'] += 1
-        return result
-
-    def get_actual_type(self, json_obj, types):
-        start = time.perf_counter()
-        result = super().get_actual_type(json_obj, types)
-        self.timings['get_actual_type'] += time.perf_counter() - start
-        self.counts['get_actual_type'] += 1
-        return result
-
-    def _try_match_type(self, json_obj, possible_type):
-        start = time.perf_counter()
-        result = super()._try_match_type(json_obj, possible_type)
-        self.timings['_try_match_type'] += time.perf_counter() - start
-        self.counts['_try_match_type'] += 1
-        return result
-
-    def print_stats(self):
-        print("\n" + "=" * 60)
-        print("TIMING STATISTICS")
-        print("=" * 60)
-        for name in sorted(self.timings.keys(), key=lambda x: self.timings[x], reverse=True):
-            total = self.timings[name]
-            count = self.counts[name]
-            avg = total / count if count > 0 else 0
-            print(f"{name:25} {total:8.3f}s  {count:8} calls  {avg * 1000:8.3f}ms avg")
 
 
 
