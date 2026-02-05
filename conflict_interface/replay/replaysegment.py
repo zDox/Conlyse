@@ -22,14 +22,14 @@ logger = getLogger()
 
 
 class ReplaySegment:
-    def __init__(self, data: bytearray, mode: Literal['r', 'w', 'a', 'rw'] = 'r', game_id: int = None, player_id: int = None, max_patches: int = None):
+    def __init__(self, data: bytearray, version:int, mode: Literal['r', 'w', 'a', 'rw'] = 'r', game_id: int = None, player_id: int = None, max_patches: int = None):
         self._mode = mode
         self.game_id = game_id
         self.player_id = player_id
 
         self._is_open = False
 
-        self.storage = ReplayStorage(data)
+        self.storage = ReplayStorage(data, version)
 
         self._op_counter = 0
         self._game: ReplayInterface | None = None

@@ -45,7 +45,7 @@ class ReplayStorage:
 
     path_tree: PathTree | None
 
-    def __init__(self, data: bytearray):
+    def __init__(self, data: bytearray, version):
         # Binary representations of serialized data (compressed or raw)
         self._data_b: bytearray = data
         self._metadata_b: bytes | None = None
@@ -67,7 +67,7 @@ class ReplayStorage:
         # Compression utilities using LZ4 for fast compression/decompression
         self.compressor = lz4.frame.compress
         self.decompressor = lz4.frame.decompress
-        self.serializer = GameObjectSerializer()
+        self.serializer = GameObjectSerializer(version)
 
     def extend(self, required_size):
         if len(self._data_b)<required_size:

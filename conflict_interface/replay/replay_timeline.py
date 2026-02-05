@@ -63,7 +63,7 @@ class ReplayTimeline:
             segment.execute_append_que()
 
     def _create_segment(self, version: int, from_timestamp: datetime, to_timestamp: datetime, game_id: int, player_id: int):
-        segment = ReplaySegment(bytearray([]), "w", game_id=game_id, player_id=player_id, max_patches= DEFAULT_MAX_PATCHES)
+        segment = ReplaySegment(bytearray([]),version,  "w", game_id=game_id, player_id=player_id, max_patches= DEFAULT_MAX_PATCHES)
         segment.open()
         segment.close()
         segment.set_mode(self._mode)
