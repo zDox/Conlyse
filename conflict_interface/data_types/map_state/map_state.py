@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.decorators import binary_serializable
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
 from conflict_interface.data_types.map_state.map import Map
 from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.data_types.map_state.province_property import ProvinceProperty
 from conflict_interface.data_types.state import State
 from conflict_interface.data_types.update_helpers import state_update
@@ -13,7 +13,8 @@ from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class MapState(State):
     """

@@ -1,10 +1,11 @@
 from enum import Enum
 
-from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.decorators import binary_serializable
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
 
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class DamageType(Enum):
     DAMAGE_NORMAL = "DAMAGE_NORMAL"
     DAMAGE_AIR = "DAMAGE_AIR"
@@ -22,7 +23,8 @@ class DamageType(Enum):
     DAMAGE_MISSILE = "DAMAGE_MISSILE"
     DAMAGE_DRONE = "DAMAGE_DRONE"
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class UnitFeature(Enum):
     DAMAGE_NORMAL = 0
     DAMAGE_AIR = 1
@@ -99,7 +101,8 @@ class UnitFeature(Enum):
     UNKNOWN_67 = 67
     UNKNOWN_68 = 68
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class UpgradeFeature(Enum):
     FORTRESS = 0
     HARBOUR = 1
@@ -144,14 +147,16 @@ class UpgradeFeature(Enum):
     INVISIBLE_FROM_STATS = 40
     UNKNOWN_41 = 41
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class ValueFunction(Enum):
     VALUE_FUNCTION_LINEAR = 0
     VALUE_FUNCTION_SQRT = 1
     VALUE_FUNCTION_PANZERWARS = 2
     VALUE_FUNCTION_STEP = 3
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class ModGameFeatures(Enum):
     # Game Feature Flags (numeric IDs)
     GF_RESOURCES = 1

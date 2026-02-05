@@ -1,6 +1,6 @@
 from typing import Any
 
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION

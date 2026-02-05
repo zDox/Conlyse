@@ -1,7 +1,7 @@
 from collections import deque
 from datetime import datetime
 
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.replay.op_tree_cpp import build_op_tree_fast
 from conflict_interface.replay.apply_replay_helper import apply_operation
 from conflict_interface.replay.constants import REMOVE_OPERATION

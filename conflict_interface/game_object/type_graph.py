@@ -6,7 +6,7 @@ from typing import Union
 from typing import get_args
 from typing import get_origin
 
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.game_object.game_object import GameObject
 
 
 def type_is_union(t):
@@ -45,19 +45,24 @@ class TypeGraphNode:
 class TypeGraph:
 
     _TYPE_QUE = deque([])
-    def __init__(self):
+    def __init__(self, version: int):
         self.type_to_node: dict[type, TypeGraphNode] = {}
         self.type_to_c: dict[type, list[str]] = {}
         self.build = False
+        self.version = version
+        self._temp_type_que = deque([])
 
     @classmethod
-    def register_type(cls, _type):
-        cls._TYPE_QUE.append(_type)
+    def register_type(cls, version, _type):
+        cls._TYPE_QUE.append((version,_type))
 
     def build_graph(self):
         visited = set()
         while self._TYPE_QUE:
-            _type = self._TYPE_QUE.pop()
+            version, _type = self._TYPE_QUE.pop()
+            if version != self.version:
+                self._temp_type_que.append((version, _type))
+                continue
             self.add_node(_type)
 
             try:
@@ -74,6 +79,8 @@ class TypeGraph:
                 t = type_hints[python_name]
                 self.add_type_recursive(_type, t, python_name, visited)
 
+        self._TYPE_QUE = self._temp_type_que
+        self._temp_type_que = deque([])
         self.build = True
 
     def add_node(self, _type: type):

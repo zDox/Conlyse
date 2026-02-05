@@ -7,7 +7,7 @@ import hashlib
 
 import msgspec
 
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.game_object.game_object import GameObject
 
 logger = getLogger()
 
@@ -36,32 +36,38 @@ def get_mapping(cls):
 class GameObjectSerializer:
     _PRIMITIVES = frozenset({int, float, str, bool, type(None)})
 
-    _CLASS_FROM_ID: dict[int, type] = {}
-    _ID_FROM_CLASS: dict[type, int] = {}
-    _CATEGORY: dict[type, SerializationCategory] = {}
+    _CLASS_FROM_ID: dict[int, dict[int, type]] = {} # version -> id -> class
+    _ID_FROM_CLASS: dict[int, dict[type, int]] = {} # version -> class -> id
+    _CATEGORY: dict[int, dict[type, SerializationCategory]] = {} # version -> class -> category
 
-    _FIELDS_CACHE: dict[type, tuple[str, ...]] = {}
+    _FIELDS_CACHE: dict[int, dict[type, tuple[str, ...]]] = {} # version -> class -> tuple[fields]
 
     # Marker to distinguish [type_id, ... ] from plain lists
     _TYPE_MARKER = -1
 
-    def __init__(self):
+    def __init__(self, version: int):
         self._encoder = msgspec.msgpack.Encoder()
         self._decoder = msgspec.msgpack.Decoder()
+        self.version:int = version
+
+        self._class_from_id = self._CLASS_FROM_ID[self.version]
+        self._id_from_class = self._ID_FROM_CLASS[self.version]
+        self._category = self._CATEGORY[self.version]
+        self._fields = self._FIELDS_CACHE[self.version]
 
         
     @classmethod
-    def register(cls, obj: type, category: SerializationCategory):
+    def register(cls, version: int, obj: type, category: SerializationCategory):
         """Register a type with its category."""
         type_id = stable_type_id(obj)
 
-        cls._CLASS_FROM_ID[type_id] = obj
-        cls._ID_FROM_CLASS[obj] = type_id
-        cls._CATEGORY[obj] = category
+        cls._CLASS_FROM_ID[version][type_id] = obj
+        cls._ID_FROM_CLASS[version][obj] = type_id
+        cls._CATEGORY[version][obj] = category
 
         if category == SerializationCategory.DATACLASS:
             mapping = get_mapping(obj)
-            cls._FIELDS_CACHE[obj] = tuple(mapping.keys())
+            cls._FIELDS_CACHE[version][obj] = tuple(mapping.keys())
 
 
     def serialize(self, obj: Any) -> bytes:
@@ -94,11 +100,11 @@ class GameObjectSerializer:
         if t is dict:
             return {"__dict__": [[self._to_raw(k), self._to_raw(v)] for k, v in obj.items()]}
 
-        type_id = self._ID_FROM_CLASS[t]
-        cat = self._CATEGORY[t]
+        type_id = self._id_from_class[t]
+        cat = self._category[t]
 
         if cat == SerializationCategory.DATACLASS:
-            field_names = self._FIELDS_CACHE[t]
+            field_names: tuple[str,  ...] = self._fields[t]
             return [self._TYPE_MARKER, type_id, *[self._to_raw(getattr(obj, name)) for name in field_names]]
 
         elif cat == SerializationCategory.LIST:
@@ -155,12 +161,12 @@ class GameObjectSerializer:
     def _from_raw_registered(self, data):
         """Handle deserialization of registered types."""
         type_id = data[1]
-        cls = self._CLASS_FROM_ID[type_id]
-        cat = self._CATEGORY[cls]
+        cls = self._class_from_id[type_id]
+        cat = self._category[cls]
         from_raw = self._from_raw
 
         if cat == SerializationCategory.DATACLASS:
-            field_names = self._FIELDS_CACHE[cls]
+            field_names = self._fields[cls]
             kwargs = {name: from_raw(data[i + 2]) for i, name in enumerate(field_names)}
             instance = cls(**kwargs)
             instance.game = None
@@ -189,9 +195,9 @@ class GameObjectSerializer:
     def get_stats(self) -> dict:
         """Return statistics about registered types."""
         return {
-            'total_types':  len(self._CLASS_FROM_ID),
-            'dataclasses': sum(1 for c in self._CATEGORY.values() if c == SerializationCategory.DATACLASS),
-            'enums': sum(1 for c in self._CATEGORY. values() if c == SerializationCategory.ENUM),
-            'list_wrappers': sum(1 for c in self._CATEGORY.values() if c == SerializationCategory.LIST),
-            'dict_wrappers': sum(1 for c in self._CATEGORY.values() if c == SerializationCategory.DICT)
+            'total_types':  len(self._class_from_id),
+            'dataclasses': sum(1 for c in self._category.values() if c == SerializationCategory.DATACLASS),
+            'enums': sum(1 for c in self._category. values() if c == SerializationCategory.ENUM),
+            'list_wrappers': sum(1 for c in self._category.values() if c == SerializationCategory.LIST),
+            'dict_wrappers': sum(1 for c in self._category.values() if c == SerializationCategory.DICT)
         }

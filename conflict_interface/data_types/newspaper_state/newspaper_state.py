@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import Union
 
 from conflict_interface.data_types.custom_types import Vector
-from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.decorators import binary_serializable
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
 from conflict_interface.data_types.newspaper_state.article import Article
 from conflict_interface.data_types.newspaper_state.ranking import Ranking
 from conflict_interface.data_types.newspaper_state.report_article import ReportArticle

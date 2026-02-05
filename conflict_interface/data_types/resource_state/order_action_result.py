@@ -1,10 +1,11 @@
 from enum import Enum
 
-from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.decorators import binary_serializable
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
 
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class OrderActionResult(Enum):
     OK = 0
     ORDER_NOT_FOUND = 1

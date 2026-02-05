@@ -45,7 +45,7 @@ from conflict_interface.data_types.custom_types import UnmodifiableCollection
 from conflict_interface.data_types.custom_types import UnmodifiableMap
 from conflict_interface.data_types.custom_types import UnmodifiableSet
 from conflict_interface.data_types.custom_types import Vector
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.game_object.game_object import GameObject
 
 if TYPE_CHECKING:
     from conflict_interface.interface.game_interface import GameInterface

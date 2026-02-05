@@ -3,8 +3,8 @@ from enum import Enum
 
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
 from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.decorators import binary_serializable
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
 from conflict_interface.data_types.player_state.player_profile import PlayerProfile
 from conflict_interface.data_types.player_state.team_profile import TeamProfile
 from conflict_interface.data_types.state import State
@@ -13,13 +13,15 @@ from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class VisibilityMode(Enum, metaclass=DefaultEnumMeta):
     ALL = 1
     ONLY_VISIBLE = 2
     ALL_REDUCED_INFORMATION = 3
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class PlayerState(State):
     C = "ultshared.UltPlayerState"

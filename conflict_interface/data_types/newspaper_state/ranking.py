@@ -3,9 +3,9 @@ from typing import Optional
 
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import RankingEntryList
-from conflict_interface.data_types.decorators import binary_serializable
-from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.data_types.newspaper_state.ranking_entry import RankingEntry
 from conflict_interface.data_types.update_helpers import dict_update
 from conflict_interface.data_types.update_helpers import list_update

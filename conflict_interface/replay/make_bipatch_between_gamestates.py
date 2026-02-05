@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.data_types.game_object_json import SIMPLE_PARSE_MAPPING
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 

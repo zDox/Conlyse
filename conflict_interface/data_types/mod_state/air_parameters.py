@@ -3,12 +3,13 @@ from typing import Optional
 from typing import Union
 
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
-from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.decorators import binary_serializable
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
 from conflict_interface.data_types.point import Point
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class TemporaryAirfield(GameObject):
     C = "ultshared.warfare.UltTemporaryAirfield"
@@ -19,7 +20,8 @@ class TemporaryAirfield(GameObject):
         "air_field_position": "airfieldPosition",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class AirParameters(GameObject):
     C = "ap"

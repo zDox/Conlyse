@@ -19,10 +19,10 @@ from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsStr
 from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
 from conflict_interface.data_types.custom_types import TimeDeltaSecondsStr
-from conflict_interface.data_types.game_object import GameObject
+from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.data_types.point import Point
-from conflict_interface.data_types.type_graph import TypeGraph
-from conflict_interface.data_types.type_graph import TypeGraphNode
+from conflict_interface.game_object.type_graph import TypeGraph
+from conflict_interface.game_object.type_graph import TypeGraphNode
 from conflict_interface.interface import GameInterface
 
 logger = getLogger()

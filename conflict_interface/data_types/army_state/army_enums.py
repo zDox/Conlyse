@@ -1,11 +1,12 @@
 from enum import Enum
 
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
-from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.decorators import binary_serializable
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
 
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class FightStatus(Enum, metaclass=DefaultEnumMeta):
     """
     Status of an army.
@@ -19,7 +20,8 @@ class FightStatus(Enum, metaclass=DefaultEnumMeta):
     ANTI_AIR = 6
     BOMBING = 7
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class Aggressiveness(Enum, metaclass=DefaultEnumMeta):
     """
     Represents under which situations a unit would engage an enemy.
@@ -30,7 +32,8 @@ class Aggressiveness(Enum, metaclass=DefaultEnumMeta):
     NORMAL = 3
     AGGRESSIVE = 4
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
     """
     ForcedMarch is the march where a unit gets a bit of damage
@@ -40,7 +43,8 @@ class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
     ACTIVE = 1
     PREMIUM = 2
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class MissileType(Enum, metaclass=DefaultEnumMeta):
     BALLISTIC = 1
     CRUISE = 2

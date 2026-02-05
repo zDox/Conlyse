@@ -15,20 +15,22 @@ from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.data_types.custom_types import UnmodifiableCollection
 from conflict_interface.data_types.custom_types import UnmodifiableMap
 from conflict_interface.data_types.custom_types import UnmodifiableSet
-from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.decorators import binary_serializable
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
 from conflict_interface.data_types.mod_state.boost import Boost
 from conflict_interface.data_types.player_state.faction import Faction
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class SortingConfig(GameObject):
     C = "ultshared.modding.configuration.UltSortingConfig"
     sorting_order: int
     MAPPING = {"sorting_order": "sortOrder"}
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class SoundConfig(GameObject):
     C = "ultshared.modding.configuration.UltSoundConfig"
@@ -39,7 +41,8 @@ class SoundConfig(GameObject):
         "action_sounds": "actionSounds",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class FreeFormSoundConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
@@ -47,7 +50,8 @@ class FreeFormSoundConfig(GameObject):
     MAPPING = {
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class AirplaneConfig(GameObject):
     C = "ultshared.modding.configuration.UltAirplaneConfig"
@@ -71,7 +75,8 @@ class AirplaneConfig(GameObject):
 
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ControllableConfig(GameObject):
     C = "ultshared.modding.configuration.UltControllableConfig"
@@ -83,7 +88,8 @@ def parse_dict_of_ints(obj):
     obj.pop("@")
     return {int(key): val for key, val in obj.items()}
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class CarrierConfig(GameObject):
     C = "ultshared.modding.configuration.UltCarrierConfig"
@@ -95,7 +101,8 @@ class CarrierConfig(GameObject):
             "max_capacity": "maxCapacity"
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class AntiAirConfig(GameObject):
     C = "ultshared.modding.configuration.UltAntiAirConfig"
@@ -104,7 +111,8 @@ class AntiAirConfig(GameObject):
     MAPPING = {"range": "range",
                "attackPainter": "attackPainter"}
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class DummyScoutConfig(GameObject):
     C = "ultshared.modding.configuration.UltScoutConfig$DummyScoutConfig"
@@ -116,7 +124,8 @@ class DummyScoutConfig(GameObject):
             "camoflage_classes": "camouflageClasses",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ScoutConfig(GameObject):
     C = "ultshared.modding.configuration.UltScoutConfig"
@@ -128,7 +137,8 @@ class ScoutConfig(GameObject):
             "camoflage_classes": "camouflageClasses",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class TokenProducerConfigProduction(GameObject):
     C = "ultshared.modding.configuration.UltTokenProducerConfig$TokenProduction"

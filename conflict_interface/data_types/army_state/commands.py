@@ -9,12 +9,13 @@ from typing import Union
 from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
 from conflict_interface.data_types.custom_types import DefaultEnumMeta
 from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
-from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_binary import SerializationCategory
-from conflict_interface.data_types.decorators import binary_serializable
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import binary_serializable
 from conflict_interface.data_types.point import Point
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class GotoCommand(GameObject):
     """
@@ -89,7 +90,8 @@ class GotoCommand(GameObject):
         target_pos = self.target_position
         return math.atan2(-target_pos.x + start_pos.x, target_pos.y - start_pos.y)
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class RetreatCommand(GameObject):
     C = "rt"
@@ -98,7 +100,8 @@ class RetreatCommand(GameObject):
     def action_copy(self) -> "RetreatCommand":
         return copy(self)
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class AttackCommand(GameObject):
     C = "ac"
@@ -114,20 +117,23 @@ class AttackCommand(GameObject):
     def action_copy(self) -> "AttackCommand":
         return copy(self)
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class SiegeCommand(GameObject):
     C = "sc"
     MAPPING = {}
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class PatrolType(Enum):
     air_mobile_relocation = "AirMobileRelocation"
     airplane_relocation = "AirplaneRelocation"
     guard = "Guard"
     air_transport = "AirTransport"
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class PatrolCommand(GameObject):
     C = "pc"
@@ -148,7 +154,8 @@ class PatrolCommand(GameObject):
     def is_relocation(self) -> bool:
         return self.patrol_type != PatrolType.guard
 
-@binary_serializable(SerializationCategory.ENUM)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class WaitDirection(Enum, metaclass=DefaultEnumMeta):
     UNKNOWN = -1
     WAITING = 0
@@ -161,7 +168,8 @@ class WaitDirection(Enum, metaclass=DefaultEnumMeta):
     AIR_DISEMBARKING = 7
     DISBANDING = 8
 
-@binary_serializable(SerializationCategory.DATACLASS)
+from conflict_interface.data_types.version import VERSION
+@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class WaitCommand(GameObject):
     """
