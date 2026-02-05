@@ -19,7 +19,7 @@ from conflict_interface.game_api import GameApi
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replaysegment import ReplaySegment
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
 from conflict_interface.utils.exceptions import GameActivationException
@@ -34,7 +34,7 @@ class OnlineInterface(GameInterface):
                  proxy: dict = None,
                  replay_filepath: str = None):
         super().__init__()
-        self.replay: Replay | None = None
+        self.replay: ReplaySegment | None = None
         self.game_id = game_id
         self.game_api: GameApi = GameApi(session, auth_details, self.game_id, proxy=proxy)
         self.game_event_handler: Callable = self.default_event_handler
@@ -46,7 +46,7 @@ class OnlineInterface(GameInterface):
 
     def _handle_replay_init(self, static_map_data: StaticMapData):
         if not os.path.exists(self.replay_filepath):
-            self.replay = Replay(file_path=Path(self.replay_filepath), mode="w", game_id=self.game_id, player_id=self.player_id, max_patches=400)
+            self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="w", game_id=self.game_id, player_id=self.player_id, max_patches=400)
             self.replay.open()
             self.replay.record_initial_game_state(
                                 time_stamp = self.client_time(),
@@ -58,7 +58,7 @@ class OnlineInterface(GameInterface):
                                 player_id = self.player_id,
                                 static_map_data = static_map_data)
         else:
-            self.replay = Replay(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
+            self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
             self.replay.open()
             last_game_state = self.replay.get_last_game_state()
             replay_patch = make_bireplay_patch(last_game_state, self.game_state)
@@ -184,7 +184,7 @@ class OnlineInterface(GameInterface):
 
     def record_patch(self, rp: BidirectionalReplayPatch):
         if self.is_recording():
-            self.replay = Replay(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
+            self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
             self.replay.open()
             self.replay.append_patches(
                 time_stamp=self.client_time(),

@@ -1,5 +1,5 @@
 
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replaysegment import ReplaySegment
 from conflict_interface.replay.replay_patch import ReplayPatch
 import time
 
@@ -8,7 +8,7 @@ class ReplaySpaceBenchmark:
         self.replay_file = replay_file
 
     def run_space_test(self):
-        replay = Replay(self.replay_file, "r")
+        replay = ReplaySegment(self.replay_file, "r")
         replay.open()
 
         replay.load_patches_from_disk_into_cache()
@@ -62,7 +62,7 @@ class ReplaySpaceBenchmark:
         print(f"Max operations in a single patch: {max_ops}")
 
     def run_time_benchmark(self):
-        replay = Replay(self.replay_file, "r")
+        replay = ReplaySegment(self.replay_file, "r")
         replay.open()
         replay.load_patches_from_disk_into_cache()
         patches = list(replay.cache._patches.values())

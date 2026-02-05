@@ -4,7 +4,6 @@ import pickle
 import struct
 from array import array
 from logging import getLogger
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -46,8 +45,9 @@ class ReplayStorage:
 
     path_tree: PathTree | None
 
-    def __init__(self):
+    def __init__(self, data: bytearray):
         # Binary representations of serialized data (compressed or raw)
+        self._data_b: bytearray = data
         self._metadata_b: bytes | None = None
         self._initial_game_state_b: bytes | None = None
         self._static_map_data_b: bytes | None = None
@@ -69,7 +69,11 @@ class ReplayStorage:
         self.decompressor = lz4.frame.decompress
         self.serializer = GameObjectSerializer()
 
-    def read_full_from_disk(self, file_path: Path):
+    def extend(self, required_size):
+        if len(self._data_b)<required_size:
+            self._data_b.extend(b'\x00' * (required_size - len(self._data_b)))
+
+    def read_all(self):
         """
         Reads the complete replay file from disk into memory.
 
@@ -90,8 +94,7 @@ class ReplayStorage:
             return self.decompressor(c)
 
         # Load entire file into memory
-        with open(file_path, 'rb') as f:
-            data = f.read()
+        data = self._data_b
 
         reader = BinaryReader(data)
 
@@ -115,15 +118,14 @@ class ReplayStorage:
         # Read last game state (compressed)
         self._last_game_state_b = read_compressed(reader)
 
-    def read_append_mode_from_disk(self, file_path: Path):
+    def read_append_mode_from_disk(self):
         """
         Reads only the portions of the replay needed for append mode.
         Skips initial game state and static map data since they won't change.
 
         Used when continuing to record an ongoing game replay.
         """
-        with open(file_path, 'rb') as f:
-            data = f.read()
+        data = self._data_b
 
         reader = BinaryReader(data)
 
@@ -157,16 +159,15 @@ class ReplayStorage:
         compressed = reader.read_bytes(length)
         self._last_game_state_b = self.decompressor(compressed)
 
-    def read_metadata_from_disk(self, file_path):
+    def read_metadata_from_disk(self):
         """
         Quickly reads just the metadata without loading the entire replay.
         Useful for listing replays or checking replay properties.
         """
-        with open(file_path, "rb") as f:
-            len_metadata = struct.unpack_from('<i', f.read(4), 0)[0]
-            self._metadata_b = f.read(len_metadata)
+        len_metadata = struct.unpack_from('<i', self._data_b, 0)[0]
+        self._metadata_b = self._data_b[4:4+len_metadata]
 
-    def write_full_to_disk(self, file_path: Path):
+    def write_all(self):
         """
         Writes the complete replay to disk in the binary format.
 
@@ -215,14 +216,13 @@ class ReplayStorage:
         write_compressed(data, self._last_game_state_b)
 
         # Write to file
-        with open(file_path, 'wb') as f:
-            f.write(data.getbuffer())
+        self._data_b[:] = data.getbuffer()
 
         # Update metadata with patch index location and write it
         self.metadata.patch_index_start = patch_index_start
-        self.update_metadata(file_path)
+        self.update_metadata()
 
-    def write_last_game_state(self, file_path: Path):
+    def write_last_game_state(self):
         """
         Updates only the last game state in an existing replay file.
         Uses in-place update to avoid rewriting the entire file.
@@ -232,30 +232,27 @@ class ReplayStorage:
         compressed = self.compressor(self._last_game_state_b)
         length = len(compressed)
 
-        with open(file_path, 'r+b') as f:
-            # Navigate to the end of the data pool
-            f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
-            current_size = struct.unpack_from('<i', f.read(4), 0)[0]
-            new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
+        # Navigate to the end of the data pool
+        end_of_patch_index = self.metadata.patch_index_start + len(self._patch_index_b)
+        current_size = struct.unpack_from('<i', self._data_b, end_of_patch_index)[0]
+        new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
 
-            # Write the compressed last game state
-            f.seek(new_data_start_pos)
-            f.write(struct.pack('<i', length))
-            f.write(compressed)
+        # Write the compressed last game state
+        self.extend(new_data_start_pos+4+length)
+        struct.pack_into('<i', self._data_b, new_data_start_pos,length)
+        self._data_b[new_data_start_pos + 4 : new_data_start_pos + 4 + length] = compressed
 
-    def update_metadata(self, file_path: Path):
+    def update_metadata(self):
         """
         Updates the metadata section at the beginning of the file.
         Since metadata is fixed size, this is a simple overwrite.
         """
-        with open(file_path, "r+b") as f:
-            len_metadata = struct.unpack_from('<i', f.read(4), 0)[0]
-            metadata_b = self.metadata.serialize()
-            assert (len_metadata == len(metadata_b)), "Metadata has changed length"
-            f.write(metadata_b)
+        len_metadata = struct.unpack_from('<i', self._data_b, 0)[0]
+        metadata_b = self.metadata.serialize()
+        assert (len_metadata == len(metadata_b)), "Metadata has changed length"
+        self._data_b[4: 4+len_metadata] = metadata_b
 
-    def append_patches_to_disk(self, nodes: list[PatchGraphNode], paths: list[list[tuple[int, int, str | int]]],
-                               file_path: Path):
+    def append_patches_to_disk(self, nodes: list[PatchGraphNode], paths: list[list[tuple[int, int, str | int]]]):
         """
         Appends new patch nodes to an existing replay file.
 
@@ -265,7 +262,6 @@ class ReplayStorage:
         Args:
             nodes: New patch nodes to append
             paths: Path information for each node
-            file_path: Replay file to append to
         """
         # Load and copy the patch index
         patch_index = np.frombuffer(self._patch_index_b, dtype=PATCH_INDEX_DTYPE)
@@ -296,24 +292,21 @@ class ReplayStorage:
         # Update cached patch index
         self._patch_index_b = patch_index.tobytes()
 
-        with open(file_path, 'r+b') as f:
-            # Find where to append the new patches
-            f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
-            current_size = struct.unpack_from('<i', f.read(4), 0)[0]
-            new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
+        # Find where to append the new patches
+        end_of_patch_index = self.metadata.patch_index_start + len(self._patch_index_b)
+        current_size = struct.unpack_from('<i', self._data_b, end_of_patch_index)[0]
+        new_data_start_pos = self.metadata.patch_index_start + len(self._patch_index_b) + current_size + 4
 
-            # Append patch data
-            f.seek(new_data_start_pos)
-            f.write(patch_bytes.getbuffer())
+        # Append patch data
+        self.extend(new_data_start_pos+len(patch_bytes.getbuffer()))
+        self._data_b[new_data_start_pos: new_data_start_pos+len(patch_bytes.getbuffer())] = patch_bytes.getbuffer()
+        # Update patch index in file
+        self._data_b[self.metadata.patch_index_start : self.metadata.patch_index_start+len(self._patch_index_b)] = self._patch_index_b
 
-            # Update patch index in file
-            f.seek(self.metadata.patch_index_start)
-            f.write(self._patch_index_b)
 
-            # Update data pool size
-            new_size = current_size + len(patch_bytes.getbuffer())
-            f.seek(self.metadata.patch_index_start + len(self._patch_index_b))
-            f.write(struct.pack('<i', new_size))
+        # Update data pool size
+        new_size = current_size + len(patch_bytes.getbuffer())
+        struct.pack_into('<i', self._data_b, self.metadata.patch_index_start + len(self._patch_index_b), new_size)
 
 
 
@@ -523,7 +516,7 @@ class ReplayStorage:
         Packed with msgpack for additional compression.
         """
         n = self.path_tree.idx_counter  # Total number of nodes
-        path_elements = [None] * n
+        path_elements: list[int | str | None] = [None] * n
         parent_indices = array('i', [-1] * n)  # Signed integer array
         is_leaf_flags = array('B', [0] * n)  # Byte array for booleans
 

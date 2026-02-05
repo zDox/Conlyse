@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import os
 from collections import deque
 from datetime import UTC
 from datetime import datetime
 from logging import getLogger
-from pathlib import Path
 from typing import Literal
 from typing import TYPE_CHECKING
 
@@ -13,10 +11,8 @@ from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.replay.apply_replay_helper import apply_operation
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
-
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_storage import ReplayStorage
-from conflict_interface.utils.helper import create_parent_dirs
 
 if TYPE_CHECKING:
     from conflict_interface.interface.replay_interface import ReplayInterface
@@ -24,16 +20,16 @@ if TYPE_CHECKING:
 logger = getLogger()
 
 
-class Replay:
-    def __init__(self, file_path: Path, mode: Literal['r', 'w', 'a', 'rw'] = 'r', game_id: int = None, player_id: int = None, max_patches: int = None):
-        self.file_path: Path = file_path
-        self.mode = mode
+
+class ReplaySegment:
+    def __init__(self, data: bytearray, mode: Literal['r', 'w', 'a', 'rw'] = 'r', game_id: int = None, player_id: int = None, max_patches: int = None):
+        self._mode = mode
         self.game_id = game_id
         self.player_id = player_id
 
         self._is_open = False
 
-        self.storage = ReplayStorage()
+        self.storage = ReplayStorage(data)
 
         self._op_counter = 0
         self._game: ReplayInterface | None = None
@@ -48,7 +44,10 @@ class Replay:
             logger.error("Replay is open -> Cannot set Mode")
             return
 
-        self.mode = mode
+        self._mode = mode
+
+    def get_mode(self):
+        return self._mode
 
     def set_game(self, game: ReplayInterface):
         self._game = game
@@ -76,32 +75,26 @@ class Replay:
             logger.warning("Replay is already open")
             return None
 
-        if self.mode == 'r':
-            if not os.path.exists(self.file_path):
-                raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
-
+        if self._mode == 'r':
             self.load_everything_into_memory()
 
-        elif self.mode == 'a':
-            if not os.path.exists(self.file_path):
-                raise FileNotFoundError(f"Replay file {self.file_path} does not exist.")
+        elif self._mode == 'a':
 
-            self.storage.read_append_mode_from_disk(self.file_path)
+            self.storage.read_append_mode_from_disk()
             self.storage.load_metadata()
             self.storage.load_last_game_state()
             self.storage.load_path_tree()
 
-        elif self.mode == 'w':
+        elif self._mode == 'w':
             if self.game_id is None or self.player_id is None:
                 raise ValueError("Game ID and Player ID must be provided in write mode")
 
             if self._max_patches is None:
                 raise ValueError("Max Patches not set")
 
-            create_parent_dirs(self.file_path)
             self.storage.initialize(self._max_patches)
 
-        elif self.mode == 'rw':
+        elif self._mode == 'rw':
             if self.game_id is None or self.player_id is None:
                 raise ValueError("Game ID and Player ID must be provided in read write mode")
 
@@ -114,7 +107,7 @@ class Replay:
         return self
 
     def load_everything_into_memory(self):
-        self.storage.read_full_from_disk(self.file_path)
+        self.storage.read_all()
         self.storage.load_metadata()
         self.storage.load_initial_game_state(self._game)
         self.storage.load_static_map_data(self._game)
@@ -130,7 +123,7 @@ class Replay:
 
         self.validate_max_patches()
 
-        if self.mode in ['w', 'rw']:
+        if self._mode in ['w', 'rw']:
             # When closing in write or read-write mode the replay gets defragmented. This improves read performance (maybe)
             self.storage.metadata.is_fragmented = False
 
@@ -142,11 +135,11 @@ class Replay:
 
             # Assumes that initial-game-state and static-map-data have been unloaded on initial record
             # Write everything to file
-            self.storage.write_full_to_disk(self.file_path)
-        elif self.mode in ['a']:
-            self.storage.update_metadata(self.file_path)
+            self.storage.write_all()
+        elif self._mode in ['a']:
+            self.storage.update_metadata()
             self.storage.unload_last_game_state()
-            self.storage.write_last_game_state(self.file_path)
+            self.storage.write_last_game_state()
             # no additional writes needed
 
         self._is_open = False
@@ -219,8 +212,8 @@ class Replay:
         if not self._is_open:
             logger.warning("Can not append to an closed replay")
             return
-        if not self.mode == 'a':
-            logger.warning(f"Can only append in Append mode, current mode is {self.mode}")
+        if not self._mode == 'a':
+            logger.warning(f"Can only append in Append mode, current mode is {self._mode}")
             return
 
         self.storage.metadata.is_fragmented = True
@@ -256,7 +249,7 @@ class Replay:
             all_nodes.extend(nodes)
             all_new_paths.extend(new_paths)
 
-        self.storage.append_patches_to_disk(all_nodes, all_new_paths, self.file_path)
+        self.storage.append_patches_to_disk(all_nodes, all_new_paths)
 
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState, game_interface: ReplayInterface):
         idx_to_node = self.storage.path_tree.idx_to_node

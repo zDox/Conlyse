@@ -22,7 +22,7 @@ from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.long_patch import create_long_patch
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replaysegment import ReplaySegment
 
 logger = get_logger()
 
@@ -38,7 +38,8 @@ class ReplayInterface(GameInterface):
 
         self._time_stamps_cache = None
         self._file_path: Path = Path(file_path)
-        self._replay: Replay | None = None
+        self._replay: ReplaySegment | None = None
+        self._replays: list[ReplaySegment] = []
         self._hook_system: ReplayHookSystem | None = None
 
         self._mode: Literal['r', 'rw'] | None = None
@@ -61,7 +62,7 @@ class ReplayInterface(GameInterface):
             logger.warning("Max Patches was not set. Returning")
             return False
 
-        self._replay = Replay(file_path=self._file_path, mode = self._mode, player_id=self.player_id, game_id=self.game_id, max_patches=max_patches)
+        self._replay = ReplaySegment(file_path=self._file_path, mode = self._mode, player_id=self.player_id, game_id=self.game_id, max_patches=max_patches)
         self._replay.set_game(self)
         self._replay.open()
 
@@ -398,6 +399,7 @@ class ReplayInterface(GameInterface):
             path=path,
             attributes=attributes
         )
+
     def unregister_game_info_trigger(self):
         path = ["states", "game_info_state"]
         self._hook_system.unregister_event_trigger(path)

@@ -14,7 +14,7 @@ from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
 
 if TYPE_CHECKING:
-    from conflict_interface.replay.replay import Replay
+    from conflict_interface.replay.replaysegment import ReplaySegment
 
 logger = getLogger()
 
@@ -25,7 +25,7 @@ class ReplayHookSystem:
         self._hooks: dict[int, list[ReplayHook]] = {}  # Listening to Path -> list of Hooks
         self._hook_queue: dict[int, list[ReplayHookQueueElement]] = {}
         self._hook_events: list[ReplayHookEvent] = []
-        self.replay: Replay = replay
+        self.replay: ReplaySegment = replay
 
     def register_hook(self, replay_hook: ReplayHook):
         if replay_hook.path in self._hooks:

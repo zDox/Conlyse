@@ -10,7 +10,7 @@ from conflict_interface.data_types.game_state.game_state import GameState
 from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replaysegment import ReplaySegment
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from tools.recording_converter.recorder_logger import get_logger
@@ -231,12 +231,12 @@ class FromJsonResponsesUsingUpdateToReplay:
             player_id: int,
             max_patches: int,
             static_map_data: StaticMapData
-    ) -> Optional[Replay]:
+    ) -> Optional[ReplaySegment]:
         """Initialize replay and record static map data."""
         logger.info("Initializing replay...")
 
         try:
-            replay = Replay(
+            replay = ReplaySegment(
                 file_path=output_file,
                 mode='w',
                 game_id=game_id,
@@ -259,7 +259,7 @@ class FromJsonResponsesUsingUpdateToReplay:
 
     def _record_initial_state(
             self,
-            replay: Replay,
+            replay: ReplaySegment,
             json_responses: list,
             initial_idx: int,
             game_id: int,
@@ -304,12 +304,12 @@ class FromJsonResponsesUsingUpdateToReplay:
             output_file: Path,
             game_id: int,
             player_id: int
-    ) -> Optional[Replay]:
+    ) -> Optional[ReplaySegment]:
         """Reopen replay in append mode."""
         logger.info("Reopening replay in append mode...")
 
         try:
-            replay = Replay(
+            replay = ReplaySegment(
                 file_path=output_file,
                 mode='a',
                 game_id=game_id,
@@ -323,7 +323,7 @@ class FromJsonResponsesUsingUpdateToReplay:
 
     def _process_json_responses(
             self,
-            replay: Replay,
+            replay: ReplaySegment,
             json_responses: list,
             initial_idx: int,
             current_state: GameState,
@@ -417,7 +417,7 @@ class FromJsonResponsesUsingUpdateToReplay:
             current_state.update(new_state, path=[], rp=bipatch)
             return bipatch
 
-    def _finalize_replay(self, replay: Replay, final_state: GameState) -> None:
+    def _finalize_replay(self, replay: ReplaySegment, final_state: GameState) -> None:
         """Finalize replay by recording final state and closing."""
         logger.info("Finalizing replay...")
         t1 = time.perf_counter()
