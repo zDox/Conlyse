@@ -11,6 +11,7 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
+from conflict_interface.replay.replay_timeline import ReplayTimeline
 from conflict_interface.utils.helper import unix_ms_to_datetime
 
 logger = get_logger()
@@ -29,7 +30,7 @@ class ReplayBuilder:
         self.parser.type_graph.build_graph()
         self.parser.type_graph.add_c_tag(GameState, "ultshared.UltAutoGameState")
 
-        self.replay: Optional[Replay] = None
+        self.replay: Optional[ReplayTimeline] = None
         self.game_id = game_id
         self.player_id = player_id
 
@@ -76,7 +77,7 @@ class ReplayBuilder:
         )
         current_timestamp = unix_ms_to_datetime(int(initial_state.time_stamp))
 
-        self.replay = Replay(
+        self.replay = ReplayTimeline(
             file_path=self.path,
             mode='w',
             game_id=self.game_id,
