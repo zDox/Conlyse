@@ -1,11 +1,11 @@
 from enum import Enum
 
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
+from ...custom_types import DefaultEnumMeta
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import binary_serializable
-from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
+from ...resource_state.resource_state_enums import ResourceType
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
     """
@@ -26,7 +26,7 @@ class ProvinceStateID(Enum, metaclass=DefaultEnumMeta):
     MAINLAND_CITY = 55
     MAX = 99
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
     NONE = ResourceType.NONE.value + 1
@@ -44,12 +44,12 @@ class ResourceProductionType(Enum, metaclass=DefaultEnumMeta):
     CITY_CLAIM = ResourceType.CITY_CLAIM.value + 1
     PHARMACEUTICAL = ResourceType.PHARMACEUTICAL.value + 1
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class RevoltSuppressionProperty(Enum):
     DEFENSE = "DEFENSE"
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class ImpactType(Enum, metaclass=DefaultEnumMeta):
     NORMAL = 0
@@ -58,14 +58,14 @@ class ImpactType(Enum, metaclass=DefaultEnumMeta):
     BUILDING = 3
     ATOMIC = 4
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class SeaType(Enum):
     HIGH_SEA = "HIGHSEA"
     COASTAL = "COASTAL"
     RIVER = "RIVER"
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class TerrainType(Enum, metaclass=DefaultEnumMeta):
     """
@@ -85,7 +85,7 @@ class TerrainType(Enum, metaclass=DefaultEnumMeta):
     COASTAL = 20
     SUBURBAN = 21
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @binary_serializable(SerializationCategory.ENUM, version = VERSION)
 class TerrainTypeStr(Enum, metaclass=DefaultEnumMeta):
     """

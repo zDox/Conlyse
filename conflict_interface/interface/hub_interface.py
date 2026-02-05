@@ -3,9 +3,9 @@ from dataclasses import fields
 from functools import wraps
 from typing import cast
 
-from conflict_interface.data_types.game_object_json import parse_any
-from conflict_interface.data_types.hub_types.hub_game import HubGame
-from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
+from ..game_object_json import parse_any
+from ..hub_types.hub_game import HubGame
+from ..hub_types.hub_game import HubGameProperties
 from conflict_interface.hub_api import HubApi
 from conflict_interface.interface.online_interface import OnlineInterface
 from conflict_interface.logger_config import get_logger

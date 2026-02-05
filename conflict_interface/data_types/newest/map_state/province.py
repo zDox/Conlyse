@@ -2,27 +2,27 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import Optional
 
-from conflict_interface.data_types.custom_types import ArrayList
-from conflict_interface.data_types.custom_types import HashSet
-from conflict_interface.data_types.custom_types import ProductionList
-from conflict_interface.data_types.custom_types import Vector
+from ..custom_types import ArrayList
+from ..custom_types import HashSet
+from ..custom_types import ProductionList
+from ..custom_types import Vector
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import binary_serializable
-from conflict_interface.data_types.map_state.impact import Impact
-from conflict_interface.data_types.map_state.map_state_enums import TerrainType
-from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
-from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
-from conflict_interface.data_types.map_state.map_state_enums import ResourceProductionType
-from conflict_interface.data_types.map_state.province_production import ProvinceProduction
-from conflict_interface.data_types.map_state.province_property import ProvinceProperty
-from conflict_interface.data_types.map_state.static_province import StaticProvince
-from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceAction
-from conflict_interface.data_types.map_state.update_province_action import UpdateProvinceActionModes
-from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
-from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
-from conflict_interface.data_types.player_state.player_profile import PlayerProfile
-from conflict_interface.data_types.point import Point
+from ..map_state.impact import Impact
+from ..map_state.map_state_enums import TerrainType
+from ..map_state.province_action_result import UpdateProvinceActionResult
+from ..map_state.map_state_enums import ProvinceStateID
+from ..map_state.map_state_enums import ResourceProductionType
+from ..map_state.province_production import ProvinceProduction
+from ..map_state.province_property import ProvinceProperty
+from ..map_state.static_province import StaticProvince
+from ..map_state.update_province_action import UpdateProvinceAction
+from ..map_state.update_province_action import UpdateProvinceActionModes
+from ..mod_state.modable_unit import SpecialUnit
+from ..mod_state.moddable_upgrade import ModableUpgrade
+from ..player_state.player_profile import PlayerProfile
+from ..point import Point
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
@@ -43,7 +43,7 @@ def requires_ownership(func):
 
     return wrapper
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class Province(GameObject):
