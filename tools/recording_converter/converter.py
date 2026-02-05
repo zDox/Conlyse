@@ -30,16 +30,17 @@ class RecordingConverter:
         Converts the recording to multiple json files
     """
     
-    def __init__(self, recording_dir: str | Path, operating_mode: OperatingMode):
+    def __init__(self, recording_dir: str | Path, operating_mode: OperatingMode, static_map_data_path: str | Path = None):
         """
         Initialize converter with recording directory.
         
         Args:
             recording_dir: Path to the recording directory
             operating_mode: One of the three operating modes
+            static_map_data_path: Optional path to static map data file (default: <recording_dir>/static_map_data.bin)
         """
         self.path = Path(recording_dir)
-        self.reader = RecordingReader(self.path)
+        self.reader = RecordingReader(self.path, static_map_data_path)
         self.op_mode = operating_mode
 
         self.check_op_mode_requirements()
