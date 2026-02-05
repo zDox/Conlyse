@@ -18,12 +18,18 @@ from tools.recording_converter.recorder_logger import get_logger
 logger = get_logger()
 
 class RecordingReader:
-    def __init__(self, recording_dir: Path):
+    def __init__(self, recording_dir: Path, static_map_data_path: str | Path = None):
         self.recording_dir = Path(recording_dir)
         self.game_states_file = self.recording_dir / "game_states.bin"
         self.requests_file = self.recording_dir / "requests.jsonl.zst"
         self.responses_file = self.recording_dir / "responses.jsonl.zst"
-        self.static_map_data_file = self.recording_dir / "static_map_data.bin"
+
+        # Use custom static map data path if provided, otherwise default to recording dir
+        if static_map_data_path:
+            self.static_map_data_file = Path(static_map_data_path)
+        else:
+            self.static_map_data_file = self.recording_dir / "static_map_data.bin"
+
         self.metadata_file = self.recording_dir / "metadata.json"
 
         self.metadata = None
@@ -77,22 +83,22 @@ class RecordingReader:
             with open(self.static_map_data_file, 'rb') as f:
                 compressed_data = f.read()
 
+            if self.static_map_data_file.suffix == ".json":
+                return parse_any(StaticMapData, json.loads(compressed_data))
+
             # Decompress and unpickle
             decompressed = self._decompressor.decompress(compressed_data)
             static_map_data = pickle.loads(decompressed)
             if isinstance(static_map_data, StaticMapData):
                 logger.info("Loaded static map data as StaticMapData object")
+                return static_map_data
             elif isinstance(static_map_data, dict):
                 logger.info("Loaded static map data as dict")
                 static_map_data = parse_any(StaticMapData, static_map_data, None)
+                return static_map_data
             else:
                 raise ValueError(f"Unexpected static map data type: {type(static_map_data)}")
 
-            if isinstance(static_map_data, StaticMapData):
-                logger.info("Read static map data from recording")
-            elif isinstance(static_map_data, dict):
-                static_map_data = parse_any(StaticMapData, static_map_data)
-            return static_map_data
         except Exception as e:
             logger.error(f"Error reading static map data: {e}")
             return None

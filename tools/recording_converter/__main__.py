@@ -4,6 +4,7 @@ CLI entry point for the record-to-replay converter tool.
 import argparse
 import logging
 import sys
+from pathlib import Path
 
 from tools.recording_converter.converter import RecordingConverter
 from tools.recording_converter.enums import OperatingMode
@@ -31,6 +32,9 @@ Examples:
   
   # Specify game and player IDs explicitly
   record-to-replay recordings/my_recording replay.db --game-id 12345 --player-id 67890
+  
+  # Use a custom static map data file
+  record-to-replay recordings/my_recording replay.db --static-map-data /path/to/custom_static_map.bin
 
 The recording directory should contain:
   - game_states.bin: Binary file with compressed game states
@@ -62,6 +66,11 @@ Patch creation modes:
         help='Path to the output dir for JSON files - required in rtj mode'
     )
     
+    parser.add_argument(
+        '--static-map-data',
+        help='Path to the static map data file (default: <recording-dir>/static_map_data.bin)'
+    )
+
     parser.add_argument(
         '--mode',
         choices=['gmr', 'rur', 'rtj'],
@@ -131,7 +140,7 @@ Patch creation modes:
             case 'rtj' :
                 op_mode = OperatingMode.rtj
 
-        converter = RecordingConverter(args.recording_dir, op_mode)
+        converter = RecordingConverter(Path(args.recording_dir), op_mode, Path(args.static_map_data))
     except FileNotFoundError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -145,20 +154,18 @@ Patch creation modes:
                     print("Error: Output directory is required in rtj mode")
                     sys.exit(1)
                 success = converter.convert(
-                    output=args.output_dir,
+                    output=Path(args.output_dir),
                     overwrite=args.overwrite,
                     limit=args.limit
                 )
 
                 if success:
-                    print(f"Successfully converted recording to JSON files in: {args.output_dir}")
                     sys.exit(0)
                 else:
-                    print("Convertion failed. Check logs for details.")
                     sys.exit(1)
             case OperatingMode.gmr | OperatingMode.rur:
                 success = converter.convert(
-                    output=args.output_replay,
+                    output=Path(args.output_replay),
                     overwrite=args.overwrite,
                     limit=args.limit,
                     game_id=args.game_id,
@@ -170,17 +177,13 @@ Patch creation modes:
                     sys.exit(1)
         
         if success:
-            print(f"Successfully converted recording to replay: {args.output_replay}")
             sys.exit(0)
         else:
-            print("Conversion failed. Check logs for details.")
             sys.exit(1)
             
     except KeyboardInterrupt:
-        print("\nConversion interrupted by user")
         sys.exit(130)
     except Exception as e:
-        print(f"Error: {e}")
         sys.exit(1)
 
 
