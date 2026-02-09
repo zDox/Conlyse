@@ -3,12 +3,12 @@ from dataclasses import field
 from typing import Optional
 
 from conflict_interface.game_object.game_object import GameObject
-from conflict_interface.data_types.army_state.army import Army
-from conflict_interface.data_types.custom_types import HashMap
+from ..army_state.army import Army
+from ..custom_types import HashMap
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.state import State
-from conflict_interface.data_types.update_helpers import state_update
+from ..state import State
+from ..update_helpers import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 

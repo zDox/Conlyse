@@ -10,18 +10,18 @@ from ..custom_types import EmptyMap
 from ..custom_types import HashMap
 from ..custom_types import HashSet
 from ..custom_types import LinkedHashMap
-from conflict_interface.data_types.custom_types import RegularImmutableMap
-from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
-from conflict_interface.data_types.custom_types import UnmodifiableCollection
-from conflict_interface.data_types.custom_types import UnmodifiableMap
-from conflict_interface.data_types.custom_types import UnmodifiableSet
+from ..custom_types import RegularImmutableMap
+from ..custom_types import TimeDeltaMillisecondsInt
+from ..custom_types import UnmodifiableCollection
+from ..custom_types import UnmodifiableMap
+from ..custom_types import UnmodifiableSet
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.mod_state.boost import Boost
-from conflict_interface.data_types.player_state.faction import Faction
+from ..mod_state.boost import Boost
+from ..player_state.faction import Faction
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class SortingConfig(GameObject):
@@ -29,7 +29,7 @@ class SortingConfig(GameObject):
     sorting_order: int
     MAPPING = {"sorting_order": "sortOrder"}
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class SoundConfig(GameObject):
@@ -41,7 +41,7 @@ class SoundConfig(GameObject):
         "action_sounds": "actionSounds",
     }
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class FreeFormSoundConfig(GameObject):
@@ -50,7 +50,7 @@ class FreeFormSoundConfig(GameObject):
     MAPPING = {
     }
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class AirplaneConfig(GameObject):
@@ -75,7 +75,7 @@ class AirplaneConfig(GameObject):
 
     }
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ControllableConfig(GameObject):
@@ -88,7 +88,7 @@ def parse_dict_of_ints(obj):
     obj.pop("@")
     return {int(key): val for key, val in obj.items()}
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class CarrierConfig(GameObject):
@@ -101,7 +101,7 @@ class CarrierConfig(GameObject):
             "max_capacity": "maxCapacity"
     }
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class AntiAirConfig(GameObject):
