@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from conflict_interface.data_types.admin_state.admin_state import AdminState
-from conflict_interface.data_types.ai_state.ai_state import AIState
-from conflict_interface.data_types.army_state.army_state import ArmyState
+from ..admin_state.admin_state import AdminState
+from ..ai_state.ai_state import AIState
+from ..army_state.army_state import ArmyState
 from conflict_interface.data_types.build_queue_state.build_queue_state import BuildQueueState
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.exploration_state import ExplorationState

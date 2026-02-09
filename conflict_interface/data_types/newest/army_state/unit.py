@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
-from conflict_interface.data_types.mod_state.unit_type import UnitType
+from ..mod_state.mod_state_enums import UnitFeature
+from ..mod_state.unit_type import UnitType
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class Unit(GameObject):

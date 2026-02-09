@@ -1,11 +1,11 @@
 from enum import Enum
 
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
+from ..custom_types import DefaultEnumMeta
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
 
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.ENUM, version = VERSION)
 class FightStatus(Enum, metaclass=DefaultEnumMeta):
     """
@@ -20,7 +20,7 @@ class FightStatus(Enum, metaclass=DefaultEnumMeta):
     ANTI_AIR = 6
     BOMBING = 7
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.ENUM, version = VERSION)
 class Aggressiveness(Enum, metaclass=DefaultEnumMeta):
     """

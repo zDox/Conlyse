@@ -3,20 +3,20 @@ from dataclasses import dataclass
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.mod_state.configuration import ConsumptionStrategyConfig
-from conflict_interface.data_types.mod_state.configuration import DurationStrategyConfig
-from conflict_interface.data_types.mod_state.configuration import EffectScalingStrategyConfig
-from conflict_interface.data_types.mod_state.configuration import EffectsConfig
-from conflict_interface.data_types.mod_state.configuration import MergeStrategyConfig
-from conflict_interface.data_types.mod_state.configuration import PurchaseStrategyConfig
-from conflict_interface.data_types.mod_state.configuration import RenderConfig
-from conflict_interface.data_types.mod_state.configuration import SplitStrategyConfig
-from conflict_interface.data_types.mod_state.configuration import TokenClassConfig
-from conflict_interface.data_types.mod_state.configuration import TokenPriorityConfig
-from conflict_interface.data_types.mod_state.configuration import VisibilityStrategyConfig
+from ..mod_state.configuration import ConsumptionStrategyConfig
+from ..mod_state.configuration import DurationStrategyConfig
+from ..mod_state.configuration import EffectScalingStrategyConfig
+from ..mod_state.configuration import EffectsConfig
+from ..mod_state.configuration import MergeStrategyConfig
+from ..mod_state.configuration import PurchaseStrategyConfig
+from ..mod_state.configuration import RenderConfig
+from ..mod_state.configuration import SplitStrategyConfig
+from ..mod_state.configuration import TokenClassConfig
+from ..mod_state.configuration import TokenPriorityConfig
+from ..mod_state.configuration import VisibilityStrategyConfig
 
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class TokenType(GameObject):
