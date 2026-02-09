@@ -13,8 +13,6 @@ import numpy as np
 
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import GameObjectSerializer
-from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.replay.constants import PATCH_INDEX_DTYPE
 from conflict_interface.replay.metadata import Metadata
 from conflict_interface.replay.patch_graph import PatchGraph

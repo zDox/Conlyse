@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 
-from conflict_interface.data_types.action import Action
-from conflict_interface.data_types.game_api_types.system_information import SystemInformation
+from ..action import Action
+from ..game_api_types.system_information import SystemInformation
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 
 
-from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class LoginAction(Action):
     C = "ultshared.action.UltLoginAction"

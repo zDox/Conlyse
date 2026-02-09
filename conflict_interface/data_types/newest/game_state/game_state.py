@@ -10,7 +10,7 @@ from conflict_interface.data_types.exploration_state import ExplorationState
 from conflict_interface.data_types.game_event_state.game_event_state import GameEventState
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.data_types.in_game_alliance_state.in_game_alliance_state import InGameAllianceState
 from conflict_interface.data_types.location_state.location_state import LocationState
 from conflict_interface.data_types.map_info_state.map_info_state import MapInfoState
@@ -76,7 +76,7 @@ STATE_TYPE_MISSION_STATE: 29
 """
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class States(GameObject):
     C = "java.util.HashMap"
@@ -151,7 +151,7 @@ class States(GameObject):
         """
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class GameState(State):
     C = "ultshared.UltGameState"

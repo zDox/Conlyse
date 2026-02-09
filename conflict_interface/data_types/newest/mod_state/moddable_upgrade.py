@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING
 
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.data_types.point import Point
 
 if TYPE_CHECKING:
     from conflict_interface.data_types.mod_state.upgrade_type import UpgradeType
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ModableUpgrade(GameObject):
     id: int

@@ -1,7 +1,7 @@
 from typing import Optional
 
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.data_types.research_state.research_action import ResearchAction
 from conflict_interface.data_types.custom_types import ArrayList, HashMap
 
@@ -16,7 +16,7 @@ from conflict_interface.replay.constants import PathNode
 
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ResearchState(State):
     C = "ultshared.UltResearchState"

@@ -2,11 +2,11 @@ from dataclasses import dataclass
 
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class PremiumSpyJob(GameObject):
     """
@@ -46,7 +46,7 @@ class PremiumSpyJob(GameObject):
 
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class RevealProvinceArmiesJob(PremiumSpyJob):
     """
@@ -55,7 +55,7 @@ class RevealProvinceArmiesJob(PremiumSpyJob):
     C = "ultshared.spyjobs.UltRevealProvinceArmiesJob"
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class CountryInfoJob(PremiumSpyJob):
     """
@@ -64,7 +64,7 @@ class CountryInfoJob(PremiumSpyJob):
     C = "ultshared.spyjobs.UltCountryInfoJob"
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class DecreaseMoralJob(PremiumSpyJob):
     """
@@ -80,7 +80,7 @@ class DecreaseMoralJob(PremiumSpyJob):
     }
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class DestroyResouceJob(PremiumSpyJob):
     """
@@ -89,7 +89,7 @@ class DestroyResouceJob(PremiumSpyJob):
     C = "ultshared.spyjobs.UltDestroyResourceJob"
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class DamageUpgradeJob(PremiumSpyJob):
     """
@@ -105,7 +105,7 @@ class DamageUpgradeJob(PremiumSpyJob):
     }
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class RevealAllArmiesJob(PremiumSpyJob):
     """

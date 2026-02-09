@@ -8,7 +8,7 @@ from ..custom_types import ProductionList
 from ..custom_types import Vector
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from ..map_state.impact import Impact
 from ..map_state.map_state_enums import TerrainType
 from ..map_state.province_action_result import UpdateProvinceActionResult
@@ -44,7 +44,7 @@ def requires_ownership(func):
     return wrapper
 
 from ..version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class Province(GameObject):
     """

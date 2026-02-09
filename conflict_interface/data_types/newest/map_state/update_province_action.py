@@ -3,14 +3,14 @@ from enum import Enum
 from typing import Union
 
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.data_types.mod_state.modable_unit import SpecialUnit
 from conflict_interface.data_types.action import Action
 from conflict_interface.data_types.custom_types import Vector, DefaultEnumMeta
 from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.ENUM, version = VERSION)
+@conflict_serializable(SerializationCategory.ENUM, version = VERSION)
 class UpdateProvinceActionModes(Enum, metaclass=DefaultEnumMeta):
     PROVINCE = 0
     UPGRADE = 1 # Building an upgrade in Province
@@ -21,7 +21,7 @@ class UpdateProvinceActionModes(Enum, metaclass=DefaultEnumMeta):
     DEMOLISH_UPGRADE = 6
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class UpdateProvinceAction(Action):
     C = "ultshared.action.UltUpdateProvinceAction"

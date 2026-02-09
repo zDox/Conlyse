@@ -10,7 +10,7 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import HashSet
 from conflict_interface.data_types.custom_types import TreeMap
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.data_types.map_state.map_state_enums import SeaType
 from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
 from conflict_interface.data_types.map_state.province_state import ProvinceState
@@ -56,7 +56,7 @@ from conflict_interface.replay.constants import PathNode
 
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ModState(State):
     C = "ultshared.UltMod"

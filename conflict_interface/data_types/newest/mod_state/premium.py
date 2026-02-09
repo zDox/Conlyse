@@ -3,12 +3,12 @@ from typing import Optional
 
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.data_types.mod_state.configuration import PremiumVisibilityConfig
 from conflict_interface.data_types.mod_state.configuration import TokenProducerConfig
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class Premium(GameObject):
     C = "ultshared.premium.UltPremium"

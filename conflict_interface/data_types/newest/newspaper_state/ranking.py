@@ -3,7 +3,7 @@ from typing import Optional
 
 from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import RankingEntryList
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.data_types.newspaper_state.ranking_entry import RankingEntry
@@ -13,7 +13,7 @@ from conflict_interface.replay.constants import PathNode
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class Ranking(GameObject):
     C = "ultshared.UltRanking"

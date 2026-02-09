@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 import bisect
 import gc
-from bisect import bisect_right
 
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
 from typing import Literal
+from typing import TYPE_CHECKING
 from typing import override
 
-from conflict_interface.data_types.map_state.province import Province
 from conflict_interface.hook_system.replay_hook import ReplayHook
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_system import ReplayHookSystem
@@ -23,6 +24,9 @@ from conflict_interface.replay.long_patch import create_long_patch
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replaysegment import ReplaySegment
+
+if TYPE_CHECKING:
+    from conflict_interface.data_types.newest.map_state.province import Province
 
 logger = get_logger()
 

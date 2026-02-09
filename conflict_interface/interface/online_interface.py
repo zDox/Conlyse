@@ -1,21 +1,21 @@
+from __future__ import annotations
+
 import os.path
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from time import time
 from typing import Callable
+from typing import TYPE_CHECKING
 from typing import override
 
 from cloudscraper25 import CloudScraper
 
 from conflict_interface.action_handler import ActionHandler
-from conflict_interface.data_types.action import Action
-from conflict_interface.data_types.authentication import AuthDetails
-from conflict_interface.data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
-from conflict_interface.data_types.game_api_types.login_action import LoginAction
-from conflict_interface.game_object.game_object import GameObject
-from conflict_interface.data_types.game_object_json import parse_any
-from conflict_interface.data_types.static_map_data import StaticMapData
+
 from conflict_interface.game_api import GameApi
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
@@ -24,12 +24,19 @@ from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
 from conflict_interface.utils.exceptions import GameActivationException
 
+if TYPE_CHECKING:
+    from conflict_interface.data_types.newest.action import Action
+    from conflict_interface.data_types.newest.authentication import AuthDetails
+    from conflict_interface.data_types.newest.game_api_types.login_action import LoginAction
+    from conflict_interface.data_types.newest.static_map_data import StaticMapData
+
 logger = get_logger()
 
 class OnlineInterface(GameInterface):
-    def __init__(self, game_id: int,
+    def __init__(self, version: int, game_id: int,
                  session: CloudScraper,
                  auth_details: AuthDetails,
+                 login_action: LoginAction,
                  guest: bool = False,
                  proxy: dict = None,
                  replay_filepath: str = None):
@@ -41,6 +48,10 @@ class OnlineInterface(GameInterface):
         self.guest: bool = guest
         self.action_handler = ActionHandler(self)
         self.static_map_data = None
+        self.version = version
+        self.parser = JsonParser(version)
+        self.parser.type_graph.build_graph()
+        self.loging_action = login_action
 
         self.replay_filepath = replay_filepath
 
@@ -113,10 +124,10 @@ class OnlineInterface(GameInterface):
                     random_team_country_selection=False,
                 )
                 logger.debug(f"Loading game with player id: {self.player_id}")
-                login_action: LoginAction = DEFAULT_LOGIN_ACTION
+                login_action: LoginAction = deepcopy(self.loging_action)
                 login_action.system_information.client_version = self.game_api.client_version
                 login_action.system_information.os_name = self.game_api.device_details.os
-                self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+                self.do_action(self.loging_action, execute_immediately=True)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
@@ -124,7 +135,7 @@ class OnlineInterface(GameInterface):
                 self.game_state = self.action_handler.create_game_state_action(use_queue=False, send_state_ids=False)
 
         json_static_map_data = self.game_api.get_static_map_data()
-        self.static_map_data = parse_any(StaticMapData, json_static_map_data, self)
+        self.static_map_data = self.parser.parse_any(StaticMapData, json_static_map_data, self)
 
         if self.replay_filepath:
             self._handle_replay_init(self.static_map_data)
@@ -159,7 +170,7 @@ class OnlineInterface(GameInterface):
                                                            random_team_country_selection=random_country_team)
         self.game_state = None
         self.action_handler.game_state = None
-        self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+        self.do_action(self.loging_action, execute_immediately=True)
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
 
     def update(self):

@@ -2,10 +2,10 @@ from dataclasses import dataclass
 
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class Sender(GameObject):
     C = "ultshared.gameevents.UltSender"

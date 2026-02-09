@@ -1,15 +1,21 @@
+from __future__ import annotations
+
 from copy import deepcopy
+
 from dataclasses import fields
 from functools import wraps
+from typing import TYPE_CHECKING
 from typing import cast
 
-from ..game_object_json import parse_any
-from ..hub_types.hub_game import HubGame
-from ..hub_types.hub_game import HubGameProperties
+from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.hub_api import HubApi
 from conflict_interface.interface.online_interface import OnlineInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import AuthenticationException
+
+if TYPE_CHECKING:
+    from conflict_interface.data_types.newest.hub_types.hub_game import HubGame
+    from conflict_interface.data_types.newest.hub_types.hub_game import HubGameProperties
 
 logger = get_logger()
 
@@ -25,9 +31,12 @@ def protected(func):
 
 
 class HubInterface:
-    def __init__(self, proxy: dict = None):
+    def __init__(self, version: int, proxy: dict = None):
         self.api: HubApi = HubApi(proxy)
         self.auth = False
+        self.version = version
+        self.parser = JsonParser(self.version)
+        self.parser.type_graph.build_graph()
 
     def set_proxy(self, proxy: dict):
         self.api.set_proxy(proxy)
@@ -117,7 +126,7 @@ class HubInterface:
             A list of HubGameProperties, each representing the properties of games that
             match the filtering criteria and archived state.
         """
-        data = parse_any(list[HubGame], self.api.get_my_games(archived))
+        data = self.parser.parse_any(list[HubGame], self.api.get_my_games(archived))
         return [
             game.properties for game in data
             if all(getattr(game.properties, key) == value for key, value in filters.items())
@@ -145,7 +154,7 @@ class HubInterface:
             if key not in valid_fields:
                 raise ValueError(f"Invalid filter key: {key}")
 
-        data = cast(list[HubGame], parse_any(list[HubGame], self.api.get_global_games()))
+        data = cast(list[HubGame], self.parser.parse_any(list[HubGame], self.api.get_global_games()))
         return [
             game.properties for game in data
             if all(getattr(game.properties, key) == value for key, value in filters.items())
@@ -153,7 +162,7 @@ class HubInterface:
 
     @protected
     def get_game_details(self, game_id: int) -> HubGame:
-        return parse_any(HubGame, self.api.get_game_details(game_id), None)
+        return self.parser.parse_any(HubGame, self.api.get_game_details(game_id), None)
 
     def first_join(self, game_id: int):
         self.api.request_first_join(game_id)

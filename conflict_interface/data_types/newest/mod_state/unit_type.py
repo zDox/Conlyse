@@ -7,7 +7,7 @@ from conflict_interface.data_types.custom_types import HashMap
 from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.data_types.mod_state.configuration import AirMobileConfig
 from conflict_interface.data_types.mod_state.configuration import AirplaneConfig
 from conflict_interface.data_types.mod_state.configuration import AntiAirConfig
@@ -46,7 +46,7 @@ from conflict_interface.data_types.research_state.research_type import ResearchT
 from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class UnitType(GameObject):
     """

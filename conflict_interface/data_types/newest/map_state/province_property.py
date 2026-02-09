@@ -3,7 +3,7 @@ from typing import Union
 
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from ..map_state.morale_factors import MoraleFactors
 from ..map_state.map_state_enums import RevoltSuppressionProperty
 from ..mod_state.modable_unit import SpecialUnit
@@ -11,7 +11,7 @@ from ..mod_state.moddable_upgrade import ModableUpgrade
 from ..custom_types import LinkedList, ArrayList, EmptyList
 
 from ..version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ProvinceProperty(GameObject):
     """

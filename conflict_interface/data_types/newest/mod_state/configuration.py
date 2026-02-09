@@ -17,12 +17,12 @@ from conflict_interface.data_types.custom_types import UnmodifiableMap
 from conflict_interface.data_types.custom_types import UnmodifiableSet
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import binary_serializable
+from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.data_types.mod_state.boost import Boost
 from conflict_interface.data_types.player_state.faction import Faction
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class SortingConfig(GameObject):
     C = "ultshared.modding.configuration.UltSortingConfig"
@@ -30,7 +30,7 @@ class SortingConfig(GameObject):
     MAPPING = {"sorting_order": "sortOrder"}
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class SoundConfig(GameObject):
     C = "ultshared.modding.configuration.UltSoundConfig"
@@ -42,7 +42,7 @@ class SoundConfig(GameObject):
     }
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class FreeFormSoundConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
@@ -51,7 +51,7 @@ class FreeFormSoundConfig(GameObject):
     }
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class AirplaneConfig(GameObject):
     C = "ultshared.modding.configuration.UltAirplaneConfig"
@@ -76,7 +76,7 @@ class AirplaneConfig(GameObject):
     }
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ControllableConfig(GameObject):
     C = "ultshared.modding.configuration.UltControllableConfig"
@@ -89,7 +89,7 @@ def parse_dict_of_ints(obj):
     return {int(key): val for key, val in obj.items()}
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class CarrierConfig(GameObject):
     C = "ultshared.modding.configuration.UltCarrierConfig"
@@ -102,7 +102,7 @@ class CarrierConfig(GameObject):
     }
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class AntiAirConfig(GameObject):
     C = "ultshared.modding.configuration.UltAntiAirConfig"
@@ -112,7 +112,7 @@ class AntiAirConfig(GameObject):
                "attackPainter": "attackPainter"}
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class DummyScoutConfig(GameObject):
     C = "ultshared.modding.configuration.UltScoutConfig$DummyScoutConfig"
@@ -125,7 +125,7 @@ class DummyScoutConfig(GameObject):
     }
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ScoutConfig(GameObject):
     C = "ultshared.modding.configuration.UltScoutConfig"
@@ -138,7 +138,7 @@ class ScoutConfig(GameObject):
     }
 
 from conflict_interface.data_types.version import VERSION
-@binary_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class TokenProducerConfigProduction(GameObject):
     C = "ultshared.modding.configuration.UltTokenProducerConfig$TokenProduction"
@@ -153,7 +153,7 @@ class TokenProducerConfigProduction(GameObject):
         "range": "range",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class TokenProducerConfig(GameObject):
     C = "ultshared.modding.configuration.UltTokenProducerConfig"
@@ -165,7 +165,7 @@ class TokenProducerConfig(GameObject):
             "tokens_provided": "tokensProvided",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class TokenRequirement(GameObject): # TODO consider move to own file
     C = "ultshared.modding.configuration.UltTokenConsumerConfig$TokenRequirement"
@@ -177,7 +177,7 @@ class TokenRequirement(GameObject): # TODO consider move to own file
         "amount": "amount",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class TokenConsumerConfig(GameObject):
     C = "ultshared.modding.configuration.UltTokenConsumerConfig"
@@ -188,7 +188,7 @@ class TokenConsumerConfig(GameObject):
             "requirements": "requirements",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class DummyMissileConfig(GameObject):
     C = "ultshared.modding.configuration.UltMissileConfig$DummyMissileConfig"
@@ -202,7 +202,7 @@ class DummyMissileConfig(GameObject):
         "stacking_limit": "stackingLimit",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class MissileConfig(GameObject):
     C = "ultshared.modding.configuration.UltMissileConfig"
@@ -216,7 +216,7 @@ class MissileConfig(GameObject):
         "stacking_limit": "stackingLimit",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class MissileSlotConfig(GameObject):
     C = "ultshared.modding.configuration.MissileSlotConfig"
@@ -231,7 +231,7 @@ class MissileSlotConfig(GameObject):
         "initial_inventory": "initialInventory",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class MissileCarrierConfig(GameObject):
     C = "ultshared.modding.configuration.UltMissileCarrierConfig"
@@ -241,7 +241,7 @@ class MissileCarrierConfig(GameObject):
         "missile_slot_config": "missileSlotConfig",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class DummyMissileCarrierConfig(GameObject):
     C = "ultshared.modding.configuration.UltMissileCarrierConfig$DummyMissileCarrierConfig"
@@ -251,7 +251,7 @@ class DummyMissileCarrierConfig(GameObject):
         "missile_slot_config": "missileSlotConfig",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class MissileCarrierFeature(GameObject):
     C ="ultshared.warfare.UltMissileCarrierFeature"
@@ -265,7 +265,7 @@ class MissileCarrierFeature(GameObject):
         "last_missile_pawns": "lastMissileSpawns",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class RadarSignatureFeature(GameObject):
     C = "ultshared.warfare.UltRadarSignatureFeature"
@@ -274,7 +274,7 @@ class RadarSignatureFeature(GameObject):
         "signature_size_map": "ssm",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class TokenFeature(GameObject):
     """
@@ -287,7 +287,7 @@ class TokenFeature(GameObject):
         "tokens": "tokens",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class CarrierFeature(GameObject):
     """
@@ -296,7 +296,7 @@ class CarrierFeature(GameObject):
     """
     MAPPING = {}
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class MoraleBasedProductionConfig(GameObject):
     C = "ultshared.modding.configuration.UltMoraleBasedProductionConfig" # Stupid naming
@@ -312,7 +312,7 @@ class MoraleBasedProductionConfig(GameObject):
         "curve_y2": "curveY2",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class HealArmiesModFeatureConfig(GameObject):
     C = "ultshared.modding.configuration.UltHealArmiesModFeatureConfig"
@@ -323,7 +323,7 @@ class HealArmiesModFeatureConfig(GameObject):
         "tick_time": "tickTime",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class HealArmiesUpgradeFeatureConfig(GameObject):
     C = "ultshared.modding.configuration.UltHealArmiesUpgradeFeatureConfig"
@@ -332,7 +332,7 @@ class HealArmiesUpgradeFeatureConfig(GameObject):
         "healing_rate_by_armor_class": "healingRateByArmorClass",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ReducedDamageArmorClassesConfig(GameObject):
     C = "ultshared.modding.configuration.ReducedDamageArmorClassesConfig"
@@ -343,7 +343,7 @@ class ReducedDamageArmorClassesConfig(GameObject):
         "reduced_to_whole": "reducedToWhole",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ArmyStackingPenaltyConfig(GameObject):
     C = "ultshared.modding.configuration.UltArmyStackingPenaltyConfig"
@@ -356,7 +356,7 @@ class ArmyStackingPenaltyConfig(GameObject):
         "speed_factor_scaling": "speedFactorScalings",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class AStarConfig(GameObject):
     C = "ultshared.modding.configuration.UltAStarConfig"
@@ -371,7 +371,7 @@ class AStarConfig(GameObject):
         "friendly_harbour_cost_factor": "friendlyHarbourCostFactor",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class NoobBonusConfig(GameObject):
     C = "ultshared.modding.configuration.UltNoobBonusConfig"
@@ -386,7 +386,7 @@ class NoobBonusConfig(GameObject):
         "resource_production_bonus": "resourceProductionBonus",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ModStateFrontendConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
@@ -422,7 +422,7 @@ class ModStateFrontendConfig(GameObject):
         "feature_promo_popup": "featurePromoPopup",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class UnitTypeFrontEndConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
@@ -434,13 +434,13 @@ class UnitTypeFrontEndConfig(GameObject):
         "officer_premium_id": "officerPremiumItemID",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class FreeformConfig(GameObject):
     C = ""
     MAPPING = {}
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class UpgradeTypeFreeformConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
@@ -459,7 +459,7 @@ class UpgradeTypeFreeformConfig(GameObject):
         "animation_id": "animationId",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class PremiumVisibilityConfig(GameObject):
     C = "ultshared.modding.configuration.premiums.UltPremiumVisibilityConfig"
@@ -468,7 +468,7 @@ class PremiumVisibilityConfig(GameObject):
         "visibility": "visibility",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ConstructionSpeedupConfig(GameObject):
     C = "ultshared.modding.configuration.UltConstructionSpeedupConfig"
@@ -481,7 +481,7 @@ class ConstructionSpeedupConfig(GameObject):
         "construction_class": "constructionClass",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class DiplomaticAggressionConfig(GameObject):
     C = "ultshared.modding.configuration.UltDiplomaticAggressionConfig"
@@ -494,7 +494,7 @@ class DiplomaticAggressionConfig(GameObject):
         "victim_incident_mapping": "victimIncidentMapping",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class AirMobileConfig(GameObject):
     C = "ultshared.modding.configuration.UltAirMobileConfig"
@@ -505,7 +505,7 @@ class AirMobileConfig(GameObject):
         "assault_type": "assaultType", # TODO why is an ide warning here?
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ArmyBoostConfig(GameObject):
     C = "ultshared.modding.configuration.UltArmyBoostConfig"
@@ -516,7 +516,7 @@ class ArmyBoostConfig(GameObject):
         "bonuses": "bonuses",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class LimitedMobilizationConfig(GameObject):
     C = "ultshared.modding.configuration.UltLimitedMobilizationConfig"
@@ -526,7 +526,7 @@ class LimitedMobilizationConfig(GameObject):
         "limit": "limit",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class RadarSignatureConfig(GameObject):
     C = "ultshared.modding.configuration.UltRadarSignatureConfig"
@@ -539,7 +539,7 @@ class RadarSignatureConfig(GameObject):
         "size": "size",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class SignatureConfig(GameObject):
     C = "ultshared.modding.configuration.UltRadarConfig$SignatureConfig"
@@ -552,7 +552,7 @@ class SignatureConfig(GameObject):
         "resolution": "resolution",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class RadarConfig(GameObject):
     C = "ultshared.modding.configuration.UltRadarConfig"
@@ -563,7 +563,7 @@ class RadarConfig(GameObject):
         "signature_types": "signatureTypes",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ConvertToResourceConfig(GameObject):
     C = "ultshared.modding.configuration.UltConvertToResourceConfig"
@@ -574,7 +574,7 @@ class ConvertToResourceConfig(GameObject):
         "resources": "resources",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class DisbandConfig(GameObject):
     C = "ultshared.modding.configuration.UltDisbandConfig"
@@ -587,7 +587,7 @@ class DisbandConfig(GameObject):
         "duration": "duration",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class MissionTypeFrontEndConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
@@ -599,7 +599,7 @@ class MissionTypeFrontEndConfig(GameObject):
         "help": "help",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class DurationStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltDurationStrategyConfig"
@@ -611,7 +611,7 @@ class DurationStrategyConfig(GameObject):
         "strategy": "strategy",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class TokenClassConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltTokenClassConfig"
@@ -621,7 +621,7 @@ class TokenClassConfig(GameObject):
         "token_class": "tokenClass",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class TokenPriorityConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltTokenPriorityConfig"
@@ -631,7 +631,7 @@ class TokenPriorityConfig(GameObject):
         "priority": "priority",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class SplitStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltSplitStrategyConfig"
@@ -641,7 +641,7 @@ class SplitStrategyConfig(GameObject):
         "strategy": "strategy",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class EffectsConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltEffectsConfig"
@@ -651,7 +651,7 @@ class EffectsConfig(GameObject):
         "effects": "effects",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ConflictCondition(GameObject):
     C = "ultshared.modding.configuration.UltCondition"
@@ -661,7 +661,7 @@ class ConflictCondition(GameObject):
         "expression": "expression",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class PurchaseStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltPurchaseStrategyConfig"
@@ -679,7 +679,7 @@ class PurchaseStrategyConfig(GameObject):
         "enable_all_priority": "enableAllPriority",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class MergeStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltMergeStrategyConfig"
@@ -689,7 +689,7 @@ class MergeStrategyConfig(GameObject):
         "strategy": "strategy",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class VisibilityStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltVisibilityStrategyConfig"
@@ -699,7 +699,7 @@ class VisibilityStrategyConfig(GameObject):
         "minimum_relation": "minimumRelation",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class EffectScalingStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltEffectScalingStrategyConfig"
@@ -709,7 +709,7 @@ class EffectScalingStrategyConfig(GameObject):
         "strategy": "strategy",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class Consumption(GameObject):
     C = "ultshared.modding.configuration.tokens.UltConsumption"
@@ -719,7 +719,7 @@ class Consumption(GameObject):
         "consumption": "consumption",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class RenderConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
@@ -737,7 +737,7 @@ class RenderConfig(GameObject):
         "effective_charge": "effectiveCharge",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class SpyConfig(GameObject):
     C = "ultshared.modding.configuration.UltSpyConfig"
@@ -747,7 +747,7 @@ class SpyConfig(GameObject):
         "max_foreign_spies_per_province": "maxForeignSpiesPerProvince",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class NewspaperConfig(GameObject):
     C = "ultshared.modding.configuration.UltNewspaperConfig"
@@ -762,7 +762,7 @@ class NewspaperConfig(GameObject):
         "max_article_body_characters": "maxArticleBodyChars",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class UberConfig(GameObject):
     # freeform config
@@ -770,7 +770,7 @@ class UberConfig(GameObject):
 
     MAPPING = {}
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class IncludeExcludeConfig(GameObject):
     C = "ultshared.modding.configuration.UltIncludeExcludeConfig"
@@ -783,7 +783,7 @@ class IncludeExcludeConfig(GameObject):
         "exclude": "exclude",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class PlayerProgressionConfig(GameObject):
     C = "ultshared.modding.configuration.UltPlayerProgressionConfig"
@@ -796,7 +796,7 @@ class PlayerProgressionConfig(GameObject):
         "unit_types": "unitTypes",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class ConsumptionStrategyConfig(GameObject):
     C = "ultshared.modding.configuration.tokens.UltConsumptionStrategyConfig"
@@ -811,7 +811,7 @@ class ConsumptionStrategyConfig(GameObject):
         "insufficient_rule": "insufficientRule",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class FactorySpeedUpConfig(GameObject):
     C = "ultshared.modding.configuration.UltFactorySpeedUpConfig"
@@ -824,7 +824,7 @@ class FactorySpeedUpConfig(GameObject):
         "base": "base",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class VictoryPointsGenerationConfig(GameObject):
     C = "ultshared.modding.configuration.UltVictoryPointsGenerationConfig"
@@ -835,7 +835,7 @@ class VictoryPointsGenerationConfig(GameObject):
         "daily_victory_points": "dailyVictoryPoints",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class StackingConfig(GameObject):
     C = "ultshared.modding.configuration.UltStackingConfig"
@@ -848,7 +848,7 @@ class StackingConfig(GameObject):
         "cls": "class",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class UnitSpawnDetails(GameObject):
     C = "ultshared.modding.configuration.UltUnitSpawnConfig$UnitSpawnDetails"
@@ -860,7 +860,7 @@ class UnitSpawnDetails(GameObject):
         "spawn_condition": "spawnCondition",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class UnitSpawnConfig(GameObject):
     C = "ultshared.modding.configuration.UltUnitSpawnConfig"
@@ -876,7 +876,7 @@ class UnitSpawnConfig(GameObject):
         "spawn_condition": "spawnCondition",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class LaunchTargetConfig(GameObject):
     C = "ultshared.modding.configuration.UltLaunchTargetConfig"
@@ -889,7 +889,7 @@ class LaunchTargetConfig(GameObject):
         "possible_targets": "possibleTargets",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class TokenSensitivityConfig(GameObject):
     C = "ultshared.modding.configuration.UltTokenSensitivityConfig"
@@ -900,7 +900,7 @@ class TokenSensitivityConfig(GameObject):
         "token_types": "tokenTypes",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class FactionSpecificConfig(GameObject):
     C = "ultshared.modding.configuration.UltFactionSpecificConfig"
@@ -911,7 +911,7 @@ class FactionSpecificConfig(GameObject):
         "factions": "factions",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class VariantConfig(GameObject):
     C = "ultshared.modding.configuration.UltVariantConfig"
@@ -922,7 +922,7 @@ class VariantConfig(GameObject):
         "variant_class": "class",
     }
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
 class TerrainRestrictedConfig(GameObject):
     C = "ultshared.modding.configuration.UltTerrainRestrictionConfig"
