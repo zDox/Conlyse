@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from typing import get_type_hints
 
-from conflict_interface.data_types.custom_types import DateTimeSecondsInt
+from ..custom_types import DateTimeSecondsInt
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
+from ..hub_types.hub_game_state_enum import HubGameState
 
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class GameLogin:
@@ -37,7 +37,7 @@ class GameLogin:
             cls._type_hints = get_type_hints(cls)
         return cls._type_hints
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class HubGameProperties:
@@ -151,7 +151,7 @@ class HubGameProperties:
             cls._type_hints = get_type_hints(cls)
         return cls._type_hints
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class HubGame:

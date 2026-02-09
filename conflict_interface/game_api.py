@@ -14,7 +14,7 @@ from cloudscraper25 import CloudScraper
 from lxml import html
 from requests import Session
 
-from conflict_interface.data_types.authentication import AuthDetails
+from ..authentication import AuthDetails
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException
 from conflict_interface.utils.exceptions import GameJoinException

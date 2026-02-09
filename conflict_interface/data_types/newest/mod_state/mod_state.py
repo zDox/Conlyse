@@ -2,12 +2,12 @@ from dataclasses import dataclass
 from typing import Optional
 from typing import Union
 
-from conflict_interface.data_types.army_state.unit import Unit
-from conflict_interface.data_types.custom_types import ArrayList
-from conflict_interface.data_types.custom_types import ArraysArrayList
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.custom_types import HashSet
+from ..army_state.unit import Unit
+from ..custom_types import ArrayList
+from ..custom_types import ArraysArrayList
+from ..custom_types import DateTimeMillisecondsInt
+from ..custom_types import HashMap
+from ..custom_types import HashSet
 from conflict_interface.data_types.custom_types import TreeMap
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
