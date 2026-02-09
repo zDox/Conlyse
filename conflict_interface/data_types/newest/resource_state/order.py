@@ -4,9 +4,9 @@ from typing import Optional
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
+from ..resource_state.resource_state_enums import ResourceType
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class Order(GameObject):

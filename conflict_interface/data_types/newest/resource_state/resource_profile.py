@@ -1,18 +1,18 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from conflict_interface.data_types.custom_types import ArrayList
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.custom_types import LinkedList
+from ..custom_types import ArrayList
+from ..custom_types import HashMap
+from ..custom_types import LinkedList
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.resource_state.order import Order
-from conflict_interface.data_types.resource_state.premium_order import PremiumOrder
-from conflict_interface.data_types.resource_state.resource_category import ResourceCategory
-from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
+from ..resource_state.order import Order
+from ..resource_state.premium_order import PremiumOrder
+from ..resource_state.resource_category import ResourceCategory
+from ..resource_state.resource_state_enums import ResourceType
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ResourceProfile(GameObject):

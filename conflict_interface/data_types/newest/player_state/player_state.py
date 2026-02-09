@@ -1,26 +1,26 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
-from conflict_interface.data_types.custom_types import HashMap
+from ..custom_types import DefaultEnumMeta
+from ..custom_types import HashMap
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.player_state.player_profile import PlayerProfile
-from conflict_interface.data_types.player_state.team_profile import TeamProfile
-from conflict_interface.data_types.state import State
-from conflict_interface.data_types.update_helpers import state_update
+from ..player_state.player_profile import PlayerProfile
+from ..player_state.team_profile import TeamProfile
+from ..state import State
+from ..update_helpers import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.ENUM, version = VERSION)
 class VisibilityMode(Enum, metaclass=DefaultEnumMeta):
     ALL = 1
     ONLY_VISIBLE = 2
     ALL_REDUCED_INFORMATION = 3
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class PlayerState(State):

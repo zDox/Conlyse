@@ -16,29 +16,29 @@ from ..army_state.commands import GotoCommand
 from ..army_state.commands import PatrolCommand
 from ..army_state.commands import PatrolType
 from ..army_state.commands import SplitArmyCommand
-from conflict_interface.data_types.army_state.commands import WaitCommand
-from conflict_interface.data_types.army_state.unit import Unit
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
-from conflict_interface.data_types.custom_types import LinkedList
-from conflict_interface.data_types.custom_types import UnitList
+from ..army_state.commands import WaitCommand
+from ..army_state.unit import Unit
+from ..custom_types import DateTimeMillisecondsInt
+from ..custom_types import LinkedList
+from ..custom_types import UnitList
 from conflict_interface.game_object.game_object import GameObject
-from conflict_interface.data_types.map_state.map_state_enums import TerrainType
-from conflict_interface.data_types.map_state.map_state_enums import TerrainTypeStr
-from conflict_interface.data_types.mod_state.air_parameters import AirParameters
-from conflict_interface.data_types.mod_state.anti_air_parameters import AntiAirParameters
-from conflict_interface.data_types.mod_state.configuration import CarrierFeature
-from conflict_interface.data_types.mod_state.configuration import MissileCarrierFeature
-from conflict_interface.data_types.mod_state.configuration import RadarSignatureFeature
-from conflict_interface.data_types.mod_state.configuration import TokenFeature
-from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
-from conflict_interface.data_types.point import Point
+from ..map_state.map_state_enums import TerrainType
+from ..map_state.map_state_enums import TerrainTypeStr
+from ..mod_state.air_parameters import AirParameters
+from ..mod_state.anti_air_parameters import AntiAirParameters
+from ..mod_state.configuration import CarrierFeature
+from ..mod_state.configuration import MissileCarrierFeature
+from ..mod_state.configuration import RadarSignatureFeature
+from ..mod_state.configuration import TokenFeature
+from ..mod_state.mod_state_enums import UnitFeature
+from ..point import Point
 from conflict_interface.logger_config import get_logger
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
 
 logger = get_logger()
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class Battle(GameObject):
@@ -51,7 +51,7 @@ class Battle(GameObject):
 
 DEFAULT_ARMY_ANGLE = 2.199114857512855
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class Army(GameObject):

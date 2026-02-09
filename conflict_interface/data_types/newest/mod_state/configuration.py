@@ -111,7 +111,7 @@ class AntiAirConfig(GameObject):
     MAPPING = {"range": "range",
                "attackPainter": "attackPainter"}
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class DummyScoutConfig(GameObject):
@@ -124,7 +124,7 @@ class DummyScoutConfig(GameObject):
             "camoflage_classes": "camouflageClasses",
     }
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ScoutConfig(GameObject):
@@ -137,7 +137,7 @@ class ScoutConfig(GameObject):
             "camoflage_classes": "camouflageClasses",
     }
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class TokenProducerConfigProduction(GameObject):

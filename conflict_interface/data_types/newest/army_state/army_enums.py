@@ -32,7 +32,7 @@ class Aggressiveness(Enum, metaclass=DefaultEnumMeta):
     NORMAL = 3
     AGGRESSIVE = 4
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.ENUM, version = VERSION)
 class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
     """
@@ -43,7 +43,7 @@ class ForcedMarch(Enum, metaclass=DefaultEnumMeta):
     ACTIVE = 1
     PREMIUM = 2
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.ENUM, version = VERSION)
 class MissileType(Enum, metaclass=DefaultEnumMeta):
     BALLISTIC = 1

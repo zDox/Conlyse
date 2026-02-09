@@ -1,11 +1,11 @@
 from dataclasses import field
 from typing import Union
 
-from conflict_interface.data_types.custom_types import ArrayList
-from conflict_interface.data_types.custom_types import EmptyList
-from conflict_interface.data_types.game_event_state.game_event import *
-from conflict_interface.data_types.state import State
-from conflict_interface.data_types.update_helpers import state_update
+from ..custom_types import ArrayList
+from ..custom_types import EmptyList
+from ..game_event_state.game_event import *
+from ..state import State
+from ..update_helpers import state_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 

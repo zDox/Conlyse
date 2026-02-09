@@ -3,27 +3,27 @@ from typing import Optional
 
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.resource_state.order_action_result import OrderActionResult
+from ..resource_state.order_action_result import OrderActionResult
 
-from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
-from conflict_interface.data_types.custom_types import AskListInner
-from conflict_interface.data_types.custom_types import AskListOuter
-from conflict_interface.data_types.custom_types import BidListInner
-from conflict_interface.data_types.custom_types import BidListOuter
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.resource_state.order import Order
-from conflict_interface.data_types.resource_state.resource_profile import ResourceProfile
-from conflict_interface.data_types.resource_state.trading import Trading
-from conflict_interface.data_types.resource_state.traiding_action import OrderAction
-from conflict_interface.data_types.state import State
-from conflict_interface.data_types.update_helpers import state_update
+from ..resource_state.resource_state_enums import ResourceType
+from ..custom_types import AskListInner
+from ..custom_types import AskListOuter
+from ..custom_types import BidListInner
+from ..custom_types import BidListOuter
+from ..custom_types import HashMap
+from ..resource_state.order import Order
+from ..resource_state.resource_profile import ResourceProfile
+from ..resource_state.trading import Trading
+from ..resource_state.traiding_action import OrderAction
+from ..state import State
+from ..update_helpers import state_update
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 
 logger = get_logger()
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ResourceState(State):

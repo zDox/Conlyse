@@ -1,16 +1,16 @@
 from dataclasses import dataclass
 from typing import Union
 
-from conflict_interface.data_types.custom_types import Vector
+from ..custom_types import Vector
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.newspaper_state.article import Article
-from conflict_interface.data_types.newspaper_state.ranking import Ranking
-from conflict_interface.data_types.newspaper_state.report_article import ReportArticle
-from conflict_interface.data_types.newspaper_state.statistics_article import StatisticsArticle
-from conflict_interface.data_types.state import State
-from conflict_interface.data_types.update_helpers import state_update
-from conflict_interface.data_types.update_helpers import list_update
+from ..newspaper_state.article import Article
+from ..newspaper_state.ranking import Ranking
+from ..newspaper_state.report_article import ReportArticle
+from ..newspaper_state.statistics_article import StatisticsArticle
+from ..state import State
+from ..update_helpers import state_update
+from ..update_helpers import list_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 

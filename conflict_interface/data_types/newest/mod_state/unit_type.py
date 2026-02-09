@@ -37,15 +37,15 @@ from ..mod_state.configuration import StackingConfig
 from ..mod_state.configuration import TerrainRestrictedConfig
 from ..mod_state.configuration import TokenConsumerConfig
 from ..mod_state.configuration import TokenProducerConfig
-from conflict_interface.data_types.mod_state.configuration import TokenSensitivityConfig
-from conflict_interface.data_types.mod_state.configuration import UnitTypeFrontEndConfig
-from conflict_interface.data_types.mod_state.configuration import VariantConfig
-from conflict_interface.data_types.mod_state.mod_state_enums import UnitFeature
-from conflict_interface.data_types.player_state.faction import Faction
-from conflict_interface.data_types.research_state.research_type import ResearchType
-from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
+from ..mod_state.configuration import TokenSensitivityConfig
+from ..mod_state.configuration import UnitTypeFrontEndConfig
+from ..mod_state.configuration import VariantConfig
+from ..mod_state.mod_state_enums import UnitFeature
+from ..player_state.faction import Faction
+from ..research_state.research_type import ResearchType
+from ..resource_state.resource_state_enums import ResourceType
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class UnitType(GameObject):

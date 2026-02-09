@@ -4,38 +4,38 @@ from typing import Optional
 from ..admin_state.admin_state import AdminState
 from ..ai_state.ai_state import AIState
 from ..army_state.army_state import ArmyState
-from conflict_interface.data_types.build_queue_state.build_queue_state import BuildQueueState
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.exploration_state import ExplorationState
-from conflict_interface.data_types.game_event_state.game_event_state import GameEventState
+from ..build_queue_state.build_queue_state import BuildQueueState
+from ..custom_types import HashMap
+from ..exploration_state import ExplorationState
+from ..game_event_state.game_event_state import GameEventState
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.in_game_alliance_state.in_game_alliance_state import InGameAllianceState
-from conflict_interface.data_types.location_state.location_state import LocationState
-from conflict_interface.data_types.map_info_state.map_info_state import MapInfoState
-from conflict_interface.data_types.mission_state.mission_state import MissionState
-from conflict_interface.data_types.player_state.player_state import PlayerState
-from conflict_interface.data_types.newspaper_state.newspaper_state import NewspaperState
-from conflict_interface.data_types.map_state.map_state import MapState
-from conflict_interface.data_types.premium_state.premium_state import PremiumState
-from conflict_interface.data_types.quest_state.quest_state import QuestState
-from conflict_interface.data_types.resource_state.resource_state import ResourceState
-from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state import ForeignAffairsState
-from conflict_interface.data_types.spy_state.spy_state import SpyState
-from conflict_interface.data_types.mod_state.mod_state import ModState
-from conflict_interface.data_types.game_info_state.game_info_state import GameInfoState
-from conflict_interface.data_types.research_state.research_state import ResearchState
-from conflict_interface.data_types.configuration_state.configuration_state import ConfigurationState
-from conflict_interface.data_types.state import State
-from conflict_interface.data_types.update_helpers import state_update
-from conflict_interface.data_types.statistic_state.statistic_state import StatisticState
-from conflict_interface.data_types.triggered_tutorial_state.triggered_tutorial_state import TriggeredTutorialState
-from conflict_interface.data_types.tutorial_state.tutorial_state import TutorialState
-from conflict_interface.data_types.user_inventory_state.user_inventory_state import UserInventoryState
-from conflict_interface.data_types.user_options_state.user_options_state import UserOptionsState
-from conflict_interface.data_types.user_sms_state.user_sms_state import UserSMSState
-from conflict_interface.data_types.wheel_of_fortune_state.wheel_of_fortune_state import WheelOfFortuneState
+from ..in_game_alliance_state.in_game_alliance_state import InGameAllianceState
+from ..location_state.location_state import LocationState
+from ..map_info_state.map_info_state import MapInfoState
+from ..mission_state.mission_state import MissionState
+from ..player_state.player_state import PlayerState
+from ..newspaper_state.newspaper_state import NewspaperState
+from ..map_state.map_state import MapState
+from ..premium_state.premium_state import PremiumState
+from ..quest_state.quest_state import QuestState
+from ..resource_state.resource_state import ResourceState
+from ..foreign_affairs_state.foreign_affairs_state import ForeignAffairsState
+from ..spy_state.spy_state import SpyState
+from ..mod_state.mod_state import ModState
+from ..game_info_state.game_info_state import GameInfoState
+from ..research_state.research_state import ResearchState
+from ..configuration_state.configuration_state import ConfigurationState
+from ..state import State
+from ..update_helpers import state_update
+from ..statistic_state.statistic_state import StatisticState
+from ..triggered_tutorial_state.triggered_tutorial_state import TriggeredTutorialState
+from ..tutorial_state.tutorial_state import TutorialState
+from ..user_inventory_state.user_inventory_state import UserInventoryState
+from ..user_options_state.user_options_state import UserOptionsState
+from ..user_sms_state.user_sms_state import UserSMSState
+from ..wheel_of_fortune_state.wheel_of_fortune_state import WheelOfFortuneState
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 
@@ -75,7 +75,7 @@ STATE_TYPE_CONFIGURATION_STATE: 28
 STATE_TYPE_MISSION_STATE: 29
 """
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class States(GameObject):
@@ -150,7 +150,7 @@ class States(GameObject):
         :return: None
         """
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class GameState(State):

@@ -2,17 +2,17 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Optional
 
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.custom_types import Vector
-from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state_enums import ForeignAffairRelationTypes
+from ..custom_types import DateTimeMillisecondsInt
+from ..custom_types import HashMap
+from ..custom_types import Vector
+from ..foreign_affairs_state.foreign_affairs_state_enums import ForeignAffairRelationTypes
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.newspaper_state.article import Article
-from conflict_interface.data_types.state import State
-from conflict_interface.data_types.update_helpers import state_update
-from conflict_interface.data_types.update_helpers import dict_update
+from ..newspaper_state.article import Article
+from ..state import State
+from ..update_helpers import state_update
+from ..update_helpers import dict_update
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 
@@ -34,7 +34,7 @@ class ForeignAffairRelations(GameObject):
         end_of_honor_period (HashMap[int, datetime]): Maps an identifier
         to a datetime indicating when an "honor period" ends for a player.
 
-        neighbor_relations (dict[int, dict[int, conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state_enums.ForeignAffairRelationTypes]]):
+        neighbor_relations (dict[int, dict[int, ..foreign_affairs_state.foreign_affairs_state_enums.ForeignAffairRelationTypes]]):
         Represents the diplomatic relationships the key of the top level dict is
         the sender and the value is a dict with the receiver as the key and the
         value of that dict is the ForeignAffairRelationType. One has to

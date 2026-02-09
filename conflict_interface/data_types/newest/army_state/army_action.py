@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING
 from typing import get_type_hints
 
 from ..custom_types import LinkedList
-from conflict_interface.data_types.action import Action
+from ..action import Action
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
 
 if TYPE_CHECKING:
-    from conflict_interface.data_types.army_state.army import Army
+    from ..army_state.army import Army
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ArmyAction(Action):
@@ -27,6 +27,6 @@ class ArmyAction(Action):
     def get_type_hints_cached(cls):
         if cls._type_hints is None:
             # Import Army at runtime only when type hints are needed
-            from conflict_interface.data_types.army_state.army import Army
+            from ..army_state.army import Army
             cls._type_hints = get_type_hints(cls, localns={'Army': Army})
         return cls._type_hints

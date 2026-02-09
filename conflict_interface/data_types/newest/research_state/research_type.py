@@ -1,18 +1,18 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
+from ..custom_types import HashMap
+from ..custom_types import TimeDeltaSecondsInt
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.mod_state.configuration import ConflictCondition
-from conflict_interface.data_types.mod_state.configuration import FactionSpecificConfig
-from conflict_interface.data_types.research_state.faction_specific_research_config import FactionSpecificResearchConfig
-from conflict_interface.data_types.research_state.research_action_result import ResearchActionResult
-from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
+from ..mod_state.configuration import ConflictCondition
+from ..mod_state.configuration import FactionSpecificConfig
+from ..research_state.faction_specific_research_config import FactionSpecificResearchConfig
+from ..research_state.research_action_result import ResearchActionResult
+from ..resource_state.resource_state_enums import ResourceType
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class ResearchType(GameObject):

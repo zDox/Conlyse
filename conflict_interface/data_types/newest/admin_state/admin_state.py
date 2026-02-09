@@ -2,9 +2,9 @@ from dataclasses import dataclass
 
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.state import State
-from conflict_interface.data_types.update_helpers import state_update
-from conflict_interface.data_types.version import VERSION
+from ..state import State
+from ..update_helpers import state_update
+from ..version import VERSION
 from conflict_interface.replay.constants import PathNode
 
 

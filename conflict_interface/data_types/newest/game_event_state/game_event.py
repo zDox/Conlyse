@@ -2,13 +2,13 @@ from dataclasses import dataclass
 from typing import Optional
 
 from conflict_interface.game_object.game_object import GameObject
-from conflict_interface.data_types.army_state.army import Army
-from conflict_interface.data_types.custom_types import ArraysArrayList
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
-from conflict_interface.data_types.game_event_state.sender import Sender
+from ..army_state.army import Army
+from ..custom_types import ArraysArrayList
+from ..custom_types import DateTimeMillisecondsInt
+from ..game_event_state.sender import Sender
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.mod_state.moddable_upgrade import ModableUpgrade
+from ..mod_state.moddable_upgrade import ModableUpgrade
 
 @conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass
