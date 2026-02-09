@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.mod_state.mod_state_enums import DamageType
+from ..mod_state.mod_state_enums import DamageType
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class Boost(GameObject):

@@ -3,13 +3,13 @@ from typing import Optional
 from typing import Set
 from typing import Union
 
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
+from ..custom_types import HashMap
+from ..custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.mod_state.configuration import AirMobileConfig
-from conflict_interface.data_types.mod_state.configuration import AirplaneConfig
+from ..mod_state.configuration import AirMobileConfig
+from ..mod_state.configuration import AirplaneConfig
 from conflict_interface.data_types.mod_state.configuration import AntiAirConfig
 from conflict_interface.data_types.mod_state.configuration import ArmyBoostConfig
 from conflict_interface.data_types.mod_state.configuration import CarrierConfig

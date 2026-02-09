@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.point import Point
+from ..point import Point
 
 if TYPE_CHECKING:
-    from conflict_interface.data_types.mod_state.upgrade_type import UpgradeType
+    from ..mod_state.upgrade_type import UpgradeType
 
 @conflict_serializable(SerializationCategory.DATACLASS)
 @dataclass

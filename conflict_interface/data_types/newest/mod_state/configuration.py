@@ -2,14 +2,14 @@ from dataclasses import dataclass
 from typing import Optional
 from typing import Union
 
-from conflict_interface.data_types.constant_segment_function import ConstantSegmentFunction
-from conflict_interface.data_types.custom_types import ArrayList
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
-from conflict_interface.data_types.custom_types import EmptyList
-from conflict_interface.data_types.custom_types import EmptyMap
-from conflict_interface.data_types.custom_types import HashMap
-from conflict_interface.data_types.custom_types import HashSet
-from conflict_interface.data_types.custom_types import LinkedHashMap
+from ..constant_segment_function import ConstantSegmentFunction
+from ..custom_types import ArrayList
+from ..custom_types import DateTimeMillisecondsInt
+from ..custom_types import EmptyList
+from ..custom_types import EmptyMap
+from ..custom_types import HashMap
+from ..custom_types import HashSet
+from ..custom_types import LinkedHashMap
 from conflict_interface.data_types.custom_types import RegularImmutableMap
 from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.data_types.custom_types import UnmodifiableCollection

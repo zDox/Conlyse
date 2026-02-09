@@ -4,11 +4,11 @@ from typing import Optional
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.map_state.map_state_enums import TerrainType
-from conflict_interface.data_types.map_state.static_province import StaticProvince
-from conflict_interface.data_types.point import Point
+from ..map_state.map_state_enums import TerrainType
+from ..map_state.static_province import StaticProvince
+from ..point import Point
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class SeaProvince(GameObject):

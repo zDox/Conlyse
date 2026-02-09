@@ -2,7 +2,7 @@ import base64
 from collections import defaultdict
 from typing import Union
 
-from conflict_interface.data_types.point import Point
+from ..point import Point
 
 
 def int_from_bytes(data: bytes, start: int, end: int) -> int:

@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 
-from conflict_interface.data_types.custom_types import ArrayList
+from ..custom_types import ArrayList
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from conflict_interface.data_types.mod_state.configuration import MissionTypeFrontEndConfig
-from conflict_interface.data_types.mod_state.mission_reward import MissionReward
-from conflict_interface.data_types.mod_state.mission_trigger import MissionTrigger
+from ..mod_state.configuration import MissionTypeFrontEndConfig
+from ..mod_state.mission_reward import MissionReward
+from ..mod_state.mission_trigger import MissionTrigger
 
-from conflict_interface.data_types.version import VERSION
+from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class MissionType(GameObject):

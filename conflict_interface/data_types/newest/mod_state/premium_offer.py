@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from conflict_interface.data_types.custom_types import DateTimeSecondsInt
-from conflict_interface.data_types.custom_types import HashMap
+from ..custom_types import DateTimeSecondsInt
+from ..custom_types import HashMap
 from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
