@@ -18,14 +18,14 @@ from tools.recording_converter.recorder_logger import get_logger
 logger = get_logger()
 
 class RecordingReader:
-    def __init__(self, recording_dir: Path, static_map_data_path: str | Path = None):
+    def __init__(self, recording_dir: Path, static_map_data_path: Path | None = None):
         self.recording_dir = Path(recording_dir)
         self.game_states_file = self.recording_dir / "game_states.bin"
         self.requests_file = self.recording_dir / "requests.jsonl.zst"
         self.responses_file = self.recording_dir / "responses.jsonl.zst"
 
         # Use custom static map data path if provided, otherwise default to recording dir
-        if static_map_data_path:
+        if static_map_data_path is not None:
             self.static_map_data_file = Path(static_map_data_path)
         else:
             self.static_map_data_file = self.recording_dir / "static_map_data.bin"
@@ -80,11 +80,15 @@ class RecordingReader:
             return None
 
         try:
+            # If the static map data is stored as JSON, read it in text mode and parse directly.
+            if self.static_map_data_file.suffix == ".json":
+                with open(self.static_map_data_file, 'r', encoding='utf-8') as f:
+                    json_data = json.load(f)
+                return parse_any(StaticMapData, json_data)
+
+            # Otherwise, assume the file contains compressed binary data.
             with open(self.static_map_data_file, 'rb') as f:
                 compressed_data = f.read()
-
-            if self.static_map_data_file.suffix == ".json":
-                return parse_any(StaticMapData, json.loads(compressed_data))
 
             # Decompress and unpickle
             decompressed = self._decompressor.decompress(compressed_data)
