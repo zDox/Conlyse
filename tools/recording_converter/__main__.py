@@ -140,7 +140,8 @@ Patch creation modes:
             case 'rtj' :
                 op_mode = OperatingMode.rtj
 
-        converter = RecordingConverter(Path(args.recording_dir), op_mode, Path(args.static_map_data))
+        static_map_path = Path(args.static_map_data) if args.static_map_data is not None else None
+        converter = RecordingConverter(Path(args.recording_dir), op_mode, static_map_path)
     except FileNotFoundError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -164,6 +165,9 @@ Patch creation modes:
                 else:
                     sys.exit(1)
             case OperatingMode.gmr | OperatingMode.rur:
+                if not args.output_replay:
+                    print("Error: Output replay file is required in gmr and rur modes")
+                    sys.exit(1)
                 success = converter.convert(
                     output=Path(args.output_replay),
                     overwrite=args.overwrite,

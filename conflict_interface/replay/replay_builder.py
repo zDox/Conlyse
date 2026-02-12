@@ -36,7 +36,7 @@ class ReplayBuilder:
         self.created = path.exists()
 
     @staticmethod
-    def _find_initial_game_state_index(json_responses: list[tuple[int, dict]]) -> Optional[int]:
+    def _find_initial_game_state_index(json_responses: list[tuple[int, dict]]) -> int:
         """
         Find the index of the first game state after game activation.
 
@@ -58,7 +58,18 @@ class ReplayBuilder:
             self,
             json_responses: list[tuple[int, dict]],
             static_map_data: StaticMapData,
-            max_patches: Optional[int] = None):
+            max_patches: Optional[int] = None) -> int:
+        """
+        Create a new replay from JSON responses.
+        
+        Args:
+            json_responses: List of (timestamp, response) tuples
+            static_map_data: Static map data for the replay
+            max_patches: Maximum number of patches to allocate
+            
+        Returns:
+            Index of the initial state that was used to create the replay
+        """
         if self.created:
             raise ValueError("Replay already created.")
 
@@ -105,6 +116,9 @@ class ReplayBuilder:
         self.replay.set_last_game_state(initial_state)
         self.replay.close()
         self.created = True
+        
+        # Return the initial index so the caller knows which responses were already processed
+        return initial_index
 
     def append_json_responses(self,
                               json_responses: list[tuple[int, dict]],

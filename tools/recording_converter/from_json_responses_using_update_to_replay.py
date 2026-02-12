@@ -85,30 +85,27 @@ class FromJsonResponsesUsingUpdateToReplay:
         try:
             # Create initial replay with static map data
             logger.info("Creating initial replay...")
-            builder.create_replay(
+            initial_index = builder.create_replay(
                 json_responses=json_responses,
                 static_map_data=static_map_data,
                 max_patches=max_patches
             )
 
-            # Append remaining JSON responses
+            # Append remaining JSON responses (skip the initial state already processed)
             logger.info("Appending JSON responses...")
-
-            def progress_callback(current: int, total: int):
-                """Progress callback for tqdm integration"""
-                pass  # tqdm will be handled in append_json_responses
+            remaining_responses = json_responses[initial_index + 1:] if initial_index + 1 < len(json_responses) else []
 
             # Use tqdm for progress reporting
-            with tqdm(total=len(json_responses), desc="Writing Replay", unit="patch", unit_scale=True) as pbar:
+            with tqdm(total=len(remaining_responses), desc="Writing Replay", unit="patch", unit_scale=True) as pbar:
                 def wrapped_callback(current: int, total: int):
                     pbar.n = current
                     pbar.refresh()
 
                 builder.append_json_responses(
-                    json_responses=json_responses,
+                    json_responses=remaining_responses,
                     progress_callback=wrapped_callback
                 )
-                pbar.n = len(json_responses)
+                pbar.n = len(remaining_responses)
                 pbar.refresh()
 
             logger.info(f"Successfully converted recording to replay: {output_file}")
