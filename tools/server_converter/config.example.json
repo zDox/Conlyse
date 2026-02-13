@@ -1,0 +1,29 @@
+{
+  "COMMENT": "Example configuration for ServerConverter - Copy and customize",
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+    "password": null,
+    "stream_name": "game_responses",
+    "consumer_group": "server_converter",
+    "consumer_name": "converter_1",
+    "batch_size": 10
+  },
+  "storage": {
+    "hot_storage_dir": "/app/hot_storage",
+    "cold_storage_enabled": false,
+    "s3": {
+      "endpoint_url": "https://your-hetzner-s3-endpoint.com",
+      "access_key": "your-access-key",
+      "secret_key": "your-secret-key",
+      "bucket_name": "replays",
+      "region": "us-east-1"
+    }
+  },
+  "database": {
+    "db_path": "/app/replays.db"
+  },
+  "batch_size": 10,
+  "check_interval_seconds": 5
+}
