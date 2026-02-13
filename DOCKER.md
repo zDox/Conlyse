@@ -284,3 +284,31 @@ For production deployments:
 ## License
 
 See the main repository LICENSE file.
+
+## Management Script
+
+A convenient `stack.sh` script is provided to manage the Docker stack:
+
+```bash
+# Quick commands
+./stack.sh start          # Start all services
+./stack.sh stop           # Stop all services
+./stack.sh status         # Check service status
+./stack.sh logs           # View all logs
+./stack.sh logs-observer  # View Server Observer logs
+./stack.sh logs-converter # View Server Converter logs
+
+# Database access
+./stack.sh shell-postgres # Open PostgreSQL shell
+./stack.sh shell-redis    # Open Redis CLI
+
+# Development
+./stack.sh build          # Rebuild all images
+./stack.sh restart-observer    # Restart Server Observer
+
+# See all commands
+./stack.sh help
+```
+
+The script handles common tasks and provides helpful output.
+
