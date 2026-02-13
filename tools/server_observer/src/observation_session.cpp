@@ -17,7 +17,8 @@ ObservationSession::ObservationSession(
     std::string storage_path,
     std::string metadata_path,
     std::string long_term_storage_path,
-    int file_size_threshold)
+    int file_size_threshold,
+    std::shared_ptr<RedisPublisher> redis_publisher)
     : game_id(game_id)
       , account(std::move(account))
       , manager_(std::move(manager))
@@ -26,7 +27,8 @@ ObservationSession::ObservationSession(
       , metadata_path_(std::move(metadata_path))
       , long_term_storage_path_(std::move(long_term_storage_path))
       , file_size_threshold_(file_size_threshold)
-      , package_(), storage_(nullptr), api_(nullptr), attempt_(1), update_sequence_number(0) {
+      , package_(), storage_(nullptr), api_(nullptr), attempt_(1), update_sequence_number(0)
+      , redis_publisher_(std::move(redis_publisher)) {
     next_update_at = std::chrono::system_clock::now();
 }
 
@@ -206,7 +208,24 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
     // Update package with new auth and connection details
     api_->update_package(package_);
 
-    // Save raw response string to storage
+    // Publish to Redis if publisher is available (do this before moving raw_response)
+    if (redis_publisher_ && redis_publisher_->is_connected()) {
+        // Get current timestamp in milliseconds
+        auto now = std::chrono::system_clock::now();
+        auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch()
+        ).count();
+        
+        // Publish the response to Redis stream
+        redis_publisher_->publish_response(
+            timestamp_ms,
+            game_id,
+            package_.player_id,
+            result.raw_response
+        );
+    }
+
+    // Save raw response string to storage (moved after Redis publish)
     ensure_storage()->update_resume_metadata(package_.to_json());
     ensure_storage()->save_response(std::move(result.raw_response));
 }

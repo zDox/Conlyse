@@ -112,6 +112,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
+# Optional Redis support (hiredis)
+option(ENABLE_REDIS "Enable Redis stream publishing" OFF)
+if(ENABLE_REDIS)
+    pkg_check_modules(HIREDIS hiredis)
+    if(NOT HIREDIS_FOUND)
+        message(WARNING "hiredis not found. Redis support will be disabled. Install with: apt-get install libhiredis-dev")
+        set(ENABLE_REDIS OFF)
+    else()
+        message(STATUS "Redis support enabled via hiredis")
+    endif()
+endif()
+
 # Include directories
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -138,6 +150,7 @@ set(SOURCES
         src/request_manager.cpp
         src/proxy_config.cpp
         src/metrics.cpp
+        src/redis_publisher.cpp
 )
 
 # Create executable
@@ -148,6 +161,11 @@ target_compile_definitions(server_observer
         PRIVATE
         PYTHON_HOME_PATH="${PYTHON_HOME}"
 )
+
+# Add Redis compile definition if enabled
+if(ENABLE_REDIS)
+    target_compile_definitions(server_observer PRIVATE ENABLE_REDIS)
+endif()
 
 # Link libraries
 target_link_libraries(server_observer
@@ -172,6 +190,12 @@ target_include_directories(server_observer
         ${boost_SOURCE_DIR}
         ${magic_enum_SOURCE_DIR}/include
 )
+
+# Add hiredis includes and link libraries if enabled
+if(ENABLE_REDIS)
+    target_include_directories(server_observer PRIVATE ${HIREDIS_INCLUDE_DIRS})
+    target_link_libraries(server_observer PRIVATE ${HIREDIS_LIBRARIES})
+endif()
 
 # Installation
 install(TARGETS server_observer DESTINATION bin)
