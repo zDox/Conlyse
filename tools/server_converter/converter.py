@@ -34,18 +34,14 @@ class ServerConverter:
         """
         self.config = config
         
-        # Initialize database with appropriate config
-        if config.database.db_type == 'sqlite':
-            db_config = config.database.db_path
-        else:
-            # PostgreSQL config dict
-            db_config = {
-                'host': config.database.host,
-                'port': config.database.port,
-                'database': config.database.database,
-                'user': config.database.user,
-                'password': config.database.password
-            }
+        # Initialize database with PostgreSQL config
+        db_config = {
+            'host': config.database.host,
+            'port': config.database.port,
+            'database': config.database.database,
+            'user': config.database.user,
+            'password': config.database.password
+        }
         
         # Initialize components
         self.db = ReplayDatabase(db_config)

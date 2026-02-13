@@ -1,39 +1,73 @@
 """
 Tests for the server converter database module.
+
+NOTE: These tests require a PostgreSQL database to run.
+To run tests, set up a test PostgreSQL instance and update the connection parameters below.
+For CI/CD, consider using a PostgreSQL Docker container.
+
+Example setup:
+    docker run -d --name test-postgres \
+        -e POSTGRES_DB=test_replays \
+        -e POSTGRES_USER=test_user \
+        -e POSTGRES_PASSWORD=test_pass \
+        -p 5432:5432 \
+        postgres:16-alpine
+
+Then run: python -m unittest tests.test_server_converter_database
 """
 import unittest
-import tempfile
-from pathlib import Path
+import os
 from datetime import datetime
 
 from tools.server_converter.database import ReplayDatabase, ReplayStatus
 
+# Skip tests if PostgreSQL is not available
+POSTGRES_AVAILABLE = os.getenv('TEST_POSTGRES_ENABLED', 'false').lower() == 'true'
+POSTGRES_CONFIG = {
+    'host': os.getenv('TEST_POSTGRES_HOST', 'localhost'),
+    'port': int(os.getenv('TEST_POSTGRES_PORT', '5432')),
+    'database': os.getenv('TEST_POSTGRES_DB', 'test_replays'),
+    'user': os.getenv('TEST_POSTGRES_USER', 'test_user'),
+    'password': os.getenv('TEST_POSTGRES_PASSWORD', 'test_pass'),
+}
 
-class TestReplayDatabaseSQLite(unittest.TestCase):
-    """Test the ReplayDatabase class with SQLite backend."""
+
+@unittest.skipUnless(POSTGRES_AVAILABLE, "PostgreSQL test database not available")
+class TestReplayDatabasePostgreSQL(unittest.TestCase):
+    """Test the ReplayDatabase class with PostgreSQL backend."""
     
     def setUp(self):
-        """Create a temporary database for each test."""
-        self.temp_dir = tempfile.mkdtemp()
-        self.db_path = Path(self.temp_dir) / "test_replays.db"
-        self.db = ReplayDatabase(self.db_path)
-        self.db.connect()
+        """Create a test database connection."""
+        self.db = ReplayDatabase(POSTGRES_CONFIG)
+        try:
+            self.db.connect()
+            # Clean up any existing test data
+            cursor = self.db.conn.cursor()
+            cursor.execute("DELETE FROM replays")
+            self.db.conn.commit()
+        except Exception as e:
+            self.skipTest(f"Cannot connect to PostgreSQL: {e}")
         
     def tearDown(self):
-        """Close the database and clean up."""
-        self.db.close()
-        # Clean up temp directory
-        import shutil
-        shutil.rmtree(self.temp_dir)
+        """Close the database connection."""
+        if self.db.conn:
+            # Clean up test data
+            cursor = self.db.conn.cursor()
+            cursor.execute("DELETE FROM replays")
+            self.db.conn.commit()
+            self.db.close()
         
     def test_create_tables(self):
         """Test that tables are created successfully."""
         # Tables should be created in connect()
         cursor = self.db.conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='replays'")
+        cursor.execute("""
+            SELECT table_name FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_name = 'replays'
+        """)
         result = cursor.fetchone()
         self.assertIsNotNone(result)
-        self.assertEqual(result[0], 'replays')
+        self.assertEqual(result['table_name'], 'replays')
         
     def test_create_replay_entry(self):
         """Test creating a new replay entry."""

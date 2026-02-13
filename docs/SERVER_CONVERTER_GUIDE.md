@@ -252,7 +252,7 @@ CREATE TABLE replays (
 Query the database:
 
 ```bash
-sqlite3 /data/replays.db "SELECT * FROM replays WHERE status='recording';"
+psql -U converter -d replays -c "SELECT * FROM replays WHERE status='recording';"
 ```
 
 ## Monitoring
@@ -291,7 +291,7 @@ Key log messages:
 Check replay status:
 
 ```bash
-sqlite3 /data/replays.db << EOF
+psql -U converter -d replays -c << EOF
 SELECT 
     status, 
     COUNT(*) as count,
@@ -488,10 +488,10 @@ sudo systemctl start server-converter
 
 ```bash
 # Backup database
-sqlite3 /data/replays.db ".backup /backup/replays_$(date +%Y%m%d).db"
+psql -U converter -d replays -c ".backup /backup/replays_$(date +%Y%m%d).db"
 
 # Restore from backup
-sqlite3 /data/replays.db ".restore /backup/replays_20240115.db"
+psql -U converter -d replays -c ".restore /backup/replays_20240115.db"
 ```
 
 ### Replay File Backup

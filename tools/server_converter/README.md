@@ -9,7 +9,7 @@ The Server Converter is a daemon that:
 2. Groups responses by game_id and player_id
 3. Creates new replay files or appends to existing ones in hot storage
 4. Optionally moves completed replays to cold storage (S3-compatible)
-5. Tracks replay metadata in a PostgreSQL or SQLite database
+5. Tracks replay metadata in a PostgreSQL database
 
 ## Quick Start with Docker
 
@@ -63,16 +63,12 @@ cp config.example.json config.json
     - `bucket_name`: S3 bucket name
     - `region`: AWS region
 
-- **database**: Database configuration
-  - `type`: Database type - `"sqlite"` or `"postgres"`
-  - For SQLite:
-    - `db_path`: Path to SQLite database file
-  - For PostgreSQL:
-    - `host`: PostgreSQL server hostname
-    - `port`: PostgreSQL server port (default: 5432)
-    - `database`: Database name
-    - `user`: Database user
-    - `password`: Database password
+- **database**: PostgreSQL database configuration
+  - `host`: PostgreSQL server hostname
+  - `port`: PostgreSQL server port (default: 5432)
+  - `database`: Database name
+  - `user`: Database user
+  - `password`: Database password
 
 - **batch_size**: Number of messages to process per batch (default: 10)
 - **check_interval_seconds**: Seconds to wait between checks (default: 5)
@@ -111,9 +107,7 @@ Example message:
 
 ## Database Schema
 
-The converter maintains a database (PostgreSQL or SQLite) with the following schema:
-
-### PostgreSQL Schema
+The converter maintains a PostgreSQL database with the following schema:
 
 ```sql
 CREATE TABLE replays (
@@ -133,36 +127,10 @@ CREATE TABLE replays (
 );
 ```
 
-### SQLite Schema
-
-```sql
-CREATE TABLE replays (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_id INTEGER NOT NULL,
-    player_id INTEGER NOT NULL,
-    replay_name TEXT NOT NULL UNIQUE,
-    hot_storage_path TEXT,
-    cold_storage_path TEXT,
-    status TEXT NOT NULL,  -- 'recording', 'completed', 'archived'
-    recording_start_time TIMESTAMP,
-    recording_end_time TIMESTAMP,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    response_count INTEGER DEFAULT 0,
-    UNIQUE(game_id, player_id)
-);
-```
-
 ### Querying the Database
 
-PostgreSQL:
 ```bash
 psql -U converter -d replays -c "SELECT * FROM replays WHERE status='recording';"
-```
-
-SQLite:
-```bash
-sqlite3 /app/replays.db "SELECT * FROM replays WHERE status='recording';"
 ```
 
 ## Workflow

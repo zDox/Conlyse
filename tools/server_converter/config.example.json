@@ -22,14 +22,11 @@
     }
   },
   "database": {
-    "_comment_db_type": "Use 'type': 'sqlite' or 'type': 'postgres'",
-    "type": "postgres",
     "host": "localhost",
     "port": 5432,
     "database": "replays",
     "user": "converter",
-    "password": "changeme",
-    "_comment_sqlite": "For SQLite, use: {'type': 'sqlite', 'db_path': '/app/replays.db'}"
+    "password": "changeme"
   },
   "batch_size": 10,
   "check_interval_seconds": 5

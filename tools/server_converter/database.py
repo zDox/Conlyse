@@ -1,9 +1,8 @@
 """
-Database interface for tracking replay metadata.
+Database interface for tracking replay metadata in PostgreSQL.
 """
 from datetime import datetime
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List
 from enum import Enum
 import logging
 
@@ -18,55 +17,40 @@ class ReplayStatus(Enum):
 
 
 class ReplayDatabase:
-    """Manages replay metadata in PostgreSQL or SQLite database."""
+    """Manages replay metadata in PostgreSQL database."""
     
-    def __init__(self, db_config: Union[Path, Dict[str, Any]]):
+    def __init__(self, db_config: Dict[str, Any]):
         """
         Initialize the database connection.
         
         Args:
-            db_config: Either a Path to SQLite database file, or a dict with PostgreSQL config:
+            db_config: PostgreSQL configuration dict:
                       {'host': 'localhost', 'port': 5432, 'database': 'replays',
                        'user': 'user', 'password': 'pass'}
         """
-        if isinstance(db_config, (Path, str)):
-            # SQLite mode
-            self.db_type = 'sqlite'
-            self.db_path = Path(db_config)
-            self.db_config = None
-        else:
-            # PostgreSQL mode
-            self.db_type = 'postgres'
-            self.db_path = None
-            self.db_config = db_config
-            
+        self.db_config = db_config
         self.conn = None
         
     def connect(self):
         """Connect to the database and create tables if needed."""
-        if self.db_type == 'sqlite':
-            import sqlite3
-            self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-            self.conn.row_factory = sqlite3.Row
-        else:
-            try:
-                import psycopg2
-                from psycopg2.extras import RealDictCursor
-            except ImportError:
-                raise ImportError(
-                    "psycopg2 is required for PostgreSQL support. "
-                    "Install it with: pip install psycopg2-binary"
-                )
-            
-            self.conn = psycopg2.connect(
-                host=self.db_config.get('host', 'localhost'),
-                port=self.db_config.get('port', 5432),
-                database=self.db_config.get('database', 'replays'),
-                user=self.db_config.get('user', 'postgres'),
-                password=self.db_config.get('password', '')
+        try:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+        except ImportError:
+            raise ImportError(
+                "psycopg2 is required for PostgreSQL support. "
+                "Install it with: pip install psycopg2-binary"
             )
-            self.conn.cursor_factory = RealDictCursor
-            
+        
+        self.conn = psycopg2.connect(
+            host=self.db_config.get('host', 'localhost'),
+            port=self.db_config.get('port', 5432),
+            database=self.db_config.get('database', 'replays'),
+            user=self.db_config.get('user', 'postgres'),
+            password=self.db_config.get('password', '')
+        )
+        self.conn.cursor_factory = RealDictCursor
+        
         self._create_tables()
         
     def close(self):
@@ -75,65 +59,41 @@ class ReplayDatabase:
             self.conn.close()
             self.conn = None
     
-    def _get_placeholder(self) -> str:
-        """Get the appropriate SQL placeholder for the database type."""
-        return '?' if self.db_type == 'sqlite' else '%s'
-    
     def _format_query(self, query_template: str, num_params: int) -> str:
         """
-        Format a SQL query with the appropriate placeholders.
+        Format a SQL query with PostgreSQL placeholders (%s).
         
         Args:
             query_template: Query with {} placeholders
             num_params: Number of parameters in the query
             
         Returns:
-            Formatted query with proper placeholders
+            Formatted query with %s placeholders
         """
-        placeholder = self._get_placeholder()
-        return query_template.format(*[placeholder] * num_params)
+        return query_template.format(*['%s'] * num_params)
             
     def _create_tables(self):
         """Create database tables if they don't exist."""
         cursor = self.conn.cursor()
         
-        if self.db_type == 'sqlite':
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS replays (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    game_id INTEGER NOT NULL,
-                    player_id INTEGER NOT NULL,
-                    replay_name TEXT NOT NULL UNIQUE,
-                    hot_storage_path TEXT,
-                    cold_storage_path TEXT,
-                    status TEXT NOT NULL,
-                    recording_start_time TIMESTAMP,
-                    recording_end_time TIMESTAMP,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    response_count INTEGER DEFAULT 0,
-                    UNIQUE(game_id, player_id)
-                )
-            """)
-        else:
-            # PostgreSQL schema
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS replays (
-                    id SERIAL PRIMARY KEY,
-                    game_id INTEGER NOT NULL,
-                    player_id INTEGER NOT NULL,
-                    replay_name VARCHAR(255) NOT NULL UNIQUE,
-                    hot_storage_path TEXT,
-                    cold_storage_path TEXT,
-                    status VARCHAR(50) NOT NULL,
-                    recording_start_time TIMESTAMP,
-                    recording_end_time TIMESTAMP,
-                    created_at TIMESTAMP NOT NULL,
-                    updated_at TIMESTAMP NOT NULL,
-                    response_count INTEGER DEFAULT 0,
-                    UNIQUE(game_id, player_id)
-                )
-            """)
+        # PostgreSQL schema
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS replays (
+                id SERIAL PRIMARY KEY,
+                game_id INTEGER NOT NULL,
+                player_id INTEGER NOT NULL,
+                replay_name VARCHAR(255) NOT NULL UNIQUE,
+                hot_storage_path TEXT,
+                cold_storage_path TEXT,
+                status VARCHAR(50) NOT NULL,
+                recording_start_time TIMESTAMP,
+                recording_end_time TIMESTAMP,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                response_count INTEGER DEFAULT 0,
+                UNIQUE(game_id, player_id)
+            )
+        """)
         
         self.conn.commit()
         
@@ -156,34 +116,20 @@ class ReplayDatabase:
         cursor = self.conn.cursor()
         now = datetime.now()
         
-        if self.db_type == 'sqlite':
-            cursor.execute("""
-                INSERT INTO replays 
-                (game_id, player_id, replay_name, hot_storage_path, status, 
-                 recording_start_time, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                game_id, player_id, replay_name, hot_storage_path,
-                ReplayStatus.RECORDING.value,
-                recording_start_time if recording_start_time else now,
-                now, now
-            ))
-            replay_id = cursor.lastrowid
-        else:
-            # PostgreSQL uses %s placeholders and RETURNING for getting the ID
-            cursor.execute("""
-                INSERT INTO replays 
-                (game_id, player_id, replay_name, hot_storage_path, status, 
-                 recording_start_time, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (
-                game_id, player_id, replay_name, hot_storage_path,
-                ReplayStatus.RECORDING.value,
-                recording_start_time if recording_start_time else now,
-                now, now
-            ))
-            replay_id = cursor.fetchone()['id']
+        # PostgreSQL uses %s placeholders and RETURNING for getting the ID
+        cursor.execute("""
+            INSERT INTO replays 
+            (game_id, player_id, replay_name, hot_storage_path, status, 
+             recording_start_time, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (
+            game_id, player_id, replay_name, hot_storage_path,
+            ReplayStatus.RECORDING.value,
+            recording_start_time if recording_start_time else now,
+            now, now
+        ))
+        replay_id = cursor.fetchone()['id']
         
         self.conn.commit()
         return replay_id
