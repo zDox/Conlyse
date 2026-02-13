@@ -1,5 +1,5 @@
 {
-  "COMMENT": "Example configuration for ServerConverter - Copy and customize",
+  "_comment": "Example configuration for ServerConverter - Copy and customize",
   "redis": {
     "host": "localhost",
     "port": 6379,
@@ -22,15 +22,15 @@
     }
   },
   "database": {
-    "COMMENT": "Use 'type': 'sqlite' or 'type': 'postgres'",
+    "_comment_db_type": "Use 'type': 'sqlite' or 'type': 'postgres'",
     "type": "postgres",
     "host": "localhost",
     "port": 5432,
     "database": "replays",
     "user": "converter",
-    "password": "changeme"
+    "password": "changeme",
+    "_comment_sqlite": "For SQLite, use: {'type': 'sqlite', 'db_path': '/app/replays.db'}"
   },
-  "COMMENT_SQLITE": "For SQLite, use: {'type': 'sqlite', 'db_path': '/app/replays.db'}",
   "batch_size": 10,
   "check_interval_seconds": 5
 }

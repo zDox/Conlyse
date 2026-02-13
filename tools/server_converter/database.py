@@ -74,6 +74,24 @@ class ReplayDatabase:
         if self.conn:
             self.conn.close()
             self.conn = None
+    
+    def _get_placeholder(self) -> str:
+        """Get the appropriate SQL placeholder for the database type."""
+        return '?' if self.db_type == 'sqlite' else '%s'
+    
+    def _format_query(self, query_template: str, num_params: int) -> str:
+        """
+        Format a SQL query with the appropriate placeholders.
+        
+        Args:
+            query_template: Query with {} placeholders
+            num_params: Number of parameters in the query
+            
+        Returns:
+            Formatted query with proper placeholders
+        """
+        placeholder = self._get_placeholder()
+        return query_template.format(*[placeholder] * num_params)
             
     def _create_tables(self):
         """Create database tables if they don't exist."""
@@ -183,11 +201,11 @@ class ReplayDatabase:
         """
         cursor = self.conn.cursor()
         
-        placeholder = '?' if self.db_type == 'sqlite' else '%s'
-        cursor.execute(f"""
+        query = self._format_query("""
             SELECT * FROM replays 
-            WHERE game_id = {placeholder} AND player_id = {placeholder}
-        """, (game_id, player_id))
+            WHERE game_id = {} AND player_id = {}
+        """, 2)
+        cursor.execute(query, (game_id, player_id))
         
         row = cursor.fetchone()
         return dict(row) if row else None
@@ -207,33 +225,35 @@ class ReplayDatabase:
         cursor = self.conn.cursor()
         now = datetime.now()
         
-        placeholder = '?' if self.db_type == 'sqlite' else '%s'
-        
         if recording_end_time and cold_storage_path:
-            cursor.execute(f"""
+            query = self._format_query("""
                 UPDATE replays 
-                SET status = {placeholder}, recording_end_time = {placeholder}, 
-                    cold_storage_path = {placeholder}, updated_at = {placeholder}
-                WHERE id = {placeholder}
-            """, (status.value, recording_end_time, cold_storage_path, now, replay_id))
+                SET status = {}, recording_end_time = {}, 
+                    cold_storage_path = {}, updated_at = {}
+                WHERE id = {}
+            """, 5)
+            cursor.execute(query, (status.value, recording_end_time, cold_storage_path, now, replay_id))
         elif recording_end_time:
-            cursor.execute(f"""
+            query = self._format_query("""
                 UPDATE replays 
-                SET status = {placeholder}, recording_end_time = {placeholder}, updated_at = {placeholder}
-                WHERE id = {placeholder}
-            """, (status.value, recording_end_time, now, replay_id))
+                SET status = {}, recording_end_time = {}, updated_at = {}
+                WHERE id = {}
+            """, 4)
+            cursor.execute(query, (status.value, recording_end_time, now, replay_id))
         elif cold_storage_path:
-            cursor.execute(f"""
+            query = self._format_query("""
                 UPDATE replays 
-                SET status = {placeholder}, cold_storage_path = {placeholder}, updated_at = {placeholder}
-                WHERE id = {placeholder}
-            """, (status.value, cold_storage_path, now, replay_id))
+                SET status = {}, cold_storage_path = {}, updated_at = {}
+                WHERE id = {}
+            """, 4)
+            cursor.execute(query, (status.value, cold_storage_path, now, replay_id))
         else:
-            cursor.execute(f"""
+            query = self._format_query("""
                 UPDATE replays 
-                SET status = {placeholder}, updated_at = {placeholder}
-                WHERE id = {placeholder}
-            """, (status.value, now, replay_id))
+                SET status = {}, updated_at = {}
+                WHERE id = {}
+            """, 3)
+            cursor.execute(query, (status.value, now, replay_id))
         
         self.conn.commit()
         
@@ -248,12 +268,12 @@ class ReplayDatabase:
         cursor = self.conn.cursor()
         now = datetime.now()
         
-        placeholder = '?' if self.db_type == 'sqlite' else '%s'
-        cursor.execute(f"""
+        query = self._format_query("""
             UPDATE replays 
-            SET response_count = response_count + {placeholder}, updated_at = {placeholder}
-            WHERE id = {placeholder}
-        """, (count, now, replay_id))
+            SET response_count = response_count + {}, updated_at = {}
+            WHERE id = {}
+        """, 3)
+        cursor.execute(query, (count, now, replay_id))
         
         self.conn.commit()
         
@@ -266,10 +286,10 @@ class ReplayDatabase:
         """
         cursor = self.conn.cursor()
         
-        placeholder = '?' if self.db_type == 'sqlite' else '%s'
-        cursor.execute(f"""
+        query = self._format_query("""
             SELECT * FROM replays 
-            WHERE status = {placeholder}
-        """, (ReplayStatus.RECORDING.value,))
+            WHERE status = {}
+        """, 1)
+        cursor.execute(query, (ReplayStatus.RECORDING.value,))
         
         return [dict(row) for row in cursor.fetchall()]
