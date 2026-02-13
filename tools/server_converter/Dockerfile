@@ -1,6 +1,6 @@
 # Multi-stage build for server_converter
 
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -47,8 +47,8 @@ COPY --chown=converter:converter tools/server_converter ./tools/server_converter
 USER converter
 
 # Add local bin to PATH
-ENV PATH=/home/converter/.local/bin:$PATH
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PATH=/home/converter/.local/bin:$PATH \
+    PYTHONPATH=/app
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

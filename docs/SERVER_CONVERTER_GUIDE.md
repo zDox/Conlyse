@@ -516,3 +516,162 @@ For more details, see:
 - [Server Converter README](../tools/server_converter/README.md)
 - [Server Observer README](../tools/server_observer/README.md)
 - [Replay System Documentation](REPLAY_SYSTEM.md)
+
+## PostgreSQL Setup
+
+### Installing PostgreSQL
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install postgresql postgresql-contrib
+
+# macOS
+brew install postgresql@16
+brew services start postgresql@16
+
+# Docker (recommended for development)
+docker run -d \
+  --name replays-postgres \
+  -e POSTGRES_DB=replays \
+  -e POSTGRES_USER=converter \
+  -e POSTGRES_PASSWORD=changeme \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
+
+### Creating the Database
+
+```bash
+# Connect to PostgreSQL
+psql -U postgres
+
+# Create user and database
+CREATE USER converter WITH PASSWORD 'changeme';
+CREATE DATABASE replays OWNER converter;
+GRANT ALL PRIVILEGES ON DATABASE replays TO converter;
+
+# Exit
+\q
+```
+
+### PostgreSQL Configuration
+
+Update your server_converter config.json:
+
+```json
+{
+  "database": {
+    "type": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "database": "replays",
+    "user": "converter",
+    "password": "changeme"
+  }
+}
+```
+
+### Database Migrations
+
+The server_converter automatically creates tables on first run. For existing SQLite databases, you can migrate data:
+
+```python
+# Example migration script
+import sqlite3
+import psycopg2
+from datetime import datetime
+
+# Connect to both databases
+sqlite_conn = sqlite3.connect('replays.db')
+pg_conn = psycopg2.connect(
+    host='localhost',
+    database='replays',
+    user='converter',
+    password='changeme'
+)
+
+# Read from SQLite
+sqlite_cur = sqlite_conn.cursor()
+sqlite_cur.execute("SELECT * FROM replays")
+rows = sqlite_cur.fetchall()
+
+# Write to PostgreSQL
+pg_cur = pg_conn.cursor()
+for row in rows:
+    pg_cur.execute("""
+        INSERT INTO replays 
+        (game_id, player_id, replay_name, hot_storage_path, cold_storage_path,
+         status, recording_start_time, recording_end_time, created_at, 
+         updated_at, response_count)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, row[1:])  # Skip the id column
+
+pg_conn.commit()
+print(f"Migrated {len(rows)} replays")
+```
+
+### PostgreSQL Performance Tuning
+
+For production deployments, tune PostgreSQL settings in `postgresql.conf`:
+
+```ini
+# Memory settings (adjust based on your system)
+shared_buffers = 256MB
+effective_cache_size = 1GB
+work_mem = 16MB
+
+# Connection settings
+max_connections = 100
+
+# Write-ahead log
+wal_buffers = 16MB
+checkpoint_completion_target = 0.9
+
+# Query planner
+random_page_cost = 1.1  # For SSD storage
+```
+
+Restart PostgreSQL after changes:
+
+```bash
+sudo systemctl restart postgresql
+```
+
+### Monitoring PostgreSQL
+
+Check database size:
+
+```sql
+SELECT pg_size_pretty(pg_database_size('replays'));
+```
+
+Check table statistics:
+
+```sql
+SELECT 
+    schemaname,
+    tablename,
+    n_live_tup as "Rows",
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as "Size"
+FROM pg_stat_user_tables
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+```
+
+Active connections:
+
+```sql
+SELECT count(*) FROM pg_stat_activity WHERE datname = 'replays';
+```
+
+Long-running queries:
+
+```sql
+SELECT 
+    pid,
+    now() - query_start as duration,
+    query
+FROM pg_stat_activity
+WHERE state = 'active'
+AND query NOT LIKE '%pg_stat_activity%'
+ORDER BY duration DESC;
+```
