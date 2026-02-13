@@ -114,6 +114,16 @@ recording-converter --recording-dir recordings/my_game --output-replay output.db
 
 See [Recording Converter Documentation](tools/recording_converter/README.md) for details.
 
+### server-converter
+
+Process game responses from Redis streams and convert them to replay files. Works in conjunction with server-observer to automatically create and manage replays.
+
+```bash
+server-converter config.json
+```
+
+See [Server Converter Documentation](tools/server_converter/README.md) for details.
+
 ### replay-debug
 
 Interactive debugging and analysis tool for replay files.
