@@ -9,8 +9,8 @@ from datetime import datetime
 from tools.server_converter.database import ReplayDatabase, ReplayStatus
 
 
-class TestReplayDatabase(unittest.TestCase):
-    """Test the ReplayDatabase class."""
+class TestReplayDatabaseSQLite(unittest.TestCase):
+    """Test the ReplayDatabase class with SQLite backend."""
     
     def setUp(self):
         """Create a temporary database for each test."""

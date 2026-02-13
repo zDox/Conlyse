@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: replays-postgres
+    environment:
+      POSTGRES_DB: replays
+      POSTGRES_USER: converter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U converter -d replays"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - converter-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: replays-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - converter-network
+
+  server-converter:
+    build:
+      context: ../..
+      dockerfile: tools/server_converter/Dockerfile
+    container_name: server-converter
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # These can be overridden via .env file
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: replays
+      POSTGRES_USER: converter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - hot-storage:/data/hot_storage
+    networks:
+      - converter-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  hot-storage:
+    driver: local
+
+networks:
+  converter-network:
+    driver: bridge

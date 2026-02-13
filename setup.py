@@ -42,7 +42,8 @@ extras_require = {
     ],
     "tools-server-converter": [
         "redis",
-        "boto3"
+        "boto3",
+        "psycopg2-binary"
     ],
     "test-long-patches": [
         "deepdiff"

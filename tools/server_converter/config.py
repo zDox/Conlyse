@@ -33,7 +33,15 @@ class S3Config:
 @dataclass
 class DatabaseConfig:
     """Database configuration."""
-    db_path: Path
+    db_type: str = "sqlite"  # "sqlite" or "postgres"
+    # SQLite config
+    db_path: Optional[Path] = None
+    # PostgreSQL config
+    host: Optional[str] = None
+    port: Optional[int] = None
+    database: Optional[str] = None
+    user: Optional[str] = None
+    password: Optional[str] = None
 
 
 @dataclass
@@ -93,9 +101,23 @@ class ServerConverterConfig:
         
         # Parse database config
         db_data = data.get('database', {})
-        database_config = DatabaseConfig(
-            db_path=Path(db_data.get('db_path', 'replays.db'))
-        )
+        db_type = db_data.get('type', 'sqlite')
+        
+        if db_type == 'sqlite':
+            database_config = DatabaseConfig(
+                db_type='sqlite',
+                db_path=Path(db_data.get('db_path', 'replays.db'))
+            )
+        else:
+            # PostgreSQL configuration
+            database_config = DatabaseConfig(
+                db_type='postgres',
+                host=db_data.get('host', 'localhost'),
+                port=db_data.get('port', 5432),
+                database=db_data.get('database', 'replays'),
+                user=db_data.get('user', 'postgres'),
+                password=db_data.get('password', '')
+            )
         
         return cls(
             redis=redis_config,

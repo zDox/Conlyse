@@ -9,7 +9,28 @@ The Server Converter is a daemon that:
 2. Groups responses by game_id and player_id
 3. Creates new replay files or appends to existing ones in hot storage
 4. Optionally moves completed replays to cold storage (S3-compatible)
-5. Tracks replay metadata in a SQLite database
+5. Tracks replay metadata in a PostgreSQL or SQLite database
+
+## Quick Start with Docker
+
+The easiest way to run the server converter is using Docker Compose:
+
+```bash
+cd tools/server_converter
+
+# Create configuration file
+cp config.example.json config.json
+# Edit config.json with your settings
+
+# Start all services (PostgreSQL, Redis, Server Converter)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f server-converter
+
+# Stop all services
+docker-compose down
+```
 
 ## Configuration
 
@@ -43,7 +64,15 @@ cp config.example.json config.json
     - `region`: AWS region
 
 - **database**: Database configuration
-  - `db_path`: Path to SQLite database file
+  - `type`: Database type - `"sqlite"` or `"postgres"`
+  - For SQLite:
+    - `db_path`: Path to SQLite database file
+  - For PostgreSQL:
+    - `host`: PostgreSQL server hostname
+    - `port`: PostgreSQL server port (default: 5432)
+    - `database`: Database name
+    - `user`: Database user
+    - `password`: Database password
 
 - **batch_size**: Number of messages to process per batch (default: 10)
 - **check_interval_seconds**: Seconds to wait between checks (default: 5)
@@ -82,7 +111,29 @@ Example message:
 
 ## Database Schema
 
-The converter maintains a SQLite database with the following schema:
+The converter maintains a database (PostgreSQL or SQLite) with the following schema:
+
+### PostgreSQL Schema
+
+```sql
+CREATE TABLE replays (
+    id SERIAL PRIMARY KEY,
+    game_id INTEGER NOT NULL,
+    player_id INTEGER NOT NULL,
+    replay_name VARCHAR(255) NOT NULL UNIQUE,
+    hot_storage_path TEXT,
+    cold_storage_path TEXT,
+    status VARCHAR(50) NOT NULL,  -- 'recording', 'completed', 'archived'
+    recording_start_time TIMESTAMP,
+    recording_end_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    response_count INTEGER DEFAULT 0,
+    UNIQUE(game_id, player_id)
+);
+```
+
+### SQLite Schema
 
 ```sql
 CREATE TABLE replays (
@@ -93,13 +144,25 @@ CREATE TABLE replays (
     hot_storage_path TEXT,
     cold_storage_path TEXT,
     status TEXT NOT NULL,  -- 'recording', 'completed', 'archived'
-    recording_start_time TEXT,
-    recording_end_time TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    recording_start_time TIMESTAMP,
+    recording_end_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     response_count INTEGER DEFAULT 0,
     UNIQUE(game_id, player_id)
 );
+```
+
+### Querying the Database
+
+PostgreSQL:
+```bash
+psql -U converter -d replays -c "SELECT * FROM replays WHERE status='recording';"
+```
+
+SQLite:
+```bash
+sqlite3 /app/replays.db "SELECT * FROM replays WHERE status='recording';"
 ```
 
 ## Workflow
@@ -158,3 +221,83 @@ The converter logs:
 - Errors and warnings
 
 Enable verbose logging with `-v` flag for detailed debug information.
+
+## Docker Deployment
+
+### Using Docker Compose (Recommended)
+
+The included `docker-compose.yml` sets up a complete stack with PostgreSQL, Redis, and the server converter:
+
+```bash
+cd tools/server_converter
+
+# Create and edit configuration
+cp config.example.json config.json
+# Edit config.json - use host names from docker-compose (postgres, redis)
+
+# Optional: Set PostgreSQL password
+echo "POSTGRES_PASSWORD=your-secure-password" > .env
+
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f server-converter
+
+# Check status
+docker-compose ps
+
+# Stop services
+docker-compose down
+```
+
+### Building the Docker Image
+
+```bash
+# From repository root
+docker build -f tools/server_converter/Dockerfile -t server-converter:latest .
+
+# Run manually
+docker run -d \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  -v $(pwd)/hot_storage:/data/hot_storage \
+  --network host \
+  server-converter:latest
+```
+
+### Using Pre-built Image from GitHub Container Registry
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/zdox/server-converter:latest
+
+# Run with config
+docker run -d \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  -v $(pwd)/hot_storage:/data/hot_storage \
+  --network host \
+  ghcr.io/zdox/server-converter:latest
+```
+
+### Environment Variables
+
+The Docker image supports configuration via environment variables:
+
+- `REDIS_HOST`: Override Redis hostname (default from config)
+- `REDIS_PORT`: Override Redis port
+- `POSTGRES_HOST`: Override PostgreSQL hostname
+- `POSTGRES_PORT`: Override PostgreSQL port
+- `POSTGRES_DB`: Override database name
+- `POSTGRES_USER`: Override database user
+- `POSTGRES_PASSWORD`: Override database password
+
+Example with environment variables:
+
+```bash
+docker run -d \
+  -e REDIS_HOST=redis.example.com \
+  -e POSTGRES_HOST=db.example.com \
+  -e POSTGRES_PASSWORD=secret \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  server-converter:latest
+```
