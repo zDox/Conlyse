@@ -195,7 +195,7 @@ The server converter will:
 - Create new replay files for new games
 - Append responses to existing replays
 - Move completed replays to S3 cold storage
-- Track metadata in SQLite database
+- Track metadata in PostgreSQL database
 
 ## Workflow
 
@@ -229,22 +229,24 @@ When a game ends:
 
 ## Database Schema
 
-The server converter maintains a SQLite database with replay metadata:
-
+The server converter maintains a PostgreSQL database with replay metadata:
 ```sql
 CREATE TABLE replays (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     game_id INTEGER NOT NULL,
     player_id INTEGER NOT NULL,
-    replay_name TEXT NOT NULL UNIQUE,
+    replay_name VARCHAR(255) NOT NULL UNIQUE,
     hot_storage_path TEXT,
     cold_storage_path TEXT,
-    status TEXT NOT NULL,  -- 'recording', 'completed', 'archived'
-    recording_start_time TEXT,
-    recording_end_time TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    status VARCHAR(50) NOT NULL,  -- 'recording', 'completed', 'archived'
+    recording_start_time TIMESTAMP,
+    recording_end_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     response_count INTEGER DEFAULT 0,
+    UNIQUE(game_id, player_id)
+);
+```
     UNIQUE(game_id, player_id)
 );
 ```
@@ -571,43 +573,6 @@ Update your server_converter config.json:
 }
 ```
 
-### Database Migrations
-
-The server_converter automatically creates tables on first run. For existing SQLite databases, you can migrate data:
-
-```python
-# Example migration script
-import sqlite3
-import psycopg2
-from datetime import datetime
-
-# Connect to both databases
-sqlite_conn = sqlite3.connect('replays.db')
-pg_conn = psycopg2.connect(
-    host='localhost',
-    database='replays',
-    user='converter',
-    password='changeme'
-)
-
-# Read from SQLite
-sqlite_cur = sqlite_conn.cursor()
-sqlite_cur.execute("SELECT * FROM replays")
-rows = sqlite_cur.fetchall()
-
-# Write to PostgreSQL
-pg_cur = pg_conn.cursor()
-for row in rows:
-    pg_cur.execute("""
-        INSERT INTO replays 
-        (game_id, player_id, replay_name, hot_storage_path, cold_storage_path,
-         status, recording_start_time, recording_end_time, created_at, 
-         updated_at, response_count)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """, row[1:])  # Skip the id column
-
-pg_conn.commit()
-print(f"Migrated {len(rows)} replays")
 ```
 
 ### PostgreSQL Performance Tuning
