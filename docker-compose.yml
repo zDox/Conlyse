@@ -103,10 +103,12 @@ services:
       - observer-long-term-storage:/app/long_term_storage
     environment:
       - PYTHONUNBUFFERED=1
-    command: ["./server_observer", "/app/config/config.json", "/app/config/account_pool.json"]
+    command: ["server_observer", "/app/config/config.json", "/app/config/account_pool.json"]
     networks:
       - conflict-network
     restart: unless-stopped
+    security_opt:
+      - label=disable
 
   # Server Converter - Converts Redis streams to replay files
   server-converter:
@@ -140,6 +142,8 @@ services:
     networks:
       - conflict-network
     restart: unless-stopped
+    security_opt:
+      - label=disable
 
 volumes:
   postgres-data:

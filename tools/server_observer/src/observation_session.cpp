@@ -220,7 +220,7 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
         redis_publisher_->publish_response(
             timestamp_ms,
             game_id,
-            package_.player_id,
+            0,
             result.raw_response
         );
     }
