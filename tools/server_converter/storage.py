@@ -178,5 +178,7 @@ class ColdStorageManager:
         try:
             self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
             return True
-        except:
+        except Exception as e:
+            # Log the error but don't fail
+            logger.debug(f"Replay not found in S3: {e}")
             return False

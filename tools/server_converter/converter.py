@@ -54,9 +54,9 @@ class ServerConverter:
         Returns:
             Number of responses processed
         """
-        # Read messages from Redis
+        # Read messages from Redis using batch_size from redis config
         messages = self.redis_consumer.read_messages(
-            count=self.config.batch_size,
+            count=self.config.redis.batch_size,
             block=self.config.check_interval_seconds * 1000
         )
         
