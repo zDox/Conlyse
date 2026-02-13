@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <hiredis.h>
 
 using json = nlohmann::json;
 

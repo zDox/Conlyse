@@ -2,12 +2,6 @@
 #include <iostream>
 #include <cstring>
 
-// Note: hiredis needs to be installed and linked
-// We'll add it conditionally to support builds without Redis
-#ifdef ENABLE_REDIS
-#include <hiredis/hiredis.h>
-#endif
-
 RedisPublisher::RedisPublisher(const std::string& host, int port, const std::string& stream_name)
     : host_(host), port_(port), stream_name_(stream_name), password_(""),
       context_(nullptr), connected_(false) {
@@ -24,7 +18,6 @@ RedisPublisher::~RedisPublisher() {
 }
 
 bool RedisPublisher::connect() {
-#ifdef ENABLE_REDIS
     if (connected_) {
         return true;
     }
@@ -52,20 +45,14 @@ bool RedisPublisher::connect() {
     connected_ = true;
     std::cout << "Connected to Redis at " << host_ << ":" << port_ << std::endl;
     return true;
-#else
-    std::cerr << "Redis support not enabled. Build with -DENABLE_REDIS=ON" << std::endl;
-    return false;
-#endif
 }
 
 void RedisPublisher::disconnect() {
-#ifdef ENABLE_REDIS
     if (context_) {
         redisFree(context_);
         context_ = nullptr;
     }
     connected_ = false;
-#endif
 }
 
 bool RedisPublisher::is_connected() const {
@@ -73,7 +60,6 @@ bool RedisPublisher::is_connected() const {
 }
 
 bool RedisPublisher::authenticate() {
-#ifdef ENABLE_REDIS
     if (!context_) {
         return false;
     }
@@ -97,14 +83,10 @@ bool RedisPublisher::authenticate() {
     }
     
     return success;
-#else
-    return false;
-#endif
 }
 
 bool RedisPublisher::publish_response(int64_t timestamp, int game_id, int player_id,
                                      const std::string& response) {
-#ifdef ENABLE_REDIS
     if (!connected_ || !context_) {
         // Try to reconnect
         if (!connect()) {
@@ -140,8 +122,4 @@ bool RedisPublisher::publish_response(int64_t timestamp, int game_id, int player
     
     freeReplyObject(reply);
     return success;
-#else
-    // Redis not enabled, silently ignore
-    return true;
-#endif
 }

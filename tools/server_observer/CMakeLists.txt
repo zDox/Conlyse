@@ -80,6 +80,15 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(boost)
 
+# Mandatory Redis support via FetchContent
+FetchContent_Declare(
+        hiredis
+        GIT_REPOSITORY https://github.com/redis/hiredis.git
+        GIT_TAG v1.3.0
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(hiredis)
+
 # Zstandard compression
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ZSTD REQUIRED libzstd)
@@ -112,21 +121,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
-# Optional Redis support (hiredis)
-option(ENABLE_REDIS "Enable Redis stream publishing" OFF)
-if(ENABLE_REDIS)
-    pkg_check_modules(HIREDIS hiredis)
-    if(NOT HIREDIS_FOUND)
-        message(WARNING "hiredis not found. Redis support will be disabled. Install with: apt-get install libhiredis-dev")
-        set(ENABLE_REDIS OFF)
-    else()
-        message(STATUS "Redis support enabled via hiredis")
-    endif()
-endif()
-
 # Include directories
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${hiredis_SOURCE_DIR}        # the root, for CMakeLists
+        ${hiredis_SOURCE_DIR}/include  # where hiredis/hiredis.h lives
 )
 
 # Source files
@@ -162,14 +161,10 @@ target_compile_definitions(server_observer
         PYTHON_HOME_PATH="${PYTHON_HOME}"
 )
 
-# Add Redis compile definition if enabled
-if(ENABLE_REDIS)
-    target_compile_definitions(server_observer PRIVATE ENABLE_REDIS)
-endif()
-
 # Link libraries
 target_link_libraries(server_observer
         PRIVATE
+        hiredis
         nlohmann_json::nlohmann_json
         simdjson::simdjson
         httplib::httplib
@@ -190,12 +185,6 @@ target_include_directories(server_observer
         ${boost_SOURCE_DIR}
         ${magic_enum_SOURCE_DIR}/include
 )
-
-# Add hiredis includes and link libraries if enabled
-if(ENABLE_REDIS)
-    target_include_directories(server_observer PRIVATE ${HIREDIS_INCLUDE_DIRS})
-    target_link_libraries(server_observer PRIVATE ${HIREDIS_LIBRARIES})
-endif()
 
 # Installation
 install(TARGETS server_observer DESTINATION bin)
