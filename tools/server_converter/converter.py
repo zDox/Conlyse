@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Optional, List, Tuple, Dict, Any
 
 from conflict_interface.replay.replay_builder import ReplayBuilder
-from conflict_interface.data_types.static_map_data import StaticMapData
 from tools.server_converter.config import ServerConverterConfig
 from tools.server_converter.database import ReplayDatabase, ReplayStatus
 from tools.server_converter.redis_consumer import RedisStreamConsumer
@@ -166,9 +165,9 @@ class ServerConverter:
             # Create replay builder
             builder = ReplayBuilder(replay_path, game_id, player_id)
             
-            # Create static map data (empty for now - could be loaded from separate source)
-            static_map_data = StaticMapData()
-            
+            # Static map data is intentionally never included in server converter replays
+            static_map_data = None
+
             # Create the replay
             initial_index = builder.create_replay(json_responses, static_map_data)
             

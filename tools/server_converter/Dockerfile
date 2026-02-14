@@ -18,7 +18,7 @@ COPY conflict_interface ./conflict_interface
 COPY tools ./tools
 
 # Install the package with server-converter dependencies
-RUN pip install --no-cache-dir --user -e ".[tools-server-converter]"
+RUN pip install --user -e ".[tools-server-converter]"
 
 # Runtime stage
 FROM python:3.12-slim

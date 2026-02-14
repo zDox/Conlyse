@@ -57,14 +57,14 @@ class ReplayBuilder:
     def create_replay(
             self,
             json_responses: list[tuple[int, dict]],
-            static_map_data: StaticMapData,
+            static_map_data: Optional[StaticMapData] = None,
             max_patches: Optional[int] = None) -> int:
         """
         Create a new replay from JSON responses.
         
         Args:
             json_responses: List of (timestamp, response) tuples
-            static_map_data: Static map data for the replay
+            static_map_data: Optional static map data for the replay (if None, static map will not be recorded)
             max_patches: Maximum number of patches to allocate
             
         Returns:
@@ -98,11 +98,14 @@ class ReplayBuilder:
 
         logger.debug("Recording static map data to replay")
 
-        self.replay.record_static_map_data(
-                static_map_data=static_map_data,
-                game_id=self.game_id,
-                player_id=self.player_id
-        )
+        if static_map_data is not None:
+            self.replay.record_static_map_data(
+                    static_map_data=static_map_data,
+                    game_id=self.game_id,
+                    player_id=self.player_id
+            )
+        else:
+            logger.debug("No static map data provided; skipping static map recording")
         logger.info(f"Recording initial game state at {current_timestamp} (game time)")
         self.replay.record_initial_game_state(
             time_stamp=current_timestamp,

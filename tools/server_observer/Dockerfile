@@ -27,7 +27,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Install the conflict_interface package with all its dependencies
 # Use the tools-server-observer extra to get httpx with socks support
-RUN pip install --no-cache-dir ".[tools-server-observer]"
+RUN pip install ".[tools-server-observer]"
 
 # Build the C++ application
 WORKDIR /build/tools/server_observer

@@ -107,7 +107,6 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     }
     
     // Initialize Redis publisher if configured
-#ifdef ENABLE_REDIS
     if (config.contains("redis") && !config["redis"].is_null()) {
         try {
             const auto& redis_config = config["redis"];
@@ -129,7 +128,6 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
             redis_publisher_.reset();
         }
     }
-#endif
 }
 
 ServerObserver::~ServerObserver() {
