@@ -312,3 +312,46 @@ A convenient `stack.sh` script is provided to manage the Docker stack:
 
 The script handles common tasks and provides helpful output.
 
+
+## Development Mode
+
+For local development and debugging, you can run only the infrastructure services (PostgreSQL, Redis, MinIO) in Docker while running Server Observer and Server Converter locally from your IDE.
+
+### Quick Start
+
+```bash
+# Start infrastructure only
+./stack.sh start-dev
+
+# Or manually
+docker compose -f docker-compose.dev.yml up -d
+
+# Check status
+./stack.sh status-dev
+```
+
+### Running Locally
+
+With infrastructure services running, you can now run the observer and converter locally:
+
+```bash
+# Server Converter
+server-converter docker/local-dev/server-converter-config.json
+
+# Server Observer (after building)
+cd tools/server_observer/build
+./server_observer ../../../docker/local-dev/server-observer-config.json \
+                  ../../../docker/local-dev/account_pool.json
+```
+
+### Benefits
+
+- **Fast iteration** - No need to rebuild Docker images
+- **Full debugging** - Use breakpoints and IDE debuggers
+- **Direct access** - Access files and logs directly
+- **Better errors** - See stack traces and errors in real-time
+
+### See Also
+
+For complete development setup instructions, see [DEVELOPMENT.md](DEVELOPMENT.md).
+

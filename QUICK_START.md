@@ -83,3 +83,17 @@ Game → Server Observer → Redis → Server Converter → PostgreSQL + MinIO
                                                           ↓
                                                    Replay Files (S3)
 ```
+
+## Development Mode
+
+For debugging with your IDE:
+
+```bash
+# Start infrastructure only
+./stack.sh start-dev
+
+# Run observer/converter locally
+server-converter docker/local-dev/server-converter-config.json
+
+# See DEVELOPMENT.md for full guide
+```

@@ -1,0 +1,34 @@
+{
+  "_comment": "Server Converter configuration for LOCAL DEVELOPMENT",
+  "_comment2": "Use this when running server-converter locally with docker-compose.dev.yml",
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+    "password": null,
+    "stream_name": "game_responses",
+    "consumer_group": "server_converter",
+    "consumer_name": "converter_local",
+    "batch_size": 10
+  },
+  "storage": {
+    "hot_storage_dir": "./data/hot_storage",
+    "cold_storage_enabled": true,
+    "s3": {
+      "endpoint_url": "http://localhost:9000",
+      "access_key": "minioadmin",
+      "secret_key": "minioadmin",
+      "bucket_name": "replays",
+      "region": "us-east-1"
+    }
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "replays",
+    "user": "converter",
+    "password": "changeme"
+  },
+  "batch_size": 10,
+  "check_interval_seconds": 5
+}

@@ -18,7 +18,7 @@ ConflictInterface Docker Stack Management
 Usage: $0 [command]
 
 Commands:
-    start       Start all services
+    start       Start all services (full stack)
     stop        Stop all services
     restart     Restart all services
     status      Show service status
@@ -27,6 +27,12 @@ Commands:
     clean       Stop and remove all containers, networks, and volumes (DATA LOSS!)
     reset       Stop services and remove volumes (DATA LOSS!)
     ps          List running containers
+    
+    # Development mode (infrastructure only)
+    start-dev   Start infrastructure services only (for local debugging)
+    stop-dev    Stop development infrastructure services
+    status-dev  Show development infrastructure status
+    logs-dev    Show development infrastructure logs
     
     # Specific service commands
     logs-observer       Show Server Observer logs
@@ -49,6 +55,7 @@ Commands:
 
 Examples:
     $0 start            # Start all services
+    $0 start-dev        # Start only infrastructure (for local dev)
     $0 logs-observer    # View Server Observer logs
     $0 status           # Check service health
 EOF
@@ -75,10 +82,26 @@ case "${1:-}" in
         echo -e "${GREEN}Services started. Check status with: $0 status${NC}"
         ;;
     
+    start-dev)
+        check_env
+        echo -e "${GREEN}Starting infrastructure services only (development mode)...${NC}"
+        echo -e "${YELLOW}This starts PostgreSQL, Redis, and MinIO for local debugging.${NC}"
+        $COMPOSE_CMD -f docker-compose.dev.yml up -d
+        echo -e "${GREEN}Infrastructure services started.${NC}"
+        echo -e "${YELLOW}Now run server-observer and server-converter locally from your IDE.${NC}"
+        echo -e "See ${GREEN}DEVELOPMENT.md${NC} for instructions."
+        ;;
+    
     stop)
         echo -e "${YELLOW}Stopping all services...${NC}"
         $COMPOSE_CMD down
         echo -e "${GREEN}Services stopped${NC}"
+        ;;
+    
+    stop-dev)
+        echo -e "${YELLOW}Stopping development infrastructure services...${NC}"
+        $COMPOSE_CMD -f docker-compose.dev.yml down
+        echo -e "${GREEN}Development services stopped${NC}"
         ;;
     
     restart)
@@ -91,8 +114,18 @@ case "${1:-}" in
         $COMPOSE_CMD ps
         ;;
     
+    status-dev)
+        echo -e "${GREEN}Development infrastructure status:${NC}"
+        $COMPOSE_CMD -f docker-compose.dev.yml ps
+        ;;
+    
     logs)
         $COMPOSE_CMD logs -f
+        ;;
+    
+    logs-dev)
+        echo -e "${GREEN}Development infrastructure logs:${NC}"
+        $COMPOSE_CMD -f docker-compose.dev.yml logs -f
         ;;
     
     logs-observer)
