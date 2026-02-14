@@ -33,7 +33,7 @@ class HotStorageManager:
         Returns:
             Path to the replay file
         """
-        return self.hot_storage_dir / f"game_{game_id}_player_{player_id}.db"
+        return self.hot_storage_dir / f"game_{game_id}_player_{player_id}.bin"
         
     def replay_exists(self, game_id: int, player_id: int) -> bool:
         """

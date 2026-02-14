@@ -21,13 +21,15 @@ class ReplayBuilder:
     FULL_STATE_TYPE = "ultshared.UltGameState"
     PATCH_BUFFER_MULTIPLIER = 2
     MAX_PATCHES = 10000
-
+    parser = JsonParser()
+    built = False
     def __init__(self, path: Path, game_id: int, player_id: int):
         self.path = path
         # Initialize parser
-        self.parser = JsonParser()
-        self.parser.type_graph.build_graph()
-        self.parser.type_graph.add_c_tag(GameState, "ultshared.UltAutoGameState")
+        if not self.__class__.built:
+            self.__class__.parser.type_graph.build_graph()
+            self.__class__.parser.type_graph.add_c_tag(GameState, "ultshared.UltAutoGameState")
+            self.__class__.built = True
 
         self.replay: Optional[Replay] = None
         self.game_id = game_id
@@ -146,9 +148,6 @@ class ReplayBuilder:
             self.replay.close()
             raise ValueError("No last game state found in replay")
 
-        # Create mock game interface for parsing
-        mock_game = GameInterface()
-
         # Process JSON responses
         num_responses = len(json_responses)
         logger.debug(f"Appending {num_responses} state updates...")
@@ -165,7 +164,7 @@ class ReplayBuilder:
 
             # Parse new state
             new_state: GameState = self.parser.parse_any(
-                GameState, json_response["result"], mock_game
+                GameState, json_response["result"]
             )
             current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
 
