@@ -38,6 +38,38 @@ The development setup allows you to:
 
 ## Quick Start
 
+### Test Your Setup
+
+After starting infrastructure services, verify everything is working:
+
+```bash
+./test-dev-env.sh
+```
+
+This script checks:
+- PostgreSQL connectivity
+- Redis connectivity
+- MinIO S3 API
+- MinIO Console
+- Local data directories
+
+
+### Test Your Setup
+
+After starting infrastructure services, verify everything is working:
+
+```bash
+./test-dev-env.sh
+```
+
+This script checks:
+- PostgreSQL connectivity
+- Redis connectivity
+- MinIO S3 API
+- MinIO Console
+- Local data directories
+
+
 ### 1. Start Infrastructure Services
 
 ```bash
