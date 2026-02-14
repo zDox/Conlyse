@@ -1,0 +1,12 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "donjayamanne.githistory",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-docker"
+    ]
+}

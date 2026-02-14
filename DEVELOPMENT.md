@@ -370,3 +370,45 @@ Then update your local config files to use these ports.
 - See [DOCKER.md](DOCKER.md) for production deployment
 - See [QUICK_START.md](QUICK_START.md) for quick reference
 - See tool-specific documentation in `tools/server_observer/` and `tools/server_converter/`
+
+## VS Code Setup (Ready to Use)
+
+This repository includes pre-configured VS Code settings in `.vscode/`:
+
+### Launch Configurations
+
+Press F5 or use the Run panel to launch:
+
+1. **Server Converter (Local Dev)** - Standard debugging
+2. **Server Converter (Verbose)** - With verbose logging
+3. **Server Observer (C++ Debug)** - C++ debugging with GDB
+
+### Tasks
+
+Access via Terminal > Run Task:
+
+1. **build-server-observer-debug** - Build C++ observer in debug mode
+2. **start-dev-infrastructure** - Start Docker services
+3. **stop-dev-infrastructure** - Stop Docker services  
+4. **test-dev-environment** - Verify setup
+
+### Recommended Extensions
+
+VS Code will prompt to install recommended extensions:
+- Python (ms-python.python)
+- Pylance (ms-python.vscode-pylance)
+- C/C++ (ms-vscode.cpptools)
+- CMake Tools (ms-vscode.cmake-tools)
+- Docker (ms-azuretools.vscode-docker)
+- GitLens (eamodio.gitlens)
+
+### Quick Start in VS Code
+
+1. Open workspace: `code /path/to/ConflictInterface`
+2. Install recommended extensions (when prompted)
+3. Run task: `start-dev-infrastructure`
+4. Run task: `test-dev-environment`
+5. Press F5 to start debugging
+
+That's it! Everything is pre-configured.
+

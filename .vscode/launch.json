@@ -1,0 +1,60 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Server Converter (Local Dev)",
+            "type": "python",
+            "request": "launch",
+            "module": "tools.server_converter",
+            "args": [
+                "docker/local-dev/server-converter-config.json"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONUNBUFFERED": "1"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Server Converter (Verbose)",
+            "type": "python",
+            "request": "launch",
+            "module": "tools.server_converter",
+            "args": [
+                "docker/local-dev/server-converter-config.json",
+                "-v"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONUNBUFFERED": "1"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Server Observer (C++ Debug)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/server_observer/build/server_observer",
+            "args": [
+                "${workspaceFolder}/docker/local-dev/server-observer-config.json",
+                "${workspaceFolder}/docker/local-dev/account_pool.json"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build-server-observer-debug",
+            "miDebuggerPath": "/usr/bin/gdb"
+        }
+    ]
+}
