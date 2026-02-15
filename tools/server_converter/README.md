@@ -81,9 +81,6 @@ server-converter config.json
 
 # Run with verbose logging
 server-converter config.json -v
-
-# Run for limited iterations (testing)
-server-converter config.json --max-iterations 10
 ```
 
 ## Redis Stream Format

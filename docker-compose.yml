@@ -89,16 +89,13 @@ services:
 
   # Server Observer - Monitors games and publishes to Redis
   server-observer:
-    build:
-      context: .
-      dockerfile: tools/server_observer/Dockerfile
-    image: server-observer:latest
+    image: ghcr.io/zdox/server-observer:latest
     container_name: conflict-server-observer
     depends_on:
       redis:
         condition: service_healthy
     volumes:
-      - ./docker/server-observer-config:/app/config
+      - ./docker/prod/server-observer-config.json:/app/config
       - observer-recordings:/app/recordings
       - observer-long-term-storage:/app/long_term_storage
     environment:
@@ -112,10 +109,7 @@ services:
 
   # Server Converter - Converts Redis streams to replay files
   server-converter:
-    build:
-      context: .
-      dockerfile: tools/server_converter/Dockerfile
-    image: server-converter:latest
+    image: ghcr.io/zdox/server-converter:latest
     container_name: conflict-server-converter
     depends_on:
       postgres:
@@ -137,7 +131,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET_NAME:-replays}
     volumes:
-      - ./docker/server-converter-config/config.json:/app/config.json:ro
+      - ./docker/prod/server-converter-config.json:/app/config.json:ro
       - converter-hot-storage:/data/hot_storage
     networks:
       - conflict-network

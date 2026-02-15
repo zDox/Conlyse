@@ -275,26 +275,20 @@ class ServerConverter:
         logger.info(f"Marked replay as {status.value}: game {game_id}, player {player_id}")
         return True
         
-    def run(self, max_iterations: Optional[int] = None):
+    def run(self):
         """
         Run the server converter main loop.
-        
-        Args:
-            max_iterations: Maximum iterations to run (None = run forever)
         """
         logger.info("Starting server converter main loop")
         
-        iteration = 0
         try:
-            while max_iterations is None or iteration < max_iterations:
+            while True:
                 processed = self.process_batch()
                 
                 if processed == 0:
                     # Sleep for check interval if no messages were processed
                     time.sleep(self.config.check_interval_seconds)
-                    
-                iteration += 1
-                
+
         except KeyboardInterrupt:
             logger.info("Received interrupt signal, shutting down...")
         finally:

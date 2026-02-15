@@ -31,9 +31,6 @@ Examples:
   
   # Run with verbose logging
   server-converter config.json -v
-  
-  # Run for a limited number of iterations (useful for testing)
-  server-converter config.json --max-iterations 10
 
 Configuration file should contain:
   - redis: Redis connection and stream settings
@@ -48,12 +45,6 @@ Configuration file should contain:
         'config',
         type=Path,
         help='Path to the configuration JSON file'
-    )
-    
-    parser.add_argument(
-        '--max-iterations',
-        type=int,
-        help='Maximum number of iterations to run (default: run forever)'
     )
     
     parser.add_argument(
@@ -91,7 +82,7 @@ Configuration file should contain:
     # Create and run converter
     try:
         converter = ServerConverter(config)
-        converter.run(max_iterations=args.max_iterations)
+        converter.run()
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
         sys.exit(0)

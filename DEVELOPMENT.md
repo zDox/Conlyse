@@ -2,6 +2,19 @@
 
 This guide explains how to set up a local development environment for debugging Server Observer and Server Converter while running the infrastructure services in Docker.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Running Components Locally](#running-components-locally)
+  - [Server Converter](#server-converter)
+  - [Server Observer](#server-observer)
+- [Configuration Files](#configuration-files)
+- [Common Workflows](#common-workflows)
+- [Troubleshooting](#troubleshooting)
+- [Stopping Services](#stopping-services)
+
 ## Overview
 
 The development setup allows you to:
@@ -17,9 +30,9 @@ The development setup allows you to:
 │  Your IDE / Local Development        │
 │                                      │
 │  ┌────────────────┐ ┌──────────────┐│
-│  │Server Observer │ │Server        ││
-│  │(Python/C++)    │ │Converter     ││
-│  │                │ │(Python)      ││
+│  │Server Observer │ │   Server     ││
+│  │(Python/C++)    │ │  Converter   ││
+│  │                │ │  (Python)    ││
 │  └───────┬────────┘ └──────┬───────┘│
 └──────────┼───────────────────┼────────┘
            │                   │
@@ -29,46 +42,14 @@ The development setup allows you to:
 ┌──────────────────────────────────────┐
 │  Docker (Infrastructure Services)    │
 │                                      │
-│  ┌──────┐  ┌──────┐  ┌────────┐    │
-│  │Redis │  │Postgres MinIO   │    │
-│  │:6379 │  │:5432 │  │:9000   │    │
-│  └──────┘  └──────┘  └────────┘    │
+│  ┌──────┐  ┌──────────┐  ┌────────┐ │
+│  │Redis │  │PostgreSQL│  │ MinIO  │ │
+│  │:6379 │  │  :5432   │  │ :9000  │ │
+│  └──────┘  └──────────┘  └────────┘ │
 └──────────────────────────────────────┘
 ```
 
 ## Quick Start
-
-### Test Your Setup
-
-After starting infrastructure services, verify everything is working:
-
-```bash
-./test-dev-env.sh
-```
-
-This script checks:
-- PostgreSQL connectivity
-- Redis connectivity
-- MinIO S3 API
-- MinIO Console
-- Local data directories
-
-
-### Test Your Setup
-
-After starting infrastructure services, verify everything is working:
-
-```bash
-./test-dev-env.sh
-```
-
-This script checks:
-- PostgreSQL connectivity
-- Redis connectivity
-- MinIO S3 API
-- MinIO Console
-- Local data directories
-
 
 ### 1. Start Infrastructure Services
 
@@ -86,7 +67,7 @@ Or using the stack script:
 ./stack.sh start-dev
 ```
 
-### 2. Verify Services
+### 2. Verify Services Manually (Optional)
 
 ```bash
 # Test PostgreSQL connection
@@ -109,7 +90,9 @@ mkdir -p data/recordings
 mkdir -p data/recordings/metadata
 ```
 
-### 4. Run Server Converter Locally
+## Running Components Locally
+
+### Server Converter
 
 #### Using Python directly:
 
@@ -155,7 +138,7 @@ Add to `.vscode/launch.json`:
 }
 ```
 
-### 5. Run Server Observer Locally
+### Server Observer
 
 #### Building the C++ component:
 
@@ -188,27 +171,6 @@ gdb --args ./server_observer ../../docker/local-dev/server-observer-config.json 
 3. Create Run Configuration with arguments pointing to config files
 4. Set breakpoints and debug
 
-**VS Code with C/C++ extension:**
-Add to `.vscode/launch.json`:
-
-```json
-{
-    "name": "Server Observer (Local Dev)",
-    "type": "cppdbg",
-    "request": "launch",
-    "program": "${workspaceFolder}/tools/server_observer/build/server_observer",
-    "args": [
-        "${workspaceFolder}/docker/local-dev/server-observer-config.json",
-        "${workspaceFolder}/docker/local-dev/account_pool.json"
-    ],
-    "stopAtEntry": false,
-    "cwd": "${workspaceFolder}",
-    "environment": [],
-    "externalConsole": false,
-    "MIMode": "gdb"
-}
-```
-
 ## Configuration Files
 
 ### Server Converter Config
@@ -236,22 +198,6 @@ Location: `docker/local-dev/account_pool.json`
 Add your test accounts here for development.
 
 ## Common Workflows
-
-### Debugging a Specific Issue
-
-1. Start infrastructure: `./stack.sh start-dev`
-2. Set breakpoints in your IDE
-3. Run the component in debug mode
-4. Reproduce the issue
-5. Step through code with debugger
-
-### Testing Changes
-
-1. Make code changes
-2. Restart the component (no need to rebuild Docker images)
-3. Test immediately
-4. Iterate quickly
-
 ### Viewing Data
 
 **PostgreSQL:**
@@ -340,75 +286,3 @@ docker compose -f docker-compose.dev.yml down
 # Stop and remove volumes (deletes all data!)
 docker compose -f docker-compose.dev.yml down -v
 ```
-
-## Advanced: Running Both Modes
-
-You can run the full production stack and development stack simultaneously by using different ports:
-
-**For development stack**, edit `.env`:
-```
-POSTGRES_PORT=5433
-REDIS_PORT=6380
-MINIO_API_PORT=9002
-MINIO_CONSOLE_PORT=9003
-```
-
-Then update your local config files to use these ports.
-
-## Tips for Effective Debugging
-
-1. **Use verbose logging:** Add `-v` flag or set log level to DEBUG
-2. **Use Redis CLI:** Monitor the stream in real-time with `XREAD`
-3. **Use PostgreSQL logs:** Watch database activity
-4. **Set strategic breakpoints:** Focus on key functions
-5. **Use conditional breakpoints:** Break only when specific conditions are met
-6. **Inspect variables:** Use your IDE's variable inspector
-7. **Step through code:** Use step-over, step-into, step-out effectively
-
-## Next Steps
-
-- See [DOCKER.md](DOCKER.md) for production deployment
-- See [QUICK_START.md](QUICK_START.md) for quick reference
-- See tool-specific documentation in `tools/server_observer/` and `tools/server_converter/`
-
-## VS Code Setup (Ready to Use)
-
-This repository includes pre-configured VS Code settings in `.vscode/`:
-
-### Launch Configurations
-
-Press F5 or use the Run panel to launch:
-
-1. **Server Converter (Local Dev)** - Standard debugging
-2. **Server Converter (Verbose)** - With verbose logging
-3. **Server Observer (C++ Debug)** - C++ debugging with GDB
-
-### Tasks
-
-Access via Terminal > Run Task:
-
-1. **build-server-observer-debug** - Build C++ observer in debug mode
-2. **start-dev-infrastructure** - Start Docker services
-3. **stop-dev-infrastructure** - Stop Docker services  
-4. **test-dev-environment** - Verify setup
-
-### Recommended Extensions
-
-VS Code will prompt to install recommended extensions:
-- Python (ms-python.python)
-- Pylance (ms-python.vscode-pylance)
-- C/C++ (ms-vscode.cpptools)
-- CMake Tools (ms-vscode.cmake-tools)
-- Docker (ms-azuretools.vscode-docker)
-- GitLens (eamodio.gitlens)
-
-### Quick Start in VS Code
-
-1. Open workspace: `code /path/to/ConflictInterface`
-2. Install recommended extensions (when prompted)
-3. Run task: `start-dev-infrastructure`
-4. Run task: `test-dev-environment`
-5. Press F5 to start debugging
-
-That's it! Everything is pre-configured.
-
