@@ -283,11 +283,9 @@ class ServerConverter:
         
         try:
             while True:
-                processed = self.process_batch()
-                
-                if processed == 0:
-                    # Sleep for check interval if no messages were processed
-                    time.sleep(self.config.check_interval_seconds)
+                # process_batch() is expected to perform a blocking read with the
+                # configured timeout, so no additional sleep is needed here.
+                self.process_batch()
 
         except KeyboardInterrupt:
             logger.info("Received interrupt signal, shutting down...")
