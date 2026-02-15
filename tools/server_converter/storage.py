@@ -65,6 +65,15 @@ class HotStorageManager:
             logger.info(f"Deleted replay from hot storage: {replay_path}")
             return True
         return False
+        
+    def list_replays(self):
+        """
+        List all replay files in hot storage.
+        
+        Yields:
+            Path objects for each replay file
+        """
+        return self.hot_storage_dir.glob("game_*_player_*.bin")
 
 
 class ColdStorageManager:

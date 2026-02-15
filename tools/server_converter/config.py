@@ -56,6 +56,7 @@ class ServerConverterConfig:
     database: DatabaseConfig
     batch_size: int = 10
     check_interval_seconds: int = 5
+    metrics_port: int = 8000
 
     @classmethod
     def from_file(cls, config_path: Path) -> 'ServerConverterConfig':
@@ -110,5 +111,6 @@ class ServerConverterConfig:
             storage=storage_config,
             database=database_config,
             batch_size=data.get('batch_size', 10),
-            check_interval_seconds=data.get('check_interval_seconds', 5)
+            check_interval_seconds=data.get('check_interval_seconds', 5),
+            metrics_port=data.get('metrics_port', 8000)
         )
