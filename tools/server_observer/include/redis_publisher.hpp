@@ -4,12 +4,9 @@
 #include <string>
 #include <memory>
 #include <nlohmann/json.hpp>
-#include <hiredis.h>
+#include <hiredis/hiredis.h>
 
 using json = nlohmann::json;
-
-// Forward declare hiredis connection type
-struct redisContext;
 
 /**
  * Redis publisher for streaming game responses

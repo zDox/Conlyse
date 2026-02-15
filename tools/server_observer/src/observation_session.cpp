@@ -208,15 +208,15 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
     // Update package with new auth and connection details
     api_->update_package(package_);
 
-    // Publish to Redis if publisher is available (do this before moving raw_response)
-    if (redis_publisher_ && redis_publisher_->is_connected()) {
+    // Publish to Redis if publisher is available
+    if (redis_publisher_) {
         // Get current timestamp in milliseconds
         auto now = std::chrono::system_clock::now();
         auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             now.time_since_epoch()
         ).count();
         
-        // Publish the response to Redis stream
+        // Publish the response to Redis stream (will attempt reconnection if needed)
         redis_publisher_->publish_response(
             timestamp_ms,
             game_id,

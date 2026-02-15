@@ -125,7 +125,7 @@ class ColdStorageManager:
             logger.error(f"Local file not found: {local_path}")
             return None
             
-        s3_key = f"replays/game_{game_id}_player_{player_id}.db"
+        s3_key = f"replays/game_{game_id}_player_{player_id}.bin"
         
         try:
             self.s3_client.upload_file(

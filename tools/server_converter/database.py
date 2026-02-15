@@ -47,9 +47,9 @@ class ReplayDatabase:
             port=self.db_config.get('port', 5432),
             database=self.db_config.get('database', 'replays'),
             user=self.db_config.get('user', 'postgres'),
-            password=self.db_config.get('password', '')
+            password=self.db_config.get('password', ''),
+            cursor_factory=RealDictCursor
         )
-        self.conn.cursor_factory = RealDictCursor
         
         self._create_tables()
         

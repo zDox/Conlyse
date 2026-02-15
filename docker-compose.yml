@@ -95,12 +95,12 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./docker/prod/server-observer-config.json:/app/config
+      - ./docker/prod:/app/config:ro
       - observer-recordings:/app/recordings
       - observer-long-term-storage:/app/long_term_storage
     environment:
       - PYTHONUNBUFFERED=1
-    command: ["server_observer", "/app/config/config.json", "/app/config/account_pool.json"]
+    command: ["server_observer", "/app/config/server-observer-config.example.json", "/app/config/account_pool.example.json"]
     networks:
       - conflict-network
     restart: unless-stopped
