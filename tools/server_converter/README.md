@@ -244,25 +244,19 @@ docker run -d \
   ghcr.io/zdox/server-converter:latest
 ```
 
-### Environment Variables
+### Configuration inside Docker
 
-The Docker image supports configuration via environment variables:
+The Docker image reads its settings from the `config.json` file mounted into the container (see the example above).
+At present, configuration is not overridden via environment variables; values such as Redis and PostgreSQL
+hosts, ports, credentials, and storage paths must be provided in `config.json`.
 
-- `REDIS_HOST`: Override Redis hostname (default from config)
-- `REDIS_PORT`: Override Redis port
-- `POSTGRES_HOST`: Override PostgreSQL hostname
-- `POSTGRES_PORT`: Override PostgreSQL port
-- `POSTGRES_DB`: Override database name
-- `POSTGRES_USER`: Override database user
-- `POSTGRES_PASSWORD`: Override database password
+When running with Docker, ensure you:
 
-Example with environment variables:
+- Mount your configuration file into the container, for example:
 
-```bash
-docker run -d \
-  -e REDIS_HOST=redis.example.com \
-  -e POSTGRES_HOST=db.example.com \
-  -e POSTGRES_PASSWORD=secret \
-  -v $(pwd)/config.json:/app/config.json:ro \
-  server-converter:latest
-```
+  ```bash
+  docker run -d \
+    -v $(pwd)/config.json:/app/config.json:ro \
+    -v $(pwd)/hot_storage:/data/hot_storage \
+    --network host \
+    ghcr.io/zdox/server-converter:latest
