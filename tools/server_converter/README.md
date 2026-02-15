@@ -79,6 +79,7 @@ cp config.example.json config.json
 
 - **batch_size**: Number of messages to process per batch (default: 10)
 - **check_interval_seconds**: Seconds to wait between checks (default: 5)
+- **metrics_port**: Port for Prometheus metrics endpoint (default: 8000)
 
 ## Usage
 
@@ -88,6 +89,9 @@ server-converter config.json
 
 # Run with verbose logging
 server-converter config.json -v
+
+# Run with custom metrics port
+server-converter config.json --metrics-port 9090
 ```
 
 ## Redis Stream Format
@@ -184,6 +188,78 @@ pip install redis boto3
 ```
 
 ## Monitoring
+
+### Prometheus Metrics
+
+The server converter exposes Prometheus metrics on the configured metrics port (default: 8000). These metrics can be used to monitor performance, error rates, and resource utilization.
+
+#### Available Metrics
+
+**Message Processing Metrics:**
+- `server_converter_messages_processed_total{status}` (Counter): Total messages processed, labeled by status (success/error)
+- `server_converter_messages_processing_duration_seconds` (Histogram): Time spent processing message batches
+- `server_converter_batch_size` (Summary): Distribution of batch sizes processed
+
+**Replay Operation Metrics:**
+- `server_converter_replay_operations_total{operation,status}` (Counter): Total replay operations, labeled by operation type (create/append/complete) and status (success/error)
+- `server_converter_replay_creation_duration_seconds` (Histogram): Time spent creating new replays
+- `server_converter_replay_append_duration_seconds` (Histogram): Time spent appending to existing replays
+- `server_converter_responses_per_replay` (Summary): Distribution of responses added per replay operation
+
+**Storage Metrics:**
+- `server_converter_hot_storage_replays` (Gauge): Number of replays currently in hot storage
+- `server_converter_cold_storage_uploads_total{status}` (Counter): Total uploads to cold storage, labeled by status (success/error)
+
+**Database Metrics:**
+- `server_converter_database_operations_total{operation,status}` (Counter): Total database operations, labeled by operation type and status
+- `server_converter_database_operation_duration_seconds{operation}` (Histogram): Time spent on database operations
+
+**Error Metrics:**
+- `server_converter_errors_total{error_type}` (Counter): Total errors, labeled by error type (processing/database/storage/redis)
+
+**Redis Metrics:**
+- `server_converter_redis_consumer_lag` (Gauge): Number of pending messages in the consumer group
+- `server_converter_redis_read_operations_total{status}` (Counter): Total Redis read operations
+
+#### Accessing Metrics
+
+```bash
+# View metrics
+curl http://localhost:8000/metrics
+
+# Scrape with Prometheus
+# Add to prometheus.yml:
+scrape_configs:
+  - job_name: 'server-converter'
+    static_configs:
+      - targets: ['localhost:8000']
+```
+
+#### Example Grafana Dashboards
+
+**Message Throughput:**
+```promql
+rate(server_converter_messages_processed_total{status="success"}[5m])
+```
+
+**Error Rate:**
+```promql
+rate(server_converter_messages_processed_total{status="error"}[5m]) / 
+rate(server_converter_messages_processed_total[5m])
+```
+
+**Average Processing Time:**
+```promql
+rate(server_converter_messages_processing_duration_seconds_sum[5m]) / 
+rate(server_converter_messages_processing_duration_seconds_count[5m])
+```
+
+**Hot Storage Usage:**
+```promql
+server_converter_hot_storage_replays
+```
+
+### Logging
 
 The converter logs:
 - Number of messages processed per batch
