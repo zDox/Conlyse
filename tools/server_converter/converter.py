@@ -352,7 +352,7 @@ class ServerConverter:
     def _update_hot_storage_metric(self):
         """Update the hot storage replays gauge metric."""
         try:
-            replay_count = len(list(self.hot_storage.list_replays()))
+            replay_count = sum(1 for _ in self.hot_storage.list_replays())
             metrics.hot_storage_replays.set(replay_count)
         except Exception as e:
             logger.warning(f"Failed to update hot storage metric: {e}")

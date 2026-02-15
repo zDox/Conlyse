@@ -70,8 +70,8 @@ class HotStorageManager:
         """
         List all replay files in hot storage.
         
-        Yields:
-            Path objects for each replay file
+        Returns:
+            Iterator of Path objects for each replay file
         """
         return self.hot_storage_dir.glob("game_*_player_*.bin")
 
