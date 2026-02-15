@@ -18,9 +18,9 @@ The easiest way to run the server converter is using Docker Compose:
 ```bash
 cd tools/server_converter
 
-# Create configuration file
-cp config.example.json config.json
-# Edit config.json with your settings
+# Create configuration file (use config.docker.json for Docker deployment)
+cp config.docker.json config.json
+# Edit config.json with your settings (database password, S3 credentials, etc.)
 
 # Start all services (PostgreSQL, Redis, Server Converter)
 docker-compose up -d
@@ -32,12 +32,19 @@ docker-compose logs -f server-converter
 docker-compose down
 ```
 
+**Note:** Use `config.docker.json` as the template for Docker deployments, as it has the correct paths (`/data/hot_storage`) that match the docker-compose volume mounts. For local development, use `config.example.json` which uses localhost connections.
+
 ## Configuration
 
-Create a configuration file based on `config.example.json`:
+Create a configuration file based on the appropriate template:
 
 ```bash
+# For Docker deployment:
+cp config.docker.json config.json
+
+# For local development:
 cp config.example.json config.json
+
 # Edit config.json with your settings
 ```
 
@@ -196,9 +203,9 @@ The included `docker-compose.yml` sets up a complete stack with PostgreSQL, Redi
 ```bash
 cd tools/server_converter
 
-# Create and edit configuration
-cp config.example.json config.json
-# Edit config.json - use host names from docker-compose (postgres, redis)
+# Create and edit configuration (use config.docker.json for Docker)
+cp config.docker.json config.json
+# Edit config.json - paths and service names are already configured correctly
 
 # Optional: Set PostgreSQL password
 echo "POSTGRES_PASSWORD=your-secure-password" > .env
