@@ -64,9 +64,9 @@ class ServerConverter:
         """
         # Read messages from Redis using batch_size from redis config
         messages = self.redis_consumer.read_messages(
-            count=self.config.redis.batch_size,
-            block=self.config.check_interval_seconds * 1000
+            count=self.config.redis.batch_size
         )
+        
         
         if not messages:
             logger.debug("No messages to process")
