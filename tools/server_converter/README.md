@@ -89,9 +89,6 @@ server-converter config.json
 
 # Run with verbose logging
 server-converter config.json -v
-
-# Run with custom metrics port
-server-converter config.json --metrics-port 9090
 ```
 
 ## Redis Stream Format

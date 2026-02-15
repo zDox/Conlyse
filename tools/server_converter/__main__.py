@@ -61,12 +61,6 @@ Configuration file should contain:
         help='Quiet mode (only ERROR level)'
     )
     
-    parser.add_argument(
-        '--metrics-port',
-        type=int,
-        help='Port for Prometheus metrics endpoint (overrides config file)'
-    )
-    
     args = parser.parse_args()
     
     # Setup logging
@@ -86,10 +80,6 @@ Configuration file should contain:
     except Exception as e:
         logger.error(f"Failed to load configuration: {e}")
         sys.exit(1)
-    
-    # Override metrics port if specified
-    if args.metrics_port:
-        config.metrics_port = args.metrics_port
         
     # Start Prometheus metrics server
     try:
