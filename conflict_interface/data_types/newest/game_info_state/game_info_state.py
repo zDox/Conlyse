@@ -24,7 +24,7 @@ class GameFeatures(GameObject):
     """
     Represents a collection of game features mapped by their identifiers.
     """
-    id_features: HashMap[int, dict[str, Union[str, int ,bool]]]
+    id_features: HashMap[int, dict[str, Union[bool,int,str]]]
 
     MAPPING = {
         "id_features": "idFeatures",

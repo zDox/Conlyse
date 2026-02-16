@@ -6,6 +6,7 @@ from ..custom_types import EmptyList
 from ..game_event_state.game_event import *
 from ..state import State
 from ..update_helpers import state_update
+from ..version import VERSION
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 
@@ -26,7 +27,7 @@ GameEventType = Union[
         CoalitionMessageEvent, MissionEvent
     ]
 
-@binary_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class GameEventState(State):
     C = "ultshared.gameevents.UltGameEventState"

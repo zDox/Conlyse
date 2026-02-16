@@ -8,6 +8,7 @@ from conflict_interface.game_object.type_graph import TypeGraph
 
 def conflict_serializable(category: SerializationCategory, version: int):
     def wrapper(cls):
+        #print(f"Registering serialization cls {cls} in category {category}, version: {version}")
         GameObjectSerializer.register(version, cls, category)
         if category in (SerializationCategory.DATACLASS, SerializationCategory.POINT):
             TypeGraph.register_type(version, cls)
@@ -15,16 +16,9 @@ def conflict_serializable(category: SerializationCategory, version: int):
 
     return wrapper
 
-def custom_parser(type_: type, version: int):
-    def deco(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            JsonParser.register_custom_parser(type_, version, func)
-            return func(*args, **kwargs)
-        return wrapper
-    return deco
 
 def parse_edge_case(tag: str, version: int):
+    #print(f"Registering Edge Case {tag} version {version}")
     def wrapper(cls):
         JsonParser.register_edge_case(tag, version, cls)
         return cls

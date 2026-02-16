@@ -9,10 +9,9 @@ from .custom_types import TimeDeltaMillisecondsStr
 from .custom_types import TimeDeltaSecondsInt
 from .custom_types import TimeDeltaSecondsStr
 from .version import VERSION
-from conflict_interface.game_object.decorators import custom_parser
+from ...game_object.game_object_parse_json import JsonParser
 
-@custom_parser(type_=DateTimeMillisecondsInt, version=VERSION)
-@custom_parser(type_=DateTimeMillisecondsStr, version=VERSION)
+
 def parse_date_time_milliseconds(json_obj):
     if len(str(json_obj)) < 13 and str(json_obj) != "0":
         raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits {json_obj}")
@@ -23,8 +22,6 @@ def parse_date_time_milliseconds(json_obj):
     else:
         raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
-@custom_parser(type_=TimeDeltaMillisecondsInt, version=VERSION)
-@custom_parser(type_=TimeDeltaMillisecondsStr, version=VERSION)
 def parse_time_delta_milliseconds(json_obj):
     if type(json_obj) is str:
         return TimeDeltaMillisecondsStr(seconds=int(json_obj) / 1000)
@@ -33,8 +30,6 @@ def parse_time_delta_milliseconds(json_obj):
     else:
         raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
-@custom_parser(type_=DateTimeSecondsInt, version=VERSION)
-@custom_parser(type_=DateTimeSecondsStr, version=VERSION)
 def parse_date_time_seconds(json_obj):
     if len(str(json_obj)) != 10 and str(json_obj) != "0":
         raise ValueError(f"Expected int with 10 digits, got {len(str(json_obj))} digits {json_obj}")
@@ -45,8 +40,6 @@ def parse_date_time_seconds(json_obj):
     else:
         raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
-@custom_parser(type_=TimeDeltaSecondsInt, version=VERSION)
-@custom_parser(type_=TimeDeltaSecondsStr, version=VERSION)
 def parse_time_delta_seconds(json_obj):
     if type(json_obj) is str:
         return TimeDeltaSecondsStr(seconds=int(json_obj))
@@ -55,6 +48,14 @@ def parse_time_delta_seconds(json_obj):
     else:
         raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
+JsonParser.register_custom_parser(TimeDeltaSecondsStr, VERSION, parse_time_delta_seconds)
+JsonParser.register_custom_parser(TimeDeltaSecondsInt, VERSION, parse_time_delta_seconds)
+JsonParser.register_custom_parser(TimeDeltaMillisecondsStr, VERSION, parse_time_delta_milliseconds)
+JsonParser.register_custom_parser(TimeDeltaMillisecondsInt, VERSION, parse_time_delta_milliseconds)
+JsonParser.register_custom_parser(DateTimeSecondsStr, VERSION, parse_date_time_seconds)
+JsonParser.register_custom_parser(DateTimeSecondsInt, VERSION, parse_date_time_seconds)
+JsonParser.register_custom_parser(DateTimeMillisecondsStr, VERSION, parse_date_time_milliseconds)
+JsonParser.register_custom_parser(DateTimeMillisecondsInt, VERSION, parse_date_time_milliseconds)
 
 """
 DATETIME_MAPPING = {

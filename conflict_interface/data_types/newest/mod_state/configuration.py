@@ -396,13 +396,13 @@ class ModStateFrontendConfig(GameObject):
     flag_config: dict[str, bool]
     game_info_config: dict[int, str] # TODO strings are links
     consts: dict[str, int]
-    community_you_tube: dict[str, Union[str, int]]
+    community_you_tube: dict[str, Union[int, str]]
     factor_bonus_tooltip: dict[str, list[int]]
     ticket_item_ids: list[int]
     show_veteran_separation_text: bool
-    solsten_survey_details: dict[str, Union[str, int]]
-    officer_promo_banner: dict[str, Union[str, int, bool]]
-    feature_promo_popup: dict[str, Union[str, int, bool]]
+    solsten_survey_details: dict[str, Union[int ,str]]
+    officer_promo_banner: dict[str, Union[bool, int, str]]
+    feature_promo_popup: dict[str, Union[bool, int, str]]
 
 
 

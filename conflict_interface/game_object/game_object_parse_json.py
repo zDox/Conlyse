@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from dataclasses import is_dataclass
 from dataclasses import MISSING as DATACLASS_MISSING
@@ -5,6 +7,7 @@ from enum import Enum
 from logging import getLogger
 from typing import Any
 from typing import Callable
+from typing import TYPE_CHECKING
 from typing import cast
 from typing import get_args
 from typing import get_origin
@@ -12,8 +15,11 @@ from typing import get_origin
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.type_graph import TypeGraph
 from conflict_interface.game_object.type_graph import TypeGraphNode
-from conflict_interface.interface import GameInterface
+
 from conflict_interface.utils.enums import DefaultEnumMeta
+
+if TYPE_CHECKING:
+    from conflict_interface.interface import GameInterface
 
 logger = getLogger()
 
@@ -95,7 +101,7 @@ def get_fields(t: type[dataclass()], var: str):
     return ret
 
 
-def can_convert(value, value_type, cls) -> bool:
+def can_convert(value, value_type, cls) -> bool:# can you convert obj of type value_type to type cls?
     """
     Handles Pyton / JavaScript type conversion quirks. Commented Cases do not appear yet and are removed for performance
 
@@ -144,17 +150,17 @@ def can_convert(value, value_type, cls) -> bool:
         return False
 
     # ---------- BOOL ----------
-    #if cls is bool:
-    #    if value_type is str:
-    #        ok = value.lower() in {"true", "false", "1", "0"}
+    if cls is bool:
+        if value_type is str:
+            ok = value.lower() in {"true", "false", "1", "0"}
     #        timer_.split("BOOL FROM STR OK" if ok else "BOOL FROM STR FAIL")
-    #        return ok
-    #    if value_type is int:
-    #        ok = value in (0, 1)
+            return ok
+        #if value_type is int:
+        #    ok = value in (0, 1)
     #        timer_.split("BOOL FROM INT OK" if ok else "BOOL FROM INT FAIL")
-    #        return ok
+        #    return ok
     #    timer_.split("BOOL FAIL TYPE")
-    #    return False
+        return False
 
     # ---------- ENUM ----------
     if type_is_enum(cls):
@@ -206,6 +212,7 @@ class JsonParser:
 
     @classmethod
     def register_custom_parser(cls, type_: type, version: int, func):
+        #print(f"Registering custom parsers for type {type_}, version: {version}")
         cls.PARSE_MAPPING.setdefault(version, {})
         cls.PARSE_MAPPING[version][type_] = func
 
@@ -433,9 +440,9 @@ class JsonParser:
             return possible_type
 
         # Try datetime conversion
-        if possible_type.type in self.PARSE_MAPPING:
+        if possible_type.type in self.custom_parsers:
             try:
-                self.PARSE_MAPPING[self.version][possible_type.type](json_obj)
+                self.custom_parsers[possible_type.type](json_obj)
                 return possible_type
             except ValueError:
                 pass
