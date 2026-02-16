@@ -1,7 +1,7 @@
 import os
 
+from conflict_interface.api.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
-from conflict_interface.data_types.hub_types.hub_game import HubGameState
 
 TEST_KEYS = ["TEST_ACCOUNT_USERNAME", "TEST_ACCOUNT_PASSWORD", "TEST_ACCOUNT_EMAIL", "TEST_PROXY_URL"]
 

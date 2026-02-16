@@ -1,5 +1,6 @@
 import unittest
 
+from conflict_interface.data_types.newest.version import VERSION
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.utils.exceptions import AuthenticationException
 from tests.helper_functions import get_new_game_id
@@ -14,7 +15,7 @@ class HubInterfaceTests(unittest.TestCase):
 
         # Create a shared interface instance and log in once for all non-login tests
         # Reason: Rate limiting of number of logins
-        cls.shared_interface = HubInterface()
+        cls.shared_interface = HubInterface(VERSION)
         cls.shared_interface.login(cls.username, cls.password)
 
     # Login tests created their own HubInterface in order to properly reset it

@@ -9,9 +9,10 @@ from conflict_interface.game_object.game_object_binary import SerializationCateg
 from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
+from ..version import VERSION
 
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class Article(GameObject):
     C = "ultshared.UltArticle"

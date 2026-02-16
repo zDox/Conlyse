@@ -1,12 +1,11 @@
 from enum import Enum
 
-from ..custom_types import DefaultEnumMeta
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
+from conflict_interface.utils.enums import DefaultEnumMeta
 
 
-from ..version import VERSION
-@conflict_serializable(SerializationCategory.ENUM, version = VERSION)
+@conflict_serializable(SerializationCategory.ENUM, version = -1)
 class HubGameState(Enum, metaclass=DefaultEnumMeta):
     UNDEFINED = "undefined"
     NONE = "none"

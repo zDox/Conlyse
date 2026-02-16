@@ -1,23 +1,29 @@
 import json
-import logging
 import unittest
 
-from conflict_interface.data_types.army_state.army_state import ArmyState
-from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state import ForeignAffairsState
-from conflict_interface.data_types.game_event_state.game_event_state import GameEventState
-from conflict_interface.data_types.game_info_state.game_info_state import GameInfoState
-from conflict_interface.data_types.game_object_json import dump_any
-from conflict_interface.data_types.game_object_json import parse_game_object
-from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.data_types.map_state.map_state import MapState
-from conflict_interface.data_types.mod_state.mod_state import ModState
-from conflict_interface.data_types.newspaper_state.newspaper_state import NewspaperState
-from conflict_interface.data_types.player_state.player_state import PlayerState
-from conflict_interface.data_types.research_state.research_state import ResearchState
-from conflict_interface.data_types.resource_state.resource_state import ResourceState
+from conflict_interface.data_types.newest.army_state.army_state import ArmyState
+from conflict_interface.data_types.newest.foreign_affairs_state.foreign_affairs_state import ForeignAffairsState
+from conflict_interface.data_types.newest.game_event_state.game_event_state import GameEventState
+from conflict_interface.data_types.newest.game_info_state.game_info_state import GameInfoState
+from conflict_interface.data_types.newest.game_state.game_state import GameState
+from conflict_interface.data_types.newest.map_state.map_state import MapState
+from conflict_interface.data_types.newest.mod_state.mod_state import ModState
+from conflict_interface.data_types.newest.newspaper_state.newspaper_state import NewspaperState
+from conflict_interface.data_types.newest.player_state.player_state import PlayerState
+from conflict_interface.data_types.newest.research_state.research_state import ResearchState
+from conflict_interface.data_types.newest.resource_state.resource_state import ResourceState
+from conflict_interface.data_types.newest.to_json import dump_any
+from conflict_interface.data_types.newest.version import VERSION
+from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.interface.game_interface import GameInterface
 from paths import TEST_DATA
 from tests.helper_functions import compare_dicts
+
+jsonparser = JsonParser(VERSION)
+
+def parse_game_object(cls, json_obj, game):
+    jsonparser.type_graph.build_graph()
+    return jsonparser.parse_any(cls, json_obj, game)
 
 
 class ParseDumpTests(unittest.TestCase):

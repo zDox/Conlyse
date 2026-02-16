@@ -4,8 +4,7 @@ from conflict_interface.game_object.game_object_binary import SerializationCateg
 from conflict_interface.game_object.decorators import conflict_serializable
 
 
-from ..version import VERSION
-@conflict_serializable(SerializationCategory.ENUM, version = VERSION)
+@conflict_serializable(SerializationCategory.ENUM, version = -1)
 class HubResultCode(Enum):
     OK = 0
     UnknownError = -1

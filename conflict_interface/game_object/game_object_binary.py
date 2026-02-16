@@ -60,6 +60,9 @@ class GameObjectSerializer:
     def register(cls, version: int, obj: type, category: SerializationCategory):
         """Register a type with its category."""
         type_id = stable_type_id(obj)
+        cls._CLASS_FROM_ID.setdefault(version, {})
+        cls._ID_FROM_CLASS.setdefault(version, {})
+        cls._CATEGORY.setdefault(version, {})
 
         cls._CLASS_FROM_ID[version][type_id] = obj
         cls._ID_FROM_CLASS[version][obj] = type_id
@@ -67,6 +70,7 @@ class GameObjectSerializer:
 
         if category == SerializationCategory.DATACLASS:
             mapping = get_mapping(obj)
+            cls._FIELDS_CACHE.setdefault(version, {})
             cls._FIELDS_CACHE[version][obj] = tuple(mapping.keys())
 
 

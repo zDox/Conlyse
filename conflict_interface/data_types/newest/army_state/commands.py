@@ -279,7 +279,7 @@ class WaitCommand(GameObject):
         """
         return self.direction == WaitDirection.DISBANDING
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class SplitArmyCommand(GameObject):
     C = "sac"
@@ -290,7 +290,7 @@ class SplitArmyCommand(GameObject):
     def action_copy(self) -> "SplitArmyCommand":
         return copy(self)
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class FireMissileCommand(GameObject):
     C = "fm"

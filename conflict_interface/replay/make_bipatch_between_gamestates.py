@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Any
 
 from conflict_interface.game_object.game_object import GameObject
-from ..game_object_json import SIMPLE_PARSE_MAPPING
+
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 
 
@@ -52,13 +52,10 @@ def make_replay_patch_any(rp: BidirectionalReplayPatch, path: list[str], origina
         make_replay_patch_list(rp, path, original, other)
     elif isinstance(other, dict):
         make_replay_patch_dict(rp, path, original, other)
-    elif type(other) in SIMPLE_PARSE_MAPPING or isinstance(other, Enum):
-        make_replay_patch_simple(rp, path, original, other)
     elif original is None and other is None:
         return
     else:
-        raise Exception(f"Unsupported type {type(other)}")
-
+        make_replay_patch_simple(rp, path, original, other)
 
 def make_replay_patch_gameobject(rp:  BidirectionalReplayPatch, path: list[str], original, other: "GameObject"):
     """

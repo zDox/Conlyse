@@ -5,6 +5,7 @@ from .custom_types import DateTimeMillisecondsInt
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
+from .version import VERSION
 
 
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
