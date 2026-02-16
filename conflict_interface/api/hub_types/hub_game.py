@@ -1,14 +1,18 @@
+
 from dataclasses import dataclass
+from typing import Optional
 from typing import get_type_hints
 
-from ..custom_types import DateTimeSecondsInt
+from conflict_interface.data_types.newest.version import VERSION
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from ..hub_types.hub_game_state_enum import HubGameState
+from conflict_interface.data_types.newest.custom_types import DateTimeSecondsInt
+
+from conflict_interface.api.hub_types.hub_game_state_enum import HubGameState
 
 
-from ..version import VERSION
-@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
+
+@conflict_serializable(SerializationCategory.DATACLASS, version = -1)
 @dataclass
 class GameLogin:
     achievement_title_id: int
@@ -37,7 +41,6 @@ class GameLogin:
             cls._type_hints = get_type_hints(cls)
         return cls._type_hints
 
-from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class HubGameProperties:
@@ -91,6 +94,34 @@ class HubGameProperties:
     map_reference: str
     state: HubGameState
 
+    end_day_of_game: int
+    alliance_game: int
+    nations_cup_tournament_region: Optional[str] # TODO check if string is correct type
+    engine: str
+    is_system_game: bool
+    auto_update_interval: int
+    open_challenge: int
+    db_type: Optional[str]
+    db: str
+    mod_document_id: Optional[str]
+    alliance_a: int
+    alliance_b: int
+    pause_start_time: int
+    last_access_time: Optional[str]
+    start_date: int
+    ticket: int
+    anticheat_set: str
+    pause_modus: int
+    password_set: str
+    gs: str
+    language: str
+    quest_province_conquer: int
+    team_settings: str
+    min_rank_image: Optional[str]
+    min_rank_label: Optional[str]
+
+
+
     MAPPING = {
         'game_id': 'gameID',
         'mod_id': 'modID',
@@ -111,6 +142,8 @@ class HubGameProperties:
         'ranked': 'ranked',
         'demo_game': 'demoGame',
         'min_rank': 'minRank',
+        "min_rank_image": "minrankimage",
+        "min_rank_label": "minranklabel",
         'managed_game': 'managedGame',
         'creation_date': 'crdate',
         'ai_level': 'aiLevel',
@@ -141,6 +174,29 @@ class HubGameProperties:
         'max_join_day': 'maxJoinDay',
         'map_reference': 'mapReference',
         'state': 'state',
+        "end_day_of_game": "endDayOfGame",
+        "alliance_game": "allianceGame",
+        "nations_cup_tournament_region": "nationsCupTournamentRegion",
+        "engine": "engine",
+        "is_system_game": "isSystemGame",
+        "auto_update_interval": "autoUpdateInterval",
+        "open_challenge": "openChallenge",
+        "db_type": "dbType",
+        "mod_document_id": "modDocumentID",
+        "alliance_a": "allianceA",
+        "alliance_b": "allianceB",
+        "db": "db",
+        "pause_start_time": "pauseStartTime",
+        "last_access_time": "lastaccesstime",
+        "start_date": "startDate",
+        "ticket": "ticket",
+        "anticheat_set": "anticheatset",
+        "pause_modus": "pauseModus",
+        "password_set": "passwordset",
+        "gs": "gs",
+        "language": "language",
+        "quest_province_conquer": "questProvinceConquer",
+        "team_settings": "teamSettings"
     }
 
     _type_hints = None
@@ -151,8 +207,7 @@ class HubGameProperties:
             cls._type_hints = get_type_hints(cls)
         return cls._type_hints
 
-from ..version import VERSION
-@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version = -1)
 @dataclass
 class HubGame:
     C = "hup.model.games.Game"

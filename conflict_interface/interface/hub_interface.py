@@ -1,21 +1,23 @@
-from __future__ import annotations
+
 
 from copy import deepcopy
 
 from dataclasses import fields
 from functools import wraps
-from typing import TYPE_CHECKING
+
 from typing import cast
 
-from conflict_interface.game_object.game_object_parse_json import JsonParser
+from conflict_interface.data_types.newest.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from conflict_interface.api.hub_api import HubApi
+from conflict_interface.data_types.newest.version import VERSION
+from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.interface.online_interface import OnlineInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import AuthenticationException
+from conflict_interface.api.hub_types.hub_game import HubGame
+from conflict_interface.api.hub_types.hub_game import HubGameProperties
 
-if TYPE_CHECKING:
-    from conflict_interface.api.hub_types.hub_game import HubGame
-    from conflict_interface.api.hub_types.hub_game import HubGameProperties
+
 
 logger = get_logger()
 
@@ -179,7 +181,9 @@ class HubInterface:
                                          auth_details = deepcopy(self.api.auth),
                                          proxy = self.api.proxy,
                                          guest = guest,
-                                         replay_filepath= replay_filename)
+                                         replay_filepath= replay_filename,
+                                         version=VERSION,
+                                         login_action=DEFAULT_LOGIN_ACTION)
         game_interface.load_game()
         return game_interface
 

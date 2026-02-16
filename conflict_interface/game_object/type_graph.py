@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Union
 from typing import get_args
 from typing import get_origin
+from typing import get_type_hints
 
 from conflict_interface.game_object.game_object import GameObject
 
@@ -40,6 +41,9 @@ class TypeGraphNode:
         self.is_union = type_is_union(_type)
         self.is_primitive = _type in self._PRIMITIVES
 
+    def __str__(self):
+        return f"| {self.type} | "
+
 
 
 class TypeGraph:
@@ -50,19 +54,25 @@ class TypeGraph:
         self.type_to_c: dict[type, list[str]] = {}
         self.build = False
         self.version = version
+        self.visited = set()
         self._temp_type_que = deque([])
 
     @classmethod
     def register_type(cls, version, _type):
         cls._TYPE_QUE.append((version,_type))
 
+    def add_type(self, _type):
+        self.build = False
+        self._TYPE_QUE.append((self.version, _type))
+
     def build_graph(self):
-        visited = set()
         while self._TYPE_QUE:
             version, _type = self._TYPE_QUE.pop()
-            if version != self.version:
-                self._temp_type_que.append((version, _type))
+            self._temp_type_que.append((version, _type))
+
+            if version != -1 and version != self.version:
                 continue
+
             self.add_node(_type)
 
             try:
@@ -71,17 +81,22 @@ class TypeGraph:
             except AttributeError:
                 mapping = getattr(_type, "MAPPING")
 
-
-            type_hints = _type.get_type_hints_cached()
+            try:
+                type_hints = _type.get_type_hints_cached()
+            except AttributeError:
+                type_hints = get_type_hints(_type)
 
 
             for python_name in mapping.keys():
+
                 t = type_hints[python_name]
-                self.add_type_recursive(_type, t, python_name, visited)
+                self.add_type_recursive(_type, t, python_name)
 
         self._TYPE_QUE = self._temp_type_que
         self._temp_type_que = deque([])
         self.build = True
+
+
 
     def add_node(self, _type: type):
         if _type in self.type_to_node: return
@@ -98,29 +113,25 @@ class TypeGraph:
         self.add_node(v)
         self.type_to_node[u].children.setdefault(tag, []).append(self.type_to_node[v])
 
-    def add_type_recursive(self, parent: type, nested_child: type, tag: str, visited):
-        if (parent, nested_child, tag) in visited:
-            return
-        visited.add((parent, nested_child, tag))
-        self.add_edge_and_nodes(parent, nested_child, tag)
-        t: type = nested_child
+    def add_new_type_branch(self, new_type: type):
+        t: type = new_type
         args = get_args(t)
         if type_is_union(t):
             for arg in args:
-                self.add_type_recursive(nested_child, arg, "v", visited)
+                self.add_type_recursive(new_type, arg, "v")
 
         elif type_is_any_dict(t):
             assert len(args) == 2
-            self.add_type_recursive(nested_child, args[0], "k", visited)
-            self.add_type_recursive(nested_child, args[1], "v", visited)
+            self.add_type_recursive(new_type, args[0], "k")
+            self.add_type_recursive(new_type, args[1], "v")
 
         elif type_is_any_list(t):
             assert len(args) == 1
-            self.add_type_recursive(nested_child, args[0], "v", visited)
+            self.add_type_recursive(new_type, args[0], "v")
 
         elif type_is_any_set(t):
             assert len(args) == 1
-            self.add_type_recursive(nested_child, args[0], "v", visited)
+            self.add_type_recursive(new_type, args[0], "v")
 
         elif type_is_game_object(t):
             if t is GameObject: return
@@ -130,8 +141,17 @@ class TypeGraph:
 
             for python_name in mapping.keys():
                 type_hint = type_hints[python_name]
-                self.add_type_recursive(nested_child, type_hint, python_name, visited)
+                self.add_type_recursive(new_type, type_hint, python_name)
 
         else:
             # Its a simple type
             assert get_origin(t) is None, f"{t} is not a simple type as assumed"
+
+    def add_type_recursive(self, parent: type, nested_child: type, tag: str):
+        if (parent, nested_child, tag) in self.visited:
+            return
+        self.visited.add((parent, nested_child, tag))
+        self.add_edge_and_nodes(parent, nested_child, tag)
+        self.add_new_type_branch(nested_child)
+
+

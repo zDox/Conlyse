@@ -18,7 +18,7 @@ class AuthDetails:
     session_token: str = None
     rights: str = None
 
-    MAPPING = {
+    url_param_to_variable_name = {
             "userID": "user_id",
             "auth": "auth",
             "authHash": "auth_hash",
@@ -29,6 +29,16 @@ class AuthDetails:
             "uberAuthTstamp": "uber_auth_tstamp",
             "rights": "rights"
     }
+    MAPPING = {
+        "user_id": "userID",
+        "auth": "auth",
+        "auth_hash": "authHash",
+        "chat_auth": "chatAuth",
+        "chat_auth_tstamp": "chatAuthTstamp",
+        "uber_auth_hash": "uberAuthHash",
+        "uber_auth_tstamp": "uberAuthTstamp",
+        "rights": "rights"
+    }
 
     @classmethod
     def from_url_parameters(cls, url: str):
@@ -37,9 +47,9 @@ class AuthDetails:
 
         for parameter in parameters[1:]:
             key, value = parameter.split("=")
-            if key not in cls.MAPPING.keys():
+            if key not in cls.url_param_to_variable_name.keys():
                 continue
-            parsed_data[cls.MAPPING[key]] = cls.__annotations__[
-                    cls.MAPPING[key]](value)
+            parsed_data[cls.url_param_to_variable_name[key]] = cls.__annotations__[
+                    cls.url_param_to_variable_name[key]](value)
 
         return cls(**parsed_data)

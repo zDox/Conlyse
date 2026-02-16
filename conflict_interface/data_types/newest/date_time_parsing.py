@@ -9,7 +9,7 @@ from .custom_types import TimeDeltaMillisecondsStr
 from .custom_types import TimeDeltaSecondsInt
 from .custom_types import TimeDeltaSecondsStr
 from .version import VERSION
-from ...game_object.game_object_parse_json import JsonParser
+from conflict_interface.game_object.game_object_parse_json import JsonParser
 
 
 def parse_date_time_milliseconds(json_obj):
@@ -56,15 +56,3 @@ JsonParser.register_custom_parser(DateTimeSecondsStr, VERSION, parse_date_time_s
 JsonParser.register_custom_parser(DateTimeSecondsInt, VERSION, parse_date_time_seconds)
 JsonParser.register_custom_parser(DateTimeMillisecondsStr, VERSION, parse_date_time_milliseconds)
 JsonParser.register_custom_parser(DateTimeMillisecondsInt, VERSION, parse_date_time_milliseconds)
-
-"""
-DATETIME_MAPPING = {
-    DateTimeMillisecondsInt: parse_date_time_milliseconds,
-    DateTimeMillisecondsStr: parse_date_time_milliseconds,
-    TimeDeltaMillisecondsInt: parse_time_delta_milliseconds,
-    TimeDeltaMillisecondsStr: parse_time_delta_milliseconds,
-    DateTimeSecondsInt: parse_date_time_seconds,
-    DateTimeSecondsStr: parse_date_time_seconds,
-    TimeDeltaSecondsInt: parse_time_delta_seconds,
-    TimeDeltaSecondsStr: parse_time_delta_seconds,
-}"""

@@ -224,10 +224,19 @@ class JsonParser:
     def __init__(self, version):
         self.version = version
         self.type_graph = TypeGraph(version)
-        self.custom_parsers = self.PARSE_MAPPING[self.version]
-        self.edge_cases = self.EDGE_CASES[self.version]
+        self.custom_parsers = self.PARSE_MAPPING.get(self.version, {})
+        self.edge_cases = self.EDGE_CASES.get(self.version, {})
+
+
+
+        self.custom_parsers.update(self.PARSE_MAPPING.get(-1, {}))
+        self.edge_cases.update(self.EDGE_CASES.get(-1, {}))
 
     def parse_any(self, cls: Any, json_obj: dict | list | int | str, game: GameInterface = None):
+        if cls not in self.type_graph.type_to_node:
+            logger.warning(f"Trying to parse a type that is not used in any dataclass {cls}")
+            self.type_graph.add_new_type_branch(cls)
+
         return self._parse_any(json_obj, [self.type_graph.type_to_node[cls]], game = game)
 
     def _parse_any(self, json_obj: dict | list | int | str, types: list[TypeGraphNode], game = None):
@@ -237,10 +246,13 @@ class JsonParser:
         #    raise ValueError(f"Type for {type(json_obj)} json_obj {str(json_obj)[:200]} could not be determined out of {[x.type for x in types]}")
 
         t = correct_type_node.type
-        if t is type(None):
-            return json_obj
+        if json_obj is None:
+            return None
         if t in self._PRIMITIVES:
             return t(json_obj)
+        if t is type(None):
+            return json_obj
+
 
         if type_is_game_object(t):
             return self.parse_game_object(json_obj, correct_type_node, game)
@@ -372,7 +384,7 @@ class JsonParser:
                 # Complex types
                 if match := self._try_match_type(json_obj, possible_type):
                     return match
-                raise ValueError(f"Type mismatch...")
+                raise ValueError(f"Type mismatch... {str(json_obj)[:200]}, {[str(x) for x in types]}")
 
         for possible_type in types:
             if match := self._try_match_type(json_obj, possible_type):
@@ -425,10 +437,18 @@ class JsonParser:
 
             return possible_type
 
-        # Edge case: Point type with exact structure
-        if possible_type.type is self.edge_cases["Point"] and json_obj.keys() == {"x", "y"}:
+        # Check for exact key match
+        if type_is_dataclass(possible_type.type):
 
-            return possible_type
+            assert hasattr(possible_type.type, "MAPPING")
+            if set(json_obj.keys()) <= set(possible_type.type.MAPPING.values()):
+
+                return possible_type
+            else:
+                print("For type: ", possible_type.type)
+                print("Mapping is missing: ", [f"({x},{json_obj[x]})" for x in (set(json_obj.keys())- set(possible_type.type.MAPPING.values()))])
+                print("Objs is missing   : ", [f"({x},{json_obj[x]})" for x in
+                       ( set(possible_type.type.MAPPING.values()))]- set(json_obj.keys()) )
 
         return None
 

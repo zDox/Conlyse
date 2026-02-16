@@ -50,10 +50,16 @@ class GameObjectSerializer:
         self._decoder = msgspec.msgpack.Decoder()
         self.version:int = version
 
-        self._class_from_id = self._CLASS_FROM_ID[self.version]
-        self._id_from_class = self._ID_FROM_CLASS[self.version]
-        self._category = self._CATEGORY[self.version]
-        self._fields = self._FIELDS_CACHE[self.version]
+        self._class_from_id = self._CLASS_FROM_ID.get(self.version, {})
+        self._id_from_class = self._ID_FROM_CLASS.get(self.version, {})
+        self._category = self._CATEGORY.get(self.version, {})
+        self._fields = self._FIELDS_CACHE.get(self.version, {})
+
+        self._class_from_id.update(self._CLASS_FROM_ID.get(-1, {}))
+        self._id_from_class.update(self._ID_FROM_CLASS.get(-1, {}))
+        self._category.update(self._CATEGORY.get(-1, {}))
+        self._fields.update(self._FIELDS_CACHE.get(-1, {}))
+
 
         
     @classmethod

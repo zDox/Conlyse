@@ -15,10 +15,12 @@ from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.bidict import Bidict
 from conflict_interface.utils.exceptions import GameActivationException
 
+from .game_state.game_state import GameState
+from .action import Action
 if TYPE_CHECKING:
     from conflict_interface.interface.online_interface import OnlineInterface
-    from conflict_interface.data_types.newest.action import Action
-    from conflict_interface.data_types.newest.game_state.game_state import GameState
+
+
 
 logger = get_logger()
 

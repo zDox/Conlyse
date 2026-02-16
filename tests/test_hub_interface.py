@@ -5,6 +5,8 @@ from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.utils.exceptions import AuthenticationException
 from tests.helper_functions import get_new_game_id
 from tests.helper_functions import load_credentials
+from conflict_interface import *
+from conflict_interface.data_types.newest.custom_types import DateTimeSecondsInt
 
 random_prefix = "test_"
 
@@ -20,19 +22,19 @@ class HubInterfaceTests(unittest.TestCase):
 
     # Login tests created their own HubInterface in order to properly reset it
     def test_login_success(self):
-        interface = HubInterface()
+        interface = HubInterface(-1)
         try:
             interface.login(self.username, self.password)
         except Exception as e:
             self.fail(f"Login raised an exception unexpectedly: {e}")
 
     def test_login_with_username_failure(self):
-        interface = HubInterface()
+        interface = HubInterface(-1)
         with self.assertRaises(AuthenticationException):
             interface.login(random_prefix + self.username, self.password)
 
     def test_login_with_password_failure(self):
-        interface = HubInterface()
+        interface = HubInterface(-1)
         with self.assertRaises(AuthenticationException):
             interface.login(self.username, random_prefix + self.password)
 
