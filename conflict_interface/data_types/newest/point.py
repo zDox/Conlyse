@@ -5,10 +5,13 @@ from math import sqrt
 
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import conflict_serializable
+from conflict_interface.game_object.decorators import conflict_serializable, parse_edge_case
 
 
 from .version import VERSION
+
+
+@parse_edge_case(tag = "Point", version= VERSION)
 @conflict_serializable(SerializationCategory.POINT, version = VERSION)
 @dataclass
 class Point(GameObject):

@@ -1,29 +1,19 @@
 from dataclasses import dataclass
 from dataclasses import is_dataclass
 from dataclasses import MISSING as DATACLASS_MISSING
-from datetime import UTC
 from enum import Enum
 from logging import getLogger
 from typing import Any
+from typing import Callable
 from typing import cast
 from typing import get_args
 from typing import get_origin
 
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsInt
-from conflict_interface.data_types.custom_types import DateTimeMillisecondsStr
-from conflict_interface.data_types.custom_types import DateTimeSecondsInt
-from conflict_interface.data_types.custom_types import DateTimeSecondsStr
-from conflict_interface.data_types.custom_types import DefaultEnumMeta
-from conflict_interface.data_types.custom_types import SqlDate
-from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsInt
-from conflict_interface.data_types.custom_types import TimeDeltaMillisecondsStr
-from conflict_interface.data_types.custom_types import TimeDeltaSecondsInt
-from conflict_interface.data_types.custom_types import TimeDeltaSecondsStr
 from conflict_interface.game_object.game_object import GameObject
-from conflict_interface.data_types.point import Point
 from conflict_interface.game_object.type_graph import TypeGraph
 from conflict_interface.game_object.type_graph import TypeGraphNode
 from conflict_interface.interface import GameInterface
+from conflict_interface.utils.enums import DefaultEnumMeta
 
 logger = getLogger()
 
@@ -35,7 +25,6 @@ _type_is_game_object_cache = {}
 _type_is_dataclass_cache = {}
 _type_is_enum_cache = {}
 _default_value_cache = {}
-
 
 
 def type_is_any_list(t):
@@ -207,65 +196,29 @@ def _is_float_str(s: str) -> bool:
     s_clean = s.lstrip('+-')
     return s_clean.replace('.', '', 1).isdigit()
 
-def parse_date_time_milliseconds(json_obj):
-    if len(str(json_obj)) < 13 and str(json_obj) != "0":
-        raise ValueError(f"Expected int with at least 13 digits, got {len(str(json_obj))} digits {json_obj}")
-    if type(json_obj) is str:
-        return DateTimeMillisecondsStr.fromtimestamp(int(json_obj) / 1000, UTC)
-    elif type(json_obj) is int:
-        return DateTimeMillisecondsInt.fromtimestamp(int(json_obj) / 1000, UTC)
-    else:
-        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
 
-
-def parse_time_delta_milliseconds(json_obj):
-    if type(json_obj) is str:
-        return TimeDeltaMillisecondsStr(seconds=int(json_obj) / 1000)
-    elif type(json_obj) is int:
-        return TimeDeltaMillisecondsInt(seconds=int(json_obj) / 1000)
-    else:
-        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
-
-
-def parse_date_time_seconds(json_obj):
-    if len(str(json_obj)) != 10 and str(json_obj) != "0":
-        raise ValueError(f"Expected int with 10 digits, got {len(str(json_obj))} digits {json_obj}")
-    if type(json_obj) is str:
-        return DateTimeSecondsStr.fromtimestamp(int(json_obj), UTC)
-    elif type(json_obj) is int:
-        return DateTimeSecondsInt.fromtimestamp(int(json_obj), UTC)
-    else:
-        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
-
-
-def parse_time_delta_seconds(json_obj):
-    if type(json_obj) is str:
-        return TimeDeltaSecondsStr(seconds=int(json_obj))
-    elif type(json_obj) is int:
-        return TimeDeltaSecondsInt(seconds=int(json_obj))
-    else:
-        raise ValueError(f"Expected int or str time, got {type(json_obj)}")
-
-
-
-DATETIME_MAPPING = {
-    DateTimeMillisecondsInt: parse_date_time_milliseconds,
-    DateTimeMillisecondsStr: parse_date_time_milliseconds,
-    TimeDeltaMillisecondsInt: parse_time_delta_milliseconds,
-    TimeDeltaMillisecondsStr: parse_time_delta_milliseconds,
-    DateTimeSecondsInt: parse_date_time_seconds,
-    DateTimeSecondsStr: parse_date_time_seconds,
-    TimeDeltaSecondsInt: parse_time_delta_seconds,
-    TimeDeltaSecondsStr: parse_time_delta_seconds,
-}
 
 
 class JsonParser:
     _PRIMITIVES = frozenset({int, float, str, bool, type(None)})
+    PARSE_MAPPING: dict[int, dict[type, Callable]] = {}
+    EDGE_CASES: dict[int, dict[str, type]] = {}
+
+    @classmethod
+    def register_custom_parser(cls, type_: type, version: int, func):
+        cls.PARSE_MAPPING.setdefault(version, {})
+        cls.PARSE_MAPPING[version][type_] = func
+
+    @classmethod
+    def register_edge_case(cls, tag: str, version: int, type_: type):
+        cls.EDGE_CASES.setdefault(version, {})
+        cls.EDGE_CASES[version][tag] = type_
 
     def __init__(self, version):
         self.version = version
         self.type_graph = TypeGraph(version)
+        self.custom_parsers = self.PARSE_MAPPING[self.version]
+        self.edge_cases = self.EDGE_CASES[self.version]
 
     def parse_any(self, cls: Any, json_obj: dict | list | int | str, game: GameInterface = None):
         return self._parse_any(json_obj, [self.type_graph.type_to_node[cls]], game = game)
@@ -296,7 +249,7 @@ class JsonParser:
                 return self.parse_list(json_obj, correct_type_node.children["v"])
 
             # Edge case for SQl Date objects
-            if get_origin(t) is SqlDate:
+            if get_origin(t) is self.edge_cases["SqlDate"]:
                 return t(self.parse_list(json_obj[1:], correct_type_node.children["v"]))
 
             return t(self.parse_list(json_obj[1], correct_type_node.children["v"]))
@@ -309,8 +262,8 @@ class JsonParser:
                             correct_type_node.children["v"]))
         elif type_is_enum(t):
             return self.parse_enum(json_obj, t)
-        elif t in DATETIME_MAPPING:
-            return DATETIME_MAPPING[t](json_obj)
+        elif t in self.custom_parsers:
+            return self.custom_parsers[t](json_obj)
         else:
             raise ValueError(f"Cant parse json_obj {str(json_obj)[:200]} with type {t}")
 
@@ -465,8 +418,8 @@ class JsonParser:
 
             return possible_type
 
-        # Special case: Point type with exact structure
-        if possible_type.type is Point and json_obj.keys() == {"x", "y"}:
+        # Edge case: Point type with exact structure
+        if possible_type.type is self.edge_cases["Point"] and json_obj.keys() == {"x", "y"}:
 
             return possible_type
 
@@ -480,9 +433,9 @@ class JsonParser:
             return possible_type
 
         # Try datetime conversion
-        if possible_type.type in DATETIME_MAPPING:
+        if possible_type.type in self.PARSE_MAPPING:
             try:
-                DATETIME_MAPPING[possible_type.type](json_obj)
+                self.PARSE_MAPPING[self.version][possible_type.type](json_obj)
                 return possible_type
             except ValueError:
                 pass

@@ -6,7 +6,8 @@ from conflict_interface.game_object.game_object_binary import SerializationCateg
 from conflict_interface.game_object.decorators import conflict_serializable
 from ..mod_state.modable_unit import SpecialUnit
 from ..action import Action
-from ..custom_types import Vector, DefaultEnumMeta
+from ..custom_types import Vector
+from conflict_interface.utils.enums import DefaultEnumMeta
 from ..mod_state.moddable_upgrade import ModableUpgrade
 
 from ..version import VERSION

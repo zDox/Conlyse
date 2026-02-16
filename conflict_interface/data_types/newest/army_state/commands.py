@@ -7,7 +7,7 @@ from typing import Optional
 from typing import Union
 
 from ..custom_types import DateTimeMillisecondsInt
-from ..custom_types import DefaultEnumMeta
+from conflict_interface.utils.enums import DefaultEnumMeta
 from ..custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
