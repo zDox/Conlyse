@@ -3,7 +3,6 @@ import hashlib
 import json
 from collections import defaultdict
 from functools import wraps
-from time import sleep
 from typing import Any
 from urllib.parse import urlencode
 
@@ -13,13 +12,13 @@ from fake_useragent import UserAgent
 from lxml import html
 from requests import Response
 
-from ..authentication import AuthDetails
-from ..hub_types.ajax_request import AjaxRequest
-from ..hub_types.hub_result_code import HubResultCode
-from ..hub_types.identification_text import EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT
-from ..hub_types.identification_text import INVALID_USER_OR_PASSWORD_TEXT
-from ..hub_types.identification_text import SUCCESSFUL_REGISTRATION_DETAILS_TEXT
-from ..hub_types.identification_text import TEMP_IP_REGISTRATION_BAN
+from conflict_interface.api.authentication import AuthDetails
+from conflict_interface.api.hub_types.ajax_request import AjaxRequest
+from conflict_interface.api.hub_types.hub_result_code import HubResultCode
+from conflict_interface.api.hub_types.identification_text import EMAIL_IN_CONFLICT_OF_NATIONS_IN_USE_TEXT
+from conflict_interface.api.hub_types.identification_text import INVALID_USER_OR_PASSWORD_TEXT
+from conflict_interface.api.hub_types.identification_text import SUCCESSFUL_REGISTRATION_DETAILS_TEXT
+from conflict_interface.api.hub_types.identification_text import TEMP_IP_REGISTRATION_BAN
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import AuthenticationException
 from conflict_interface.utils.exceptions import AuthenticationFailed

@@ -1,11 +1,10 @@
 from dataclasses import dataclass
 
-from .version import VERSION
 from conflict_interface.game_object.decorators import conflict_serializable
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 
 
-@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
+@conflict_serializable(SerializationCategory.DATACLASS, version=-1)
 @dataclass
 class AuthDetails:
     user_id: int

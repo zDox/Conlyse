@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from math import ceil
+from typing import TYPE_CHECKING
 
-from ..point import Point
+if TYPE_CHECKING:
+    from conflict_interface.data_types.newest.point import Point
 
 
 @dataclass

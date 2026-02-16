@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from conflict_interface.game_object.game_object_parse_json import JsonParser
-from conflict_interface.hub_api import HubApi
+from conflict_interface.api.hub_api import HubApi
 from conflict_interface.interface.online_interface import OnlineInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import AuthenticationException
 
 if TYPE_CHECKING:
-    from conflict_interface.data_types.newest.hub_types.hub_game import HubGame
-    from conflict_interface.data_types.newest.hub_types.hub_game import HubGameProperties
+    from conflict_interface.api.hub_types.hub_game import HubGame
+    from conflict_interface.api.hub_types.hub_game import HubGameProperties
 
 logger = get_logger()
 

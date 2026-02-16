@@ -11,9 +11,8 @@ from . import foreign_affairs_state
 from . import research_state
 from . import game_info_state
 from . import game_event_state
-from . import hub_types
+from ...api import hub_types
 from . import action
-from . import authentication
 from . import constant_segment_function
 from . import custom_types
 from . import point

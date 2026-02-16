@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import gc
 import re
 from collections import defaultdict
@@ -9,19 +11,25 @@ from functools import wraps
 from hashlib import sha1
 from json import dumps
 from time import time
+from typing import TYPE_CHECKING
 
 from cloudscraper25 import CloudScraper
 from lxml import html
 from requests import Session
 
-from ..authentication import AuthDetails
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException
 from conflict_interface.utils.exceptions import GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
 
+VERSION = 208 # TODO how to do this
+
+
+if TYPE_CHECKING:
+    from conflict_interface.api.authentication import AuthDetails
+
 logger = get_logger()
-SUPPORTED_CLIENT_VERSION = 207
+
 
 @dataclass
 class DeviceDetails:
@@ -148,8 +156,8 @@ class GameApi:
         match = re.search(r'clientVersion=(\d+)', response.text)
         if match:
             self.client_version = int(match.group(1))
-            if self.client_version != SUPPORTED_CLIENT_VERSION:
-                logger.warning(f"Client version is {self.client_version} which is not supported by this library (supported {SUPPORTED_CLIENT_VERSION}).")
+            if self.client_version != VERSION:
+                logger.warning(f"Client version is {self.client_version} which is not the newest version by this library (supported {VERSION}).")
         else:
             raise GameJoinException(f"Could not find client_version \
                     in request {response.text}")
