@@ -12,6 +12,7 @@ from tools.server_converter.config import ServerConverterConfig
 from tools.server_converter.database import ReplayDatabase, ReplayStatus
 from tools.server_converter.redis_consumer import RedisStreamConsumer
 from tools.server_converter.storage import HotStorageManager, ColdStorageManager
+from tools.server_converter.response_cache import ResponseCache
 from tools.server_converter import metrics
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,8 @@ class ServerConverter:
     """
     Converts game responses from Redis stream to replay files.
     
-    Processes responses in batches, creates/appends to replay files in hot storage,
+    Caches responses on disk until a game accumulates enough for processing,
+    then creates/appends to replay files in hot storage,
     and moves completed replays to cold storage.
     """
     
@@ -50,18 +52,25 @@ class ServerConverter:
         self.redis_consumer = RedisStreamConsumer(config.redis)
         self.hot_storage = HotStorageManager(config.storage.hot_storage_dir)
         
+        # Initialize response cache in a subdirectory of hot storage
+        cache_dir = config.storage.hot_storage_dir / ".response_cache"
+        self.response_cache = ResponseCache(cache_dir, config.redis.batch_size)
+        
         self.cold_storage: Optional[ColdStorageManager] = None
         if config.storage.cold_storage_enabled and config.storage.s3_config:
             self.cold_storage = ColdStorageManager(config.storage.s3_config)
             
-        logger.info("Server converter initialized")
+        logger.info("Server converter initialized with disk-based response caching")
         
     def process_batch(self) -> int:
         """
-        Process a batch of responses from Redis stream.
+        Process messages from Redis stream and cache them on disk.
+        
+        Reads messages from Redis, caches them to disk, then processes
+        any games that have accumulated enough responses.
         
         Returns:
-            Number of responses processed
+            Number of messages processed
         """
         start_time = time.time()
         
@@ -73,72 +82,102 @@ class ServerConverter:
             
             
             if not messages:
-                logger.debug("No messages to process")
+                # No new messages, check if any cached games are ready to process
+                self._process_ready_games()
+                logger.debug("No new messages to cache")
                 return 0
                 
-            logger.info(f"Processing {len(messages)} messages")
-            metrics.batch_size_summary.observe(len(messages))
+            logger.info(f"Caching {len(messages)} messages to disk")
             
-            # Group messages by game_id and player_id
-            grouped_messages: Dict[Tuple[int, int], List[Tuple[str, Dict[str, Any]]]] = {}
+            # Cache all messages to disk
+            cached_message_ids = []
             for message_id, message_data in messages:
-                game_id = message_data['game_id']
-                player_id = message_data['player_id']
-                key = (game_id, player_id)
-                
-                if key not in grouped_messages:
-                    grouped_messages[key] = []
-                grouped_messages[key].append((message_id, message_data))
-                
-            # Process each group
-            processed_message_ids = []
-            for (game_id, player_id), group_messages in grouped_messages.items():
                 try:
-                    success = self._process_game_responses(game_id, player_id, group_messages)
-                    if success:
-                        # Mark messages as acknowledged
-                        processed_message_ids.extend([msg_id for msg_id, _ in group_messages])
-                        metrics.messages_processed_total.labels(status='success').inc(len(group_messages))
-                    else:
-                        metrics.messages_processed_total.labels(status='error').inc(len(group_messages))
-                except Exception as e:
-                    logger.error(f"Error processing game {game_id}, player {player_id}: {e}", exc_info=True)
-                    metrics.errors_total.labels(error_type='processing').inc()
-                    metrics.messages_processed_total.labels(status='error').inc(len(group_messages))
+                    game_id = message_data['game_id']
+                    player_id = message_data['player_id']
+                    timestamp = message_data['timestamp']
+                    response = message_data['response']
                     
-            # Acknowledge processed messages
-            if processed_message_ids:
-                self.redis_consumer.acknowledge_messages(processed_message_ids)
+                    # Cache to disk
+                    self.response_cache.add_response(game_id, player_id, timestamp, response)
+                    cached_message_ids.append(message_id)
+                    
+                except Exception as e:
+                    logger.error(f"Error caching message {message_id}: {e}", exc_info=True)
+                    metrics.errors_total.labels(error_type='caching').inc()
+                    
+            # Acknowledge cached messages
+            if cached_message_ids:
+                self.redis_consumer.acknowledge_messages(cached_message_ids)
+                logger.info(f"Cached and acknowledged {len(cached_message_ids)} messages")
                 
-            return len(processed_message_ids)
+            # Process any games that now have enough responses
+            self._process_ready_games()
+            
+            return len(cached_message_ids)
             
         finally:
             # Record processing duration
             duration = time.time() - start_time
             metrics.messages_processing_duration_seconds.observe(duration)
         
+    def _process_ready_games(self):
+        """
+        Process games that have accumulated enough responses in the cache.
+        
+        Checks the cache for games with at least batch_size responses and
+        processes them into replay files.
+        """
+        ready_games = self.response_cache.list_games_ready_to_process()
+        
+        if not ready_games:
+            return
+            
+        logger.info(f"Found {len(ready_games)} games ready to process")
+        
+        for game_id, player_id in ready_games:
+            try:
+                # Get all cached responses for this game
+                cached_responses = self.response_cache.get_cached_responses(game_id, player_id)
+                
+                if len(cached_responses) < self.config.redis.batch_size:
+                    # Race condition - responses were removed by another process
+                    continue
+                    
+                logger.info(f"Processing {len(cached_responses)} cached responses for game {game_id}, player {player_id}")
+                
+                # Process the responses
+                success = self._process_game_responses(game_id, player_id, cached_responses)
+                
+                if success:
+                    # Clear the cache on success
+                    self.response_cache.clear_cache(game_id, player_id)
+                    metrics.messages_processed_total.labels(status='success').inc(len(cached_responses))
+                    logger.info(f"Successfully processed and cleared cache for game {game_id}, player {player_id}")
+                else:
+                    metrics.messages_processed_total.labels(status='error').inc(len(cached_responses))
+                    # Keep cache on failure for retry
+                    logger.warning(f"Failed to process game {game_id}, player {player_id}, keeping cache for retry")
+                    
+            except Exception as e:
+                logger.error(f"Error processing ready game {game_id}, player {player_id}: {e}", exc_info=True)
+                metrics.errors_total.labels(error_type='processing').inc()
+        
     def _process_game_responses(self, game_id: int, player_id: int,
-                                messages: List[Tuple[str, Dict[str, Any]]]) -> bool:
+                                json_responses: List[Tuple[int, dict]]) -> bool:
         """
         Process responses for a specific game and player.
         
         Args:
             game_id: Game ID
             player_id: Player ID
-            messages: List of (message_id, message_data) tuples
+            json_responses: List of (timestamp, response) tuples
             
         Returns:
             True if processing was successful
         """
-        logger.info(f"Processing {len(messages)} responses for game {game_id}, player {player_id}")
+        logger.info(f"Processing {len(json_responses)} responses for game {game_id}, player {player_id}")
         
-        # Convert messages to the format expected by ReplayBuilder
-        json_responses = []
-        for _, message_data in messages:
-            timestamp = message_data['timestamp']
-            response = message_data['response']
-            json_responses.append((timestamp, response))
-            
         # Check if replay exists in hot storage
         replay_path = self.hot_storage.get_replay_path(game_id, player_id)
         replay_exists = replay_path.exists()
@@ -360,6 +399,13 @@ class ServerConverter:
     def shutdown(self):
         """Clean up resources."""
         logger.info("Shutting down server converter")
+        
+        # Log cache stats before shutdown
+        try:
+            stats = self.response_cache.get_cache_stats()
+            logger.info(f"Response cache stats at shutdown: {stats}")
+        except Exception as e:
+            logger.warning(f"Failed to get cache stats: {e}")
         
         if self.redis_consumer:
             self.redis_consumer.close()

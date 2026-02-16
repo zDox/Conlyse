@@ -6,10 +6,30 @@ Processes game responses from Redis streams and converts them to replay files.
 
 The Server Converter is a daemon that:
 1. Consumes game responses from a Redis stream
-2. Groups responses by game_id and player_id
+2. Caches responses on disk until a game accumulates enough for processing
 3. Creates new replay files or appends to existing ones in hot storage
 4. Optionally moves completed replays to cold storage (S3-compatible)
 5. Tracks replay metadata in a PostgreSQL database
+
+## How It Works
+
+The converter uses a **disk-based caching strategy** to efficiently handle mixed game streams:
+
+1. **Caching Phase**: 
+   - Reads messages from Redis stream
+   - Immediately caches each response to disk (in `.response_cache/` subdirectory)
+   - Acknowledges messages to Redis after successful caching
+
+2. **Processing Phase**:
+   - Checks which games have accumulated `batch_size` or more responses
+   - Processes games that meet the threshold into replay files
+   - Clears cache for successfully processed games
+
+This approach:
+- **Reduces memory usage** - responses stored on disk, not in memory
+- **Handles restarts gracefully** - cached responses persist across restarts
+- **Per-game batching** - each game accumulates independently until ready
+- **Better for mixed streams** - efficiently handles many concurrent games
 
 ## Quick Start with Docker
 
@@ -58,10 +78,10 @@ cp config.example.json config.json
   - `stream_name`: Name of the Redis stream to consume from
   - `consumer_group`: Consumer group name
   - `consumer_name`: This consumer's name
-  - `batch_size`: Messages to read per batch
+  - `batch_size`: **Minimum responses per game before processing** (default: 10)
 
 - **storage**: Storage configuration
-  - `hot_storage_dir`: Local directory for active replays
+  - `hot_storage_dir`: Local directory for active replays (also stores `.response_cache/` subdirectory)
   - `cold_storage_enabled`: Enable S3 cold storage
   - `s3`: S3 configuration (required if cold_storage_enabled is true)
     - `endpoint_url`: S3-compatible endpoint (e.g., Hetzner)
