@@ -103,8 +103,10 @@ class ServerConverter:
                     cached_message_ids.append(message_id)
                     
                 except Exception as e:
-                    logger.error(f"Error caching message {message_id}: {e}", exc_info=True)
+                    logger.error(f"Error caching message {message_id} (game {message_data.get('game_id')}, "
+                               f"player {message_data.get('player_id')}): {e}", exc_info=True)
                     metrics.errors_total.labels(error_type='caching').inc()
+                    # Message not added to cached_message_ids, will remain in Redis for retry
                     
             # Acknowledge cached messages
             if cached_message_ids:
@@ -140,8 +142,14 @@ class ServerConverter:
                 # Get all cached responses for this game
                 cached_responses = self.response_cache.get_cached_responses(game_id, player_id)
                 
+                # Note: There's a potential TOCTOU race between list_games_ready_to_process()
+                # and this check. In distributed deployments with multiple converter instances,
+                # another instance might process and clear the cache. This is expected behavior
+                # and handled gracefully by skipping if responses are insufficient.
                 if len(cached_responses) < self.config.redis.batch_size:
                     # Race condition - responses were removed by another process
+                    logger.debug(f"Skipping game {game_id}, player {player_id}: "
+                               f"only {len(cached_responses)} responses available")
                     continue
                     
                 logger.info(f"Processing {len(cached_responses)} cached responses for game {game_id}, player {player_id}")

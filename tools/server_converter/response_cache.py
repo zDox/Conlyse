@@ -41,6 +41,23 @@ class ResponseCache:
     def _get_lock_file(self, game_id: int, player_id: int) -> Path:
         """Get the lock file path for a game/player combination."""
         return self.cache_dir / f"game_{game_id}_player_{player_id}.lock"
+    
+    def _acquire_lock(self, lock_file: Path, exclusive: bool = True):
+        """
+        Acquire a file lock.
+        
+        Args:
+            lock_file: Path to lock file
+            exclusive: True for exclusive lock, False for shared lock
+            
+        Returns:
+            File handle (caller must close)
+        """
+        # Use 'a' mode to avoid truncating
+        lock = open(lock_file, 'a')
+        lock_type = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+        fcntl.flock(lock.fileno(), lock_type)
+        return lock
         
     def add_response(self, game_id: int, player_id: int, timestamp: int, response: dict):
         """
@@ -56,22 +73,21 @@ class ResponseCache:
         lock_file = self._get_lock_file(game_id, player_id)
         
         # Use file locking to prevent race conditions
-        with open(lock_file, 'w') as lock:
-            try:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        lock = self._acquire_lock(lock_file, exclusive=True)
+        try:
+            # Append response to cache file (one JSON per line)
+            with open(cache_file, 'a') as f:
+                entry = {
+                    'timestamp': timestamp,
+                    'response': response
+                }
+                f.write(json.dumps(entry) + '\n')
                 
-                # Append response to cache file (one JSON per line)
-                with open(cache_file, 'a') as f:
-                    entry = {
-                        'timestamp': timestamp,
-                        'response': response
-                    }
-                    f.write(json.dumps(entry) + '\n')
-                    
-                logger.debug(f"Cached response for game {game_id}, player {player_id}")
-                
-            finally:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+            logger.debug(f"Cached response for game {game_id}, player {player_id}")
+            
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+            lock.close()
                 
     def get_response_count(self, game_id: int, player_id: int) -> int:
         """
@@ -90,20 +106,19 @@ class ResponseCache:
             return 0
             
         lock_file = self._get_lock_file(game_id, player_id)
+        lock = self._acquire_lock(lock_file, exclusive=False)
         
-        with open(lock_file, 'w') as lock:
-            try:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_SH)  # Shared lock for reading
-                
-                count = 0
-                with open(cache_file, 'r') as f:
-                    for _ in f:
-                        count += 1
-                        
-                return count
-                
-            finally:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+        try:
+            count = 0
+            with open(cache_file, 'r') as f:
+                for _ in f:
+                    count += 1
+                    
+            return count
+            
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+            lock.close()
                 
     def has_enough_responses(self, game_id: int, player_id: int) -> bool:
         """
@@ -135,22 +150,21 @@ class ResponseCache:
             return []
             
         lock_file = self._get_lock_file(game_id, player_id)
+        lock = self._acquire_lock(lock_file, exclusive=False)
         
-        with open(lock_file, 'w') as lock:
-            try:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_SH)  # Shared lock for reading
-                
-                responses = []
-                with open(cache_file, 'r') as f:
-                    for line in f:
-                        if line.strip():
-                            entry = json.loads(line)
-                            responses.append((entry['timestamp'], entry['response']))
-                            
-                return responses
-                
-            finally:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+        try:
+            responses = []
+            with open(cache_file, 'r') as f:
+                for line in f:
+                    if line.strip():
+                        entry = json.loads(line)
+                        responses.append((entry['timestamp'], entry['response']))
+                        
+            return responses
+            
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+            lock.close()
                 
     def clear_cache(self, game_id: int, player_id: int):
         """
@@ -163,16 +177,15 @@ class ResponseCache:
         cache_file = self._get_cache_file(game_id, player_id)
         lock_file = self._get_lock_file(game_id, player_id)
         
-        with open(lock_file, 'w') as lock:
-            try:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        lock = self._acquire_lock(lock_file, exclusive=True)
+        try:
+            if cache_file.exists():
+                cache_file.unlink()
+                logger.debug(f"Cleared cache for game {game_id}, player {player_id}")
                 
-                if cache_file.exists():
-                    cache_file.unlink()
-                    logger.debug(f"Cleared cache for game {game_id}, player {player_id}")
-                    
-            finally:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+            lock.close()
                 
         # Clean up lock file
         if lock_file.exists():
