@@ -12,6 +12,7 @@ from tools.server_converter.config import ServerConverterConfig
 from tools.server_converter.database import ReplayDatabase, ReplayStatus
 from tools.server_converter.redis_consumer import RedisStreamConsumer
 from tools.server_converter.storage import HotStorageManager, ColdStorageManager
+from tools.server_converter import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -62,45 +63,59 @@ class ServerConverter:
         Returns:
             Number of responses processed
         """
-        # Read messages from Redis using batch_size from redis config
-        messages = self.redis_consumer.read_messages(
-            count=self.config.redis.batch_size
-        )
+        start_time = time.time()
         
-        
-        if not messages:
-            logger.debug("No messages to process")
-            return 0
+        try:
+            # Read messages from Redis using batch_size from redis config
+            messages = self.redis_consumer.read_messages(
+                count=self.config.redis.batch_size
+            )
             
-        logger.info(f"Processing {len(messages)} messages")
-        
-        # Group messages by game_id and player_id
-        grouped_messages: Dict[Tuple[int, int], List[Tuple[str, Dict[str, Any]]]] = {}
-        for message_id, message_data in messages:
-            game_id = message_data['game_id']
-            player_id = message_data['player_id']
-            key = (game_id, player_id)
             
-            if key not in grouped_messages:
-                grouped_messages[key] = []
-            grouped_messages[key].append((message_id, message_data))
-            
-        # Process each group
-        processed_message_ids = []
-        for (game_id, player_id), group_messages in grouped_messages.items():
-            try:
-                success = self._process_game_responses(game_id, player_id, group_messages)
-                if success:
-                    # Mark messages as acknowledged
-                    processed_message_ids.extend([msg_id for msg_id, _ in group_messages])
-            except Exception as e:
-                logger.error(f"Error processing game {game_id}, player {player_id}: {e}", exc_info=True)
+            if not messages:
+                logger.debug("No messages to process")
+                return 0
                 
-        # Acknowledge processed messages
-        if processed_message_ids:
-            self.redis_consumer.acknowledge_messages(processed_message_ids)
+            logger.info(f"Processing {len(messages)} messages")
+            metrics.batch_size_summary.observe(len(messages))
             
-        return len(processed_message_ids)
+            # Group messages by game_id and player_id
+            grouped_messages: Dict[Tuple[int, int], List[Tuple[str, Dict[str, Any]]]] = {}
+            for message_id, message_data in messages:
+                game_id = message_data['game_id']
+                player_id = message_data['player_id']
+                key = (game_id, player_id)
+                
+                if key not in grouped_messages:
+                    grouped_messages[key] = []
+                grouped_messages[key].append((message_id, message_data))
+                
+            # Process each group
+            processed_message_ids = []
+            for (game_id, player_id), group_messages in grouped_messages.items():
+                try:
+                    success = self._process_game_responses(game_id, player_id, group_messages)
+                    if success:
+                        # Mark messages as acknowledged
+                        processed_message_ids.extend([msg_id for msg_id, _ in group_messages])
+                        metrics.messages_processed_total.labels(status='success').inc(len(group_messages))
+                    else:
+                        metrics.messages_processed_total.labels(status='error').inc(len(group_messages))
+                except Exception as e:
+                    logger.error(f"Error processing game {game_id}, player {player_id}: {e}", exc_info=True)
+                    metrics.errors_total.labels(error_type='processing').inc()
+                    metrics.messages_processed_total.labels(status='error').inc(len(group_messages))
+                    
+            # Acknowledge processed messages
+            if processed_message_ids:
+                self.redis_consumer.acknowledge_messages(processed_message_ids)
+                
+            return len(processed_message_ids)
+            
+        finally:
+            # Record processing duration
+            duration = time.time() - start_time
+            metrics.messages_processing_duration_seconds.observe(duration)
         
     def _process_game_responses(self, game_id: int, player_id: int,
                                 messages: List[Tuple[str, Dict[str, Any]]]) -> bool:
@@ -161,6 +176,8 @@ class ServerConverter:
         """
         logger.info(f"Creating new replay for game {game_id}, player {player_id}")
         
+        start_time = time.time()
+        
         try:
             # Create replay builder
             builder = ReplayBuilder(replay_path, game_id, player_id)
@@ -187,12 +204,23 @@ class ServerConverter:
             replay_entry = self.db.get_replay_by_game_and_player(game_id, player_id)
             self.db.increment_response_count(replay_entry['id'], len(json_responses))
             
+            # Update metrics
+            metrics.responses_per_replay_summary.observe(len(json_responses))
+            metrics.replay_operations_total.labels(operation='create', status='success').inc()
+            metrics.hot_storage_replays.inc()
+            
             logger.info(f"Created replay at {replay_path} with {len(json_responses)} responses")
             return True
             
         except Exception as e:
             logger.error(f"Failed to create replay: {e}", exc_info=True)
+            metrics.replay_operations_total.labels(operation='create', status='error').inc()
+            metrics.errors_total.labels(error_type='storage').inc()
             return False
+            
+        finally:
+            duration = time.time() - start_time
+            metrics.replay_creation_duration_seconds.observe(duration)
             
     def _append_to_replay(self, game_id: int, player_id: int,
                          json_responses: List[Tuple[int, dict]],
@@ -212,6 +240,8 @@ class ServerConverter:
         """
         logger.info(f"Appending {len(json_responses)} responses to existing replay")
         
+        start_time = time.time()
+        
         try:
             # Create replay builder in append mode
             builder = ReplayBuilder(replay_path, game_id, player_id)
@@ -222,12 +252,22 @@ class ServerConverter:
             # Update response count
             self.db.increment_response_count(replay_entry['id'], len(json_responses))
             
+            # Update metrics
+            metrics.responses_per_replay_summary.observe(len(json_responses))
+            metrics.replay_operations_total.labels(operation='append', status='success').inc()
+            
             logger.info(f"Appended {len(json_responses)} responses to {replay_path}")
             return True
             
         except Exception as e:
             logger.error(f"Failed to append to replay: {e}", exc_info=True)
+            metrics.replay_operations_total.labels(operation='append', status='error').inc()
+            metrics.errors_total.labels(error_type='storage').inc()
             return False
+            
+        finally:
+            duration = time.time() - start_time
+            metrics.replay_append_duration_seconds.observe(duration)
             
     def mark_replay_completed(self, game_id: int, player_id: int) -> bool:
         """
@@ -243,11 +283,13 @@ class ServerConverter:
         replay_entry = self.db.get_replay_by_game_and_player(game_id, player_id)
         if not replay_entry:
             logger.error(f"No replay entry found for game {game_id}, player {player_id}")
+            metrics.replay_operations_total.labels(operation='complete', status='error').inc()
             return False
             
         replay_path = self.hot_storage.get_replay_path(game_id, player_id)
         if not replay_path.exists():
             logger.error(f"Replay file not found: {replay_path}")
+            metrics.replay_operations_total.labels(operation='complete', status='error').inc()
             return False
             
         # Update recording end time
@@ -257,11 +299,22 @@ class ServerConverter:
         cold_storage_path = None
         if self.cold_storage:
             logger.info(f"Moving replay to cold storage: game {game_id}, player {player_id}")
-            cold_storage_path = self.cold_storage.upload_replay(replay_path, game_id, player_id)
-            
-            if cold_storage_path:
-                # Delete from hot storage after successful upload
-                self.hot_storage.delete_replay(game_id, player_id)
+            try:
+                cold_storage_path = self.cold_storage.upload_replay(replay_path, game_id, player_id)
+                
+                if cold_storage_path:
+                    # Delete from hot storage after successful upload
+                    self.hot_storage.delete_replay(game_id, player_id)
+                    metrics.hot_storage_replays.dec()
+                    metrics.cold_storage_uploads_total.labels(status='success').inc()
+                else:
+                    metrics.cold_storage_uploads_total.labels(status='error').inc()
+                    metrics.errors_total.labels(error_type='storage').inc()
+                    
+            except Exception as e:
+                logger.error(f"Failed to upload to cold storage: {e}", exc_info=True)
+                metrics.cold_storage_uploads_total.labels(status='error').inc()
+                metrics.errors_total.labels(error_type='storage').inc()
                 
         # Update database
         status = ReplayStatus.ARCHIVED if cold_storage_path else ReplayStatus.COMPLETED
@@ -272,6 +325,7 @@ class ServerConverter:
             cold_storage_path=cold_storage_path
         )
         
+        metrics.replay_operations_total.labels(operation='complete', status='success').inc()
         logger.info(f"Marked replay as {status.value}: game {game_id}, player {player_id}")
         return True
         
@@ -283,6 +337,9 @@ class ServerConverter:
         
         try:
             while True:
+                # Update hot storage gauge
+                self._update_hot_storage_metric()
+                
                 # process_batch() is expected to perform a blocking read with the
                 # configured timeout, so no additional sleep is needed here.
                 self.process_batch()
@@ -291,6 +348,14 @@ class ServerConverter:
             logger.info("Received interrupt signal, shutting down...")
         finally:
             self.shutdown()
+            
+    def _update_hot_storage_metric(self):
+        """Update the hot storage replays gauge metric."""
+        try:
+            replay_count = sum(1 for _ in self.hot_storage.list_replays())
+            metrics.hot_storage_replays.set(replay_count)
+        except Exception as e:
+            logger.warning(f"Failed to update hot storage metric: {e}")
             
     def shutdown(self):
         """Clean up resources."""

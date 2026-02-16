@@ -43,7 +43,8 @@ extras_require = {
     "tools-server-converter": [
         "redis",
         "boto3",
-        "psycopg2-binary"
+        "psycopg2-binary",
+        "prometheus-client"
     ],
     "test-long-patches": [
         "deepdiff"

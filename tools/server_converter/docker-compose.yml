@@ -56,6 +56,8 @@ services:
     volumes:
       - ./config.json:/app/config.json:ro
       - hot-storage:/data/hot_storage
+    ports:
+      - "8000:8000"  # Prometheus metrics endpoint
     networks:
       - converter-network
     restart: unless-stopped

@@ -6,6 +6,8 @@ import logging
 import sys
 from pathlib import Path
 
+from prometheus_client import start_http_server
+
 from tools.server_converter.config import ServerConverterConfig
 from tools.server_converter.converter import ServerConverter
 
@@ -77,6 +79,14 @@ Configuration file should contain:
         config = ServerConverterConfig.from_file(args.config)
     except Exception as e:
         logger.error(f"Failed to load configuration: {e}")
+        sys.exit(1)
+        
+    # Start Prometheus metrics server
+    try:
+        start_http_server(config.metrics_port)
+        logger.info(f"Prometheus metrics server started on port {config.metrics_port}")
+    except Exception as e:
+        logger.error(f"Failed to start metrics server: {e}")
         sys.exit(1)
         
     # Create and run converter

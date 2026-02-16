@@ -29,5 +29,6 @@
     "password": "changeme"
   },
   "batch_size": 10,
-  "check_interval_seconds": 5
+  "check_interval_seconds": 5,
+  "metrics_port": 8000
 }
