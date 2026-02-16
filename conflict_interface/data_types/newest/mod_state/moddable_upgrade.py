@@ -11,7 +11,8 @@ from ..point import Point
 if TYPE_CHECKING:
     from ..mod_state.upgrade_type import UpgradeType
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ModableUpgrade(GameObject):
     id: int

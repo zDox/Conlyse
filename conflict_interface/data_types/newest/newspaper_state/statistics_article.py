@@ -9,7 +9,8 @@ from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class StatisticsArticle(GameObject):
     C = "ultshared.UltStatisticsArticle"

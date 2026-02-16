@@ -10,7 +10,8 @@ from conflict_interface.game_object.game_object_binary import SerializationCateg
 from conflict_interface.game_object.decorators import conflict_serializable
 from ..mod_state.moddable_upgrade import ModableUpgrade
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class GameEvent(GameObject):
     filter_id: int
@@ -49,7 +50,8 @@ class GameEvent(GameObject):
         "notification_type": "notificationType",
     }
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ProvinceLostEvent(GameEvent):
     C = "ultshared.gameevents.UltProvinceLostGameEvent"
@@ -61,7 +63,8 @@ class ProvinceLostEvent(GameEvent):
         "capital": "capital",
     }
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ProvinceEnteredEvent(GameEvent):
     C = "ultshared.gameevents.UltProvinceEnteredGameEvent"
@@ -73,7 +76,8 @@ class ProvinceEnteredEvent(GameEvent):
         "province_id": "provinceID",
     }
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ArmyDamageDealtEvent(GameEvent):
     C = "ultshared.gameevents.UltArmyDamageDealtGameEvent"
@@ -92,7 +96,8 @@ class ArmyDamageDealtEvent(GameEvent):
         "location_id": "locationID",
     }
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class MilitaryExperienceGainedEvent(GameEvent):
     C = "ultshared.gameevents.UltMilitaryExperienceGainedGameEvent"
@@ -109,7 +114,8 @@ class MilitaryExperienceGainedEvent(GameEvent):
         "location_id": "locationID",
     }
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ArmyDestroyedEvent(GameEvent):
     C = "ultshared.gameevents.UltArmyDestroyedGameEvent"
@@ -129,79 +135,92 @@ class ArmyDestroyedEvent(GameEvent):
         "location_id": "locationID",
     }
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class NewspaperArticleEvent(GameEvent):
     C = "ultshared.gameevents.UltNewspaperArticleGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ArmyAttackedEvent(GameEvent):
     C = "ultshared.gameevents.UltArmyAttackedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class AirCrashEvent(GameEvent):
     C = "ultshared.gameevents.UltAirCrashGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class MessageReceivedEvent(GameEvent):
     C = "ultshared.gameevents.UltMessageReceivedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ProvinceWonEvent(GameEvent):
     C = "ultshared.gameevents.UltProvinceWonGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class RelationChangeEvent(GameEvent):
     C = "ultshared.gameevents.UltRelationChangeGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ResourceShortageEvent(GameEvent):
     C = "ultshared.gameevents.UltResourceShortageGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class SpyInfoEvent(GameEvent):
     C = "ultshared.gameevents.UltSpyInfoGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class TradeOfferEvent(GameEvent):
     C = "ultshared.gameevents.UltTradeOfferGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class TradeProcessedEvent(GameEvent):
     C = "ultshared.gameevents.UltTradeProcessedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class UnitProducedEvent(GameEvent):
     C = "ultshared.gameevents.UltUnitProducedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class UnitTrainedEvent(GameEvent):
     C = "ultshared.gameevents.UltUnitTrainedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class UpgradeBuiltEvent(GameEvent):
     C = "ultshared.gameevents.UltUpgradeBuiltGameEvent"
@@ -213,145 +232,169 @@ class UpgradeBuiltEvent(GameEvent):
         "upgrade": "upgrade",
     }
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class WarDeclaredEvent(GameEvent):
     C = "ultshared.gameevents.UltWarDeclaredGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ResearchCompletedEvent(GameEvent):
     C = "ultshared.gameevents.UltResearchCompletedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ResourcesLootedEvent(GameEvent):
     C = "ultshared.gameevents.UltResourcesLootedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ResourcesLostEvent(GameEvent):
     C = "ultshared.gameevents.UltResourcesLostGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ArmyDamageReceivedEvent(GameEvent):
     C = "ultshared.gameevents.UltArmyDamageReceivedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ProvinceDamageReceivedEvent(GameEvent):
     C = "ultshared.gameevents.UltProvinceDamageReceivedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class OwnAllianceMembershipEvent(GameEvent):
     C = "ultshared.gameevents.UltOwnAllianceMembershipEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class OtherAllianceMembershipEvent(GameEvent):
     C = "ultshared.gameevents.UltOtherAllianceMembershipEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class MissileMissedTargetEvent(GameEvent):
     C = "ultshared.gameevents.UltMissileMissedTargetGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class PatrolCancelledEvent(GameEvent):
     C = "ultshared.gameevents.UltPatrolCancelledGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class AircraftRebaseEvent(GameEvent):
     C = "ultshared.gameevents.UltAircraftRebaseGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class PremiumSpyCatchEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyCatchGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class PremiumSpyCorruptionMissionEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyCorruptionMissionGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class PremiumSpySabotageMissionEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpySabotageMissionGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class PremiumSpyDamageUpgradeEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyDamageUpgradeGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class PremiumSpyDecreaseMoralEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyDecreaseMoralGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class PremiumSpyDestroyResourceEvent(GameEvent):
     C = "ultshared.gameevents.UltPremiumSpyDestroyResourceGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class UpgradeDemolishedEvent(GameEvent):
     C = "ultshared.gameevents.UltUpgradeDemolishedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ArmyDisbandedEvent(GameEvent):
     C = "ultshared.gameevents.UltArmyDisbandedGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class UnitsExpiredEvent(GameEvent):
     C = "ultshared.gameevents.UltUnitsExpiredGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class NuclearImpactEvent(GameEvent):
     C = "ultshared.gameevents.UltNuclearImpactGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class QuestDoneEvent(GameEvent):
     C = "ultshared.gameevents.UltQuestDoneGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class CoalitionMessageEvent(GameEvent):
     C = "ultshared.gameevents.UltCoalitionMessageGameEvent"
     MAPPING = {}
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class MissionEvent(GameEvent):
     C = "ultshared.gameevents.UltMissionGameEvent"

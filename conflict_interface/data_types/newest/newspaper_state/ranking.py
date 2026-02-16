@@ -13,7 +13,8 @@ from conflict_interface.replay.constants import PathNode
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class Ranking(GameObject):
     C = "ultshared.UltRanking"

@@ -5,7 +5,8 @@ from conflict_interface.game_object.game_object_binary import SerializationCateg
 from conflict_interface.game_object.decorators import conflict_serializable
 
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class Sender(GameObject):
     C = "ultshared.gameevents.UltSender"

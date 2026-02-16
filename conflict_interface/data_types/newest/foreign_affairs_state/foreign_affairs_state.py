@@ -17,7 +17,8 @@ from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
 
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ForeignAffairRelations(GameObject):
     """
@@ -79,7 +80,8 @@ class ForeignAffairRelations(GameObject):
             return None
         return relations.get(receiver_id-1, ForeignAffairRelationTypes.PEACE)
 
-@conflict_serializable(SerializationCategory.DATACLASS)
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class ForeignAffairsState(State):
     """
