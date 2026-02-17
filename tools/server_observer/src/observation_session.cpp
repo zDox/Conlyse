@@ -209,8 +209,16 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
     // Update package with new auth and connection details
     api_->update_package(package_);
 
+    // Get current timestamp in milliseconds (used for Redis)
+    auto now = std::chrono::system_clock::now();
+    auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()
+    ).count();
+
     // Compress the response once for both Redis and disk storage
     std::vector<char> compressed_response;
+    bool compression_failed = false;
+    
     try {
         size_t compressed_size = ZSTD_compressBound(result.raw_response.size());
         compressed_response.resize(compressed_size);
@@ -223,28 +231,18 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
         
         if (ZSTD_isError(actual_size)) {
             std::cerr << "Compression failed: " << ZSTD_getErrorName(actual_size) << std::endl;
-            // Fall back to uncompressed for both paths
-            if (redis_publisher_) {
-                auto now = std::chrono::system_clock::now();
-                auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    now.time_since_epoch()
-                ).count();
-                redis_publisher_->publish_response(timestamp_ms, game_id, 0, result.raw_response);
-            }
-            ensure_storage()->update_resume_metadata(package_.to_json());
-            ensure_storage()->save_response(std::move(result.raw_response));
-            return;
+            compression_failed = true;
+        } else {
+            compressed_response.resize(actual_size);
         }
-        
-        compressed_response.resize(actual_size);
     } catch (const std::exception& e) {
         std::cerr << "Exception during compression: " << e.what() << std::endl;
-        // Fall back to uncompressed for both paths
+        compression_failed = true;
+    }
+    
+    // If compression failed, fall back to uncompressed for both paths
+    if (compression_failed) {
         if (redis_publisher_) {
-            auto now = std::chrono::system_clock::now();
-            auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                now.time_since_epoch()
-            ).count();
             redis_publisher_->publish_response(timestamp_ms, game_id, 0, result.raw_response);
         }
         ensure_storage()->update_resume_metadata(package_.to_json());
@@ -254,12 +252,6 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
 
     // Publish to Redis if publisher is available (using compressed data)
     if (redis_publisher_) {
-        // Get current timestamp in milliseconds
-        auto now = std::chrono::system_clock::now();
-        auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            now.time_since_epoch()
-        ).count();
-        
         // Publish the compressed response to Redis stream
         redis_publisher_->publish_compressed_response(
             timestamp_ms,
