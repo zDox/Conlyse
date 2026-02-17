@@ -3,6 +3,7 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 #include <nlohmann/json.hpp>
 #include <hiredis/hiredis.h>
 
@@ -65,6 +66,7 @@ private:
     bool connected_;
     
     bool authenticate();
+    std::vector<char> compress_data(const std::string& data);
 };
 
 #endif // REDIS_PUBLISHER_HPP
