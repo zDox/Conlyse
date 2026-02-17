@@ -45,6 +45,9 @@ class RedisStreamConsumer:
             decode_responses=False  # We'll handle decoding manually
         )
         
+        # Create decompressor for reuse across messages
+        self.decompressor = zstd.ZstdDecompressor() if ZSTD_AVAILABLE else None
+        
         # Create consumer group if it doesn't exist
         self._ensure_consumer_group()
         
@@ -107,16 +110,19 @@ class RedisStreamConsumer:
                                 if isinstance(value, bytes):
                                     # Try to decompress first (new format)
                                     try:
-                                        if ZSTD_AVAILABLE:
-                                            decompressor = zstd.ZstdDecompressor()
-                                            decompressed = decompressor.decompress(value)
+                                        if self.decompressor:
+                                            decompressed = self.decompressor.decompress(value)
                                             value_str = decompressed.decode('utf-8')
                                         else:
                                             # Fall back to treating as uncompressed
                                             value_str = value.decode('utf-8')
                                     except Exception as e:
                                         # If decompression fails, treat as uncompressed (backward compatibility)
-                                        logger.debug(f"Decompression failed, treating as uncompressed: {e}")
+                                        game_id = decoded_data.get('game_id', 'unknown')
+                                        player_id = decoded_data.get('player_id', 'unknown')
+                                        logger.debug(
+                                            f"Decompression failed for game_id={game_id}, player_id={player_id}: {e}"
+                                        )
                                         value_str = value.decode('utf-8')
                                 else:
                                     value_str = value
