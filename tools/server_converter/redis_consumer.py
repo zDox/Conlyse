@@ -118,6 +118,7 @@ class RedisStreamConsumer:
                                             value_str = value.decode('utf-8')
                                     except Exception as e:
                                         # If decompression fails, treat as uncompressed (backward compatibility)
+                                        # Note: game_id/player_id may be 'unknown' if response field appears first
                                         game_id = decoded_data.get('game_id', 'unknown')
                                         player_id = decoded_data.get('player_id', 'unknown')
                                         logger.debug(

@@ -187,8 +187,8 @@ std::vector<char> RedisPublisher::compress_data(const std::string& data) {
     // Allocate buffer for compressed data
     std::vector<char> compressed(max_compressed_size);
     
-    // Compress the data using compression level 3
-    // Compression level: 3 (default, balances speed and ratio. Range: 1-22 or negative for fast mode)
+    // Compress the data using compression level 3 (ZSTD's default)
+    // Compression level range: 1-22 or negative for fast mode
     size_t compressed_size = ZSTD_compress(
         compressed.data(), 
         compressed.size(),
