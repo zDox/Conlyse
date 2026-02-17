@@ -242,16 +242,9 @@ void RecordingStorage::append_bytes_to_file(const std::string& file_path,
 }
 
 void RecordingStorage::save_response(std::string&& response_str) {
-    // Check if file rotation is needed
-    if (should_rotate_file()) {
-        rotate_to_long_term_storage();
-    }
-    
-    // The response string is moved to us, so we own it.
-    // We'll use it for compression and then it will be automatically freed.
-    
+    // Compress and delegate to save_compressed_response
     size_t compressed_size = ZSTD_compressBound(response_str.size());
-    std::vector<uint8_t> compressed(compressed_size);
+    std::vector<char> compressed(compressed_size);
     
     size_t actual_size = ZSTD_compress(
         compressed.data(), compressed_size,
@@ -265,9 +258,17 @@ void RecordingStorage::save_response(std::string&& response_str) {
     }
     
     compressed.resize(actual_size);
+    save_compressed_response(compressed);
+}
+
+void RecordingStorage::save_compressed_response(const std::vector<char>& compressed_data) {
+    // Check if file rotation is needed
+    if (should_rotate_file()) {
+        rotate_to_long_term_storage();
+    }
     
-    // The response_str will be automatically freed when this function returns
-    // since it's an rvalue reference parameter
+    // Convert to uint8_t vector for append_bytes_to_file
+    std::vector<uint8_t> compressed_bytes(compressed_data.begin(), compressed_data.end());
     
     // Get current timestamp
     auto now = std::chrono::system_clock::now();
@@ -275,7 +276,7 @@ void RecordingStorage::save_response(std::string&& response_str) {
         now.time_since_epoch()).count();
     
     // Append to file
-    append_bytes_to_file(responses_file_, timestamp, compressed);
+    append_bytes_to_file(responses_file_, timestamp, compressed_bytes);
     
     // Update metadata
     auto now_time_t = std::chrono::system_clock::to_time_t(now);
@@ -290,10 +291,10 @@ void RecordingStorage::save_response(std::string&& response_str) {
         {"datetime", ss.str()}
     });
     
-    // Periodically flush metadata to disk for crash recovery
+    // Increment counter and flush metadata periodically
     updates_since_last_flush_++;
     if (updates_since_last_flush_ >= METADATA_FLUSH_INTERVAL) {
-        save_metadata(metadata_cache_);
+        flush_metadata();
         updates_since_last_flush_ = 0;
     }
 }

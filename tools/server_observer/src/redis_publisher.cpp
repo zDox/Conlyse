@@ -89,20 +89,25 @@ bool RedisPublisher::authenticate() {
 
 bool RedisPublisher::publish_response(int64_t timestamp, int game_id, int player_id,
                                      const std::string& response) {
-    if (!connected_ || !context_) {
-        // Try to reconnect
-        if (!connect()) {
-            return false;
-        }
-    }
-    
-    // Compress the JSON response
+    // Compress and delegate to publish_compressed_response
     std::vector<char> compressed_data;
     try {
         compressed_data = compress_data(response);
     } catch (const std::exception& e) {
         std::cerr << "Failed to compress response: " << e.what() << std::endl;
         return false;
+    }
+    
+    return publish_compressed_response(timestamp, game_id, player_id, compressed_data);
+}
+
+bool RedisPublisher::publish_compressed_response(int64_t timestamp, int game_id, int player_id,
+                                                 const std::vector<char>& compressed_response) {
+    if (!connected_ || !context_) {
+        // Try to reconnect
+        if (!connect()) {
+            return false;
+        }
     }
     
     // Prepare string values that must persist for the duration of the Redis command
@@ -155,8 +160,8 @@ bool RedisPublisher::publish_response(int64_t timestamp, int game_id, int player
     argvlen.push_back(8);
     
     // Value: compressed binary data
-    argv.push_back(compressed_data.data());
-    argvlen.push_back(compressed_data.size());
+    argv.push_back(compressed_response.data());
+    argvlen.push_back(compressed_response.size());
     
     // Execute Redis command
     redisReply* reply = static_cast<redisReply*>(
