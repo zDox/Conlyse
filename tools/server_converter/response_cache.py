@@ -86,10 +86,8 @@ class ResponseCache:
                     lock_file = self._get_lock_file(game_id, player_id)
                     lock = self._acquire_lock(lock_file, exclusive=False)
                     try:
-                        count = 0
                         with open(cache_file, 'r') as f:
-                            for _ in f:
-                                count += 1
+                            count = sum(1 for _ in f)
                         self._response_counts[(game_id, player_id)] = count
                         logger.debug(f"Initialized count for game {game_id}, player {player_id}: {count}")
                     finally:
@@ -110,6 +108,11 @@ class ResponseCache:
             player_id: Player ID
             timestamp: Unix timestamp in milliseconds
             response: Response JSON dict
+            
+        Note:
+            Thread safety is provided by the file lock. The in-memory counter
+            update is performed while holding the exclusive lock, ensuring
+            consistency between the file and memory counter.
         """
         cache_file = self._get_cache_file(game_id, player_id)
         lock_file = self._get_lock_file(game_id, player_id)
