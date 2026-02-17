@@ -121,11 +121,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
+# Create hiredis include directory structure for #include <hiredis/hiredis.h>
+set(HIREDIS_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/hiredis_include)
+file(MAKE_DIRECTORY ${HIREDIS_INCLUDE_DIR}/hiredis)
+file(CREATE_LINK ${hiredis_SOURCE_DIR}/hiredis.h ${HIREDIS_INCLUDE_DIR}/hiredis/hiredis.h SYMBOLIC)
+file(CREATE_LINK ${hiredis_SOURCE_DIR}/read.h ${HIREDIS_INCLUDE_DIR}/hiredis/read.h SYMBOLIC)
+file(CREATE_LINK ${hiredis_SOURCE_DIR}/sds.h ${HIREDIS_INCLUDE_DIR}/hiredis/sds.h SYMBOLIC)
+file(CREATE_LINK ${hiredis_SOURCE_DIR}/async.h ${HIREDIS_INCLUDE_DIR}/hiredis/async.h SYMBOLIC)
+file(CREATE_LINK ${hiredis_SOURCE_DIR}/alloc.h ${HIREDIS_INCLUDE_DIR}/hiredis/alloc.h SYMBOLIC)
+
 # Include directories
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${hiredis_SOURCE_DIR}        # the root, for CMakeLists
-        ${hiredis_SOURCE_DIR}/include  # where hiredis/hiredis.h lives
+        ${HIREDIS_INCLUDE_DIR}        # for #include <hiredis/hiredis.h>
+        ${hiredis_SOURCE_DIR}         # for hiredis build itself
 )
 
 # Source files

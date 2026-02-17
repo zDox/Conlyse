@@ -5,6 +5,16 @@ import json
 import logging
 from typing import List, Tuple, Optional, Dict, Any
 
+try:
+    import zstandard as zstd
+    ZSTD_AVAILABLE = True
+except ImportError:
+    ZSTD_AVAILABLE = False
+    logging.warning(
+        "zstandard package not available. Compressed responses will not be supported. "
+        "Install it with: pip install zstandard"
+    )
+
 logger = logging.getLogger(__name__)
 
 
@@ -93,8 +103,23 @@ class RedisStreamConsumer:
                             
                             # Parse based on key
                             if key_str == 'response':
-                                # JSON response needs to be parsed
-                                value_str = value.decode('utf-8') if isinstance(value, bytes) else value
+                                # Response might be compressed binary or uncompressed JSON string
+                                if isinstance(value, bytes):
+                                    # Try to decompress first (new format)
+                                    try:
+                                        if ZSTD_AVAILABLE:
+                                            decompressor = zstd.ZstdDecompressor()
+                                            decompressed = decompressor.decompress(value)
+                                            value_str = decompressed.decode('utf-8')
+                                        else:
+                                            # Fall back to treating as uncompressed
+                                            value_str = value.decode('utf-8')
+                                    except Exception:
+                                        # If decompression fails, treat as uncompressed (backward compatibility)
+                                        value_str = value.decode('utf-8')
+                                else:
+                                    value_str = value
+                                    
                                 decoded_data[key_str] = json.loads(value_str)
                             else:
                                 # Other fields (timestamp, game_id, player_id) are simple values
