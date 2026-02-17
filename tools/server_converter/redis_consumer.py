@@ -114,8 +114,9 @@ class RedisStreamConsumer:
                                         else:
                                             # Fall back to treating as uncompressed
                                             value_str = value.decode('utf-8')
-                                    except Exception:
+                                    except Exception as e:
                                         # If decompression fails, treat as uncompressed (backward compatibility)
+                                        logger.debug(f"Decompression failed, treating as uncompressed: {e}")
                                         value_str = value.decode('utf-8')
                                 else:
                                     value_str = value

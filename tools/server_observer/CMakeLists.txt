@@ -124,11 +124,13 @@ FetchContent_MakeAvailable(magic_enum)
 # Create hiredis include directory structure for #include <hiredis/hiredis.h>
 set(HIREDIS_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/hiredis_include)
 file(MAKE_DIRECTORY ${HIREDIS_INCLUDE_DIR}/hiredis)
-file(CREATE_LINK ${hiredis_SOURCE_DIR}/hiredis.h ${HIREDIS_INCLUDE_DIR}/hiredis/hiredis.h SYMBOLIC)
-file(CREATE_LINK ${hiredis_SOURCE_DIR}/read.h ${HIREDIS_INCLUDE_DIR}/hiredis/read.h SYMBOLIC)
-file(CREATE_LINK ${hiredis_SOURCE_DIR}/sds.h ${HIREDIS_INCLUDE_DIR}/hiredis/sds.h SYMBOLIC)
-file(CREATE_LINK ${hiredis_SOURCE_DIR}/async.h ${HIREDIS_INCLUDE_DIR}/hiredis/async.h SYMBOLIC)
-file(CREATE_LINK ${hiredis_SOURCE_DIR}/alloc.h ${HIREDIS_INCLUDE_DIR}/hiredis/alloc.h SYMBOLIC)
+
+# Copy hiredis headers to create proper include structure (more portable than symlinks)
+file(COPY ${hiredis_SOURCE_DIR}/hiredis.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
+file(COPY ${hiredis_SOURCE_DIR}/read.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
+file(COPY ${hiredis_SOURCE_DIR}/sds.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
+file(COPY ${hiredis_SOURCE_DIR}/async.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
+file(COPY ${hiredis_SOURCE_DIR}/alloc.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
 
 # Include directories
 include_directories(
