@@ -7,11 +7,9 @@ from typing import List, Tuple, Optional, Dict, Any
 
 try:
     import zstandard as zstd
-    ZSTD_AVAILABLE = True
 except ImportError:
-    ZSTD_AVAILABLE = False
-    logging.warning(
-        "zstandard package not available. Compressed responses will not be supported. "
+    raise ImportError(
+        "zstandard package is required for RedisStreamConsumer. "
         "Install it with: pip install zstandard"
     )
 
@@ -45,8 +43,8 @@ class RedisStreamConsumer:
             decode_responses=False  # We'll handle decoding manually
         )
         
-        # Create decompressor for reuse across messages
-        self.decompressor = zstd.ZstdDecompressor() if ZSTD_AVAILABLE else None
+        # Create decompressor for reuse across messages (responses are always compressed)
+        self.decompressor = zstd.ZstdDecompressor()
         
         # Create consumer group if it doesn't exist
         self._ensure_consumer_group()
@@ -106,28 +104,13 @@ class RedisStreamConsumer:
                             
                             # Parse based on key
                             if key_str == 'response':
-                                # Response might be compressed binary or uncompressed JSON string
-                                if isinstance(value, bytes):
-                                    # Try to decompress first (new format)
-                                    try:
-                                        if self.decompressor:
-                                            decompressed = self.decompressor.decompress(value)
-                                            value_str = decompressed.decode('utf-8')
-                                        else:
-                                            # Fall back to treating as uncompressed
-                                            value_str = value.decode('utf-8')
-                                    except Exception as e:
-                                        # If decompression fails, treat as uncompressed (backward compatibility)
-                                        # Note: game_id/player_id may be 'unknown' if response field appears first
-                                        game_id = decoded_data.get('game_id', 'unknown')
-                                        player_id = decoded_data.get('player_id', 'unknown')
-                                        logger.debug(
-                                            f"Decompression failed for game_id={game_id}, player_id={player_id}: {e}"
-                                        )
-                                        value_str = value.decode('utf-8')
-                                else:
-                                    value_str = value
-                                    
+                                # Response is always compressed binary data
+                                if not isinstance(value, bytes):
+                                    raise ValueError(f"Expected compressed bytes for response field, got {type(value)}")
+                                
+                                # Decompress the response
+                                decompressed = self.decompressor.decompress(value)
+                                value_str = decompressed.decode('utf-8')
                                 decoded_data[key_str] = json.loads(value_str)
                             else:
                                 # Other fields (timestamp, game_id, player_id) are simple values
