@@ -241,26 +241,6 @@ void RecordingStorage::append_bytes_to_file(const std::string& file_path,
     file.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
 }
 
-void RecordingStorage::save_response(std::string&& response_str) {
-    // Compress and delegate to save_compressed_response
-    size_t compressed_size = ZSTD_compressBound(response_str.size());
-    std::vector<char> compressed(compressed_size);
-    
-    size_t actual_size = ZSTD_compress(
-        compressed.data(), compressed_size,
-        response_str.data(), response_str.size(),
-        3  // compression level
-    );
-    
-    if (ZSTD_isError(actual_size)) {
-        std::cerr << "Compression failed: " << ZSTD_getErrorName(actual_size) << std::endl;
-        return;
-    }
-    
-    compressed.resize(actual_size);
-    save_compressed_response(compressed);
-}
-
 void RecordingStorage::save_compressed_response(const std::vector<char>& compressed_data) {
     // Check if file rotation is needed
     if (should_rotate_file()) {

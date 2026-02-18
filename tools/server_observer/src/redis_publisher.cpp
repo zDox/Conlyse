@@ -87,20 +87,6 @@ bool RedisPublisher::authenticate() {
     return success;
 }
 
-bool RedisPublisher::publish_response(int64_t timestamp, int game_id, int player_id,
-                                     const std::string& response) {
-    // Compress and delegate to publish_compressed_response
-    std::vector<char> compressed_data;
-    try {
-        compressed_data = compress_data(response);
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to compress response: " << e.what() << std::endl;
-        return false;
-    }
-    
-    return publish_compressed_response(timestamp, game_id, player_id, compressed_data);
-}
-
 bool RedisPublisher::publish_compressed_response(int64_t timestamp, int game_id, int player_id,
                                                  const std::vector<char>& compressed_response) {
     if (!connected_ || !context_) {
@@ -183,34 +169,4 @@ bool RedisPublisher::publish_compressed_response(int64_t timestamp, int game_id,
     
     freeReplyObject(reply);
     return success;
-}
-
-std::vector<char> RedisPublisher::compress_data(const std::string& data) {
-    // Get the maximum compressed size
-    size_t max_compressed_size = ZSTD_compressBound(data.size());
-    
-    // Allocate buffer for compressed data
-    std::vector<char> compressed(max_compressed_size);
-    
-    // Compress the data using compression level 3 (ZSTD's default)
-    // Compression level range: 1-22 or negative for fast mode
-    size_t compressed_size = ZSTD_compress(
-        compressed.data(), 
-        compressed.size(),
-        data.data(), 
-        data.size(),
-        3
-    );
-    
-    // Check for compression error
-    if (ZSTD_isError(compressed_size)) {
-        throw std::runtime_error(
-            std::string("Zstd compression failed: ") + ZSTD_getErrorName(compressed_size)
-        );
-    }
-    
-    // Resize to actual compressed size
-    compressed.resize(compressed_size);
-    
-    return compressed;
 }
