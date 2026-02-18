@@ -101,68 +101,39 @@ bool RedisPublisher::publish_compressed_response(int64_t timestamp, int game_id,
     std::string gid_str = std::to_string(game_id);
     std::string pid_str = std::to_string(player_id);
     
-    // Build argv array with binary-safe data handling
-    std::vector<const char*> argv;
-    std::vector<size_t> argvlen;
+    // Build command with static array first, then add compressed response
+    const char* argv[9];
+    size_t argvlen[9];
     
-    // Command: XADD
-    argv.push_back("XADD");
-    argvlen.push_back(4);
+    argv[0] = "XADD"; argvlen[0] = 4;
+    argv[1] = stream_name_.c_str(); argvlen[1] = stream_name_.length();
+    argv[2] = "*"; argvlen[2] = 1;
+    argv[3] = "timestamp"; argvlen[3] = 9;
+    argv[4] = ts_str.c_str(); argvlen[4] = ts_str.length();
+    argv[5] = "game_id"; argvlen[5] = 7;
+    argv[6] = gid_str.c_str(); argvlen[6] = gid_str.length();
+    argv[7] = "player_id"; argvlen[7] = 9;
+    argv[8] = pid_str.c_str(); argvlen[8] = pid_str.length();
     
-    // Stream name
-    argv.push_back(stream_name_.c_str());
-    argvlen.push_back(stream_name_.length());
+    // Append response field and compressed data
+    std::vector<const char*> full_argv(argv, argv + 9);
+    std::vector<size_t> full_argvlen(argvlen, argvlen + 9);
+    full_argv.push_back("response");
+    full_argvlen.push_back(8);
+    full_argv.push_back(compressed_response.data());
+    full_argvlen.push_back(compressed_response.size());
     
-    // Auto-generate ID with *
-    argv.push_back("*");
-    argvlen.push_back(1);
-    
-    // Field: timestamp
-    argv.push_back("timestamp");
-    argvlen.push_back(9);
-    
-    // Value: timestamp
-    argv.push_back(ts_str.c_str());
-    argvlen.push_back(ts_str.length());
-    
-    // Field: game_id
-    argv.push_back("game_id");
-    argvlen.push_back(7);
-    
-    // Value: game_id
-    argv.push_back(gid_str.c_str());
-    argvlen.push_back(gid_str.length());
-    
-    // Field: player_id
-    argv.push_back("player_id");
-    argvlen.push_back(9);
-    
-    // Value: player_id
-    argv.push_back(pid_str.c_str());
-    argvlen.push_back(pid_str.length());
-    
-    // Field: response
-    argv.push_back("response");
-    argvlen.push_back(8);
-    
-    // Value: compressed binary data
-    argv.push_back(compressed_response.data());
-    argvlen.push_back(compressed_response.size());
-    
-    // Execute Redis command
     redisReply* reply = static_cast<redisReply*>(
-        redisCommandArgv(context_, argv.size(), argv.data(), argvlen.data())
+        redisCommandArgv(context_, full_argv.size(), full_argv.data(), full_argvlen.data())
     );
     
     if (reply == nullptr) {
         std::cerr << "Redis XADD command failed: " << context_->errstr << std::endl;
-        // Connection might be lost, mark as disconnected
         connected_ = false;
         return false;
     }
     
     bool success = (reply->type == REDIS_REPLY_STRING);
-    
     if (!success) {
         std::cerr << "Redis XADD failed, unexpected reply type: " << reply->type << std::endl;
     }
