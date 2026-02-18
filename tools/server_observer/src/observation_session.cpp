@@ -4,6 +4,7 @@
 #include <thread>
 #include <chrono>
 #include <utility>
+#include <zstd.h>
 
 static const int MAX_RETRIES = 3;
 static const int TIME_TILL_RETRY = 10;
@@ -208,26 +209,44 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
     // Update package with new auth and connection details
     api_->update_package(package_);
 
-    // Publish to Redis if publisher is available
+    // Get current timestamp in milliseconds (used for Redis)
+    auto now = std::chrono::system_clock::now();
+    auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()
+    ).count();
+
+    // Compress the response once for both Redis and disk storage
+    size_t compressed_size = ZSTD_compressBound(result.raw_response.size());
+    std::vector<char> compressed_response(compressed_size);
+    
+    size_t actual_size = ZSTD_compress(
+        compressed_response.data(), compressed_response.size(),
+        result.raw_response.data(), result.raw_response.size(),
+        3  // compression level (ZSTD's default)
+    );
+    
+    if (ZSTD_isError(actual_size)) {
+        std::cerr << "Compression failed: " << ZSTD_getErrorName(actual_size) << std::endl;
+        // Compression failure is fatal - we don't fall back to uncompressed
+        return;
+    }
+    
+    compressed_response.resize(actual_size);
+
+    // Publish to Redis if publisher is available (using compressed data)
     if (redis_publisher_) {
-        // Get current timestamp in milliseconds
-        auto now = std::chrono::system_clock::now();
-        auto timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-            now.time_since_epoch()
-        ).count();
-        
-        // Publish the response to Redis stream (will attempt reconnection if needed)
-        redis_publisher_->publish_response(
+        // Publish the compressed response to Redis stream
+        redis_publisher_->publish_compressed_response(
             timestamp_ms,
             game_id,
             0,
-            result.raw_response
+            compressed_response
         );
     }
 
-    // Save raw response string to storage (moved after Redis publish)
+    // Save compressed response to storage
     ensure_storage()->update_resume_metadata(package_.to_json());
-    ensure_storage()->save_response(std::move(result.raw_response));
+    ensure_storage()->save_compressed_response(compressed_response);
 }
 
 asio::awaitable<ObservationResult> ObservationSession::run_update_async() {

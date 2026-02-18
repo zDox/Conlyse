@@ -3,6 +3,7 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 #include <nlohmann/json.hpp>
 #include <hiredis/hiredis.h>
 
@@ -46,15 +47,15 @@ public:
     bool is_connected() const;
     
     /**
-     * Publish a game response to the Redis stream
+     * Publish an already-compressed game response to the Redis stream
      * @param timestamp Unix timestamp in milliseconds
      * @param game_id Game ID
      * @param player_id Player ID
-     * @param response JSON response data
+     * @param compressed_response Pre-compressed response data
      * @return true if publish successful
      */
-    bool publish_response(int64_t timestamp, int game_id, int player_id, 
-                         const std::string& response);
+    bool publish_compressed_response(int64_t timestamp, int game_id, int player_id,
+                                     const std::vector<char>& compressed_response);
     
 private:
     std::string host_;
