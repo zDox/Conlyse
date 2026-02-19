@@ -40,6 +40,7 @@ class Article(GameObject):
     alliance_id: int
     date: SqlDate[DateTimeMillisecondsInt]
     time: list[str] # sql time format
+    shown_ranks: Optional[int]
 
 
     image_id: Optional[dict[str, int]]
@@ -53,6 +54,7 @@ class Article(GameObject):
 
 
     MAPPING = {
+        "shown_ranks": "shownRanks",
         "time_stamp": "timeStamp",
         "title": "title",
         "author": "author",

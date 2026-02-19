@@ -5,19 +5,17 @@ from typing import Union
 import numpy as np
 from shapely import Point as ShapelyPoint
 
+from .province import Province
+from .sea_province import SeaProvince
 from ..common.enums.region_type import RegionType
 from ..custom_types import HashMap
 from ..custom_types import HashSet
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from ..map_state.province import Province
 from ..map_state.region import Region
-from ..map_state.sea_province import SeaProvince
 from ..point import Point
 from ..static_map_data import StaticMapData
-
-ProvinceType = Union[Province, SeaProvince]
 
 from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
@@ -59,10 +57,10 @@ class Map(GameObject):
     regions: Optional[HashMap[RegionType, Region]]
     overlap_x: int
     population_factor: int
-    locations: HashSet[ProvinceType]
+    locations: HashSet[Union[Province, SeaProvince]]
 
     _province_id_to_index: dict[int, int] = None
-    _provinces: dict[int, ProvinceType] = None
+    _provinces: dict[int, Union[Province, SeaProvince]] = None
     static_map_data: StaticMapData = None
 
     MAPPING = {
@@ -82,7 +80,7 @@ class Map(GameObject):
     }
 
     @property
-    def provinces(self) -> dict[int, ProvinceType]:
+    def provinces(self) -> dict[int, Province | SeaProvince]:
         if not self._provinces:
             self._provinces = {
                 province.id: province

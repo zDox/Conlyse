@@ -17,7 +17,7 @@ class SeaProvince(GameObject):
     """
     C = "ultshared.UltSeaProvince"
     id: int
-    name: str
+    name: Optional[str]
     center_coordinate: Point
     terrain_type: TerrainType
     border: str

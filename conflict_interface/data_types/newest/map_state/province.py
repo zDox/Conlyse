@@ -86,7 +86,7 @@ class Province(GameObject):
 
     victory_points: int
     owner_id: int
-    upgrades_set: HashSet[ModableUpgrade]
+    upgrades_set: Optional[HashSet[ModableUpgrade]]
 
     stationary_army: Optional[int]
     base_production: int

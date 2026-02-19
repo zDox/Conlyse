@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from conflict_interface.data_types.newest.army_state.army import Army
     from conflict_interface.data_types.newest.game_event_state.game_event import GameEvent
     from conflict_interface.data_types.newest.game_info_state.game_info_state import GameInfoState
-    from conflict_interface.data_types.newest.map_state.map import ProvinceType
+    from conflict_interface.data_types.newest.map_state.map_state_enums import ProvinceType
     from conflict_interface.data_types.newest.map_state.map_state_enums import ProvinceStateID
     from conflict_interface.data_types.newest.map_state.province import Province
     from conflict_interface.data_types.newest.map_state.sea_province import SeaProvince

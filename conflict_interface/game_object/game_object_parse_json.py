@@ -341,7 +341,7 @@ class JsonParser:
                             else:
                                 raise ValueError(f"Enum {python_var_type} is not a DefaultEnumMeta")
                         else:
-                            raise ValueError(f"Field {python_var_name} is missing in {cls.__name__} (Might be optional)")
+                            raise ValueError(f"Field {python_var_name} is missing in {cls.__name__} (Might be optional), {str(json_obj)[:1000]}")
                     else:
                         parsed_data[python_var_name] = field_info.default
 
@@ -428,9 +428,13 @@ class JsonParser:
 
         """Match dict types with optional @c discriminator or structural checks."""
         # Check for explicit type discriminator
-        if "@c" in json_obj and possible_type.type in self.type_graph.type_to_c:
-            if json_obj["@c"] in self.type_graph.type_to_c[possible_type.type]:
-                return possible_type
+        if "@c" in json_obj:
+            if possible_type.type in self.type_graph.type_to_c:
+                if json_obj["@c"] in self.type_graph.type_to_c[possible_type.type]:
+                    return possible_type
+
+            return None
+
 
         # Check for generic dict type
         if type_is_any_dict(possible_type.type):
@@ -446,9 +450,9 @@ class JsonParser:
                 return possible_type
             else:
                 print("For type: ", possible_type.type)
-                print("Mapping is missing: ", [f"({x},{json_obj[x]})" for x in (set(json_obj.keys())- set(possible_type.type.MAPPING.values()))])
-                print("Objs is missing   : ", [f"({x},{json_obj[x]})" for x in
-                       ( set(possible_type.type.MAPPING.values()))]- set(json_obj.keys()) )
+                print("Mapping is missing: ", [f"({x},{str(json_obj[x])[:100]})" for x in (set(json_obj.keys())- set(possible_type.type.MAPPING.values()))])
+                print("Objs is missing   : ", [f"({x},{str(json_obj[x])[:100]})" for x in
+                       ( set(possible_type.type.MAPPING.values())) - set(json_obj.keys()) ])
 
         return None
 

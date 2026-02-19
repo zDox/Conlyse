@@ -23,12 +23,14 @@ from conflict_interface.replay.replaysegment import ReplaySegment
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
 from conflict_interface.utils.exceptions import GameActivationException
+# Online Interface must use newest datatypes (trivially)
+from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 if TYPE_CHECKING:
     from conflict_interface.data_types.newest.action import Action
     from conflict_interface.api.authentication import AuthDetails
     from conflict_interface.data_types.newest.game_api_types.login_action import LoginAction
-    from conflict_interface.data_types.newest.static_map_data import StaticMapData
+
 
 logger = get_logger()
 

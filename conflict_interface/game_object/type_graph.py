@@ -121,7 +121,7 @@ class TypeGraph:
                 self.add_type_recursive(new_type, arg, "v")
 
         elif type_is_any_dict(t):
-            assert len(args) == 2
+            assert len(args) == 2, f"{t}"
             self.add_type_recursive(new_type, args[0], "k")
             self.add_type_recursive(new_type, args[1], "v")
 

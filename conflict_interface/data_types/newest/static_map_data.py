@@ -6,7 +6,10 @@ from conflict_interface.game_object.game_object_binary import SerializationCateg
 from conflict_interface.game_object.decorators import conflict_serializable
 from.map_state.b64_decoder import decode_connections
 from .map_state.b64_decoder import graph
+from .map_state.province import Province
+from .map_state.sea_province import SeaProvince
 from .map_state.static_province import StaticProvince
+from .map_state.triangulation import Triangulation
 from .point import Point
 
 from conflict_interface.game_object.game_object import GameObject
@@ -19,8 +22,21 @@ from .version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
 @dataclass
 class StaticMapData(GameObject):
-    locations: ArrayList[StaticProvince]
+    locations: ArrayList[Union[Province, SeaProvince]]
     connections_b64: str
+    overlap_x: int
+    use_minimal_localization: bool
+    map_id: str
+    day_of_game: int
+    connections_v2: str
+    height: int
+    width: int
+    is_reduced: bool
+    use_population: bool
+    population_factor: float
+    triangulations: Triangulation
+    version: int
+
 
     _encoded_connections: list[dict[str, Union[int, Point]]] = None
     _graph: dict[Point, list[Point]] = None
@@ -34,6 +50,18 @@ class StaticMapData(GameObject):
     MAPPING = {
         "locations": "locations",
         "connections_b64": "connections",
+        "overlap_x": "overlapX",
+        "use_minimal_localization": "useMinimalLocalization",
+        "map_id": "mapID",
+        "day_of_game": "dayOfGame",
+        "connections_v2": "connections_v2",
+        "height": "height",
+        "width": "width",
+        "is_reduced": "isReduced",
+        "use_population": "usePopulation",
+        "population_factor": "populationFactor",
+        "triangulations": "triangulations",
+        "version": "version"
     }
 
     @property
