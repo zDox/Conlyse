@@ -105,6 +105,29 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
                      << e.what() << std::endl;
         }
     }
+    
+    // Initialize Redis publisher if configured
+    if (config.contains("redis") && !config["redis"].is_null()) {
+        try {
+            const auto& redis_config = config["redis"];
+            std::string host = redis_config.value("host", "localhost");
+            int port = redis_config.value("port", 6379);
+            std::string stream_name = redis_config.value("stream_name", "game_responses");
+            
+            redis_publisher_ = std::make_shared<RedisPublisher>(host, port, stream_name);
+            
+            // Try to connect
+            if (redis_publisher_->connect()) {
+                std::cout << "Redis publisher connected successfully" << std::endl;
+            } else {
+                std::cerr << "Warning: Failed to connect to Redis. Publishing will be disabled." << std::endl;
+                redis_publisher_.reset();
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Warning: Failed to initialize Redis publisher: " << e.what() << std::endl;
+            redis_publisher_.reset();
+        }
+    }
 }
 
 ServerObserver::~ServerObserver() {
@@ -176,7 +199,8 @@ void ServerObserver::start_observation_session(int game_id, int scenario_id) {
         output_dir_ + "/game_" + std::to_string(game_id),
         metadata_path,
         long_term_storage_path_,
-        file_size_threshold_
+        file_size_threshold_,
+        redis_publisher_
     );
 
     registry_->mark_recording(game_id, scenario_id, "");

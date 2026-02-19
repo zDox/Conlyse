@@ -12,5 +12,10 @@
   "proxy": {
     "http": "",
     "https": ""
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "stream_name": "game_responses"
   }
 }

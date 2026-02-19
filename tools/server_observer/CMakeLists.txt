@@ -80,6 +80,15 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(boost)
 
+# Mandatory Redis support via FetchContent
+FetchContent_Declare(
+        hiredis
+        GIT_REPOSITORY https://github.com/redis/hiredis.git
+        GIT_TAG v1.3.0
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(hiredis)
+
 # Zstandard compression
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ZSTD REQUIRED libzstd)
@@ -112,9 +121,22 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
+# Create hiredis include directory structure for #include <hiredis/hiredis.h>
+set(HIREDIS_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/hiredis_include)
+file(MAKE_DIRECTORY ${HIREDIS_INCLUDE_DIR}/hiredis)
+
+# Copy hiredis headers to create proper include structure (more portable than symlinks)
+file(COPY ${hiredis_SOURCE_DIR}/hiredis.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
+file(COPY ${hiredis_SOURCE_DIR}/read.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
+file(COPY ${hiredis_SOURCE_DIR}/sds.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
+file(COPY ${hiredis_SOURCE_DIR}/async.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
+file(COPY ${hiredis_SOURCE_DIR}/alloc.h DESTINATION ${HIREDIS_INCLUDE_DIR}/hiredis)
+
 # Include directories
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${HIREDIS_INCLUDE_DIR}        # for #include <hiredis/hiredis.h>
+        ${hiredis_SOURCE_DIR}         # for hiredis build itself
 )
 
 # Source files
@@ -138,6 +160,7 @@ set(SOURCES
         src/request_manager.cpp
         src/proxy_config.cpp
         src/metrics.cpp
+        src/redis_publisher.cpp
 )
 
 # Create executable
@@ -152,6 +175,7 @@ target_compile_definitions(server_observer
 # Link libraries
 target_link_libraries(server_observer
         PRIVATE
+        hiredis
         nlohmann_json::nlohmann_json
         simdjson::simdjson
         httplib::httplib

@@ -21,7 +21,7 @@ from conflict_interface.utils.exceptions import GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
 
 logger = get_logger()
-SUPPORTED_CLIENT_VERSION = 207
+SUPPORTED_CLIENT_VERSION = 209
 
 @dataclass
 class DeviceDetails:

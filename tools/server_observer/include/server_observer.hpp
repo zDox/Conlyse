@@ -20,6 +20,7 @@
 #include "game_finder.hpp"
 #include "scheduler.hpp"
 #include "config_file_watcher.hpp"
+#include "redis_publisher.hpp"
 
 using json = nlohmann::json;
 namespace asio = boost::asio;
@@ -64,6 +65,9 @@ private:
     std::filesystem::file_time_type last_config_modified_time_;
     std::chrono::system_clock::time_point last_config_check_time_;
     std::unique_ptr<ConfigFileWatcher> config_watcher_;
+    
+    // Redis publisher (optional)
+    std::shared_ptr<RedisPublisher> redis_publisher_;
 
     void start_observation_session(int game_id, int scenario_id);
     void resume_active();
