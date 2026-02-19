@@ -9,5 +9,5 @@ pydantic-settings==2.6.1
 PyJWT[crypto]==2.10.1
 passlib[bcrypt]==1.7.4
 boto3==1.35.86
-python-multipart==0.0.20
+python-multipart==0.0.22
 httpx==0.28.1
