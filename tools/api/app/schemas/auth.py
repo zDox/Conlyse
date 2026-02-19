@@ -37,6 +37,8 @@ class UserResponse(BaseModel):
     username: str
     role: UserRole
     is_active: bool
+    totp_enabled: bool
+    email_2fa_enabled: bool
     created_at: datetime
     updated_at: datetime
 
@@ -47,6 +49,12 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class TwoFAPendingResponse(BaseModel):
+    """Returned when 2FA is required after password auth."""
+    two_fa_required: bool = True
+    two_fa_pending_token: str
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
@@ -54,3 +62,35 @@ class RefreshRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    device_name: str = ""
+    device_info: str | None = None
+
+
+class TwoFALoginRequest(BaseModel):
+    two_fa_pending_token: str
+    code: str
+    device_name: str = ""
+    device_info: str | None = None
+
+
+class TOTPEnrollResponse(BaseModel):
+    provisioning_uri: str
+
+
+class TOTPVerifyRequest(BaseModel):
+    code: str
+
+
+class EmailTwoFAVerifyRequest(BaseModel):
+    code: str
+
+
+class DeviceResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    device_name: str
+    device_info: str | None
+    last_active: datetime
+    created_at: datetime
+

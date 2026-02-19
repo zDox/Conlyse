@@ -44,6 +44,20 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # Device / session limits
+    MAX_DEVICES_PER_USER: int = 2
+
+    # SMTP (email 2FA)
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "noreply@conlyse.com"
+    SMTP_TLS: bool = True
+
+    # 2FA email code TTL in seconds
+    EMAIL_2FA_CODE_EXPIRE_SECONDS: int = 300
+
     # General
     PROJECT_NAME: str = "Conlyse API"
     API_V1_PREFIX: str = "/api/v1"
