@@ -217,7 +217,7 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
 
     // Compress the response once for both Redis and disk storage
     size_t compressed_size = ZSTD_compressBound(result.raw_response.size());
-    std::vector<char> compressed_response(compressed_size);
+    std::vector<uint8_t> compressed_response(compressed_size);
     
     size_t actual_size = ZSTD_compress(
         compressed_response.data(), compressed_response.size(),
@@ -227,7 +227,7 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
     
     if (ZSTD_isError(actual_size)) {
         std::cerr << "Compression failed: " << ZSTD_getErrorName(actual_size) << std::endl;
-        // Compression failure is fatal - we don't fall back to uncompressed
+        // Compression failure is fatal
         return;
     }
     
@@ -236,7 +236,7 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
     // Publish to Redis if publisher is available (using compressed data)
     if (redis_publisher_) {
         // Publish the compressed response to Redis stream
-        redis_publisher_->publish_compressed_response(
+        redis_publisher_->publish_response(
             timestamp_ms,
             game_id,
             0,
@@ -246,7 +246,7 @@ void ObservationSession::process_successful_response(GameServerResult& result) {
 
     // Save compressed response to storage
     ensure_storage()->update_resume_metadata(package_.to_json());
-    ensure_storage()->save_compressed_response(compressed_response);
+    ensure_storage()->save_response(compressed_response);
 }
 
 asio::awaitable<ObservationResult> ObservationSession::run_update_async() {

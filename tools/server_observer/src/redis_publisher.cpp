@@ -87,8 +87,8 @@ bool RedisPublisher::authenticate() {
     return success;
 }
 
-bool RedisPublisher::publish_compressed_response(int64_t timestamp, int game_id, int player_id,
-                                                 const std::vector<char>& compressed_response) {
+bool RedisPublisher::publish_response(int64_t timestamp, int game_id, int player_id,
+                                      const std::vector<uint8_t> &compressed_response) {
     if (!connected_ || !context_) {
         // Try to reconnect
         if (!connect()) {
@@ -120,10 +120,10 @@ bool RedisPublisher::publish_compressed_response(int64_t timestamp, int game_id,
     std::vector<size_t> full_argvlen(argvlen, argvlen + 9);
     full_argv.push_back("response");
     full_argvlen.push_back(8);
-    full_argv.push_back(compressed_response.data());
+    full_argv.push_back(reinterpret_cast<const char*>(compressed_response.data()));
     full_argvlen.push_back(compressed_response.size());
     
-    redisReply* reply = static_cast<redisReply*>(
+    auto* reply = static_cast<redisReply*>(
         redisCommandArgv(context_, full_argv.size(), full_argv.data(), full_argvlen.data())
     );
     

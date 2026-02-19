@@ -54,8 +54,8 @@ public:
      * @param compressed_response Pre-compressed response data
      * @return true if publish successful
      */
-    bool publish_compressed_response(int64_t timestamp, int game_id, int player_id,
-                                     const std::vector<char>& compressed_response);
+    bool publish_response(int64_t timestamp, int game_id, int player_id,
+                          const std::vector<uint8_t> &compressed_response);
     
 private:
     std::string host_;

@@ -241,22 +241,19 @@ void RecordingStorage::append_bytes_to_file(const std::string& file_path,
     file.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
 }
 
-void RecordingStorage::save_compressed_response(const std::vector<char>& compressed_data) {
+void RecordingStorage::save_response(const std::vector<uint8_t> &compressed_data) {
     // Check if file rotation is needed
     if (should_rotate_file()) {
         rotate_to_long_term_storage();
     }
-    
-    // Convert to uint8_t vector for append_bytes_to_file
-    std::vector<uint8_t> compressed_bytes(compressed_data.begin(), compressed_data.end());
-    
+
     // Get current timestamp
     auto now = std::chrono::system_clock::now();
     uint64_t timestamp = std::chrono::duration_cast<std::chrono::seconds>(
         now.time_since_epoch()).count();
     
     // Append to file
-    append_bytes_to_file(responses_file_, timestamp, compressed_bytes);
+    append_bytes_to_file(responses_file_, timestamp, compressed_data);
     
     // Update metadata
     auto now_time_t = std::chrono::system_clock::to_time_t(now);
