@@ -248,6 +248,7 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
                 result.error_message += ": " + message;
             }
         }
+        return result;
     }
     // Check for valid game state
     if (result_class != "ultshared.UltAutoGameState" && result_class != "ultshared.UltGameState") {

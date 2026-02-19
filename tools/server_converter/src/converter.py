@@ -408,14 +408,7 @@ class ServerConverter:
     def shutdown(self):
         """Clean up resources."""
         logger.info("Shutting down server converter")
-        
-        # Log cache stats before shutdown
-        try:
-            stats = self.response_cache.get_cache_stats()
-            logger.info(f"Response cache stats at shutdown: {stats}")
-        except Exception as e:
-            logger.warning(f"Failed to get cache stats: {e}")
-        
+
         if self.redis_consumer:
             self.redis_consumer.close()
             

@@ -3,7 +3,6 @@ Disk-based cache for game responses.
 
 Stores responses on disk temporarily until they can be processed into replays.
 """
-import fcntl
 import json
 import logging
 from pathlib import Path
@@ -46,28 +45,7 @@ class ResponseCache:
     def _get_cache_file(self, game_id: int, player_id: int) -> Path:
         """Get the cache file path for a game/player combination."""
         return self.cache_dir / f"game_{game_id}_player_{player_id}.jsonl"
-    
-    def _get_lock_file(self, game_id: int, player_id: int) -> Path:
-        """Get the lock file path for a game/player combination."""
-        return self.cache_dir / f"game_{game_id}_player_{player_id}.lock"
-    
-    def _acquire_lock(self, lock_file: Path, exclusive: bool = True):
-        """
-        Acquire a file lock.
-        
-        Args:
-            lock_file: Path to lock file
-            exclusive: True for exclusive lock, False for shared lock
-            
-        Returns:
-            File handle (caller must close)
-        """
-        # Use 'a' mode to avoid truncating
-        lock = open(lock_file, 'a')
-        lock_type = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
-        fcntl.flock(lock.fileno(), lock_type)
-        return lock
-        
+
     def _initialize_counts(self):
         """
         Initialize in-memory response counts from existing cache files on disk.
@@ -84,17 +62,11 @@ class ResponseCache:
                     player_id = int(parts[3])
                     
                     # Count lines in file
-                    lock_file = self._get_lock_file(game_id, player_id)
-                    lock = self._acquire_lock(lock_file, exclusive=False)
-                    try:
-                        with open(cache_file, 'r') as f:
-                            count = sum(1 for _ in f)
-                        self._response_counts[(game_id, player_id)] = count
-                        logger.debug(f"Initialized count for game {game_id}, player {player_id}: {count}")
-                    finally:
-                        fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
-                        lock.close()
-                        
+                    with open(cache_file, 'r') as f:
+                        count = sum(1 for _ in f)
+                    self._response_counts[(game_id, player_id)] = count
+                    logger.debug(f"Initialized count for game {game_id}, player {player_id}: {count}")
+
                 except ValueError:
                     logger.warning(f"Invalid cache filename: {cache_file.name}")
                 except Exception as e:
@@ -111,34 +83,25 @@ class ResponseCache:
             response: Response JSON dict
             
         Note:
-            Thread safety is provided by the file lock. The in-memory counter
-            update is performed while holding the exclusive lock, ensuring
-            consistency between the file and memory counter.
+            No locking is needed as each thread is guaranteed to work on
+            different games.
         """
         cache_file = self._get_cache_file(game_id, player_id)
-        lock_file = self._get_lock_file(game_id, player_id)
-        
-        # Use file locking to prevent race conditions
-        lock = self._acquire_lock(lock_file, exclusive=True)
-        try:
-            # Append response to cache file (one JSON per line)
-            with open(cache_file, 'a') as f:
-                entry = {
-                    'timestamp': timestamp,
-                    'response': response
-                }
-                f.write(json.dumps(entry) + '\n')
-            
-            # Increment in-memory counter
-            key = (game_id, player_id)
-            self._response_counts[key] = self._response_counts.get(key, 0) + 1
-                
-            logger.debug(f"Cached response for game {game_id}, player {player_id}")
-            
-        finally:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
-            lock.close()
-                
+
+        # Append response to cache file (one JSON per line)
+        with open(cache_file, 'a') as f:
+            entry = {
+                'timestamp': timestamp,
+                'response': response
+            }
+            f.write(json.dumps(entry) + '\n')
+
+        # Increment in-memory counter
+        key = (game_id, player_id)
+        self._response_counts[key] = self._response_counts.get(key, 0) + 1
+
+        logger.debug(f"Cached response for game {game_id}, player {player_id}")
+
     def get_response_count(self, game_id: int, player_id: int) -> int:
         """
         Get the number of cached responses for a game/player.
@@ -181,24 +144,16 @@ class ResponseCache:
         
         if not cache_file.exists():
             return []
-            
-        lock_file = self._get_lock_file(game_id, player_id)
-        lock = self._acquire_lock(lock_file, exclusive=False)
-        
-        try:
-            responses = []
-            with open(cache_file, 'r') as f:
-                for line in f:
-                    if line.strip():
-                        entry = json.loads(line)
-                        responses.append((entry['timestamp'], entry['response']))
-                        
-            return responses
-            
-        finally:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
-            lock.close()
-                
+
+        responses = []
+        with open(cache_file, 'r') as f:
+            for line in f:
+                if line.strip():
+                    entry = json.loads(line)
+                    responses.append((entry['timestamp'], entry['response']))
+
+        return responses
+
     def clear_cache(self, game_id: int, player_id: int):
         """
         Clear cached responses for a game/player after successful processing.
@@ -208,27 +163,16 @@ class ResponseCache:
             player_id: Player ID
         """
         cache_file = self._get_cache_file(game_id, player_id)
-        lock_file = self._get_lock_file(game_id, player_id)
-        
-        lock = self._acquire_lock(lock_file, exclusive=True)
-        try:
-            if cache_file.exists():
-                cache_file.unlink()
-                logger.debug(f"Cleared cache for game {game_id}, player {player_id}")
-            
-            # Remove from in-memory counter
-            key = (game_id, player_id)
-            if key in self._response_counts:
-                del self._response_counts[key]
-                
-        finally:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
-            lock.close()
-                
-        # Clean up lock file
-        if lock_file.exists():
-            lock_file.unlink()
-            
+
+        if cache_file.exists():
+            cache_file.unlink()
+            logger.debug(f"Cleared cache for game {game_id}, player {player_id}")
+
+        # Remove from in-memory counter
+        key = (game_id, player_id)
+        if key in self._response_counts:
+            del self._response_counts[key]
+
     def list_games_with_responses(self) -> List[Tuple[int, int]]:
         """
         List all game/player combinations that have cached responses.
@@ -253,26 +197,3 @@ class ResponseCache:
                 ready_games.append((game_id, player_id))
                 
         return ready_games
-        
-    def get_cache_stats(self) -> Dict[str, int]:
-        """
-        Get statistics about the cache.
-        
-        Returns:
-            Dictionary with cache statistics
-        """
-        games = self.list_games_with_responses()
-        total_responses = 0
-        ready_count = 0
-        
-        for game_id, player_id in games:
-            count = self.get_response_count(game_id, player_id)
-            total_responses += count
-            if count >= self.batch_size:
-                ready_count += 1
-                
-        return {
-            'total_games': len(games),
-            'games_ready': ready_count,
-            'total_responses': total_responses
-        }
