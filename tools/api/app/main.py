@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from app.core.config import settings
-from app.api.routes import auth, downloads
+from app.api.routes import auth, downloads, admin
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -15,6 +15,7 @@ app = FastAPI(
 
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(downloads.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/health", tags=["health"])

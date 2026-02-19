@@ -1,22 +1,35 @@
 from __future__ import annotations
 
+import secrets
+import string
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from sqlalchemy import select
+import pyotp
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import (
+    create_2fa_pending_token,
     create_access_token,
     create_refresh_token,
     decode_token,
+    generate_device_token,
+    hash_device_token,
     hash_password,
     verify_password,
 )
 from app.core.config import settings
+from app.models.device import Device
 from app.models.session import Session
 from app.models.user import User, UserRole
-from app.schemas.auth import LoginRequest, TokenResponse, UserCreate
+from app.schemas.auth import (
+    DeviceResponse,
+    LoginRequest,
+    TokenResponse,
+    TwoFAPendingResponse,
+    UserCreate,
+)
 
 
 async def register_user(db: AsyncSession, data: UserCreate) -> User:
@@ -31,7 +44,7 @@ async def register_user(db: AsyncSession, data: UserCreate) -> User:
         email=data.email,
         username=data.username,
         hashed_password=hash_password(data.password),
-        role=UserRole.user,
+        role=UserRole.free,
         is_active=True,
     )
     db.add(user)
@@ -40,8 +53,11 @@ async def register_user(db: AsyncSession, data: UserCreate) -> User:
     return user
 
 
-async def authenticate_user(db: AsyncSession, data: LoginRequest) -> TokenResponse:
-    """Validate credentials and return JWT pair.  Raises ValueError on failure."""
+async def authenticate_user(
+    db: AsyncSession,
+    data: LoginRequest,
+) -> TokenResponse | TwoFAPendingResponse:
+    """Validate credentials; if 2FA is enabled return a pending token, else issue JWT pair."""
     result = await db.execute(select(User).where(User.username == data.username))
     user: User | None = result.scalars().first()
     if not user or not verify_password(data.password, user.hashed_password):
@@ -49,7 +65,91 @@ async def authenticate_user(db: AsyncSession, data: LoginRequest) -> TokenRespon
     if not user.is_active:
         raise ValueError("Account is disabled")
 
-    access = create_access_token(str(user.id))
+    if user.totp_enabled or user.email_2fa_enabled:
+        pending = create_2fa_pending_token(str(user.id))
+        return TwoFAPendingResponse(two_fa_pending_token=pending)
+
+    return await _issue_tokens_and_device(db, user, data.device_name, data.device_info)
+
+
+async def complete_2fa_login(
+    db: AsyncSession,
+    pending_token: str,
+    code: str,
+    device_name: str = "",
+    device_info: str | None = None,
+) -> TokenResponse:
+    """Verify 2FA code from a pending token and issue the final JWT pair."""
+    try:
+        payload = decode_token(pending_token)
+    except jwt.PyJWTError:
+        raise ValueError("Invalid or expired 2FA pending token")
+
+    if payload.get("type") != "2fa_pending":
+        raise ValueError("Token is not a 2FA pending token")
+
+    user_id = int(payload["sub"])
+    result = await db.execute(select(User).where(User.id == user_id))
+    user: User | None = result.scalars().first()
+    if not user or not user.is_active:
+        raise ValueError("User not found or disabled")
+
+    # Prefer TOTP if enabled, fall back to email 2FA
+    if user.totp_enabled:
+        if not user.totp_secret:
+            raise ValueError("TOTP not configured")
+        totp = pyotp.TOTP(user.totp_secret)
+        if not totp.verify(code, valid_window=1):
+            raise ValueError("Invalid TOTP code")
+    elif user.email_2fa_enabled:
+        now = datetime.now(timezone.utc)
+        if (
+            user.email_2fa_code != code
+            or user.email_2fa_code_expires_at is None
+            or user.email_2fa_code_expires_at < now
+        ):
+            raise ValueError("Invalid or expired email 2FA code")
+        user.email_2fa_code = None
+        user.email_2fa_code_expires_at = None
+    else:
+        raise ValueError("No 2FA method configured")
+
+    await db.commit()
+    return await _issue_tokens_and_device(db, user, device_name, device_info)
+
+
+async def _issue_tokens_and_device(
+    db: AsyncSession,
+    user: User,
+    device_name: str = "",
+    device_info: str | None = None,
+) -> TokenResponse:
+    """Create/replace a device record and issue JWT pair."""
+    # Enforce max concurrent devices – remove oldest if limit exceeded
+    existing_q = await db.execute(
+        select(Device)
+        .where(Device.user_id == user.id)
+        .order_by(Device.created_at.asc())
+    )
+    existing_devices = list(existing_q.scalars().all())
+    while len(existing_devices) >= settings.MAX_DEVICES_PER_USER:
+        oldest = existing_devices.pop(0)
+        await db.delete(oldest)
+
+    raw_token = generate_device_token()
+    token_hash = hash_device_token(raw_token)
+
+    device = Device(
+        user_id=user.id,
+        device_name=device_name or "unknown",
+        device_info=device_info,
+        token_hash=token_hash,
+        last_active=datetime.now(timezone.utc),
+    )
+    db.add(device)
+    await db.flush()  # get device.id
+
+    access = create_access_token(str(user.id), device_id=device.id)
     refresh = create_refresh_token(str(user.id))
 
     session = Session(
@@ -130,3 +230,89 @@ async def get_current_user(db: AsyncSession, token: str) -> User:
     if not user.is_active:
         raise ValueError("Account is disabled")
     return user
+
+
+# ── TOTP 2FA ─────────────────────────────────────────────────────────────────
+
+async def totp_enroll(db: AsyncSession, user: User) -> str:
+    """Generate a new TOTP secret for the user (pending confirmation).
+    Returns the provisioning URI for QR-code generation."""
+    secret = pyotp.random_base32()
+    user.totp_pending_secret = secret
+    await db.commit()
+    totp = pyotp.TOTP(secret)
+    return totp.provisioning_uri(name=user.email, issuer_name="Conlyse")
+
+
+async def totp_verify_enroll(db: AsyncSession, user: User, code: str) -> None:
+    """Verify TOTP code and activate TOTP for the user.  Raises ValueError on failure."""
+    if not user.totp_pending_secret:
+        raise ValueError("No TOTP enrollment in progress")
+    totp = pyotp.TOTP(user.totp_pending_secret)
+    if not totp.verify(code, valid_window=1):
+        raise ValueError("Invalid TOTP code")
+    user.totp_secret = user.totp_pending_secret
+    user.totp_pending_secret = None
+    user.totp_enabled = True
+    await db.commit()
+
+
+async def totp_disable(db: AsyncSession, user: User) -> None:
+    """Disable TOTP for the user."""
+    user.totp_secret = None
+    user.totp_pending_secret = None
+    user.totp_enabled = False
+    await db.commit()
+
+
+# ── Email 2FA ─────────────────────────────────────────────────────────────────
+
+def _random_code(length: int = 6) -> str:
+    return "".join(secrets.choice(string.digits) for _ in range(length))
+
+
+async def email_2fa_send(db: AsyncSession, user: User) -> str:
+    """Generate and store an email 2FA code; return the code for sending."""
+    code = _random_code()
+    user.email_2fa_code = code
+    user.email_2fa_code_expires_at = datetime.now(timezone.utc) + timedelta(
+        seconds=settings.EMAIL_2FA_CODE_EXPIRE_SECONDS
+    )
+    user.email_2fa_enabled = True
+    await db.commit()
+    return code
+
+
+async def email_2fa_verify(db: AsyncSession, user: User, code: str) -> None:
+    """Verify an email 2FA code.  Raises ValueError on failure."""
+    now = datetime.now(timezone.utc)
+    if (
+        user.email_2fa_code != code
+        or user.email_2fa_code_expires_at is None
+        or user.email_2fa_code_expires_at < now
+    ):
+        raise ValueError("Invalid or expired email 2FA code")
+    user.email_2fa_code = None
+    user.email_2fa_code_expires_at = None
+    await db.commit()
+
+
+# ── Device management ─────────────────────────────────────────────────────────
+
+async def list_devices(db: AsyncSession, user: User) -> list[Device]:
+    result = await db.execute(
+        select(Device).where(Device.user_id == user.id).order_by(Device.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def revoke_device(db: AsyncSession, user: User, device_id: int) -> None:
+    result = await db.execute(
+        select(Device).where(Device.id == device_id, Device.user_id == user.id)
+    )
+    device: Device | None = result.scalars().first()
+    if not device:
+        raise LookupError("Device not found")
+    await db.delete(device)
+    await db.commit()
+
