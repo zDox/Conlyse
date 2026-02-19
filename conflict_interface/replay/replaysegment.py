@@ -4,7 +4,6 @@ from collections import deque
 from datetime import UTC
 from datetime import datetime
 from logging import getLogger
-from typing import Literal
 from typing import TYPE_CHECKING
 
 
@@ -23,12 +22,9 @@ logger = getLogger()
 
 
 class ReplaySegment:
-    def __init__(self, data: bytearray, version:int, mode: Literal['r', 'w', 'a', 'rw'] = 'r', game_id: int = None, player_id: int = None, max_patches: int = None):
-        self._mode = mode
+    def __init__(self, data: bytearray, version:int, game_id: int = None, player_id: int = None, max_patches: int = None):
         self.game_id = game_id
         self.player_id = player_id
-
-        self._is_open = False
 
         self.storage = ReplayStorage(data, version)
 
@@ -36,19 +32,6 @@ class ReplaySegment:
         self._game: ReplayInterface | None = None
         self._max_patches = max_patches
         self._append_que = deque([])
-
-    def is_open(self) -> bool:
-        return self._is_open
-
-    def set_mode(self, mode: Literal['r', 'w', 'a', 'rw']):
-        if self.is_open():
-            logger.error("Replay is open -> Cannot set Mode")
-            return
-
-        self._mode = mode
-
-    def get_mode(self):
-        return self._mode
 
     def set_game(self, game: ReplayInterface):
         self._game = game
@@ -59,55 +42,13 @@ class ReplaySegment:
     def set_max_patches(self, max_patches: int):
         self._max_patches = max_patches
 
-    def __enter__(self):
-        return self.open()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
     def get_op_counter(self) -> int:
         return self._op_counter
 
     def reset_op_counter(self):
         self._op_counter = 0
 
-    def open(self):
-        if self._is_open:
-            logger.warning("Replay is already open")
-            return None
-
-        if self._mode == 'r':
-            self.load_everything_into_memory()
-
-        elif self._mode == 'a':
-
-            self.storage.read_append_mode_from_disk()
-            self.storage.load_metadata()
-            self.storage.load_last_game_state()
-            self.storage.load_path_tree()
-
-        elif self._mode == 'w':
-            if self.game_id is None or self.player_id is None:
-                raise ValueError("Game ID and Player ID must be provided in write mode")
-
-            if self._max_patches is None:
-                raise ValueError("Max Patches not set")
-
-            self.storage.initialize(self._max_patches)
-
-        elif self._mode == 'rw':
-            if self.game_id is None or self.player_id is None:
-                raise ValueError("Game ID and Player ID must be provided in read write mode")
-
-            if self._max_patches is None:
-                raise ValueError("Max Patches not set")
-
-            self.load_everything_into_memory()
-
-        self._is_open = True
-        return self
-
-    def load_everything_into_memory(self):
+    def load_everything(self):
         self.storage.read_all()
         self.storage.load_metadata()
         self.storage.load_initial_game_state(self._game)
@@ -117,33 +58,31 @@ class ReplaySegment:
         self.storage.path_tree.precompute()
         self.storage.patch_graph.finalize()
 
-    def close(self):
-        if not self._is_open:
-            logger.warning("Replay is already closed")
-            return
+    def load_append_mode(self):
+        self.storage.read_append_mode_from_disk()
+        self.storage.load_metadata()
+        self.storage.load_last_game_state()
+        self.storage.load_path_tree()
 
+    def collapse_append_mode(self):
         self.validate_max_patches()
+        self.storage.update_metadata()
+        self.storage.unload_last_game_state()
+        self.storage.write_last_game_state()
 
-        if self._mode in ['w', 'rw']:
-            # When closing in write or read-write mode the replay gets defragmented. This improves read performance (maybe)
-            self.storage.metadata.is_fragmented = False
+    def collapse_all(self):
+        self.validate_max_patches()
+        self.storage.metadata.is_fragmented = False
 
-            # Serialize everything
-            self.storage.unload_metadata()
-            self.storage.unload_path_tree()
-            self.storage.unload_patches()
-            self.storage.unload_last_game_state()
+        # Serialize everything
+        self.storage.unload_metadata()
+        self.storage.unload_path_tree()
+        self.storage.unload_patches()
+        self.storage.unload_last_game_state()
 
-            # Assumes that initial-game-state and static-map-data have been unloaded on initial record
-            # Write everything to file
-            self.storage.write_all()
-        elif self._mode in ['a']:
-            self.storage.update_metadata()
-            self.storage.unload_last_game_state()
-            self.storage.write_last_game_state()
-            # no additional writes needed
-
-        self._is_open = False
+        # Assumes that initial-game-state and static-map-data have been unloaded on initial record
+        # Write everything to file
+        self.storage.write_all()
 
     def record_initial_game_state(self, game_state: GameState, time_stamp: datetime, game_id: int, player_id: int):
         self.validate_game(game_id, player_id)
@@ -210,12 +149,6 @@ class ReplaySegment:
         self.validate_game(game_id, player_id)
         self.validate_max_patches(2)
 
-        if not self._is_open:
-            logger.warning("Can not append to an closed replay")
-            return
-        if not self._mode == 'a':
-            logger.warning(f"Can only append in Append mode, current mode is {self._mode}")
-            return
 
         self.storage.metadata.is_fragmented = True
         from_timestamp = self.storage.metadata.last_time
@@ -313,8 +246,6 @@ class ReplaySegment:
     def validate_game(self, game_id: int, player_id: int):
         if self.game_id != game_id or self.player_id != player_id:
             raise ValueError("Game ID or Player ID does not match the initialized values.")
-        if not self._is_open:
-            raise ValueError("Replay file is not open.")
 
     def validate_structure(self):
         self.storage.path_tree.validate_idx_to_node_mapping()
