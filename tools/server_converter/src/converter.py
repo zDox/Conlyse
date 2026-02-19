@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Optional, List, Tuple, Dict, Any
 
 from conflict_interface.replay.replay_builder import ReplayBuilder
-from tools.server_converter.config import ServerConverterConfig
-from tools.server_converter.database import ReplayDatabase, ReplayStatus
-from tools.server_converter.redis_consumer import RedisStreamConsumer
-from tools.server_converter.storage import HotStorageManager, ColdStorageManager
-from tools.server_converter.response_cache import ResponseCache
-from tools.server_converter import metrics
+from tools.server_converter.src.config import ServerConverterConfig
+from tools.server_converter.src.database import ReplayDatabase, ReplayStatus
+from tools.server_converter.src.redis_consumer import RedisStreamConsumer
+from tools.server_converter.src.cold_storage import ColdStorageManager
+from tools.server_converter.src.hot_storage import HotStorageManager
+from tools.server_converter.src.response_cache import ResponseCache
+from tools.server_converter.src import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -186,20 +187,18 @@ class ServerConverter:
         """
         logger.info(f"Processing {len(json_responses)} responses for game {game_id}, player {player_id}")
         
-        # Check if replay exists in hot storage
-        replay_path = self.hot_storage.get_replay_path(game_id, player_id)
-        replay_exists = replay_path.exists()
-        
+        # Check if replay exists in hot storage using cache
+        replay_exists = self.hot_storage.replay_exists(game_id, player_id)
+
         # Get or create database entry
         replay_entry = self.db.get_replay_by_game_and_player(game_id, player_id)
         
         if not replay_exists and not replay_entry:
             # Create new replay
-            return self._create_new_replay(game_id, player_id, json_responses, replay_path)
+            return self._create_new_replay(game_id, player_id, json_responses)
         elif replay_exists and replay_entry:
             # Append to existing replay
-            return self._append_to_replay(game_id, player_id, json_responses, 
-                                         replay_path, replay_entry)
+            return self._append_to_replay(game_id, player_id, json_responses, replay_entry)
         else:
             # Inconsistent state - log error
             logger.error(f"Inconsistent state for game {game_id}, player {player_id}: "
@@ -207,8 +206,7 @@ class ServerConverter:
             return False
             
     def _create_new_replay(self, game_id: int, player_id: int,
-                          json_responses: List[Tuple[int, dict]],
-                          replay_path: Path) -> bool:
+                          json_responses: List[Tuple[int, dict]]) -> bool:
         """
         Create a new replay file.
         
@@ -216,8 +214,7 @@ class ServerConverter:
             game_id: Game ID
             player_id: Player ID
             json_responses: List of (timestamp, response) tuples
-            replay_path: Path where replay should be created
-            
+
         Returns:
             True if successful
         """
@@ -226,6 +223,9 @@ class ServerConverter:
         start_time = time.time()
         
         try:
+            # Register replay in hot storage cache and get path
+            replay_path = self.hot_storage.add_replay(game_id, player_id)
+
             # Create replay builder
             builder = ReplayBuilder(replay_path, game_id, player_id)
             
@@ -271,7 +271,7 @@ class ServerConverter:
             
     def _append_to_replay(self, game_id: int, player_id: int,
                          json_responses: List[Tuple[int, dict]],
-                         replay_path: Path, replay_entry: Dict[str, Any]) -> bool:
+                         replay_entry: Dict[str, Any]) -> bool:
         """
         Append responses to an existing replay.
         
@@ -279,7 +279,6 @@ class ServerConverter:
             game_id: Game ID
             player_id: Player ID
             json_responses: List of (timestamp, response) tuples
-            replay_path: Path to existing replay
             replay_entry: Database entry for the replay
             
         Returns:
@@ -290,6 +289,8 @@ class ServerConverter:
         start_time = time.time()
         
         try:
+            # Get replay path from hot storage
+            replay_path = self.hot_storage.get_replay_path(game_id, player_id)
             # Create replay builder in append mode
             builder = ReplayBuilder(replay_path, game_id, player_id)
             
@@ -397,9 +398,9 @@ class ServerConverter:
             self.shutdown()
             
     def _update_hot_storage_metric(self):
-        """Update the hot storage replays gauge metric."""
+        """Update the hot storage replays gauge metric using cached count."""
         try:
-            replay_count = sum(1 for _ in self.hot_storage.list_replays())
+            replay_count = self.hot_storage.count_replays()
             metrics.hot_storage_replays.set(replay_count)
         except Exception as e:
             logger.warning(f"Failed to update hot storage metric: {e}")

@@ -8,8 +8,8 @@ from pathlib import Path
 
 from prometheus_client import start_http_server
 
-from tools.server_converter.config import ServerConverterConfig
-from tools.server_converter.converter import ServerConverter
+from tools.server_converter.src.config import ServerConverterConfig
+from tools.server_converter.src.converter import ServerConverter
 
 
 def setup_logging(level: int = logging.INFO):

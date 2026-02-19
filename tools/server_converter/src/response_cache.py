@@ -3,12 +3,13 @@ Disk-based cache for game responses.
 
 Stores responses on disk temporarily until they can be processed into replays.
 """
+import fcntl
 import json
 import logging
 from pathlib import Path
-from typing import List, Tuple, Dict, Optional
-import fcntl
-import tempfile
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
