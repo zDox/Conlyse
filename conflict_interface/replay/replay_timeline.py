@@ -52,7 +52,7 @@ class ReplayTimeline:
 
     def que_append_patch(self, version :int, to_time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch):
         assert self._mode == "a"
-        segment = self._find_last_version_entry(version)[1]
+        segment = self._find_open_segment(version)[1]
         if segment is None:
             segment = self._create_segment(version, self.last_time, game_id, player_id)
 
@@ -71,43 +71,39 @@ class ReplayTimeline:
         for segment in self.segments.values():
             segment.execute_append_que()
 
-    def _find_last_version_entry(self, version) -> tuple:
-        """
-        Find last segment for specific version
+    def _find_open_segment(self, version: int) -> tuple | None:
+        """Return the (key, segment) pair for the open segment of the given version, or None."""
+        return next(
+            ((key, seg) for (key, seg) in self.segments.items() if key[2] == version and key[1] is None),
+            None
+        )
 
-        Args:
-            version: the version to serach for
+    def _close_segment(self, key: tuple, close_timestamp: datetime) -> None:
+        """Close an open segment by replacing its key with a bounded one."""
+        from_ts, _, version = key
+        segment = self.segments.pop(key)
+        self.segments[(from_ts, close_timestamp, version)] = segment
 
-        Returns: Open key value pair entry from self.segments with the correct version
-
-        """
-        for (from_ts, to_ts, v), segment in self.segments.items():
-            if version == v:
-                if to_ts is None:
-                    return (from_ts, to_ts, v), segment
-        return None, None
-
-    def _create_segment(self, version: int, from_timestamp: datetime, game_id: int, player_id: int):
+    def _create_segment(self, version: int, from_timestamp: datetime, game_id: int, player_id: int) -> "ReplaySegment":
         assert self._mode == "a"
-        # -- Close Last Segment --
-        last_entry = self._find_last_version_entry(version)
-        if last_entry != (None, None):
-            closed_entry = (last_entry[0][0], from_timestamp, version)
-            self.segments[closed_entry] = last_entry[1]
-            self.segments.pop(last_entry[0])
-        # -- Create new segment -- 
-        segment = ReplaySegment(bytearray([]),version,  game_id=game_id, player_id=player_id, max_patches= DEFAULT_MAX_PATCHES)
+
+        for v in range(version+1): # +1 -> Also close last segment in current version
+            entry = self._find_open_segment(v)
+            if entry is not None:
+                self._close_segment(entry[0], from_timestamp)
+
+        segment = ReplaySegment(bytearray(), version, game_id=game_id, player_id=player_id,
+                                max_patches=DEFAULT_MAX_PATCHES)
         segment.collapse_all()
         segment.load_everything()
         self.segments[(from_timestamp, None, version)] = segment
         return segment
 
-    def _extend_segment(self, segment):
+    def _extend_segment(self, segment: "ReplaySegment") -> None:
         assert self._mode == "a"
-        new_max_patches = segment.storage.metadata.current_patches*2
+        new_max_patches = segment.storage.metadata.current_patches * 2
         segment.collapse_all()
         segment.set_max_patches(new_max_patches)
         segment.load_append_mode()
-
 
 
