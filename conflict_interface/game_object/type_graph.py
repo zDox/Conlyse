@@ -1,5 +1,6 @@
 
 from collections import deque
+from copy import deepcopy
 from dataclasses import is_dataclass
 from enum import Enum
 from typing import Union
@@ -61,14 +62,10 @@ class TypeGraph:
     def register_type(cls, version, _type):
         cls._TYPE_QUE.append((version,_type))
 
-    def add_type(self, _type):
-        self.build = False
-        self._TYPE_QUE.append((self.version, _type))
-
     def build_graph(self):
-        while self._TYPE_QUE:
-            version, _type = self._TYPE_QUE.pop()
-            self._temp_type_que.append((version, _type))
+        self._temp_type_que = deepcopy(self._TYPE_QUE)
+        while self._temp_type_que:
+            version, _type = self._temp_type_que.pop()
 
             if version != -1 and version != self.version:
                 continue
@@ -92,8 +89,6 @@ class TypeGraph:
                 t = type_hints[python_name]
                 self.add_type_recursive(_type, t, python_name)
 
-        self._TYPE_QUE = self._temp_type_que
-        self._temp_type_que = deque([])
         self.build = True
 
 

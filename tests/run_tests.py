@@ -1,5 +1,6 @@
 import sys
 import unittest
+from conflict_interface import *
 
 
 # from conflict_interface.logger_config import setup_library_logger
