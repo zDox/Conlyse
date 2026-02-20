@@ -17,7 +17,7 @@ public:
                     const std::string& long_term_storage_path = "",
                     int file_size_threshold = 0);
     
-    void save_response(std::string&& response_str);
+    void save_response(const std::vector<uint8_t> &compressed_data);
     void update_resume_metadata(const json& resume);
     json get_resume_metadata() const;
     bool has_resume_metadata() const;

@@ -13,6 +13,7 @@
 #include "observation_package.hpp"
 #include "request_manager.hpp"
 #include "proxy_config.hpp"
+#include "redis_publisher.hpp"
 
 using json = nlohmann::json;
 namespace asio = boost::asio;
@@ -81,7 +82,8 @@ public:
         std::string storage_path,
         std::string metadata_path = "",
         std::string long_term_storage_path = "",
-        int file_size_threshold = 0);
+        int file_size_threshold = 0,
+        std::shared_ptr<RedisPublisher> redis_publisher = nullptr);
 
     ~ObservationSession();
 
@@ -124,6 +126,7 @@ private:
     ObservationPackage package_;
     std::unique_ptr<RecordingStorage> storage_;
     int attempt_;
+    std::shared_ptr<RedisPublisher> redis_publisher_;
 
     RecordingStorage *ensure_storage();
 

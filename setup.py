@@ -40,6 +40,12 @@ extras_require = {
         "httpx",
         "httpx[socks]"
     ],
+    "tools-server-converter": [
+        "redis",
+        "boto3",
+        "psycopg2-binary",
+        "prometheus-client"
+    ],
     "test-long-patches": [
         "deepdiff"
     ]
@@ -140,6 +146,7 @@ setup(
             "recorder=tools.recorder.__main__:main",
             "replay-debug=tools.replay_debug.__main__:main",
             "recording-converter=tools.recording_converter.__main__:main",
+            "server-converter=tools.server_converter.__main__:main",
             # server-observer is now a C++ binary, build from tools/server_observer/
         ],
     },

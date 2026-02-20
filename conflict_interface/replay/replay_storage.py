@@ -78,7 +78,7 @@ class ReplayStorage:
         File structure (in order):
         1. Metadata (uncompressed, fixed size)
         2. Initial game state (LZ4 compressed)
-        3. Static map data (LZ4 compressed)
+        3. Static map data (LZ4 compressed) - optional
         4. Path tree (LZ4 compressed)
         5. Patch index (uncompressed for random access)
         6. Data pool (uncompressed patches)
@@ -99,10 +99,15 @@ class ReplayStorage:
         # Read metadata (uncompressed)
         length = reader.read_int32()
         self._metadata_b = reader.read_bytes(length)
+        self.load_metadata()
 
         # Read compressed sections
         self._initial_game_state_b = read_compressed(reader)
-        self._static_map_data_b = read_compressed(reader)
+
+        # Conditionally read static map data based on metadata flag
+        if self.metadata.has_static_map_data:
+            self._static_map_data_b = read_compressed(reader)
+
         self._path_tree_b = read_compressed(reader)
 
         # Read patch index (uncompressed for direct access)
@@ -130,14 +135,16 @@ class ReplayStorage:
         # Read metadata
         length = reader.read_int32()
         self._metadata_b = reader.read_bytes(length)
+        self.load_metadata()
 
         # Skip initial game state (not needed for appending)
         length = reader.read_int32()
         reader.skip(length)
 
-        # Skip static map data (not needed for appending)
-        length = reader.read_int32()
-        reader.skip(length)
+        # Skip static map data if it exists (not needed for appending)
+        if self.metadata.has_static_map_data:
+            length = reader.read_int32()
+            reader.skip(length)
 
         # Read and decompress path tree
         length = reader.read_int32()
@@ -184,7 +191,6 @@ class ReplayStorage:
 
         # Validate all required data is present
         assert self._initial_game_state_b is not None, "Initial game state is not recorded in the replay."
-        assert self._static_map_data_b is not None, "Static map data is not recorded in the replay."
         assert self._path_tree_b is not None, "No Path Tree to put into memory"
         assert self._patch_index_b is not None, "Patch graph metadata has not been read."
         assert self._d_pool_b is not None, "Data pool has not been read"
@@ -198,7 +204,14 @@ class ReplayStorage:
 
         # Write compressed game data
         write_compressed(data, self._initial_game_state_b)
-        write_compressed(data, self._static_map_data_b)
+
+        # Write static map data only if it's set
+        if self._static_map_data_b is not None:
+            write_compressed(data, self._static_map_data_b)
+            self.metadata.has_static_map_data = True
+        else:
+            self.metadata.has_static_map_data = False
+
         write_compressed(data, self._path_tree_b)
 
         # Write patch index uncompressed (enables direct indexing)

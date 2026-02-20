@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+docs/_build/
+*.md
+!README.md
+!DOCKER.md
+
+# Tests
+tests/
+performance_tests/
+
+# Examples
+examples/
+
+# Build artifacts
+*.o
+*.a
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Logs and databases
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+docker-compose.yml
+.env
+.env.*
+docker/
+
+# Recordings and data
+recordings/
+long_term_storage/
+*.replay

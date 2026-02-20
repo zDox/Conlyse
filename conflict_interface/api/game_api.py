@@ -22,7 +22,7 @@ from conflict_interface.utils.exceptions import CountryUnselectedException
 from conflict_interface.utils.exceptions import GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
 
-VERSION = 208 # TODO how to do this
+VERSION = 210 # TODO how to do this
 
 
 if TYPE_CHECKING:

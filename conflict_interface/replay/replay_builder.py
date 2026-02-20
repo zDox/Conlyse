@@ -22,13 +22,15 @@ class ReplayBuilder:
     FULL_STATE_TYPE = "ultshared.UltGameState"
     PATCH_BUFFER_MULTIPLIER = 2
     MAX_PATCHES = 10000
-
+    parser = JsonParser()
+    built = False
     def __init__(self, path: Path, game_id: int, player_id: int):
         self.path = path
         # Initialize parser
-        self.parser = JsonParser()
-        self.parser.type_graph.build_graph()
-        self.parser.type_graph.add_c_tag(GameState, "ultshared.UltAutoGameState")
+        if not self.__class__.built:
+            self.__class__.parser.type_graph.build_graph()
+            self.__class__.parser.type_graph.add_c_tag(GameState, "ultshared.UltAutoGameState")
+            self.__class__.built = True
 
         self.replay: Optional[ReplayTimeline] = None
         self.game_id = game_id
@@ -58,14 +60,14 @@ class ReplayBuilder:
     def create_replay(
             self,
             json_responses: list[tuple[int, dict]],
-            static_map_data: StaticMapData,
+            static_map_data: Optional[StaticMapData] = None,
             max_patches: Optional[int] = None) -> int:
         """
         Create a new replay from JSON responses.
         
         Args:
             json_responses: List of (timestamp, response) tuples
-            static_map_data: Static map data for the replay
+            static_map_data: Optional static map data for the replay (if None, static map will not be recorded)
             max_patches: Maximum number of patches to allocate
             
         Returns:
@@ -99,11 +101,14 @@ class ReplayBuilder:
 
         logger.debug("Recording static map data to replay")
 
-        self.replay.record_static_map_data(
-                static_map_data=static_map_data,
-                game_id=self.game_id,
-                player_id=self.player_id
-        )
+        if static_map_data is not None:
+            self.replay.record_static_map_data(
+                    static_map_data=static_map_data,
+                    game_id=self.game_id,
+                    player_id=self.player_id
+            )
+        else:
+            logger.debug("No static map data provided; skipping static map recording")
         logger.info(f"Recording initial game state at {current_timestamp} (game time)")
         self.replay.record_initial_game_state(
             time_stamp=current_timestamp,
@@ -144,9 +149,6 @@ class ReplayBuilder:
             self.replay.close()
             raise ValueError("No last game state found in replay")
 
-        # Create mock game interface for parsing
-        mock_game = GameInterface()
-
         # Process JSON responses
         num_responses = len(json_responses)
         logger.debug(f"Appending {num_responses} state updates...")
@@ -163,7 +165,7 @@ class ReplayBuilder:
 
             # Parse new state
             new_state: GameState = self.parser.parse_any(
-                GameState, json_response["result"], mock_game
+                GameState, json_response["result"]
             )
             current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
 

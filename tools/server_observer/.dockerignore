@@ -39,6 +39,8 @@ examples
 
 # CMake build artifacts (in server_observer)
 tools/server_observer/build
+tools/server_observer/cmake-build-debug
+tools/server_observer/cmake-build-release
 tools/server_observer/.cache
 
 # Other tools

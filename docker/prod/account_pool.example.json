@@ -1,0 +1,10 @@
+{
+  "_comment": "Account pool for Server Observer - Add your game accounts here",
+  "accounts": [
+    {
+      "username": "guest_account_1",
+      "type": "guest",
+      "enabled": true
+    }
+  ]
+}

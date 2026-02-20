@@ -34,6 +34,24 @@ pip install -e ".[tests]"
 pip install -e ".[dev]"
 ```
 
+## Docker Deployment 🐳
+
+The complete stack (Server Observer, Redis, PostgreSQL, MinIO S3, Server Converter) can be deployed with Docker:
+
+```bash
+# Quick start
+cp .env.example .env
+./stack.sh start
+
+# Check status
+./stack.sh status
+
+# Access MinIO console
+open http://localhost:9001
+```
+
+See [DOCKER.md](DOCKER.md) for complete documentation or [QUICK_START.md](QUICK_START.md) for a quick reference.
+
 ## Quick Start
 
 ### Basic Game Interaction
@@ -113,6 +131,16 @@ recording-converter --recording-dir recordings/my_game --output-replay output.db
 ```
 
 See [Recording Converter Documentation](tools/recording_converter/README.md) for details.
+
+### server-converter
+
+Process game responses from Redis streams and convert them to replay files. Works in conjunction with server-observer to automatically create and manage replays.
+
+```bash
+server-converter config.json
+```
+
+See [Server Converter Documentation](tools/server_converter/README.md) for details.
 
 ### replay-debug
 

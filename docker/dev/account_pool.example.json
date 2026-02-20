@@ -1,0 +1,11 @@
+{
+  "_comment": "Account pool for LOCAL DEVELOPMENT",
+  "_comment2": "Add your game accounts here for testing",
+  "accounts": [
+    {
+      "username": "guest_dev_account",
+      "type": "guest",
+      "enabled": true
+    }
+  ]
+}
