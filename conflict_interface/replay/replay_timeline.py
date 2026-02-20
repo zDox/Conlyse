@@ -1,33 +1,118 @@
+import struct
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
+
+import zstandard as zstd
 
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replaysegment import ReplaySegment
+from conflict_interface.utils.helper import dt_to_ns
+from conflict_interface.utils.helper import ns_to_dt
 
 DEFAULT_MAX_PATCHES = 3000
 
 logger = get_logger()
 
+_MAGIC = b"RPLYZSTD"
+_VERSION = 1
+
 class ReplayTimeline:
-    def __init__(self, mode: Literal['r', 'a'] = 'r'):
+    def __init__(self,file_path: Path, mode: Literal['r', 'a'] = 'r'):
         self._mode: Literal['r','a'] = mode
         self._open = False
+        self.file_path = file_path
         self.segments: dict[tuple[datetime, datetime | None, int], ReplaySegment] = {} # [From_ts, To_ts, version] -> segment
 
+        self.compressor = zstd.ZstdCompressor(level=11)
+        self.decompressor = zstd.ZstdDecompressor()
+
         self.last_time: datetime | None = None
+
+    def read_from_disk(self):
+        assert not self.open(), "Reading to a Open Timeline is not Supported"
+
+        result: dict[tuple[datetime, datetime | None, int], ReplaySegment] = {}
+
+        dctx = self.decompressor
+
+        with open(self.file_path, "rb") as raw:
+            with dctx.stream_reader(source=raw) as reader:
+
+                def read_exact(n: int) -> bytes:
+                    data = reader.read(n)
+                    if len(data) != n:
+                        raise EOFError("Unexpected end of file while reading replay")
+                    return data
+
+                # ---- file header ----
+                magic = read_exact(len(_MAGIC))
+                if magic != _MAGIC:
+                    raise ValueError("Not a replay zstd file (bad magic)")
+
+                (version,) = struct.unpack("<I", read_exact(4))
+                if version != _VERSION:
+                    raise ValueError(f"Unsupported file version: {version}")
+
+                (count,) = struct.unpack("<Q", read_exact(8))
+
+                # ---- segments ----
+                for _ in range(count):
+                    start_ns, end_ns, seg_version, size = struct.unpack(
+                        "<qqiQ", read_exact(struct.calcsize("<qqiQ"))
+                    )
+
+                    payload = bytearray(read_exact(size))
+
+                    start_dt = ns_to_dt(start_ns)
+                    end_dt = ns_to_dt(end_ns)
+
+                    key = (start_dt, end_dt, seg_version)
+                    result[key] = ReplaySegment(payload, seg_version)
+
+        self.segments =result
+
+    def write_to_disk(self):
+        assert not self.open(), "Writing a Open Timeline is not Supported"
+
+        cctx = self.compressor
+        # Always sort for determinism.
+        ordered_items = sorted(self.segments.items(), key=lambda kv: kv[0])
+
+        with open(self.file_path, "wb") as raw:
+            with cctx.stream_writer(raw) as compressor:
+                # ---- file header ----
+                compressor.write(_MAGIC)  # magic
+                compressor.write(struct.pack("<I", _VERSION))  # version
+                compressor.write(struct.pack("<Q", len(ordered_items)))
+
+                # ---- segments ----
+                for (start, end, idx), segment in ordered_items:
+                    payload = segment.get_binary()  # bytearray
+
+                    header = struct.pack(
+                        "<qqiQ",
+                        dt_to_ns(start),
+                        dt_to_ns(end),
+                        idx,
+                        len(payload),
+                    )
+
+                    compressor.write(header)
+                    compressor.write(payload)
 
     def open(self):
         if self._open:
             return
-
+        self.read_from_disk()
         if self._mode == "a":
             for segment in self.segments.values():
                 segment.load_append_mode()
         elif self._mode == "r":
             for segment in self.segments.values():
                 segment.load_everything()
-        pass
+        self._open = True
 
     def close(self):
         if not self._open:
@@ -35,7 +120,8 @@ class ReplayTimeline:
         if self._mode == "a":
             for segment in self.segments.values():
                 segment.collapse_append_mode()
-        pass
+        self.write_to_disk()
+        self._open = False
 
     def get_mode(self):
         return self._mode
@@ -78,7 +164,7 @@ class ReplayTimeline:
             None
         )
 
-    def _close_segment(self, key: tuple, close_timestamp: datetime) -> None:
+    def _close_segment(self, key: tuple[datetime, datetime | None, int], close_timestamp: datetime) -> None:
         """Close an open segment by replacing its key with a bounded one."""
         from_ts, _, version = key
         segment = self.segments.pop(key)

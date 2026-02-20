@@ -5,7 +5,6 @@ import struct
 from array import array
 from logging import getLogger
 from typing import TYPE_CHECKING
-from typing import cast
 
 import lz4.frame
 import msgpack
@@ -24,6 +23,8 @@ from conflict_interface.utils.binary import BinaryWriter
 
 if TYPE_CHECKING:
     from conflict_interface.interface.replay_interface import ReplayInterface
+    from conflict_interface.data_types.newest.game_state.game_state import GameState
+    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 logger = getLogger()
 
@@ -66,6 +67,9 @@ class ReplayStorage:
         self.compressor = lz4.frame.compress
         self.decompressor = lz4.frame.decompress
         self.serializer = GameObjectSerializer(version)
+
+    def get_data(self):
+        return self._data_b
 
     def extend(self, required_size):
         if len(self._data_b)<required_size:
@@ -348,7 +352,7 @@ class ReplayStorage:
         self.metadata = Metadata.deserialize(self._metadata_b)
         return self.metadata
 
-    def load_initial_game_state(self, game: ReplayInterface | None) -> GameState:
+    def load_initial_game_state(self, game: ReplayInterface | None) -> object:
         """
         Deserializes the initial game state from the replay.
 
@@ -362,7 +366,6 @@ class ReplayStorage:
         if game is not None:
             # Link game objects back to the replay interface
             GameObject.set_game_recursive(self.initial_game_state, game)
-        self.initial_game_state = cast(GameState, self.initial_game_state)
         return self.initial_game_state
 
     def load_last_game_state(self) -> GameState:
@@ -373,7 +376,7 @@ class ReplayStorage:
         self.last_game_state = pickle.loads(self._last_game_state_b)
         return self.last_game_state
 
-    def load_static_map_data(self, game: ReplayInterface | None) -> StaticMapData:
+    def load_static_map_data(self, game: ReplayInterface | None) -> object:
         """
         Deserializes static map data (terrain, objectives, etc.).
 
@@ -385,7 +388,6 @@ class ReplayStorage:
         self.static_map_data = self.serializer.deserialize(self._static_map_data_b)
         if game is not None:
             GameObject.set_game_recursive(self.static_map_data, game)
-        self.static_map_data = cast(StaticMapData, self.static_map_data)
         return self.static_map_data
 
     def load_path_tree(self) -> PathTree:

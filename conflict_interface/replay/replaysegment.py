@@ -21,6 +21,7 @@ logger = getLogger()
 
 
 
+
 class ReplaySegment:
     def __init__(self, data: bytearray, version:int, game_id: int = None, player_id: int = None, max_patches: int = None):
         self.game_id = game_id
@@ -32,6 +33,9 @@ class ReplaySegment:
         self._game: ReplayInterface | None = None
         self._max_patches = max_patches
         self._append_que = deque([])
+
+    def get_binary(self):
+        return self.storage.get_data()
 
     def set_game(self, game: ReplayInterface):
         self._game = game
