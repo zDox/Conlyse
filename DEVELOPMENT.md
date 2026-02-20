@@ -10,6 +10,7 @@ This guide explains how to set up a local development environment for debugging 
 - [Running Components Locally](#running-components-locally)
   - [Server Converter](#server-converter)
   - [Server Observer](#server-observer)
+  - [Conlyse API](#conlyse-api)
 - [Configuration Files](#configuration-files)
 - [Common Workflows](#common-workflows)
 - [Troubleshooting](#troubleshooting)
@@ -170,6 +171,66 @@ gdb --args ./server_observer ../../docker/local-dev/server-observer-config.json 
 2. Configure CMake with Debug build type
 3. Create Run Configuration with arguments pointing to config files
 4. Set breakpoints and debug
+
+### Conlyse API
+
+The Conlyse API is a FastAPI application located in `tools/api/`. It connects to the same PostgreSQL and MinIO instances.
+
+#### Setup
+
+```bash
+cd tools/api
+
+# Install runtime dependencies
+pip install -r requirements.txt
+
+# Install test / lint dependencies
+pip install -r requirements-test.txt
+```
+
+#### Running Locally
+
+```bash
+cd tools/api
+
+# Start the API (infrastructure must be running via docker-compose.dev.yml)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Set environment variables (or create a `.env` file in `tools/api/`) to point at the local infrastructure:
+
+```bash
+export POSTGRES_HOST=localhost
+export POSTGRES_PORT=5432
+export MINIO_ENDPOINT=http://localhost:9000
+export JWT_SECRET_KEY=dev-secret-key
+```
+
+The interactive API docs are available at **http://localhost:8000/docs**.
+
+#### Running Database Migrations
+
+```bash
+cd tools/api
+alembic upgrade head
+```
+
+#### Running Tests
+
+```bash
+cd tools/api
+pytest tests/ -v
+```
+
+Tests use an in-memory SQLite database — no running PostgreSQL or MinIO instance is required.
+
+#### Linting & Formatting
+
+```bash
+cd tools/api
+ruff check app/     # lint
+black app/          # format (--check for dry run)
+```
 
 ## Configuration Files
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
@@ -23,12 +23,15 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def _create_token(subject: str, expires_delta: timedelta, extra: dict[str, Any] | None = None) -> str:
-    now = datetime.now(timezone.utc)
+def _create_token(
+    subject: str, expires_delta: timedelta, extra: dict[str, Any] | None = None
+) -> str:
+    now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": subject,
         "iat": now,
         "exp": now + expires_delta,
+        "jti": secrets.token_hex(16),
     }
     if extra:
         payload.update(extra)

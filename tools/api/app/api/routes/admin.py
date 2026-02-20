@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import require_role
@@ -36,7 +36,9 @@ async def list_users(
 ) -> PaginatedUsersResponse:
     """List all users (paginated). Admin only."""
     if page < 1 or page_size < 1 or page_size > 100:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid pagination parameters")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid pagination parameters"
+        )
     users, total = await admin_service.list_users(db, page, page_size)
     return PaginatedUsersResponse(
         items=[UserResponse.model_validate(u) for u in users],
@@ -158,11 +160,8 @@ async def upload_binary(
     """
     try:
         file_data = await file.read()
-        s3_key = dl_service.upload_binary_to_s3(
-            platform, version, file_data, file.filename or ""
-        )
+        s3_key = dl_service.upload_binary_to_s3(platform, version, file_data, file.filename or "")
         binary = await dl_service.register_binary(db, platform, version, s3_key)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     return BinaryResponse.model_validate(binary)
-

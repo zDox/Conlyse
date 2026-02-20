@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.core.config import settings
+from app.core.database import get_db
 from app.core.deps import require_role
 from app.models.user import UserRole
-from app.schemas.downloads import BinaryVersionsResponse, PresignedURLResponse, VersionedPresignedURLResponse
+from app.schemas.downloads import (
+    BinaryVersionsResponse,
+    PresignedURLResponse,
+    VersionedPresignedURLResponse,
+)
 from app.services import downloads as dl_service
 
 router = APIRouter(prefix="/downloads", tags=["downloads"])
@@ -39,7 +43,9 @@ async def download_binary_latest(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
-    return VersionedPresignedURLResponse(url=url, expires_in=settings.MINIO_PRESIGN_EXPIRY, version=version)
+    return VersionedPresignedURLResponse(
+        url=url, expires_in=settings.MINIO_PRESIGN_EXPIRY, version=version
+    )
 
 
 @router.get("/binary/{platform}/{version}", response_model=PresignedURLResponse)
@@ -104,4 +110,3 @@ async def download_static_map(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
     return PresignedURLResponse(url=url, expires_in=settings.MINIO_PRESIGN_EXPIRY)
-

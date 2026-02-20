@@ -58,4 +58,3 @@ def send_verification_email(to_address: str, code: str) -> None:
             "If you did not create an account, you can safely ignore this email."
         ),
     )
-

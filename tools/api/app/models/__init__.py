@@ -1,4 +1,5 @@
 """__init__.py — re-export all models so Alembic can discover them."""
+
 from app.models.base import Base  # noqa: F401
 from app.models.binary import Binary  # noqa: F401
 from app.models.device import Device  # noqa: F401
