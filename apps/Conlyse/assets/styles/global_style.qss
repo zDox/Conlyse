@@ -93,7 +93,7 @@ QPushButton[variant="outlined"] {
 }
 
 QPushButton[variant="outlined"]:hover {
-    background-color: secondary;
+    background-color: $secondary_darker;
 }
 
 QPushButton[variant="outlined"]:pressed {
@@ -316,8 +316,8 @@ CChip[variant="outlined"][color="info"] {
 }
 
 CChip[variant="outlined"][color="error"] {
-    border: 2px solid $info;
-    color: $info;
+    border: 2px solid $error;
+    color: $error;
 }
 
 CChip[variant="contained"][color="secondary"] {

@@ -38,5 +38,15 @@
   "success_darker": "#315032",
   "info": "#658ED1",
   "info_dark": "#3A5EA8",
-  "info_darker": "#243B6E"
+  "info_darker": "#243B6E",
+
+  "text_disabled": "#6B7280",
+  "on_primary": "#FFFFFF",
+  "on_secondary": "#FFFFFF",
+  "on_error": "#FFFFFF",
+  "surface_disabled": "#2A2F3E",
+  "primary_hover_overlay": "rgba(25, 75, 112, 0.12)",
+  "primary_pressed_overlay": "rgba(25, 75, 112, 0.24)",
+  "secondary_hover_overlay": "rgba(112, 45, 8, 0.12)",
+  "error_hover_overlay": "rgba(211, 109, 91, 0.12)"
 }
