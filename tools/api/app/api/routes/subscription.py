@@ -14,4 +14,6 @@ async def subscription_status(
     user: User = Depends(get_current_user),
 ) -> SubscriptionStatusResponse:
     """Return the current user's subscription tier."""
-    return SubscriptionStatusResponse(tier=user.role, is_pro=user.role in (UserRole.pro, UserRole.admin))
+    return SubscriptionStatusResponse(
+        tier=user.role, is_pro=user.role in (UserRole.pro, UserRole.admin)
+    )

@@ -52,6 +52,7 @@ class TokenResponse(BaseModel):
 
 class TwoFAPendingResponse(BaseModel):
     """Returned when 2FA is required after password auth."""
+
     two_fa_required: bool = True
     two_fa_pending_token: str
 
@@ -99,4 +100,3 @@ class DeviceResponse(BaseModel):
     device_info: str | None
     last_active: datetime
     created_at: datetime
-

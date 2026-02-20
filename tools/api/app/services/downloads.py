@@ -80,16 +80,12 @@ async def list_binary_versions(db: AsyncSession, platform: str) -> list[str]:
     """Return a list of all available version strings for *platform*, newest first."""
     _validate_platform(platform)
     result = await db.execute(
-        select(Binary.version)
-        .where(Binary.platform == platform)
-        .order_by(Binary.created_at.desc())
+        select(Binary.version).where(Binary.platform == platform).order_by(Binary.created_at.desc())
     )
     return list(result.scalars().all())
 
 
-async def register_binary(
-    db: AsyncSession, platform: str, version: str, s3_key: str
-) -> Binary:
+async def register_binary(db: AsyncSession, platform: str, version: str, s3_key: str) -> Binary:
     """Register a new binary version in the database.  Raises ValueError on duplicate."""
     _validate_platform(platform)
     existing = await db.execute(
@@ -158,4 +154,3 @@ async def get_static_map_url(db: AsyncSession, map_id: str) -> str:
     if not record:
         raise LookupError(f"Map data not found for map_id={map_id}")
     return _generate_presigned_url(settings.MINIO_BUCKET_MAPS, record["s3_path"])
-

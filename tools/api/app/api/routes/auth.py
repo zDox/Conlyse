@@ -11,9 +11,9 @@ from app.schemas.auth import (
     EmailVerifyRequest,
     LoginRequest,
     RefreshRequest,
+    TokenResponse,
     TOTPEnrollResponse,
     TOTPVerifyRequest,
-    TokenResponse,
     TwoFALoginRequest,
     TwoFAPendingResponse,
     UserCreate,
@@ -46,9 +46,7 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)) -> User
 
 
 @router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
-async def verify_email(
-    data: EmailVerifyRequest, db: AsyncSession = Depends(get_db)
-) -> None:
+async def verify_email(data: EmailVerifyRequest, db: AsyncSession = Depends(get_db)) -> None:
     """Verify email address using the code sent at registration."""
     try:
         await auth_service.verify_email(db, data.email, data.code)
@@ -106,6 +104,7 @@ async def me(user: User = Depends(get_current_user)) -> UserResponse:
 
 # ── TOTP 2FA ──────────────────────────────────────────────────────────────────
 
+
 @router.post("/2fa/totp/enroll", response_model=TOTPEnrollResponse)
 async def totp_enroll(
     db: AsyncSession = Depends(get_db),
@@ -140,6 +139,7 @@ async def totp_disable(
 
 # ── Email 2FA ─────────────────────────────────────────────────────────────────
 
+
 @router.post("/2fa/email/send", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def email_2fa_send(
     db: AsyncSession = Depends(get_db),
@@ -168,6 +168,7 @@ async def email_2fa_verify(
 
 # ── Device management ─────────────────────────────────────────────────────────
 
+
 @router.get("/devices", response_model=list[DeviceResponse])
 async def list_devices(
     db: AsyncSession = Depends(get_db),
@@ -178,7 +179,9 @@ async def list_devices(
     return [DeviceResponse.model_validate(d) for d in devices]
 
 
-@router.delete("/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+@router.delete(
+    "/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response
+)
 async def revoke_device(
     device_id: int,
     db: AsyncSession = Depends(get_db),
@@ -189,4 +192,3 @@ async def revoke_device(
         await auth_service.revoke_device(db, user, device_id)
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
-

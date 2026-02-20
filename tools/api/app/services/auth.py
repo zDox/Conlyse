@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import secrets
 import string
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 import pyotp
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.security import (
     create_2fa_pending_token,
     create_access_token,
@@ -19,17 +20,22 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.core.config import settings
 from app.models.device import Device
 from app.models.session import Session
 from app.models.user import User, UserRole
 from app.schemas.auth import (
-    DeviceResponse,
     LoginRequest,
     TokenResponse,
     TwoFAPendingResponse,
     UserCreate,
 )
+
+
+def _as_utc(dt: datetime) -> datetime:
+    """Return *dt* with UTC timezone, adding it if absent (e.g. from SQLite)."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
 
 
 async def register_user(db: AsyncSession, data: UserCreate) -> tuple[User, str | None]:
@@ -53,7 +59,7 @@ async def register_user(db: AsyncSession, data: UserCreate) -> tuple[User, str |
 
     if settings.EMAIL_VERIFICATION_ENABLED:
         verification_code = _random_code()
-        verification_expires = datetime.now(timezone.utc) + timedelta(
+        verification_expires = datetime.now(UTC) + timedelta(
             seconds=settings.EMAIL_VERIFICATION_CODE_EXPIRE_SECONDS
         )
 
@@ -122,11 +128,11 @@ async def complete_2fa_login(
         if not totp.verify(code, valid_window=1):
             raise ValueError("Invalid TOTP code")
     elif user.email_2fa_enabled:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if (
             user.email_2fa_code != code
             or user.email_2fa_code_expires_at is None
-            or user.email_2fa_code_expires_at < now
+            or _as_utc(user.email_2fa_code_expires_at) < now
         ):
             raise ValueError("Invalid or expired email 2FA code")
         user.email_2fa_code = None
@@ -147,9 +153,7 @@ async def _issue_tokens_and_device(
     """Create/replace a device record and issue JWT pair."""
     # Enforce max concurrent devices – remove oldest if limit exceeded
     existing_q = await db.execute(
-        select(Device)
-        .where(Device.user_id == user.id)
-        .order_by(Device.created_at.asc())
+        select(Device).where(Device.user_id == user.id).order_by(Device.created_at.asc())
     )
     existing_devices = list(existing_q.scalars().all())
     while len(existing_devices) >= settings.MAX_DEVICES_PER_USER:
@@ -164,7 +168,7 @@ async def _issue_tokens_and_device(
         device_name=device_name or "unknown",
         device_info=device_info,
         token_hash=token_hash,
-        last_active=datetime.now(timezone.utc),
+        last_active=datetime.now(UTC),
     )
     db.add(device)
     await db.flush()  # get device.id
@@ -175,8 +179,7 @@ async def _issue_tokens_and_device(
     session = Session(
         user_id=user.id,
         refresh_token=refresh,
-        expires_at=datetime.now(timezone.utc)
-        + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_at=datetime.now(UTC) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
     )
     db.add(session)
     await db.commit()
@@ -213,8 +216,7 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenResponse:
     new_session = Session(
         user_id=int(user_id),
         refresh_token=new_refresh,
-        expires_at=datetime.now(timezone.utc)
-        + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        expires_at=datetime.now(UTC) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
     )
     db.add(new_session)
     await db.commit()
@@ -223,9 +225,7 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenResponse:
 
 async def revoke_session(db: AsyncSession, refresh_token: str) -> None:
     """Mark a session as revoked (logout)."""
-    result = await db.execute(
-        select(Session).where(Session.refresh_token == refresh_token)
-    )
+    result = await db.execute(select(Session).where(Session.refresh_token == refresh_token))
     session: Session | None = result.scalars().first()
     if session:
         session.is_revoked = True
@@ -253,6 +253,7 @@ async def get_current_user(db: AsyncSession, token: str) -> User:
 
 
 # ── TOTP 2FA ─────────────────────────────────────────────────────────────────
+
 
 async def totp_enroll(db: AsyncSession, user: User) -> str:
     """Generate a new TOTP secret for the user (pending confirmation).
@@ -287,6 +288,7 @@ async def totp_disable(db: AsyncSession, user: User) -> None:
 
 # ── Email 2FA ─────────────────────────────────────────────────────────────────
 
+
 def _random_code(length: int = 6) -> str:
     return "".join(secrets.choice(string.digits) for _ in range(length))
 
@@ -295,7 +297,7 @@ async def email_2fa_send(db: AsyncSession, user: User) -> str:
     """Generate and store an email 2FA code; return the code for sending."""
     code = _random_code()
     user.email_2fa_code = code
-    user.email_2fa_code_expires_at = datetime.now(timezone.utc) + timedelta(
+    user.email_2fa_code_expires_at = datetime.now(UTC) + timedelta(
         seconds=settings.EMAIL_2FA_CODE_EXPIRE_SECONDS
     )
     user.email_2fa_enabled = True
@@ -305,11 +307,11 @@ async def email_2fa_send(db: AsyncSession, user: User) -> str:
 
 async def email_2fa_verify(db: AsyncSession, user: User, code: str) -> None:
     """Verify an email 2FA code.  Raises ValueError on failure."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if (
         user.email_2fa_code != code
         or user.email_2fa_code_expires_at is None
-        or user.email_2fa_code_expires_at < now
+        or _as_utc(user.email_2fa_code_expires_at) < now
     ):
         raise ValueError("Invalid or expired email 2FA code")
     user.email_2fa_code = None
@@ -318,6 +320,7 @@ async def email_2fa_verify(db: AsyncSession, user: User, code: str) -> None:
 
 
 # ── Device management ─────────────────────────────────────────────────────────
+
 
 async def list_devices(db: AsyncSession, user: User) -> list[Device]:
     result = await db.execute(
@@ -339,6 +342,7 @@ async def revoke_device(db: AsyncSession, user: User, device_id: int) -> None:
 
 # ── Email verification ────────────────────────────────────────────────────────
 
+
 async def verify_email(db: AsyncSession, email: str, code: str) -> None:
     """Verify the email-verification code sent at registration.
 
@@ -350,15 +354,14 @@ async def verify_email(db: AsyncSession, email: str, code: str) -> None:
         raise ValueError("User not found")
     if user.is_email_verified:
         return  # already verified – no-op
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if (
         user.email_verification_code != code
         or user.email_verification_code_expires_at is None
-        or user.email_verification_code_expires_at < now
+        or _as_utc(user.email_verification_code_expires_at) < now
     ):
         raise ValueError("Invalid or expired verification code")
     user.is_email_verified = True
     user.email_verification_code = None
     user.email_verification_code_expires_at = None
     await db.commit()
-

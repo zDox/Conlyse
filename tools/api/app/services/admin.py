@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
@@ -8,14 +8,14 @@ from app.models.device import Device
 from app.models.user import User, UserRole
 
 
-async def list_users(db: AsyncSession, page: int = 1, page_size: int = 20) -> tuple[list[User], int]:
+async def list_users(
+    db: AsyncSession, page: int = 1, page_size: int = 20
+) -> tuple[list[User], int]:
     """Return a paginated list of users and the total count."""
     total_result = await db.execute(select(func.count()).select_from(User))
     total = total_result.scalar_one()
     offset = (page - 1) * page_size
-    result = await db.execute(
-        select(User).order_by(User.id).offset(offset).limit(page_size)
-    )
+    result = await db.execute(select(User).order_by(User.id).offset(offset).limit(page_size))
     return list(result.scalars().all()), total
 
 

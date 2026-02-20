@@ -36,21 +36,24 @@ pip install -e ".[dev]"
 
 ## Docker Deployment 🐳
 
-The complete stack (Server Observer, Redis, PostgreSQL, MinIO S3, Server Converter) can be deployed with Docker:
+The complete stack (Server Observer, Redis, PostgreSQL, MinIO S3, Server Converter, **Conlyse API**) can be deployed with Docker:
 
 ```bash
 # Quick start
 cp .env.example .env
-./stack.sh start
+docker-compose up -d
 
 # Check status
-./stack.sh status
+docker-compose ps
 
 # Access MinIO console
 open http://localhost:9001
+
+# Access Conlyse API (Swagger UI)
+open http://localhost:8000/docs
 ```
 
-See [DOCKER.md](DOCKER.md) for complete documentation or [QUICK_START.md](QUICK_START.md) for a quick reference.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for complete documentation.
 
 ## Quick Start
 
@@ -152,6 +155,20 @@ replay-debug replay.db
 
 See [Replay Debug Documentation](tools/replay_debug/README.md) for details.
 
+### Conlyse API
+
+FastAPI service providing authentication, 2FA, device management, RBAC, and pre-signed download URLs.
+
+```bash
+# Run with Docker Compose (recommended)
+docker-compose up -d api
+
+# Interactive API docs
+open http://localhost:8000/docs
+```
+
+See [API Documentation](tools/api/README.md) for full setup and endpoint reference.
+
 ## Documentation
 
 - **[Replay System](docs/REPLAY_SYSTEM.md)**: Comprehensive documentation on the replay system architecture, algorithms, and usage
@@ -169,7 +186,8 @@ ConflictInterface/
 │   ├── utils/               # Utility modules
 │   ├── game_api.py          # Game server API wrapper
 │   └── hub_api.py           # Hub API wrapper
-├── tools/                   # Command-line tools
+├── tools/                   # Command-line tools & services
+│   ├── api/                 # Conlyse API (FastAPI service)
 │   ├── recorder/            # Game session recorder
 │   ├── recording_converter/ # Recording format converter
 │   └── replay_debug/        # Replay debugging tool

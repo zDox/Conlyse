@@ -1,15 +1,31 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, Request
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from app.api.routes import admin, auth, downloads, subscription
 from app.core.config import settings
-from app.api.routes import auth, downloads, admin, subscription
+from app.core.database import get_engine, get_session_factory
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIMIT_ANONYMOUS])
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Initialize DB connection pool and S3 client on startup; dispose on shutdown."""
+    # Warm up the async engine / connection pool
+    get_session_factory()
+    yield
+    # Dispose the engine to close all pooled connections cleanly
+    engine = get_engine()
+    await engine.dispose()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -17,6 +33,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     debug=settings.DEBUG,
+    lifespan=lifespan,
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────

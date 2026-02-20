@@ -4,13 +4,14 @@ This guide explains how to deploy the complete ConflictInterface stack using Doc
 
 ## Overview
 
-The deployment includes five main components:
+The deployment includes six main components:
 
-- **PostgreSQL** - Database for replay metadata and tracking
+- **PostgreSQL** - Database for replay metadata, user accounts, and API state
 - **Redis** - Message stream for real-time game response data
-- **MinIO** - S3-compatible object storage for replay files
+- **MinIO** - S3-compatible object storage for replay files and Conlyse binaries
 - **Server Observer** - Monitors live games and captures responses
 - **Server Converter** - Processes responses and creates replay files
+- **Conlyse API** - FastAPI service for authentication, downloads, and user management
 
 
 ## Deployment Steps
@@ -41,6 +42,9 @@ MINIO_ROOT_PASSWORD=<strong-password-here>
 
 # Redis Configuration (optional password)
 REDIS_PASSWORD=<optional-password>
+
+# Conlyse API
+JWT_SECRET_KEY=<strong-random-secret-here>
 ```
 
 **Security Note:** Use strong, unique passwords for production deployments.
@@ -170,6 +174,32 @@ QUIT
 ## Accessing Deployed Services
 
 Once the stack is running, you can access the various services:
+
+### Conlyse API
+
+- **URL**: http://localhost:8000
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **Health check**: http://localhost:8000/health
+
+**Running database migrations:**
+
+```bash
+docker-compose exec api alembic upgrade head
+```
+
+**Creating the first admin user (example via API):**
+
+```bash
+# Register a user
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","username":"admin","password":"changeme123"}'
+
+# Promote to admin via DB (first time only)
+docker-compose exec postgres psql -U converter -d replays \
+  -c "UPDATE users SET role='admin' WHERE username='admin';"
+```
 
 ### MinIO Console (S3 Storage)
 
