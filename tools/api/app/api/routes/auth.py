@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.schemas.auth import (
     DeviceResponse,
     EmailTwoFAVerifyRequest,
+    EmailVerifyRequest,
     LoginRequest,
     RefreshRequest,
     TOTPEnrollResponse,
@@ -18,19 +20,40 @@ from app.schemas.auth import (
     UserResponse,
 )
 from app.services import auth as auth_service
-from app.services.email import send_2fa_code
+from app.services.email import send_2fa_code, send_verification_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(data: UserCreate, db: AsyncSession = Depends(get_db)) -> UserResponse:
-    """Register a new user account."""
+    """Register a new user account.
+
+    When email verification is enabled (``EMAIL_VERIFICATION_ENABLED=true``) a
+    verification code is sent to the provided address and the account remains
+    unverified until ``POST /auth/verify-email`` is called.
+    """
     try:
-        user = await auth_service.register_user(db, data)
+        user, verification_code = await auth_service.register_user(db, data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    if settings.EMAIL_VERIFICATION_ENABLED and verification_code:
+        try:
+            send_verification_email(user.email, verification_code)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
     return UserResponse.model_validate(user)
+
+
+@router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+async def verify_email(
+    data: EmailVerifyRequest, db: AsyncSession = Depends(get_db)
+) -> None:
+    """Verify email address using the code sent at registration."""
+    try:
+        await auth_service.verify_email(db, data.email, data.code)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.post("/login")

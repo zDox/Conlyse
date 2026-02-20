@@ -37,6 +37,7 @@ class UserResponse(BaseModel):
     username: str
     role: UserRole
     is_active: bool
+    is_email_verified: bool
     totp_enabled: bool
     email_2fa_enabled: bool
     created_at: datetime
@@ -82,6 +83,11 @@ class TOTPVerifyRequest(BaseModel):
 
 
 class EmailTwoFAVerifyRequest(BaseModel):
+    code: str
+
+
+class EmailVerifyRequest(BaseModel):
+    email: EmailStr
     code: str
 
 
