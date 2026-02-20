@@ -209,6 +209,16 @@ class JsonParser:
     _PRIMITIVES = frozenset({int, float, str, bool, type(None)})
     PARSE_MAPPING: dict[int, dict[type, Callable]] = {}
     EDGE_CASES: dict[int, dict[str, type]] = {}
+    GAME_STATES: dict[int, Any] = {}
+    STATIC_MAP_DATAS: dict[int, Any] = {}
+
+    @classmethod
+    def register_game_state(cls, version: int, type_: type):
+        cls.GAME_STATES.update({version: type_})
+
+    @classmethod
+    def register_static_map_data(cls, version: int, type_: type):
+        cls.STATIC_MAP_DATAS.update({version: type_})
 
     @classmethod
     def register_custom_parser(cls, type_: type, version: int, func):
@@ -226,6 +236,8 @@ class JsonParser:
         self.type_graph = TypeGraph(version)
         self.custom_parsers = self.PARSE_MAPPING.get(self.version, {})
         self.edge_cases = self.EDGE_CASES.get(self.version, {})
+        self.static_map_data = self.STATIC_MAP_DATAS[version]
+        self.game_state = self.GAME_STATES[version]
 
 
 
@@ -238,6 +250,9 @@ class JsonParser:
             self.type_graph.add_new_type_branch(cls)
 
         return self._parse_any(json_obj, [self.type_graph.type_to_node[cls]], game = game)
+
+    def parse_game_state(self, json_obj, game):
+        return self.parse_any(self.game_state, json_obj, game)
 
     def _parse_any(self, json_obj: dict | list | int | str, types: list[TypeGraphNode], game = None):
         #assert self.type_graph.build, "Build the type-tree using .build_tree before parsing!"

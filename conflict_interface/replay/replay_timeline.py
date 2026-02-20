@@ -1,15 +1,25 @@
+from __future__ import annotations
+
 import struct
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
+from typing import TYPE_CHECKING
 
 import zstandard as zstd
 
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.interface import GameInterface
+from conflict_interface.interface import ReplayInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replaysegment import ReplaySegment
 from conflict_interface.utils.helper import dt_to_ns
 from conflict_interface.utils.helper import ns_to_dt
+
+if TYPE_CHECKING:
+    from conflict_interface.data_types.newest.game_state.game_state import GameState
+    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 DEFAULT_MAX_PATCHES = 3000
 
@@ -19,11 +29,13 @@ _MAGIC = b"RPLYZSTD"
 _VERSION = 1
 
 class ReplayTimeline:
-    def __init__(self,file_path: Path, mode: Literal['r', 'a'] = 'r'):
+    def __init__(self,file_path: Path, mode: Literal['r', 'a'] = 'r', game_id = None, player_id= None):
         self._mode: Literal['r','a'] = mode
         self._open = False
         self.file_path = file_path
         self.segments: dict[tuple[datetime, datetime | None, int], ReplaySegment] = {} # [From_ts, To_ts, version] -> segment
+        self.game_id = game_id
+        self.player_id = player_id
 
         self.compressor = zstd.ZstdCompressor(level=11)
         self.decompressor = zstd.ZstdDecompressor()
@@ -69,7 +81,7 @@ class ReplayTimeline:
                     end_dt = ns_to_dt(end_ns)
 
                     key = (start_dt, end_dt, seg_version)
-                    result[key] = ReplaySegment(payload, seg_version)
+                    result[key] = ReplaySegment(payload, seg_version, game_id = self.game_id , player_id = self.player_id)
 
         self.segments =result
 
@@ -136,20 +148,34 @@ class ReplayTimeline:
         else:
             self._mode = mode
 
-    def que_append_patch(self, version :int, to_time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch):
+    def set_last_game_state(self, game_state: GameState):
+        pass
+
+    def get_last_game_state(self) -> GameState:
+        pass
+
+    def que_append_patch(self, version :int, to_time_stamp: datetime, replay_patch: BidirectionalReplayPatch | None, current_game_state: GameState | None = None, static_map_data: StaticMapData | None = None):
         assert self._mode == "a"
         segment = self._find_open_segment(version)[1]
         if segment is None:
-            segment = self._create_segment(version, self.last_time, game_id, player_id)
+            segment = self._create_segment(current_game_state,
+                                           version,
+                                           self.last_time,
+                                           static_map_data=static_map_data)
 
         if segment is None:
             raise Exception(f"Unable to create last segment in version: {version}")
-        try:
-            segment.que_append_patch(to_time_stamp, game_id, player_id, replay_patch)
-        except IndexError:
-            logger.warning(f"Had to increase max_patches for last segment in version: {version}")
-            self._extend_segment(segment)
-            segment.que_append_patch(to_time_stamp, game_id, player_id, replay_patch)
+        for i in range(2):
+            try:
+                segment.que_append_patch(to_time_stamp,
+                                         self.game_id,
+                                         self.player_id,
+                                         replay_patch)
+                break
+            except IndexError: # TODO make custom execption
+                logger.warning(f"Had to increase max_patches for last segment in version: {version}")
+                self._extend_segment(segment)
+
         self.last_time = to_time_stamp
 
     def execute_append_que(self):
@@ -170,16 +196,21 @@ class ReplayTimeline:
         segment = self.segments.pop(key)
         self.segments[(from_ts, close_timestamp, version)] = segment
 
-    def _create_segment(self, version: int, from_timestamp: datetime, game_id: int, player_id: int) -> "ReplaySegment":
+    def _create_segment(self, current_game_state: GameState, version: int, from_timestamp: datetime, static_map_data: StaticMapData | None = None) -> "ReplaySegment":
         assert self._mode == "a"
+        assert current_game_state is not None, "Had to create a new Segment but got no game state"
 
         for v in range(version+1): # +1 -> Also close last segment in current version
             entry = self._find_open_segment(v)
             if entry is not None:
                 self._close_segment(entry[0], from_timestamp)
 
-        segment = ReplaySegment(bytearray(), version, game_id=game_id, player_id=player_id,
+        segment = ReplaySegment(bytearray(), version, game_id=self.game_id, player_id=self.player_id,
                                 max_patches=DEFAULT_MAX_PATCHES)
+        segment.record_initial_game_state(current_game_state,from_timestamp, game_id=self.game_id, player_id = self.player_id)
+        segment.record_static_map_data(static_map_data, game_id = self.game_id, player_id=self.player_id)
+
+        segment.set_last_game_state(current_game_state)
         segment.collapse_all()
         segment.load_everything()
         self.segments[(from_timestamp, None, version)] = segment

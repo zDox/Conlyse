@@ -19,6 +19,8 @@ class SerializationCategory(Enum):
     DATETIME = 5
     TIMEDELTA = 6
     POINT = 7
+    GAME_STATE = 8
+    STATIC_MAP_DATA = 9
 
 def stable_type_id(cls):
     s = f"{cls.__module__}.{cls.__qualname__}".encode()

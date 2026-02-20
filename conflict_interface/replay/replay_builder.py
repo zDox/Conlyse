@@ -1,18 +1,21 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Callable
 from typing import Optional
+from typing import TYPE_CHECKING
 
-from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_parse_json import JsonParser
-from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.data_types.static_map_data import StaticMapData
-from conflict_interface.interface import GameInterface
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
-from conflict_interface.replay.replay import Replay
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_timeline import ReplayTimeline
 from conflict_interface.utils.helper import unix_ms_to_datetime
+
+if TYPE_CHECKING:
+    from conflict_interface.data_types.newest.game_state.game_state import GameState
+    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 logger = get_logger()
 
@@ -22,21 +25,19 @@ class ReplayBuilder:
     FULL_STATE_TYPE = "ultshared.UltGameState"
     PATCH_BUFFER_MULTIPLIER = 2
     MAX_PATCHES = 10000
-    parser = JsonParser()
     built = False
     def __init__(self, path: Path, game_id: int, player_id: int):
         self.path = path
-        # Initialize parser
-        if not self.__class__.built:
-            self.__class__.parser.type_graph.build_graph()
-            self.__class__.parser.type_graph.add_c_tag(GameState, "ultshared.UltAutoGameState")
-            self.__class__.built = True
 
-        self.replay: Optional[ReplayTimeline] = None
+        self.parsers: dict[int, JsonParser] = {}
+        self.replay_timeline: Optional[ReplayTimeline] = None
         self.game_id = game_id
         self.player_id = player_id
 
         self.created = path.exists()
+
+    def setup_parsers(self):
+        pass # TODO
 
     @staticmethod
     def _find_initial_game_state_index(json_responses: list[tuple[int, dict]]) -> int:
@@ -60,16 +61,14 @@ class ReplayBuilder:
     def create_replay(
             self,
             json_responses: list[tuple[int, dict]],
-            static_map_data: Optional[StaticMapData] = None,
-            max_patches: Optional[int] = None) -> int:
+            static_map_data: Optional[StaticMapData] = None) -> int:
         """
         Create a new replay from JSON responses.
         
         Args:
             json_responses: List of (timestamp, response) tuples
             static_map_data: Optional static map data for the replay (if None, static map will not be recorded)
-            max_patches: Maximum number of patches to allocate
-            
+
         Returns:
             Index of the initial state that was used to create the replay
         """
@@ -80,47 +79,30 @@ class ReplayBuilder:
         if initial_index == -1:
             raise ValueError("Initial game state not found.")
 
-        # Create mock game interface for parsing
-        mock_game = GameInterface()
-
         # Parse initial game state
         _, initial_json = json_responses[initial_index]
-        initial_state: GameState = self.parser.parse_any(
-            GameState, initial_json["result"], mock_game
-        )
+        version = initial_json["client_version"]
+        parser = self.parsers[version]
+        initial_state: GameState = parser.parse_game_state(initial_json["result"], None)
+
         current_timestamp = unix_ms_to_datetime(int(initial_state.time_stamp))
 
-        self.replay = ReplayTimeline(
+        self.replay_timeline = ReplayTimeline(
             file_path=self.path,
-            mode='w',
+            mode='a',
             game_id=self.game_id,
             player_id=self.player_id,
-            max_patches=ReplayBuilder.MAX_PATCHES if max_patches is None else max_patches
         )
-        self.replay.open()
+        self.replay_timeline.open()
 
         logger.debug("Recording static map data to replay")
 
-        if static_map_data is not None:
-            self.replay.record_static_map_data(
-                    static_map_data=static_map_data,
-                    game_id=self.game_id,
-                    player_id=self.player_id
-            )
-        else:
+        if static_map_data is None:
             logger.debug("No static map data provided; skipping static map recording")
         logger.info(f"Recording initial game state at {current_timestamp} (game time)")
-        self.replay.record_initial_game_state(
-            time_stamp=current_timestamp,
-            game_id=self.game_id,
-            player_id=self.player_id,
-            game_state=initial_state
-        )
+        self.replay_timeline.que_append_patch(version, to_time_stamp=current_timestamp,replay_patch=None, current_game_state=initial_state, static_map_data=static_map_data)
 
         # Clear game references and update replay's last state
-        GameObject.set_game_recursive(initial_state, None)
-        self.replay.set_last_game_state(initial_state)
-        self.replay.close()
         self.created = True
         
         # Return the initial index so the caller knows which responses were already processed
@@ -132,21 +114,19 @@ class ReplayBuilder:
         if not self.created:
             raise ValueError("Replay not created yet.")
 
-        if self.replay is None:
-            self.replay = Replay(self.path, mode="a", game_id=self.game_id, player_id=self.player_id)
-            self.replay.open()
-        elif self.replay.is_open() and self.replay.mode != 'a':
-            self.replay.close()
-            self.replay = Replay(self.path, mode="a", game_id=self.game_id, player_id=self.player_id)
-            self.replay.open()
-        elif not self.replay.is_open():
-            self.replay = Replay(self.path, mode="a", game_id=self.game_id, player_id=self.player_id)
-            self.replay.open()
+        # --- SETUP TIMELINE ---
+        if self.replay_timeline is None:
+            self.replay_timeline = ReplayTimeline(self.path, mode="a", game_id=self.game_id, player_id=self.player_id)
+            self.replay_timeline.open()
 
-        current_state = self.replay.storage.last_game_state
+        self.replay_timeline.set_mode("a")
+        self.replay_timeline.open()
+        self.replay_timeline.execute_append_que()
+
+        current_state = self.replay_timeline.get_last_game_state()
 
         if current_state is None:
-            self.replay.close()
+            self.replay_timeline.close()
             raise ValueError("No last game state found in replay")
 
         # Process JSON responses
@@ -164,8 +144,10 @@ class ReplayBuilder:
                 continue
 
             # Parse new state
-            new_state: GameState = self.parser.parse_any(
-                GameState, json_response["result"]
+            version = json_response["client_version"]
+            parser = self.parsers[version]
+            new_state: GameState = parser.parse_game_state(
+                json_response["result"], None
             )
             current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
 
@@ -179,19 +161,18 @@ class ReplayBuilder:
                 current_state = new_state
 
             # Record patch to replay
-            self.replay.que_append_patch(
-                time_stamp=current_timestamp,
-                game_id=self.game_id,
-                player_id=self.player_id,
+            self.replay_timeline.que_append_patch(
+                version = version,
+                to_time_stamp=current_timestamp,
                 replay_patch=bipatch,
+                current_game_state=current_state
             )
 
         # Finalize
         logger.debug("Finalizing replay...")
-        self.replay.execute_append_que()
-        GameObject.set_game_recursive(current_state, None)
-        self.replay.set_last_game_state(current_state)
-        self.replay.close()
+        self.replay_timeline.execute_append_que()
+        self.replay_timeline.set_last_game_state(current_state)
+        self.replay_timeline.close()
 
         logger.debug(f"Successfully appended to replay: {self.path}")
         return True

@@ -150,6 +150,7 @@ class ReplaySegment:
         self.storage.metadata.last_time = int(time_stamp.timestamp())
 
     def que_append_patch(self, time_stamp: datetime, game_id: int, player_id: int, replay_patch: BidirectionalReplayPatch):
+        if replay_patch is None: return
         self.validate_game(game_id, player_id)
         self.validate_max_patches(2)
 
