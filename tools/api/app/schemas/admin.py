@@ -11,3 +11,16 @@ class RoleUpdateRequest(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     new_password: str
+
+
+class SubscriptionUpdateRequest(BaseModel):
+    tier: UserRole
+
+
+class BinaryResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    platform: str
+    version: str
+    s3_key: str

@@ -35,6 +35,13 @@ async def update_user_role(db: AsyncSession, user_id: int, role: UserRole) -> Us
     return user
 
 
+async def update_user_subscription(db: AsyncSession, user_id: int, tier: UserRole) -> User:
+    """Set a user's subscription tier (free/pro). Admin only. Raises LookupError if not found."""
+    if tier not in (UserRole.free, UserRole.pro):
+        raise ValueError(f"Invalid subscription tier '{tier}'. Must be 'free' or 'pro'.")
+    return await update_user_role(db, user_id, tier)
+
+
 async def ban_user(db: AsyncSession, user_id: int) -> User:
     user = await get_user(db, user_id)
     user.is_active = False

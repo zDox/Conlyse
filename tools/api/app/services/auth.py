@@ -32,13 +32,30 @@ from app.schemas.auth import (
 )
 
 
-async def register_user(db: AsyncSession, data: UserCreate) -> User:
-    """Create a new user account.  Raises ValueError on duplicate email/username."""
+async def register_user(db: AsyncSession, data: UserCreate) -> tuple[User, str | None]:
+    """Create a new user account.  Raises ValueError on duplicate email/username.
+
+    If ``settings.EMAIL_VERIFICATION_ENABLED`` is True the account is created
+    with ``is_email_verified=False`` and a verification code is stored.  The
+    caller is responsible for actually sending the code via
+    :func:`app.services.email.send_verification_email`.  Returns the new User
+    and the verification code (or ``None`` when verification is disabled).
+    """
     existing = await db.execute(
         select(User).where((User.email == data.email) | (User.username == data.username))
     )
     if existing.scalars().first():
         raise ValueError("A user with that email or username already exists")
+
+    is_verified = not settings.EMAIL_VERIFICATION_ENABLED
+    verification_code: str | None = None
+    verification_expires: datetime | None = None
+
+    if settings.EMAIL_VERIFICATION_ENABLED:
+        verification_code = _random_code()
+        verification_expires = datetime.now(timezone.utc) + timedelta(
+            seconds=settings.EMAIL_VERIFICATION_CODE_EXPIRE_SECONDS
+        )
 
     user = User(
         email=data.email,
@@ -46,11 +63,14 @@ async def register_user(db: AsyncSession, data: UserCreate) -> User:
         hashed_password=hash_password(data.password),
         role=UserRole.free,
         is_active=True,
+        is_email_verified=is_verified,
+        email_verification_code=verification_code,
+        email_verification_code_expires_at=verification_expires,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    return user
+    return user, verification_code
 
 
 async def authenticate_user(
@@ -314,5 +334,31 @@ async def revoke_device(db: AsyncSession, user: User, device_id: int) -> None:
     if not device:
         raise LookupError("Device not found")
     await db.delete(device)
+    await db.commit()
+
+
+# ── Email verification ────────────────────────────────────────────────────────
+
+async def verify_email(db: AsyncSession, email: str, code: str) -> None:
+    """Verify the email-verification code sent at registration.
+
+    Raises ValueError when the code is invalid, expired, or the user is not found.
+    """
+    result = await db.execute(select(User).where(User.email == email))
+    user: User | None = result.scalars().first()
+    if not user:
+        raise ValueError("User not found")
+    if user.is_email_verified:
+        return  # already verified – no-op
+    now = datetime.now(timezone.utc)
+    if (
+        user.email_verification_code != code
+        or user.email_verification_code_expires_at is None
+        or user.email_verification_code_expires_at < now
+    ):
+        raise ValueError("Invalid or expired verification code")
+    user.is_email_verified = True
+    user.email_verification_code = None
+    user.email_verification_code_expires_at = None
     await db.commit()
 

@@ -58,6 +58,18 @@ class Settings(BaseSettings):
     # 2FA email code TTL in seconds
     EMAIL_2FA_CODE_EXPIRE_SECONDS: int = 300
 
+    # Email verification on registration (toggleable)
+    EMAIL_VERIFICATION_ENABLED: bool = False
+    EMAIL_VERIFICATION_CODE_EXPIRE_SECONDS: int = 3600
+
+    # CORS
+    # Comma-separated list of allowed origins, e.g. "https://app.conlyse.com,http://localhost:3000"
+    CORS_ALLOW_ORIGINS: str = ""
+
+    # Rate limiting (slowapi / limits syntax, e.g. "10/minute")
+    RATE_LIMIT_ANONYMOUS: str = "10/minute"
+    RATE_LIMIT_AUTHENTICATED: str = "60/minute"
+
     # General
     PROJECT_NAME: str = "Conlyse API"
     API_V1_PREFIX: str = "/api/v1"
