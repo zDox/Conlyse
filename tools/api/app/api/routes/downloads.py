@@ -3,16 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.core.deps import get_current_user, require_role
-from app.models.user import User, UserRole
+from app.core.deps import require_role
+from app.models.user import UserRole
 from app.schemas.downloads import BinaryVersionsResponse, PresignedURLResponse, VersionedPresignedURLResponse
 from app.services import downloads as dl_service
 
 router = APIRouter(prefix="/downloads", tags=["downloads"])
 
-# Any authenticated user (free, pro, admin) can download binaries
-_any_user = get_current_user
-# Pro and admin can download replays / analyses
+# Pro and admin only
 _require_pro = require_role(UserRole.pro, UserRole.admin)
 
 
@@ -20,7 +18,6 @@ _require_pro = require_role(UserRole.pro, UserRole.admin)
 async def list_binary_versions(
     platform: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(_any_user),
 ) -> BinaryVersionsResponse:
     """List all available versions for a given platform (windows / macos / linux)."""
     try:
@@ -34,7 +31,6 @@ async def list_binary_versions(
 async def download_binary_latest(
     platform: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(_any_user),
 ) -> VersionedPresignedURLResponse:
     """Return a pre-signed S3 URL for the latest Conlyse binary for a platform."""
     try:
@@ -51,7 +47,6 @@ async def download_binary_version(
     platform: str,
     version: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(_any_user),
 ) -> PresignedURLResponse:
     """Return a pre-signed S3 URL for a specific version of the Conlyse binary."""
     try:
@@ -68,9 +63,8 @@ async def download_replay(
     game_id: str,
     player_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(_require_pro),
 ) -> PresignedURLResponse:
-    """Return a pre-signed S3 URL for a replay file. Requires pro or admin role."""
+    """Return a pre-signed S3 URL for a replay file. No authentication required."""
     try:
         url = await dl_service.get_replay_url(db, game_id, player_id)
     except LookupError as exc:
@@ -85,7 +79,7 @@ async def download_analysis(
     game_id: str,
     player_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(_require_pro),
+    _: object = Depends(_require_pro),
 ) -> PresignedURLResponse:
     """Return a pre-signed S3 URL for a replay analysis file. Requires pro or admin role."""
     try:
@@ -101,7 +95,6 @@ async def download_analysis(
 async def download_static_map(
     map_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(_any_user),
 ) -> PresignedURLResponse:
     """Return a pre-signed S3 URL for static map data."""
     try:

@@ -17,12 +17,6 @@ class SubscriptionUpdateRequest(BaseModel):
     tier: UserRole
 
 
-class BinaryUploadRequest(BaseModel):
-    platform: str
-    version: str
-    s3_key: str
-
-
 class BinaryResponse(BaseModel):
     model_config = {"from_attributes": True}
 

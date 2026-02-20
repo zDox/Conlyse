@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
@@ -7,7 +7,6 @@ from app.core.deps import require_role
 from app.models.user import UserRole
 from app.schemas.admin import (
     BinaryResponse,
-    BinaryUploadRequest,
     PasswordResetRequest,
     RoleUpdateRequest,
     SubscriptionUpdateRequest,
@@ -145,17 +144,24 @@ async def revoke_device(
 
 @router.post("/binaries/upload", response_model=BinaryResponse, status_code=status.HTTP_201_CREATED)
 async def upload_binary(
-    data: BinaryUploadRequest,
+    platform: str = Form(...),
+    version: str = Form(...),
+    file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     _: object = Depends(_require_admin),
 ) -> BinaryResponse:
-    """Register a new binary version for a platform. Admin only.
+    """Upload a new binary version for a platform and register it. Admin only.
 
-    The binary must already be uploaded to MinIO under the provided *s3_key*.
-    Key convention: ``binaries/{platform}/{version}/conlyse-{platform}-{version}.ext``
+    Accepts ``multipart/form-data`` with ``platform``, ``version`` fields and
+    the binary ``file``.  The file is stored in MinIO under the key
+    ``binaries/{platform}/{version}/conlyse-{platform}-{version}.ext``.
     """
     try:
-        binary = await dl_service.register_binary(db, data.platform, data.version, data.s3_key)
+        file_data = await file.read()
+        s3_key = dl_service.upload_binary_to_s3(
+            platform, version, file_data, file.filename or ""
+        )
+        binary = await dl_service.register_binary(db, platform, version, s3_key)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     return BinaryResponse.model_validate(binary)

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import io
+import os
+
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -99,6 +102,26 @@ async def register_binary(
     await db.commit()
     await db.refresh(binary)
     return binary
+
+
+def upload_binary_to_s3(platform: str, version: str, file_data: bytes, filename: str) -> str:
+    """Upload binary file data to S3/MinIO and return the resulting S3 key.
+
+    Key convention: ``binaries/{platform}/{version}/conlyse-{platform}-{version}.ext``
+    Raises ValueError on S3 error.
+    """
+    ext = os.path.splitext(filename)[1] if "." in filename else ""
+    s3_key = f"binaries/{platform}/{version}/conlyse-{platform}-{version}{ext}"
+    client = _s3_client()
+    try:
+        client.upload_fileobj(
+            io.BytesIO(file_data),
+            settings.MINIO_BUCKET_BINARIES,
+            s3_key,
+        )
+    except ClientError as exc:
+        raise ValueError(f"Could not upload binary to S3: {exc}") from exc
+    return s3_key
 
 
 async def get_replay_url(db: AsyncSession, game_id: str, player_id: str) -> str:
