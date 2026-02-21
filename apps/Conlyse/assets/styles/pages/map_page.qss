@@ -5,22 +5,22 @@ MapPage {
 /* --- TimeLineControls Section --- */
 
 TimelineControls {
-    background-color: rgba(30, 30, 30, 240);
+    background-color: $bg;
 }
 
 /* --- Bottom Dock Styles --- */
 
 #bottom_dock {
-    background-color: rgba(40, 40, 40, 230);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: $bg_light;
+    border: 1px solid $border_muted;
 }
 
 /* Bottom dock buttons are now in the left sidebar */
 #bottom_dock_button {
     background-color: transparent;
-    color: #ccc;
+    color: $text_muted;
     border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid $border_muted;
     text-align: center;
     font-size: 11px;
     font-weight: 500;
@@ -28,14 +28,14 @@ TimelineControls {
 }
 
 #bottom_dock_button:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: #fff;
+    background-color: $bg_light;
+    color: $text;
 }
 
 #bottom_dock_button:checked {
-    background-color: rgba(33, 150, 243, 0.3);
-    color: #2196F3;
-    border-left: 3px solid #2196F3;
+    background-color: $primary;
+    color: $on_primary;
+    border-left: 3px solid $primary;
 }
 
 /* --- Sidebar Styles --- */
@@ -45,20 +45,20 @@ TimelineControls {
 }
 
 #sidebar_button_strip {
-    background-color: rgba(30, 30, 30, 200);
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: $bg;
+    border-right: 1px solid $border_muted;
 }
 
 #sidebar_dock_container {
-    background-color: rgba(40, 40, 40, 230);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: $bg_light;
+    border: 1px solid $border_muted;
 }
 
 #sidebar_dock_button {
     background-color: transparent;
-    color: #ccc;
+    color: $text_muted;
     border: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid $border_muted;
     text-align: center;
     font-size: 11px;
     font-weight: 500;
@@ -66,14 +66,14 @@ TimelineControls {
 }
 
 #sidebar_dock_button:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: #fff;
+    background-color: $bg_light;
+    color: $text;
 }
 
 #sidebar_dock_button:checked {
-    background-color: rgba(33, 150, 243, 0.3);
-    color: #2196F3;
-    border-left: 3px solid #2196F3;
+    background-color: $primary;
+    color: $on_primary;
+    border-left: 3px solid $primary;
 }
 
 /* --- Dock Styles --- */
@@ -84,28 +84,28 @@ TimelineControls {
 #events_dock,
 #city_list_dock,
 #army_list_dock {
-    background-color: rgba(40, 40, 40, 230);
+    background-color: $bg_light;
 }
 
 #dock_title {
-    color: #fff;
-    font-size: 16px;
+    color: $text;
+    font-size: $H3;
     font-weight: bold;
 }
 
 #dock_separator {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: $border_muted;
     border: none;
 }
 
 #dock_label {
-    color: #888;
-    font-size: 12px;
+    color: $text_muted;
+    font-size: $H6;
 }
 
 #dock_value {
-    color: #fff;
-    font-size: 12px;
+    color: $text;
+    font-size: $H6;
     font-weight: 500;
 }
 
@@ -117,30 +117,4 @@ QScrollArea {
 
 QScrollArea > QWidget > QWidget {
     background-color: transparent;
-}
-
-QScrollBar:vertical {
-    background-color: rgba(255, 255, 255, 0.05);
-    width: 8px;
-    border-radius: 4px;
-}
-
-QScrollBar::handle:vertical {
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    min-height: 20px;
-}
-
-QScrollBar::handle:vertical:hover {
-    background-color: rgba(255, 255, 255, 0.3);
-}
-
-QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical {
-    height: 0px;
-}
-
-QScrollBar::add-page:vertical,
-QScrollBar::sub-page:vertical {
-    background: none;
 }
