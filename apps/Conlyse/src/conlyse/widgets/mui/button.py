@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, Property as pyqtProperty
-from PySide6.QtWidgets import QPushButton, QHBoxLayout, QLabel, QWidget
+from PySide6.QtWidgets import QPushButton, QHBoxLayout, QLabel
 import qtawesome as qta
 
 DEFAULT_ICON_COLOR = "#FFFFFF"
@@ -15,13 +15,17 @@ class CButton(QPushButton):
             color: str = "primary",
             icon_name: str = None,
             icon_position: str = "start",  # "start" or "end"
+            icon_size: int = 16,
             parent=None
     ):
         super().__init__(parent)
 
         self.icon_name = icon_name
         self.icon_position = icon_position
+        self.icon_size = icon_size
         self._icon_color_value = DEFAULT_ICON_COLOR
+        self.icon_label = None
+        self.text_label = None
 
         self.setProperty("variant", variant)
         self.setProperty("color", color)
@@ -33,44 +37,38 @@ class CButton(QPushButton):
         else:
             self.setText(text)
 
+    def _create_icon_label(self) -> QLabel:
+        """Create and return a bare icon QLabel."""
+        label = QLabel(self)
+        label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        label.setObjectName("icon_label")
+        return label
+
     def _setup_with_icon(self, text: str):
         """Setup button with icon and text layout"""
-        # Create a container widget for the layout
-        container = QWidget(self)
-        container.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(8, 4, 8, 4)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 0, 8, 0)
         layout.setSpacing(4)
+
+        layout.addStretch()
 
         # Icon at start
         if self.icon_position == "start":
-            self.icon_label = QLabel(container)
-            self.icon_label.setObjectName("icon_label")
+            self.icon_label = self._create_icon_label()
             layout.addWidget(self.icon_label)
 
         # Text label
-        self.text_label = QLabel(text, container)
+        self.text_label = QLabel(text, self)
         self.text_label.setObjectName("text_label")
-        # Remove center alignment to keep text and icon close
+        self.text_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         layout.addWidget(self.text_label)
 
         # Icon at end
         if self.icon_position == "end":
-            self.icon_label = QLabel(container)
-            self.icon_label.setObjectName("icon_label")
+            self.icon_label = self._create_icon_label()
             layout.addWidget(self.icon_label)
 
-        # Add stretch to center the content group
-        layout.insertStretch(0)  # Stretch before content
-        layout.addStretch()  # Stretch after content
-
-        # Make the container fill the button
-        button_layout = QHBoxLayout(self)
-        button_layout.setContentsMargins(0, 0, 0, 0)
-        button_layout.addWidget(container)
-
-        # Ensure button sizes properly
-        self.adjustSize()
+        layout.addStretch()
 
         self._update_icon()
 
@@ -86,11 +84,11 @@ class CButton(QPushButton):
 
     def _update_icon(self):
         """Update icon with current color"""
-        if not hasattr(self, 'icon_label') or not self.icon_name:
+        if self.icon_label is None or not self.icon_name:
             return
 
         icon = qta.icon(self.icon_name, color=self._icon_color_value)
-        self.icon_label.setPixmap(icon.pixmap(16, 16))
+        self.icon_label.setPixmap(icon.pixmap(self.icon_size, self.icon_size))
 
     def set_variant(self, variant: str):
         """Set the button variant (e.g., 'default', 'outlined', 'text')."""
@@ -106,16 +104,23 @@ class CButton(QPushButton):
         self.style().polish(self)
         self._update_icon()  # Update icon color when style changes
 
+    def set_text(self, text: str):
+        """Set the button text."""
+        if self.text_label is not None:
+            self.text_label.setText(text)
+        else:
+            self.setText(text)
+
     def setText(self, text: str):
         """Override setText to handle icon layout"""
-        if hasattr(self, 'text_label'):
+        if self.text_label is not None:
             self.text_label.setText(text)
         else:
             super().setText(text)
 
     def text(self):
         """Override text to handle icon layout"""
-        if hasattr(self, 'text_label'):
+        if self.text_label is not None:
             return self.text_label.text()
         else:
             return super().text()
