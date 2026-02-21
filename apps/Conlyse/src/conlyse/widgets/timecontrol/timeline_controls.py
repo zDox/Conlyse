@@ -229,6 +229,11 @@ class TimelineControls(Dock):
         new_time = self.current_time + direction * self.playback_speed * delta_seconds
         new_time = max(0.0, min(self.total_seconds, new_time))
 
+        if (self.playback_direction == "forward" and new_time >= self.total_seconds) or \
+                (self.playback_direction == "backward" and new_time <= 0.0):
+            self.is_playing = False
+            self.play_pause_btn.set_icon("fa6s.play")
+
         range_size = self.visible_end - self.visible_start
 
         if self.playback_direction == "forward":
