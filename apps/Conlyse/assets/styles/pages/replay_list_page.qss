@@ -19,6 +19,19 @@ QLabel#replay_list_page_header {
     margin: 0;
 }
 
+/* --- Settings Button --- */
+
+CIconButton#settings_button {
+    background-color: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+CIconButton#settings_button:hover {
+    background-color: $bg_light;
+}
+
 
 /* --- List Card --- */
 

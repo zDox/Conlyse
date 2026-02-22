@@ -14,6 +14,7 @@ from conlyse.pages.page import Page
 from conlyse.pages.replay_list_page.replay_details_panel import ReplayDetailsPanel
 from conlyse.pages.replay_list_page.replay_list_panel import ReplayListPanel
 from conlyse.utils.enums import PageType
+from conlyse.widgets.mui.icon_button import CIconButton
 
 logger = get_logger()
 
@@ -94,6 +95,9 @@ class ReplayListPage(Page):
 
     def _setup_header(self, parent_layout):
         """Setup the page header"""
+        header_outer_layout = QHBoxLayout()
+        header_outer_layout.setSpacing(0)
+
         header_layout = QVBoxLayout()
         header_layout.setSpacing(4)
 
@@ -105,7 +109,17 @@ class ReplayListPage(Page):
         self.subheader_label.setObjectName("replay_list_page_subheader")
         header_layout.addWidget(self.subheader_label)
 
-        parent_layout.addLayout(header_layout)
+        header_outer_layout.addLayout(header_layout)
+        header_outer_layout.addStretch()
+
+        # Settings button
+        self.settings_btn = CIconButton("fa5s.cog", size=24, parent=self)
+        self.settings_btn.setObjectName("settings_button")
+        self.settings_btn.setToolTip("Settings")
+        self.settings_btn.clicked.connect(lambda: self.app.page_manager.switch_to(PageType.SettingsPage))
+        header_outer_layout.addWidget(self.settings_btn, alignment=Qt.AlignmentFlag.AlignTop)
+
+        parent_layout.addLayout(header_outer_layout)
 
     def page_update(self, delta_time: float):
         """Called every frame - check for changes and update if needed"""

@@ -38,8 +38,10 @@ class PageManager:
         self.context = {}
 
         # History tracking: list of (PageType, context) tuples
-        self.history: list[tuple[PageType, dict]] = [(self.current_page_type, {})]
-        self.history_index: int = 0
+        self.history: list[tuple[PageType, dict]] = []
+        if self.current_page_type:
+            self.history.append((self.current_page_type, {}))
+        self.history_index: int = len(self.history) - 1
 
     def register_page(self, page_type: PageType, page_class: type):
         self.pages[page_type] = page_class
@@ -150,19 +152,19 @@ class PageManager:
     @property
     def in_replay(self) -> bool:
         """Check if we are in Replay e.g. The user is visiting a Replay"""
-        return self.current_page_type != PageType.ReplayListPage
+        return not PageManager.is_out_replay(self.current_page_type)
 
     @staticmethod
     def is_in_replay(page_type: PageType) -> bool:
-        return page_type != PageType.ReplayListPage
+        return not PageManager.is_out_replay(page_type)
 
     @property
     def out_replay(self) -> bool:
-        return self.current_page_type == PageType.ReplayListPage
+        return PageManager.is_out_replay(self.current_page_type)
 
     @staticmethod
     def is_out_replay(page_type: PageType) -> bool:
-        return page_type == PageType.ReplayListPage
+        return page_type in (PageType.ReplayListPage, PageType.SettingsPage)
 
     def setup_drawer(self, in_replay: bool):
         """Setup the drawer entries based on whether we are in a replay or not."""
