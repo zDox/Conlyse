@@ -133,9 +133,10 @@ class ReplayListPage(Page):
         """Update the details panel with selected replay info"""
         self.details_panel.update_details(self.selected_replay, self.selected_filepath)
 
-    def _on_replay_selected(self, replay):
+    def _on_replay_selected(self, replay, filepath):
         """Handle replay selection change"""
         self.selected_replay = replay
+        self.selected_filepath = filepath
         self._update_details()
 
     def on_open_replay(self):

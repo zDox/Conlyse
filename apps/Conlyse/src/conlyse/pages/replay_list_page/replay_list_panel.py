@@ -104,13 +104,14 @@ class ReplayListPanel(QWidget):
         # Clear and rebuild
         self.replay_list.clear()
 
-        for replay in replays.values():
+        for filepath, replay in replays.items():
             replay_data = {}  # TODO: populate with actual data from replay
             item = QListWidgetItem(self.replay_list)
             item.setSizeHint(QSize(340, 120))
             widget = ReplayListItem(replay_data)
             self.replay_list.setItemWidget(item, widget)
             item.setData(Qt.ItemDataRole.UserRole, replay)
+            item.setData(Qt.ItemDataRole.UserRole + 1, filepath)
 
         # Update badge
         self.badge_label.setText(str(self.replay_list.count()))
@@ -142,7 +143,8 @@ class ReplayListPanel(QWidget):
         """Handle selection change"""
         if self.on_selection_changed_callback and current:
             replay = current.data(Qt.ItemDataRole.UserRole)
-            self.on_selection_changed_callback(replay)
+            filepath = current.data(Qt.ItemDataRole.UserRole + 1)
+            self.on_selection_changed_callback(replay, filepath)
 
     def cleanup(self):
         """Cleanup resources"""
