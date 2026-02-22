@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from enum import StrEnum
 
 
 class PageType(Enum):
@@ -9,10 +10,11 @@ class PageType(Enum):
     MapPage = auto()
     ReplayLoadPage = auto()
     PlayerListPage = auto()
+    SettingsPage = auto()
 
-class Theme(Enum):
-    LIGHT = auto()
-    DARK = auto()
+class Theme(StrEnum):
+    LIGHT = "LIGHT"
+    DARK = "DARK"
 
 class DockType(Enum):
     """Types of panels available in ReplayPage sidebars and bottom panel."""

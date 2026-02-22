@@ -52,11 +52,18 @@ class KeybindingManager:
 
     def set_keybinding(self, action: KeyAction, key_combination: str):
         """Sets a keybinding for the given action."""
+        if action in self.shortcuts:
+            self.shortcuts[action].deleteLater()
+            del self.shortcuts[action]
+
+        if not key_combination:
+            if action in self.keybindings:
+                del self.keybindings[action]
+            return
+
         key_sequence = sequence_str_to_combination(key_combination)
         self.keybindings[action] = key_sequence
         if action in self.callbacks:
-            if action in self.shortcuts:
-                self.shortcuts[action].deleteLater()
             shortcut = QShortcut(QKeySequence(key_sequence.toCombined()), self.app.main_window)
             shortcut.activated.connect(self.callbacks[action])
             self.shortcuts[action] = shortcut

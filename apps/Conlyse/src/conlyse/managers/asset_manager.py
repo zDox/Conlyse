@@ -37,6 +37,7 @@ ASSET_NAME_TO_PATH = {
     "replay_load_page_style": Path("styles/pages/replay_load_page.qss"),
     "player_list_page_style": Path("styles/pages/player_list_page.qss"),
     "map_page_style": Path("styles/pages/map_page.qss"),
+    "settings_page_style": Path("styles/pages/settings_page.qss"),
 }
 
 logger = get_logger()

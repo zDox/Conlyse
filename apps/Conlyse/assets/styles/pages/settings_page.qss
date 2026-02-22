@@ -1,0 +1,162 @@
+/* ============================================================================
+   Settings Page Styles
+   Page-specific styles for the settings page and its components
+   ============================================================================ */
+
+SettingsPage {
+    background-color: $bg_dark;
+}
+
+/* --- Header --- */
+
+QWidget#settingsHeader {
+    background-color: $bg;
+    border-bottom: 1px solid $border_muted;
+}
+
+CIconButton#settings_back_button {
+    background-color: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+CIconButton#settings_back_button:hover {
+    background-color: $bg_light;
+}
+
+/* --- Sidebar --- */
+
+QListWidget#settingsSidebar {
+    background-color: $bg;
+    border: none;
+    border-right: 1px solid $border_muted;
+    outline: none;
+    padding: 10px;
+}
+
+QListWidget#settingsSidebar::item {
+    color: $text_muted;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+QListWidget#settingsSidebar::item:hover {
+    background-color: $bg_light;
+    color: $text;
+}
+
+QListWidget#settingsSidebar::item:selected {
+    background-color: $primary_hover_overlay;
+    color: $primary;
+}
+
+/* --- Content Area --- */
+
+QStackedWidget#settingsContent {
+    background-color: $bg_dark;
+}
+
+QScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+QWidget#settingsContentContainer {
+    background-color: transparent;
+}
+
+/* --- Settings Fields --- */
+
+SettingsField {
+    background-color: $bg;
+    border: 1px solid $border_muted;
+    border-radius: 8px;
+    padding: 8px 16px;
+}
+
+SettingsField QLabel {
+    color: $text;
+}
+
+SettingsField QLabel[description="true"] {
+    color: $text_muted;
+    font-size: $body;
+}
+
+/* --- UI Components --- */
+
+QCheckBox {
+    spacing: 8px;
+    color: $text;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid $border;
+}
+
+QCheckBox::indicator:unchecked {
+    background-color: $bg_light;
+}
+
+QCheckBox::indicator:checked {
+    background-color: $primary;
+    border-color: $primary;
+}
+
+QSlider::groove:horizontal {
+    border: 1px solid $border;
+    height: 4px;
+    background: $bg_light;
+    margin: 2px 0;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background: $primary;
+    border: 1px solid $primary;
+    width: 14px;
+    height: 14px;
+    margin: -6px 0;
+    border-radius: 7px;
+}
+
+QComboBox {
+    background-color: $bg_light;
+    border: 1px solid $border;
+    border-radius: 4px;
+    padding: 4px 12px;
+    color: $text;
+    min-width: 120px;
+}
+
+QComboBox:on {
+    border-color: $primary;
+}
+
+QComboBox::drop-down {
+    border: none;
+}
+
+QPushButton {
+    background-color: $bg_light;
+    border: 1px solid $border;
+    border-radius: 4px;
+    padding: 6px 12px;
+    color: $text;
+}
+
+QPushButton:hover {
+    background-color: $primary_hover_overlay;
+    border-color: $primary;
+}
+
+QPushButton:checked {
+    background-color: $primary;
+    color: $bg;
+}
