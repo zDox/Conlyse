@@ -93,11 +93,73 @@ class SettingsPage(Page):
         self._add_keybindings_section()
 
     def _add_keybindings_section(self):
-        fields = []
-        for action in KeyAction:
-            fields.append((f"actions.{action.value}", action.value.replace("_", " ").title(), KeybindingField, {}))
+        categories = {
+            "Global": [
+                KeyAction.TOGGLE_DRAWER,
+                KeyAction.RELOAD_STYLES,
+                KeyAction.TOGGLE_THEME,
+                KeyAction.TOGGLE_PERFORMANCE_WINDOW,
+            ],
+            "Replay List": [
+                KeyAction.OPEN_REPLAY_FILE_DIALOG,
+            ],
+            "Map Page - Camera": [
+                KeyAction.CAMERA_MOVE_UP,
+                KeyAction.CAMERA_MOVE_DOWN,
+                KeyAction.CAMERA_MOVE_LEFT,
+                KeyAction.CAMERA_MOVE_RIGHT,
+                KeyAction.CAMERA_ZOOM_IN,
+                KeyAction.CAMERA_ZOOM_OUT,
+            ],
+            "Map Page - Views": [
+                KeyAction.SWITCH_TO_POLITICAL_MAP_VIEW,
+                KeyAction.SWITCH_TO_TERRAIN_MAP_VIEW,
+                KeyAction.SWITCH_TO_RESOURCE_MAP_VIEW,
+            ],
+            "Map Page - Overlays": [
+                KeyAction.TOGGLE_CONNECTIONS_OVERLAY,
+                KeyAction.TOGGLE_PROVINCE_LABELS,
+                KeyAction.TOGGLE_NATION_LABELS,
+            ],
+            "Debug": [
+                KeyAction.DEBUG_TOGGLE_MOUSE_CLICK_LOGGING,
+            ]
+        }
         
-        self._add_section("Keybindings", fields, config_type="keybindings")
+        self.sidebar.addItem("Keybindings")
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        
+        container = QWidget()
+        container.setObjectName("settingsContentContainer")
+        layout = QVBoxLayout(container)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        title = QLabel("Keybindings")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; margin-bottom: 10px;")
+        layout.addWidget(title)
+
+        for cat_name, actions in categories.items():
+            cat_label = QLabel(cat_name)
+            cat_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-top: 15px; color: #888;")
+            layout.addWidget(cat_label)
+            
+            for action in actions:
+                config_key = f"actions.{action.value}"
+                label = action.value.replace("_", " ").title()
+                field = KeybindingField(label)
+                val = self.app.config_manager.get(config_key, config_type="keybindings")
+                field.set_value(val)
+                field.value_changed.connect(lambda new_val, key=config_key: self._on_setting_changed(key, new_val, "keybindings"))
+                layout.addWidget(field)
+
+        layout.addStretch()
+        scroll.setWidget(container)
+        self.content_stack.addWidget(scroll)
 
     def _add_section(self, name: str, fields: list, config_type: str = "main"):
         self.sidebar.addItem(name)
@@ -149,7 +211,15 @@ class SettingsPage(Page):
         if config_type == "main":
             if key == "ui.theme":
                 self.app.style_manager.set_theme(value)
-                self.app.style_manager.update_style()
+            elif key == "graphics.frame_rate_limit":
+                self.app.update_frame_rate_limit()
+            elif key == "graphics.fullscreen":
+                self.app.toggle_fullscreen()
+            elif key == "graphics.vsync":
+                # VSync requires a restart as it's set in QSurfaceFormat before widget creation
+                pass
+            elif key == "simulation.ups":
+                self.app.update_simulation_rate()
         elif config_type == "keybindings":
             # Update the keybinding in the manager
             from conlyse.managers.keybinding_manager.key_action import KeyAction
@@ -157,6 +227,7 @@ class SettingsPage(Page):
             try:
                 action = KeyAction(action_str)
                 self.app.keybinding_manager.set_keybinding(action, value)
+                self.app.config_manager.set(key, value, config_type="keybindings")
             except ValueError:
                 pass
 

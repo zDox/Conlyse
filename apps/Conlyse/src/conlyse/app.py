@@ -37,12 +37,8 @@ class App:
         self.style_manager      = StyleManager(self)
         self.page_manager       = PageManager(self)
         self.replay_manager: ReplayManager     = ReplayManager(self)
-
-        self.logic_rate = self.config_manager.main.get("simulation.ups")
-        self.logic_dt = 1.0 / self.logic_rate if self.logic_rate > 0 else 0.0
-
-        self.render_rate = self.config_manager.main.get("graphics.frame_rate_limit")
-        self.render_dt = 1.0 / self.render_rate if self.render_rate > 0 else 0.0
+        self.update_simulation_rate()
+        self.update_frame_rate_limit()
 
         # accumulators
         self.logic_acc = 0.0
@@ -72,6 +68,7 @@ class App:
         self.page_manager.switch_to(PageType.ReplayListPage)
         self.page_manager.update(self.logic_dt)
 
+        self.toggle_fullscreen()
         self.main_window.show()
 
         # --- Main loop ---
@@ -122,3 +119,21 @@ class App:
                 sleep_time = max(0.0, self.render_dt - self.render_acc)
                 if sleep_time > 0.0:
                     time.sleep(sleep_time)
+
+    def update_simulation_rate(self):
+        self.logic_rate = self.config_manager.get("simulation.ups")
+        self.logic_dt = 1.0 / self.logic_rate if self.logic_rate > 0 else 0.0
+        logger.debug(f"Simulation rate updated to {self.logic_rate} UPS")
+
+    def update_frame_rate_limit(self):
+        self.render_rate = self.config_manager.get("graphics.frame_rate_limit")
+        self.render_dt = 1.0 / self.render_rate if self.render_rate > 0 else 0.0
+        logger.debug(f"Frame rate limit updated to {self.render_rate} FPS")
+
+    def toggle_fullscreen(self):
+        is_fullscreen = self.config_manager.get("graphics.fullscreen")
+        if is_fullscreen:
+            self.main_window.showFullScreen()
+        else:
+            self.main_window.showNormal()
+        logger.debug(f"Fullscreen toggled to {is_fullscreen}")

@@ -57,17 +57,34 @@ class SliderField(SettingsField):
         super().__init__(label_text, description, parent)
 
     def _create_widget(self):
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.value_label = QLabel()
+        self.value_label.setFixedWidth(30)
+        self.value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        
         self.slider = QSlider(Qt.Orientation.Horizontal)
         self.slider.setRange(self.min_val, self.max_val)
         self.slider.setFixedWidth(150)
-        self.slider.valueChanged.connect(self.value_changed.emit)
-        return self.slider
+        
+        def on_value_changed(val):
+            self.value_label.setText(str(val))
+            self.value_changed.emit(val)
+            
+        self.slider.valueChanged.connect(on_value_changed)
+        
+        layout.addWidget(self.value_label)
+        layout.addWidget(self.slider)
+        return container
 
     def get_value(self):
         return self.slider.value()
 
     def set_value(self, value):
         self.slider.setValue(int(value))
+        self.value_label.setText(str(value))
 
 from PySide6.QtWidgets import QComboBox
 
@@ -92,23 +109,43 @@ class ComboField(SettingsField):
 
 from PySide6.QtCore import Qt, Signal, QKeyCombination
 from PySide6.QtGui import QKeySequence
-from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QPushButton, QHBoxLayout
+from conlyse.widgets.mui.icon_button import CIconButton
 
 class KeybindingField(SettingsField):
     def _create_widget(self):
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
+
         self.button = QPushButton("Press a key...")
         self.button.setFixedWidth(150)
         self.button.setCheckable(True)
         self.button.clicked.connect(self._on_clicked)
         self.button.installEventFilter(self)
+
+        self.clear_button = CIconButton("fa5s.times", color="error", size=20)
+        self.clear_button.setToolTip("Clear keybinding")
+        self.clear_button.clicked.connect(self._on_clear_clicked)
+
+        layout.addWidget(self.button)
+        layout.addWidget(self.clear_button)
+
         self._current_sequence = ""
-        return self.button
+        return container
 
     def _on_clicked(self):
         if self.button.isChecked():
             self.button.setText("...")
         else:
             self.button.setText(self._current_sequence or "None")
+
+    def _on_clear_clicked(self):
+        self._current_sequence = ""
+        self.button.setText("None")
+        self.button.setChecked(False)
+        self.value_changed.emit("")
 
     def eventFilter(self, obj, event):
         if obj == self.button and self.button.isChecked():
@@ -120,14 +157,39 @@ class KeybindingField(SettingsField):
                     return True
                 
                 modifiers = event.modifiers()
-                # Create a QKeyCombination from modifiers and key
-                key_comb = QKeyCombination(modifiers, Qt.Key(key))
-                sequence = QKeySequence(key_comb).toString()
-                self._current_sequence = sequence
-                self.button.setText(sequence)
-                self.button.setChecked(False)
-                self.value_changed.emit(sequence)
+                
+                # If the key is one of the modifier keys, don't finish yet
+                is_modifier = key in [
+                    Qt.Key.Key_Control, Qt.Key.Key_Shift, Qt.Key.Key_Alt, 
+                    Qt.Key.Key_Meta, Qt.Key.Key_AltGr
+                ]
+                
+                if not is_modifier:
+                    # Create a QKeyCombination from modifiers and key
+                    key_comb = QKeyCombination(modifiers, Qt.Key(key))
+                    sequence = QKeySequence(key_comb).toString()
+                    self._current_sequence = sequence
+                    self.button.setText(sequence)
+                    self.button.setChecked(False)
+                    self.value_changed.emit(sequence)
+                else:
+                    # Update button text to show modifiers being held
+                    sequence = QKeySequence(modifiers).toString()
+                    if sequence:
+                        self.button.setText(sequence + "+...")
+                    else:
+                        self.button.setText("...")
                 return True
+
+            elif event.type() == event.Type.KeyRelease:
+                modifiers = event.modifiers()
+                sequence = QKeySequence(modifiers).toString()
+                if sequence:
+                    self.button.setText(sequence + "+...")
+                else:
+                    self.button.setText("...")
+                return True
+
         return super().eventFilter(obj, event)
 
     def get_value(self):
