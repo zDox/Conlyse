@@ -69,33 +69,28 @@ class RecordingConverter:
         Returns:
             bool: True if successful, False otherwise
         """
-        try:
-            if self.op_mode in (OperatingMode.gmr, OperatingMode.rur) and Path(output).exists() and not overwrite:
-                logger.error(f"Output file already exists: {output}")
-                return False
-            if self.op_mode == OperatingMode.gmr:
-                gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader)
-                return gmr.convert(output_file=output,
-                                   overwrite=overwrite,
-                                   limit=limit,
-                                   game_id=game_id,
-                                   player_id=player_id)
-            elif self.op_mode == OperatingMode.rur:
-                rur = FromJsonResponsesUsingUpdateToReplay(self.reader)
-                return rur.convert(output_file=output,
-                                   overwrite=overwrite,
-                                   limit=limit,
-                                   game_id=game_id,
-                                   player_id=player_id)
-            elif self.op_mode == OperatingMode.rtj:
-                rtj = FromRecordingToJson(self.reader)
-                return rtj.convert(output_dir=output,
-                                   overwrite=overwrite,
-                                   limit=limit)
-            else:
-                logger.error(f"Invalid patch mode: {self.op_mode}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error converting recording: {e}", exc_info=True)
+        if self.op_mode in (OperatingMode.gmr, OperatingMode.rur) and Path(output).exists() and not overwrite:
+            logger.error(f"Output file already exists: {output}")
+            return False
+        if self.op_mode == OperatingMode.gmr:
+            gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader)
+            return gmr.convert(output_file=output,
+                               overwrite=overwrite,
+                               limit=limit,
+                               game_id=game_id,
+                               player_id=player_id)
+        elif self.op_mode == OperatingMode.rur:
+            rur = FromJsonResponsesUsingUpdateToReplay(self.reader)
+            return rur.convert(output_file=output,
+                               overwrite=overwrite,
+                               limit=limit,
+                               game_id=game_id,
+                               player_id=player_id)
+        elif self.op_mode == OperatingMode.rtj:
+            rtj = FromRecordingToJson(self.reader)
+            return rtj.convert(output_dir=output,
+                               overwrite=overwrite,
+                               limit=limit)
+        else:
+            logger.error(f"Invalid patch mode: {self.op_mode}")
             return False

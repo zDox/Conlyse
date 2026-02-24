@@ -8,7 +8,7 @@ def conflict_serializable(category: SerializationCategory, version: int):
     def wrapper(cls):
         #print(f"Registering serialization cls {cls} in category {category}, version: {version}")
         GameObjectSerializer.register(version, cls, category)
-        if category in (SerializationCategory.DATACLASS, SerializationCategory.POINT):
+        if category in (SerializationCategory.DATACLASS, SerializationCategory.POINT, SerializationCategory.GAME_STATE, SerializationCategory.STATIC_MAP_DATA):
             TypeGraph.register_type(version, cls)
         if category == SerializationCategory.STATIC_MAP_DATA:
             JsonParser.register_static_map_data(version, cls)

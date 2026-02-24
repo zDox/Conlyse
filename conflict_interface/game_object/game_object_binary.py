@@ -76,7 +76,7 @@ class GameObjectSerializer:
         cls._ID_FROM_CLASS[version][obj] = type_id
         cls._CATEGORY[version][obj] = category
 
-        if category == SerializationCategory.DATACLASS:
+        if category in (SerializationCategory.DATACLASS, SerializationCategory.GAME_STATE, SerializationCategory.STATIC_MAP_DATA):
             mapping = get_mapping(obj)
             cls._FIELDS_CACHE.setdefault(version, {})
             cls._FIELDS_CACHE[version][obj] = tuple(mapping.keys())
@@ -115,7 +115,9 @@ class GameObjectSerializer:
         type_id = self._id_from_class[t]
         cat = self._category[t]
 
-        if cat == SerializationCategory.DATACLASS:
+
+
+        if cat == SerializationCategory.DATACLASS or cat == SerializationCategory.GAME_STATE or cat == SerializationCategory.STATIC_MAP_DATA:
             field_names: tuple[str,  ...] = self._fields[t]
             return [self._TYPE_MARKER, type_id, *[self._to_raw(getattr(obj, name)) for name in field_names]]
 
@@ -177,7 +179,7 @@ class GameObjectSerializer:
         cat = self._category[cls]
         from_raw = self._from_raw
 
-        if cat == SerializationCategory.DATACLASS:
+        if cat in (SerializationCategory.DATACLASS, SerializationCategory.GAME_STATE, SerializationCategory.STATIC_MAP_DATA):
             field_names = self._fields[cls]
             kwargs = {name: from_raw(data[i + 2]) for i, name in enumerate(field_names)}
             instance = cls(**kwargs)
@@ -208,7 +210,7 @@ class GameObjectSerializer:
         """Return statistics about registered types."""
         return {
             'total_types':  len(self._class_from_id),
-            'dataclasses': sum(1 for c in self._category.values() if c == SerializationCategory.DATACLASS),
+            'dataclasses': sum(1 for c in self._category.values() if c in (SerializationCategory.DATACLASS, SerializationCategory.STATIC_MAP_DATA, SerializationCategory.GAME_STATE)),
             'enums': sum(1 for c in self._category. values() if c == SerializationCategory.ENUM),
             'list_wrappers': sum(1 for c in self._category.values() if c == SerializationCategory.LIST),
             'dict_wrappers': sum(1 for c in self._category.values() if c == SerializationCategory.DICT)

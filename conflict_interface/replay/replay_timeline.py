@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from conflict_interface.data_types.newest.game_state.game_state import GameState
     from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
-DEFAULT_MAX_PATCHES = 3000
+DEFAULT_MAX_PATCHES = 10000
 
 logger = get_logger()
 
@@ -44,7 +44,7 @@ class ReplayTimeline:
         self.last_time: datetime | None = None
 
     def read_from_disk(self):
-        assert not self.open(), "Reading to a Open Timeline is not Supported"
+        assert not self._open, "Reading to a Open Timeline is not Supported"
 
         result: dict[tuple[datetime, datetime | None, int], ReplaySegment] = {}
 
@@ -86,9 +86,7 @@ class ReplayTimeline:
 
         self.segments =result
 
-    def write_to_disk(self):
-        assert not self.open(), "Writing a Open Timeline is not Supported"
-
+    def _write_to_disk(self):
         cctx = self.compressor
         # Always sort for determinism.
         ordered_items = sorted(self.segments.items(), key=lambda kv: kv[0])
@@ -115,10 +113,13 @@ class ReplayTimeline:
                     compressor.write(header)
                     compressor.write(payload)
 
+
+
     def open(self):
         if self._open:
             return
-        self.read_from_disk()
+        if self.file_path.exists():
+            self.read_from_disk()
         if self._mode == "a":
             for segment in self.segments.values():
                 segment.load_append_mode()
@@ -133,7 +134,7 @@ class ReplayTimeline:
         if self._mode == "a":
             for segment in self.segments.values():
                 segment.collapse_append_mode()
-        self.write_to_disk()
+        self._write_to_disk()
         self._open = False
 
     def get_mode(self):
@@ -153,14 +154,18 @@ class ReplayTimeline:
         key, segment = self._find_open_segment(self.latest_version)
         segment.set_last_game_state(game_state)
 
-    def get_last_game_state(self) -> GameState:
-        key, segment = self._find_open_segment(self.latest_version)
+    def get_last_game_state(self) -> GameState | None:
+        key_segment = self._find_open_segment(self.latest_version)
+        if key_segment is None: return None
+        key, segment = key_segment
         return segment.get_last_game_state()
 
     def que_append_patch(self, version :int, to_time_stamp: datetime, replay_patch: BidirectionalReplayPatch | None, current_game_state: GameState | None = None, static_map_data: StaticMapData | None = None):
         assert self._mode == "a"
-        segment = self._find_open_segment(version)[1]
-        if segment is None:
+        segment = self._find_open_segment(version)
+        if segment is not None:
+            segment = segment[1]
+        else:
             segment = self._create_segment(current_game_state,
                                            version,
                                            self.last_time,
@@ -199,6 +204,11 @@ class ReplayTimeline:
         segment = self.segments.pop(key)
         self.segments[(from_ts, close_timestamp, version)] = segment
 
+    def close_last_segment(self, ts):
+        segment = self._find_open_segment(self.latest_version)
+        if segment is not None:
+            self._close_segment(segment[0], ts)
+
     def _create_segment(self, current_game_state: GameState, version: int, from_timestamp: datetime, static_map_data: StaticMapData | None = None) -> "ReplaySegment":
         assert self._mode == "a"
         assert current_game_state is not None, "Had to create a new Segment but got no game state"
@@ -210,12 +220,17 @@ class ReplayTimeline:
 
         segment = ReplaySegment(bytearray(), version, game_id=self.game_id, player_id=self.player_id,
                                 max_patches=DEFAULT_MAX_PATCHES)
-        segment.record_initial_game_state(current_game_state,from_timestamp, game_id=self.game_id, player_id = self.player_id)
-        segment.record_static_map_data(static_map_data, game_id = self.game_id, player_id=self.player_id)
 
         segment.set_last_game_state(current_game_state)
+        segment.storage.initialize(DEFAULT_MAX_PATCHES)
+        segment.record_initial_game_state(current_game_state, from_timestamp, game_id=self.game_id,
+                                          player_id=self.player_id)
+        if static_map_data is not None:
+            segment.record_static_map_data(static_map_data, game_id=self.game_id, player_id=self.player_id)
+
         segment.collapse_all()
         segment.load_everything()
+
         self.segments[(from_timestamp, None, version)] = segment
         return segment
 

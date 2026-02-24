@@ -289,6 +289,7 @@ class ReplayStorage:
 
 
         # Serialize each patch and update the index
+        print(len(nodes))
         for i, patch in enumerate(nodes):
             # Calculate offset based on previous patch
             if index_offset + i == 0:
@@ -384,7 +385,8 @@ class ReplayStorage:
             game: Optional replay interface to link game objects to
         """
         if self._static_map_data_b is None:
-            raise ValueError("Static map data is not recorded in the replay.")
+            logger.warning("StaticMapData is not recorded")
+            return None
         self.static_map_data = self.serializer.deserialize(self._static_map_data_b)
         if game is not None:
             GameObject.set_game_recursive(self.static_map_data, game)

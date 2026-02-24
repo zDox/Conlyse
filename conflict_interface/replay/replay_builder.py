@@ -88,7 +88,8 @@ class ReplayBuilder:
 
         # Parse initial game state
         _, initial_json = json_responses[initial_index]
-        version = initial_json["client_version"]
+        version = int(initial_json["client_version"])
+
         parser = self.parsers[version]
         initial_state: GameState = parser.parse_game_state(initial_json["result"], None)
 
@@ -100,7 +101,9 @@ class ReplayBuilder:
             game_id=self.game_id,
             player_id=self.player_id,
         )
+        self.replay_timeline.latest_version = version
         self.replay_timeline.open()
+        self.replay_timeline.last_time = current_timestamp
 
         logger.debug("Recording static map data to replay")
 
@@ -150,22 +153,30 @@ class ReplayBuilder:
             if not ("result" in json_response) or json_response["result"].get("@c") not in (ReplayBuilder.FULL_STATE_TYPE, ReplayBuilder.AUTO_STATE_TYPE):
                 continue
 
+
+            if json_response["result"].get("@c") == ReplayBuilder.AUTO_STATE_TYPE:
+                json_response["result"]["@c"] = ReplayBuilder.FULL_STATE_TYPE
+                json_response["full"] = False
+            else:
+                json_response["full"] = True
+
             # Parse new state
-            version = json_response["client_version"]
-            self.replay_timeline.latest_version = version
+            version = int(json_response["client_version"])
             parser = self.parsers[version]
             new_state: GameState = parser.parse_game_state(
                 json_response["result"], None
             )
             current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
-
+            if json_response["full"]:
+                self.replay_timeline.close_last_segment(current_timestamp)
+            self.replay_timeline.latest_version = version
             # Create appropriate patch
             bipatch = ReplayBuilder._create_patch_from_json(
                 json_response, current_state, new_state
             )
 
             # Update current state if full replacement
-            if json_response["result"]["@c"] == ReplayBuilder.FULL_STATE_TYPE:
+            if json_response["full"]:
                 current_state = new_state
 
             # Record patch to replay
@@ -197,11 +208,9 @@ class ReplayBuilder:
         Full state replacements use make_bireplay_patch for complete comparison.
         Incremental updates use GameState.update() to track specific changes.
         """
-        if json_response["result"]["@c"] == ReplayBuilder.FULL_STATE_TYPE:
-            # Full state replacement - compare entire states
-            return make_bireplay_patch(current_state, new_state)
-        else:
-            # Incremental update - track specific changes
-            bipatch = BidirectionalReplayPatch()
-            current_state.update(new_state, path=[], rp=bipatch)
-            return bipatch
+        # Incremental update - track specific changes
+        if json_response["full"]:
+            return BidirectionalReplayPatch()
+        bipatch = BidirectionalReplayPatch()
+        current_state.update(new_state, path=[], rp=bipatch)
+        return bipatch

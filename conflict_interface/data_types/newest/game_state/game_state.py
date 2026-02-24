@@ -151,7 +151,7 @@ class States(GameObject):
         """
 
 from ..version import VERSION
-@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.GAME_STATE, version = VERSION)
 @dataclass
 class GameState(State):
     C = "ultshared.UltGameState"

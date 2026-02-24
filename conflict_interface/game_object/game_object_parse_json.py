@@ -254,6 +254,9 @@ class JsonParser:
     def parse_game_state(self, json_obj, game):
         return self.parse_any(self.game_state, json_obj, game)
 
+    def parse_static_map_data(self, json_obj):
+        return self.parse_any(self.static_map_data, json_obj)
+
     def _parse_any(self, json_obj: dict | list | int | str, types: list[TypeGraphNode], game = None):
         #assert self.type_graph.build, "Build the type-tree using .build_tree before parsing!"
         correct_type_node = self.get_actual_type(json_obj, types)

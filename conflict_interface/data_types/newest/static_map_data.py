@@ -19,7 +19,7 @@ from shapely.strtree import STRtree
 
 from .version import VERSION
 
-@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@conflict_serializable(SerializationCategory.STATIC_MAP_DATA, version = VERSION)
 @dataclass
 class StaticMapData(GameObject):
     locations: ArrayList[Union[Province, SeaProvince]]
