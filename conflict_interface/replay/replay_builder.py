@@ -5,7 +5,6 @@ from typing import Callable
 from typing import Optional
 from typing import TYPE_CHECKING
 
-from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
@@ -20,6 +19,12 @@ if TYPE_CHECKING:
 logger = get_logger()
 
 class ReplayBuilder:
+    """
+    Usage:
+    1. Import everything needed for all wanted version
+    2. call .setup_parsers()
+    3. everything else as normal
+    """
     # Constants
     AUTO_STATE_TYPE = "ultshared.UltAutoGameState"
     FULL_STATE_TYPE = "ultshared.UltGameState"
@@ -37,7 +42,9 @@ class ReplayBuilder:
         self.created = path.exists()
 
     def setup_parsers(self):
-        pass # TODO
+        versions: list[int] = list(JsonParser.GAME_STATES.keys())
+        for v in versions:
+            self.parsers[v] = JsonParser(v)
 
     @staticmethod
     def _find_initial_game_state_index(json_responses: list[tuple[int, dict]]) -> int:
@@ -145,6 +152,7 @@ class ReplayBuilder:
 
             # Parse new state
             version = json_response["client_version"]
+            self.replay_timeline.latest_version = version
             parser = self.parsers[version]
             new_state: GameState = parser.parse_game_state(
                 json_response["result"], None

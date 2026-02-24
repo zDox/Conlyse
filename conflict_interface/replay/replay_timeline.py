@@ -36,6 +36,7 @@ class ReplayTimeline:
         self.segments: dict[tuple[datetime, datetime | None, int], ReplaySegment] = {} # [From_ts, To_ts, version] -> segment
         self.game_id = game_id
         self.player_id = player_id
+        self.latest_version = -1
 
         self.compressor = zstd.ZstdCompressor(level=11)
         self.decompressor = zstd.ZstdDecompressor()
@@ -149,10 +150,12 @@ class ReplayTimeline:
             self._mode = mode
 
     def set_last_game_state(self, game_state: GameState):
-        pass
+        key, segment = self._find_open_segment(self.latest_version)
+        segment.set_last_game_state(game_state)
 
     def get_last_game_state(self) -> GameState:
-        pass
+        key, segment = self._find_open_segment(self.latest_version)
+        return segment.get_last_game_state()
 
     def que_append_patch(self, version :int, to_time_stamp: datetime, replay_patch: BidirectionalReplayPatch | None, current_game_state: GameState | None = None, static_map_data: StaticMapData | None = None):
         assert self._mode == "a"

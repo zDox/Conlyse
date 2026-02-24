@@ -43,6 +43,9 @@ class ReplaySegment:
     def set_last_game_state(self, game_state: GameState):
         self.storage.last_game_state = game_state
 
+    def get_last_game_state(self):
+        return self.storage.last_game_state
+
     def set_max_patches(self, max_patches: int):
         self._max_patches = max_patches
 
