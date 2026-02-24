@@ -96,9 +96,8 @@ pkg_check_modules(ZSTD REQUIRED libzstd)
 # Zlib for gzip decompression
 find_package(ZLIB REQUIRED)
 
-# OpenSSL for SHA1
+# OpenSSL for SHA1 and HMAC (also used for S3 signing)
 find_package(OpenSSL REQUIRED)
-
 
 # PostgreSQL client library (libpq)
 find_package(PostgreSQL REQUIRED)
@@ -161,6 +160,7 @@ set(SOURCES
         src/observation_api.cpp
         src/recording_registry.cpp
         src/static_map_cache.cpp
+        src/s3_client.cpp
         src/recording_storage.cpp
         src/hub_interface_wrapper.cpp
         src/async_https_request.cpp

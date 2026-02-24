@@ -9,6 +9,7 @@ namespace fs = std::filesystem;
 
 StaticMapCache::StaticMapCache(const std::string& cache_dir)
     : cache_dir_(cache_dir)
+    , s3_enabled_(false)
 {
     fs::create_directories(cache_dir_);
     
@@ -26,6 +27,38 @@ StaticMapCache::StaticMapCache(const std::string& cache_dir)
             }
         }
     }
+}
+
+StaticMapCache::StaticMapCache(const std::string& cache_dir, const S3Config& s3_config)
+    : cache_dir_(cache_dir)
+    , s3_enabled_(true)
+{
+    fs::create_directories(cache_dir_);
+    
+    // Initialize S3 client
+    s3_client_ = std::make_shared<S3Client>(s3_config);
+    
+    // Ensure bucket exists
+    ensure_bucket_exists();
+    
+    // Load existing cached map IDs
+    for (const auto& entry : fs::directory_iterator(cache_dir_)) {
+        if (entry.is_regular_file()) {
+            std::string filename = entry.path().stem().string();
+            if (filename.find("map_") == 0) {
+                try {
+                    int map_id = std::stoi(filename.substr(4));
+                    saved_ids_.insert(map_id);
+                } catch (const std::exception&) {
+                    // Skip files with invalid names
+                }
+            }
+        }
+    }
+}
+
+StaticMapCache::~StaticMapCache() {
+    // Destructor
 }
 
 bool StaticMapCache::is_cached(int map_id) const {
@@ -78,9 +111,50 @@ std::string StaticMapCache::save(int map_id, const json& static_map_data) {
         saved_ids_.insert(map_id);
         std::cout << "Cached static map data for map_id " << map_id << " at " << path << std::endl;
         
+        // Upload to S3 if enabled
+        if (s3_enabled_) {
+            if (upload_to_s3(path.string(), map_id)) {
+                std::cout << "Uploaded static map data for map_id " << map_id << " to S3" << std::endl;
+            } else {
+                std::cerr << "Failed to upload static map data for map_id " << map_id << " to S3" << std::endl;
+            }
+        }
+        
         return path.string();
     } catch (const std::exception& e) {
         std::cerr << "Failed to cache static map data for map_id " << map_id << ": " << e.what() << std::endl;
         return "";
+    }
+}
+
+bool StaticMapCache::upload_to_s3(const std::string& local_path, int map_id) {
+    if (!s3_client_) {
+        std::cerr << "S3 client not initialized" << std::endl;
+        return false;
+    }
+    
+    try {
+        std::string s3_key = "static_maps/map_" + std::to_string(map_id) + ".bin";
+        return s3_client_->upload_file(local_path, s3_key);
+    } catch (const std::exception& e) {
+        std::cerr << "Exception during S3 upload: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+void StaticMapCache::ensure_bucket_exists() {
+    if (!s3_client_) {
+        return;
+    }
+    
+    try {
+        if (!s3_client_->bucket_exists()) {
+            std::cout << "Creating S3 bucket..." << std::endl;
+            if (!s3_client_->create_bucket()) {
+                std::cerr << "Failed to create S3 bucket" << std::endl;
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Exception checking/creating S3 bucket: " << e.what() << std::endl;
     }
 }

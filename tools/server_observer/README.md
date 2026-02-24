@@ -22,6 +22,36 @@ nano account_pool.json
 - ❌ Never committed to version control
 - ❌ Never embedded in Docker images
 
+## S3 Storage Configuration
+
+ServerObserver can upload static map data to S3-compatible storage (e.g., Hetzner Object Storage, AWS S3, MinIO). This allows sharing static map data with the server converter and other services.
+
+To enable S3 uploads for static map data, configure the following in your `config.json`:
+
+```json
+{
+  "storage": {
+    "recordings_dir": "/app/recordings",
+    "long_term_storage_dir": "/app/long_term_storage",
+    "static_maps_dir": "/app/static_maps",
+    "s3_enabled": true,
+    "s3": {
+      "endpoint_url": "https://your-s3-endpoint.com",
+      "access_key": "your-access-key",
+      "secret_key": "your-secret-key",
+      "bucket_name": "replays",
+      "region": "us-east-1"
+    }
+  }
+}
+```
+
+When `s3_enabled` is `true`, static map data will be:
+1. Saved locally to `static_maps_dir` (compressed with zstd)
+2. Automatically uploaded to S3 at `static_maps/map_{map_id}.bin`
+
+This should use the **same S3 configuration** as the server converter to ensure both services can access the static map data.
+
 ## Running with Docker
 
 See [DOCKER.md](DOCKER.md) for complete Docker documentation.

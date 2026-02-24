@@ -278,33 +278,26 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
             continue;
         }
 
-        // Check if state has stateType field
-        uint64_t state_type;
-        if (state["stateType"].get(state_type) != simdjson::SUCCESS) {
-            continue;
-        }
-
-        std::string_view state_id_view;
-        if (state["stateID"].get(state_id_view) == simdjson::SUCCESS) {
+        // Extract metadata
+        if (std::string_view state_id_view; state["stateID"].get(state_id_view) == simdjson::SUCCESS) {
             state_ids[std::string(key)] = std::string(state_id_view);
         }
 
-        std::string_view timestamp_view;
-        if (state["timeStamp"].get(timestamp_view) == simdjson::SUCCESS) {
+        if (std::string_view timestamp_view; state["timeStamp"].get(timestamp_view) == simdjson::SUCCESS) {
             time_stamps[std::string(key)] = std::string(timestamp_view);
         }
 
+        // Special checks for state MapState and GameInfoState
         if (key == "3") {
             std::string_view map_id_view;
-            if (state["mapID"].get(map_id_view) == simdjson::SUCCESS) {
+            if (state["map"]["mapID"].get(map_id_view) == simdjson::SUCCESS) {
                 detected_map_id = std::string(map_id_view);
             }
-        }
-
-        // Check if game has ended
-        bool ended;
-        if (state["gameEnded"].get(ended) == simdjson::SUCCESS && ended) {
-            game_ended = true;
+        } else if (key == "12") {
+            bool ended;
+            if (state["gameEnded"].get(ended) == simdjson::SUCCESS && ended) {
+                game_ended = true;
+            }
         }
     }
 

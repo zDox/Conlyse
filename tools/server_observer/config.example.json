@@ -7,7 +7,16 @@
   },
   "storage": {
     "recordings_dir": "/app/recordings",
-    "long_term_storage_dir": "/app/long_term_storage"
+    "long_term_storage_dir": "/app/long_term_storage",
+    "static_maps_dir": "/app/static_maps",
+    "s3_enabled": false,
+    "s3": {
+      "endpoint_url": "https://your-hetzner-s3-endpoint.com",
+      "access_key": "your-access-key",
+      "secret_key": "your-secret-key",
+      "bucket_name": "replays",
+      "region": "us-east-1"
+    }
   },
   "proxy": {
     "http": "",

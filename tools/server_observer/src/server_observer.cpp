@@ -20,8 +20,6 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     , account_pool_(account_pool)
     , stop_flag_(false)
     , config_file_path_(config_path)
-    , last_config_modified_time_()  // Initialize to default
-    , last_config_check_time_()     // Initialize to default
 {
     max_parallel_recordings_ = config.value("max_parallel_recordings", 1);
     int max_parallel_updates = config.value("max_parallel_updates", 1);
@@ -52,7 +50,30 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     registry_ = std::make_shared<RecordingRegistry>(registry_path);
 
     // Initialize map cache
-    map_cache_ = std::make_shared<StaticMapCache>(output_dir_ + "/static_maps");
+    std::string static_maps_dir = output_dir_ + "/static_maps";
+    if (config.contains("storage") && config["storage"].contains("static_maps_dir")) {
+        static_maps_dir = config["storage"]["static_maps_dir"].get<std::string>();
+    }
+    
+    // Check if S3 is enabled for static maps
+    bool s3_enabled = false;
+    if (config.contains("storage") && config["storage"].contains("s3_enabled")) {
+        s3_enabled = config["storage"]["s3_enabled"].get<bool>();
+    }
+    
+    if (s3_enabled && config.contains("storage") && config["storage"].contains("s3")) {
+        auto s3_config_json = config["storage"]["s3"];
+        S3Config s3_config;
+        s3_config.endpoint_url = s3_config_json["endpoint_url"].get<std::string>();
+        s3_config.access_key = s3_config_json["access_key"].get<std::string>();
+        s3_config.secret_key = s3_config_json["secret_key"].get<std::string>();
+        s3_config.bucket_name = s3_config_json["bucket_name"].get<std::string>();
+        s3_config.region = s3_config_json.value("region", "us-east-1");
+        
+        map_cache_ = std::make_shared<StaticMapCache>(static_maps_dir, s3_config);
+    } else {
+        map_cache_ = std::make_shared<StaticMapCache>(static_maps_dir);
+    }
 
     request_manager_ = std::make_shared<RequestManager>(
         config.value("request_manager_threads", 1)
