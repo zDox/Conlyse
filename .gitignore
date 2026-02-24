@@ -19,6 +19,8 @@ examples/__pycache__
 Makefile
 make.bat
 
+conflict_interface/data_types/*
+
 tests/data/full_test_data_1.json
 tests/data/full_test_data_2.json
 tests/data/full_test_data_3.json

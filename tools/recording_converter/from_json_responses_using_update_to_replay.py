@@ -1,12 +1,21 @@
+from __future__ import annotations
+
 from pathlib import Path
+
+
 from typing import Optional
+from typing import TYPE_CHECKING
 
 from tqdm import tqdm
 
-from conflict_interface.data_types.static_map_data import StaticMapData
 from conflict_interface.replay.replay_builder import ReplayBuilder
 from tools.recording_converter.recorder_logger import get_logger
 from tools.recording_converter.recording_reader import RecordingReader
+
+from conflict_interface.data_types import *  # TODO what is the better way to do this? This ensures that all supported version are usable
+
+if TYPE_CHECKING:
+    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 logger = get_logger()
 
@@ -72,48 +81,40 @@ class FromJsonResponsesUsingUpdateToReplay:
         if static_map_data is None:
             return False
 
-        # Calculate max_patches for replay
-        max_patches = self._calculate_max_patches(json_responses, limit)
-
         # Create ReplayBuilder
         builder = ReplayBuilder(
             path=output_file,
             game_id=game_id,
             player_id=player_id
         )
+        builder.setup_parsers()
 
-        try:
-            # Create initial replay with static map data
-            logger.info("Creating initial replay...")
-            initial_index = builder.create_replay(
-                json_responses=json_responses,
-                static_map_data=static_map_data,
-                max_patches=max_patches
-            )
+        # Create initial replay with static map data
+        logger.info("Creating initial replay...")
+        initial_index = builder.create_replay(
+            json_responses=json_responses,
+            static_map_data=static_map_data
+        )
 
-            # Append remaining JSON responses (skip the initial state already processed)
-            logger.info("Appending JSON responses...")
-            remaining_responses = json_responses[initial_index + 1:] if initial_index + 1 < len(json_responses) else []
+        # Append remaining JSON responses (skip the initial state already processed)
+        logger.info("Appending JSON responses...")
+        remaining_responses = json_responses[initial_index + 1:] if initial_index + 1 < len(json_responses) else []
 
-            # Use tqdm for progress reporting
-            with tqdm(total=len(remaining_responses), desc="Writing Replay", unit="patch", unit_scale=True) as pbar:
-                def wrapped_callback(current: int, total: int):
-                    pbar.n = current
-                    pbar.refresh()
-
-                builder.append_json_responses(
-                    json_responses=remaining_responses,
-                    progress_callback=wrapped_callback
-                )
-                pbar.n = len(remaining_responses)
+        # Use tqdm for progress reporting
+        with tqdm(total=len(remaining_responses), desc="Writing Replay", unit="patch", unit_scale=True) as pbar:
+            def wrapped_callback(current: int, total: int):
+                pbar.n = current
                 pbar.refresh()
 
-            logger.info(f"Successfully converted recording to replay: {output_file}")
-            return True
+            builder.append_json_responses(
+                json_responses=remaining_responses,
+                progress_callback=wrapped_callback
+            )
+            pbar.n = len(remaining_responses)
+            pbar.refresh()
 
-        except Exception as e:
-            logger.error(f"Failed to convert recording: {e}")
-            return False
+        logger.info(f"Successfully converted recording to replay: {output_file}")
+        return True
 
     def _calculate_max_patches(self, json_responses: list, limit: Optional[int]) -> int:
         """Calculate maximum number of patches needed for replay."""
