@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.24)
 project(ServerObserver VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -99,6 +99,13 @@ find_package(ZLIB REQUIRED)
 # OpenSSL for SHA1
 find_package(OpenSSL REQUIRED)
 
+
+# PostgreSQL client library (libpq)
+find_package(PostgreSQL REQUIRED)
+message(STATUS "PostgreSQL Configuration:")
+message(STATUS "  Include dirs: ${PostgreSQL_INCLUDE_DIRS}")
+message(STATUS "  Libraries: ${PostgreSQL_LIBRARIES}")
+
 # Prometheus C++ client library
 FetchContent_Declare(
         prometheus-cpp
@@ -137,6 +144,7 @@ include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${HIREDIS_INCLUDE_DIR}        # for #include <hiredis/hiredis.h>
         ${hiredis_SOURCE_DIR}         # for hiredis build itself
+        ${PostgreSQL_INCLUDE_DIRS}
 )
 
 # Source files
@@ -161,6 +169,7 @@ set(SOURCES
         src/proxy_config.cpp
         src/metrics.cpp
         src/redis_publisher.cpp
+        src/db_client.cpp
 )
 
 # Create executable
@@ -188,6 +197,7 @@ target_link_libraries(server_observer
         Python3::Python  # Explicitly link to the found Python
         prometheus-cpp::core
         prometheus-cpp::pull
+        ${PostgreSQL_LIBRARIES}
 )
 
 target_include_directories(server_observer

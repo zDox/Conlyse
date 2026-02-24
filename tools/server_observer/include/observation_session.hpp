@@ -134,7 +134,7 @@ private:
 
     ObservationPackage create_observation_package();
 
-    bool ensure_static_map_data(ObservationApi &api, int map_id);
+    bool ensure_static_map_data(ObservationApi &api, const std::string& map_id);
 
     void on_request_response(std::string&& response_str);
 

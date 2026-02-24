@@ -36,6 +36,7 @@ struct GameServerResult {
     json data;
     std::string raw_response;  // Raw JSON response string
     bool game_ended = false;  // Whether the game has ended (extracted during parsing)
+    std::string map_id;       // Static map identifier (string) if available
 
     bool success() const { return error_code == GameServerError::SUCCESS; }
 };

@@ -271,6 +271,7 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
 
     // Process states to extract metadata
     bool game_ended = false;
+    std::string detected_map_id;
     for (auto [key, state_val] : states_obj) {
         simdjson::dom::object state;
         if (state_val.get(state) != simdjson::SUCCESS) {
@@ -293,6 +294,13 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
             time_stamps[std::string(key)] = std::string(timestamp_view);
         }
 
+        if (key == "3") {
+            std::string_view map_id_view;
+            if (state["mapID"].get(map_id_view) == simdjson::SUCCESS) {
+                detected_map_id = std::string(map_id_view);
+            }
+        }
+
         // Check if game has ended
         bool ended;
         if (state["gameEnded"].get(ended) == simdjson::SUCCESS && ended) {
@@ -310,6 +318,7 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
     result.error_code = GameServerError::SUCCESS;
     result.error_message = "";
     result.game_ended = game_ended;
+    result.map_id = detected_map_id; // may be empty if not available
     // No need to parse the full JSON for data field in the success case
     return result;
 }
