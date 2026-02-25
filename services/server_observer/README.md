@@ -3,11 +3,11 @@
 This crate is the primary implementation of `ServerObserver` and replaces the legacy C++ version that previously lived in `tools/server_observer`. It is intended to be behaviourally compatible with the current pipeline:
 
 - C++/Rust **observer** discovers games, records responses, caches static maps, and publishes compressed responses into Redis.
-- Python **converter** (`tools/server_converter`) consumes Redis messages and builds replays, using Postgres and S3/MinIO for metadata and storage.
+- Python **converter** (`services/server_converter`) consumes Redis messages and builds replays, using Postgres and S3/MinIO for metadata and storage.
 
 ### Building
 
-From `tools/server_observer_rust`:
+From `services/server_observer`:
 
 ```bash
 cargo build

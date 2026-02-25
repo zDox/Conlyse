@@ -24,16 +24,17 @@ Conlyse is a high-performance, interactive replay analytics tool for **Conflict 
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/zDox/ConlyseV4.git
-   cd ConlyseV4
+   git clone https://github.com/zDox/ConflictInterface.git
+   cd ConflictInterface
    ```
 
 2. **Install dependencies**:
    It is recommended to use a virtual environment.
    ```bash
-   pip install -r requirements.txt
+   cd apps/desktop
+   pip install -e .
    ```
-   *Note: Ensure you have access to the `conflict-interface` repository as it is a required dependency.*
+   *Note: This will automatically install the `conflict-interface` library as a dependency.*
 
 ## 🏃 Usage
 

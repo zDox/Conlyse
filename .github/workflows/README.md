@@ -33,8 +33,8 @@ Builds and publishes the ServerObserver Docker image to GitHub Container Registr
   - Manual trigger via workflow_dispatch
   
 - **Monitored Paths**:
-  - `tools/server_observer/**`
-  - `conflict_interface/**`
+  - `services/server_observer/**`
+  - `libs/conflict_interface/**`
   - `setup.py`
   - `pyproject.toml`
 
@@ -75,4 +75,4 @@ docker run -v $(pwd)/config:/app ghcr.io/zdox/server-observer:latest
 
 **Important:** You must provide `config.json` and `account_pool.json` via volume mount. These files are NOT included in the image for security reasons.
 
-See `tools/server_observer/README.md` for more details.
+See `services/server_observer/README.md` for more details.
