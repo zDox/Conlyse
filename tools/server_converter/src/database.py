@@ -77,6 +77,7 @@ class ReplayDatabase:
         cursor = self.conn.cursor()
         
         # PostgreSQL schema
+        # Replays table stores per-game replay tracking metadata.
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS replays (
                 id SERIAL PRIMARY KEY,
@@ -92,6 +93,23 @@ class ReplayDatabase:
                 updated_at TIMESTAMP NOT NULL,
                 response_count INTEGER DEFAULT 0,
                 UNIQUE(game_id, player_id)
+            )
+        """)
+
+        # Maps table stores static map payloads uploaded to S3 (compressed with zstd).
+        # Schema explanation:
+        # - map_id: integer identifier of the static map (primary key, unique across versions if map_id encodes version).
+        # - version: optional textual version tag if map_id does not encode version; can be NULL.
+        # - s3_key: full S3 object key where the compressed payload is stored.
+        # - created_at/updated_at: timestamps for bookkeeping.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS maps (
+                id SERIAL PRIMARY KEY,
+                map_id INTEGER NOT NULL UNIQUE,
+                version VARCHAR(64),
+                s3_key TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
             )
         """)
         
@@ -239,3 +257,50 @@ class ReplayDatabase:
         cursor.execute(query, (ReplayStatus.RECORDING.value,))
         
         return [dict(row) for row in cursor.fetchall()]
+
+    # --- Static maps helpers -------------------------------------------------
+    def get_map_by_id(self, map_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get a static map entry by its id.
+        
+        Args:
+            map_id: Static map identifier
+        
+        Returns:
+            Row dict or None if not found
+        """
+        cursor = self.conn.cursor()
+        query = self._format_query("""
+            SELECT * FROM maps
+            WHERE map_id = {}
+        """, 1)
+        cursor.execute(query, (map_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def create_map_entry(self, map_id: int, s3_key: str, version: Optional[str] = None) -> int:
+        """
+        Create a new static map entry.
+        The static map payload must be uploaded to S3 separately. This method only records metadata.
+        
+        Args:
+            map_id: Static map identifier
+            s3_key: Destination S3 object key
+            version: Optional version string
+        
+        Returns:
+            The ID of the created entry
+        """
+        cursor = self.conn.cursor()
+        now = datetime.now()
+        cursor.execute(
+            """
+            INSERT INTO maps (map_id, version, s3_key, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (map_id, version, s3_key, now, now)
+        )
+        map_db_id = cursor.fetchone()['id']
+        self.conn.commit()
+        return map_db_id

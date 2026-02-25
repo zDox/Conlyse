@@ -141,36 +141,27 @@ Add to `.vscode/launch.json`:
 
 ### Server Observer
 
-#### Building the C++ component:
+The primary implementation of Server Observer is now the Rust crate in `tools/server_observer_rust`.
+
+#### Building the Rust observer
 
 ```bash
-cd tools/server_observer
-mkdir -p build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-make -j$(nproc)
+cd tools/server_observer_rust
+cargo build
 ```
 
-#### Running:
+#### Running locally
+
+The Rust binary accepts an optional **TOML** config file path and an optional `account_pool.json` path:
 
 ```bash
-# From the build directory
-./server_observer ../../docker/local-dev/server-observer-config.json ../../docker/local-dev/account_pool.json
+# From repository root, using a TOML config
+cargo run -p server_observer -- \
+    docker/dev/server-observer-config.toml \
+    docker/dev/account_pool.json
 ```
 
-#### Debugging with GDB:
-
-```bash
-gdb --args ./server_observer ../../docker/local-dev/server-observer-config.json ../../docker/local-dev/account_pool.json
-```
-
-#### Debugging with IDE (CLion, VS Code with C++):
-
-**CLion:**
-1. Open `tools/server_observer` as a project
-2. Configure CMake with Debug build type
-3. Create Run Configuration with arguments pointing to config files
-4. Set breakpoints and debug
+If no arguments are provided, it defaults to `config.toml` and `account_pool.json` in the working directory. See `tools/server_observer_rust/README.md` and `config.example.toml` for more details.
 
 ### Conlyse API
 
@@ -246,7 +237,7 @@ Key settings for local development:
 
 ### Server Observer Config
 
-Location: `docker/local-dev/server-observer-config.json`
+Location: `docker/dev/server-observer-config.toml`
 
 Key settings for local development:
 - `redis.host`: `"localhost"` (not `"redis"`)

@@ -100,7 +100,7 @@ services:
       - observer-long-term-storage:/app/long_term_storage
     environment:
       - PYTHONUNBUFFERED=1
-    command: ["server_observer", "/app/config/server-observer-config.example.json", "/app/config/account_pool.example.json"]
+    command: ["server_observer", "/app/config/server-observer-config.example.toml", "/app/config/account_pool.example.json"]
     networks:
       - conflict-network
     restart: unless-stopped

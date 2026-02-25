@@ -24,7 +24,7 @@ Builds and deploys Sphinx documentation to GitHub Pages.
   - Builds Sphinx documentation
   - Deploys to gh-pages branch on push to main
 
-### 3. Docker Build (`docker-build.yml`)
+### 3. Docker Build (`server-observer-docker.yml`)
 
 Builds and publishes the ServerObserver Docker image to GitHub Container Registry.
 
@@ -44,7 +44,7 @@ Builds and publishes the ServerObserver Docker image to GitHub Container Registr
   - Tags: `latest`, `main`, `main-<sha>`
   - Uses layer caching for faster builds
 
-**Note:** The Docker image does NOT contain `config.json` or `account_pool.json`. These files must be mounted at runtime for security and configuration flexibility.
+**Note:** The Docker image does NOT contain configuration or account pool files. These must be mounted at runtime for security and configuration flexibility.
 
 ## Secrets
 
@@ -75,4 +75,4 @@ docker run -v $(pwd)/config:/app ghcr.io/zdox/server-observer:latest
 
 **Important:** You must provide `config.json` and `account_pool.json` via volume mount. These files are NOT included in the image for security reasons.
 
-See `tools/server_observer/DOCKER.md` for more details.
+See `tools/server_observer/README.md` for more details.
