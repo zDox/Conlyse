@@ -168,7 +168,7 @@ class ReplayBuilder:
             )
             current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
             if json_response["full"]:
-                self.replay_timeline.close_last_segment(current_timestamp)
+                self.replay_timeline.close_last_segment()
             self.replay_timeline.latest_version = version
             # Create appropriate patch
             bipatch = ReplayBuilder._create_patch_from_json(

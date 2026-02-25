@@ -206,7 +206,7 @@ class ReplayTimeline:
 
 
     def find_first_segment(self):
-        first = datetime.max
+        first = self.find_last_segment().get_last_time()
         first_segment = None
         for key, segment in self.segments.items():
             if key[0] < first:
@@ -215,7 +215,7 @@ class ReplayTimeline:
         return first_segment
 
     def find_last_segment(self):
-        last = datetime.fromtimestamp(0)
+        last = datetime.fromtimestamp(0, tz=UTC)
         last_segment = None
         for key, segment in self.segments.items():
             if key[0] > last:
@@ -224,25 +224,37 @@ class ReplayTimeline:
 
         return last_segment
 
+    def _find_last_key_segment(self):
+        last = datetime.fromtimestamp(0, tz=UTC)
+        last_segment = None
+        last_key = None
+        for key, segment in self.segments.items():
+            if key[0] > last:
+                last_segment = segment
+                last = key[0]
+                last_key = key
+
+        return last_key, last_segment
+
     def _close_segment(self, key: tuple[datetime, datetime | None, int], close_timestamp: datetime) -> None:
         """Close an open segment by replacing its key with a bounded one."""
         from_ts, _, version = key
         segment = self.segments.pop(key)
         self.segments[(from_ts, close_timestamp, version)] = segment
 
-    def close_last_segment(self, ts):
-        segment = self._find_open_segment(self.latest_version)
+    def close_last_segment(self):
+        key, segment = self._find_last_key_segment()
+
         if segment is not None:
-            self._close_segment(segment[0], ts)
+            self._close_segment(key, segment.get_last_time())
+        else:
+            logger.error(f"No open segment found! unable to close")
 
     def _create_segment(self, current_game_state: GameState, version: int, from_timestamp: datetime, static_map_data: StaticMapData | None = None) -> "ReplaySegment":
         assert self._mode == "a"
         assert current_game_state is not None, "Had to create a new Segment but got no game state"
 
-        for v in range(version+1): # +1 -> Also close last segment in current version
-            entry = self._find_open_segment(v)
-            if entry is not None:
-                self._close_segment(entry[0], from_timestamp)
+        self.close_last_segment()
 
         segment = ReplaySegment(bytearray(), version, game_id=self.game_id, player_id=self.player_id,
                                 max_patches=DEFAULT_MAX_PATCHES)

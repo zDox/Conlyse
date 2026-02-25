@@ -33,7 +33,7 @@ class PatchGraphNode:
 
     def compute_cost(self) -> int:
         """Compute the cost of this patch node."""
-        return len(self.op_types)
+        return max(1,len(self.op_types))
 
     def serialize(self, new_paths: list[tuple[int, int, str]], serializer: GameObjectSerializer) -> memoryview:
         writer = BinaryWriter()

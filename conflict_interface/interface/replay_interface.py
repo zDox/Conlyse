@@ -40,7 +40,6 @@ class ReplayInterface(GameInterface):
         self.player_id: int | None = player_id
         self.game_id: int | None = game_id
 
-        self._time_stamps_cache = None
         self._file_path: Path = Path(file_path)
         self._replay: ReplayTimeline | None = None
         self._hook_system: ReplayHookSystem | None = None
@@ -61,6 +60,7 @@ class ReplayInterface(GameInterface):
         self._hook_system = ReplayHookSystem(self._replay)
 
         first_segment = self._replay.find_first_segment()
+        self._current_segment = first_segment
         self.game_state = first_segment.storage.initial_game_state
         self.game_state.states.map_state.map.set_static_map_data(first_segment.storage.static_map_data)
         self.game_state.set_game(self)
@@ -131,7 +131,7 @@ class ReplayInterface(GameInterface):
             logger.warning(f"That time {time_stamp} is in no Segment, unable to jump!")
             return
 
-        if correct_segment != self._current_segment:
+        if correct_segment.get_last_time() != self._current_segment.get_last_time(): # TODO bettter comparison should be some sort of !=
             self.game_state = correct_segment.storage.initial_game_state
             self._hook_system.add_segment_switch_event()
             self._current_segment = correct_segment
@@ -239,14 +239,14 @@ class ReplayInterface(GameInterface):
         Returns:
             Cached list of datetime timestamps (O(1) operation)
         """
-        return self._time_stamps_cache
+        return self._replay.get_timestamp_cache()
 
     def get_next_timestamp(self, timestamp = None) -> datetime | None:
         """
         Gets the next timestamp after the given timestamp.
         O(1) when timestamp is None, O(log n) when a specific timestamp is provided.
         """
-        ts = self._time_stamps_cache
+        ts = self._replay.get_timestamp_cache()
 
         if timestamp is None:
             # Use cached index for O(1) lookup
@@ -288,7 +288,7 @@ class ReplayInterface(GameInterface):
         Gets the previous timestamp before the given timestamp.
         O(1) when timestamp is None, O(log n) when a specific timestamp is provided.
         """
-        ts = self._time_stamps_cache
+        ts = self._replay.get_timestamp_cache()
 
         if timestamp is None:
             # Use cached index for O(1) lookup
