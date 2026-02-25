@@ -8,3 +8,4 @@ class ReplayHookTag(Enum):
     TeamChanged = auto()
     ArmyChanged = auto()
     GameInfoChanged = auto()
+    SegmentSwitch = auto()

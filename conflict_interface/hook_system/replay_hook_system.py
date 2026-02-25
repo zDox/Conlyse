@@ -158,3 +158,8 @@ class ReplayHookSystem:
         self._hook_events = []
         return events
 
+    def add_segment_switch_event(self):
+        self._hook_events.append(ReplayHookEvent(
+            None, {}, ReplayHookTag.SegmentSwitch
+        ))
+

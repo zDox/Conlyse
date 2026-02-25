@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import struct
+from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -8,9 +9,6 @@ from typing import TYPE_CHECKING
 
 import zstandard as zstd
 
-from conflict_interface.game_object.game_object import GameObject
-from conflict_interface.interface import GameInterface
-from conflict_interface.interface import ReplayInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replaysegment import ReplaySegment
@@ -37,6 +35,7 @@ class ReplayTimeline:
         self.game_id = game_id
         self.player_id = player_id
         self.latest_version = -1
+        self._time_stamp_cache = []
 
         self.compressor = zstd.ZstdCompressor(level=11)
         self.decompressor = zstd.ZstdDecompressor()
@@ -198,6 +197,33 @@ class ReplayTimeline:
             None
         )
 
+    def find_segment(self, time: datetime):
+        for key, segment in self.segments.items():
+            if key[0] < time and (key[1] is None or key[1] >= time):
+                return segment
+
+        return None
+
+
+    def find_first_segment(self):
+        first = datetime.max
+        first_segment = None
+        for key, segment in self.segments.items():
+            if key[0] < first:
+                first_segment = segment
+                first = key[0]
+        return first_segment
+
+    def find_last_segment(self):
+        last = datetime.fromtimestamp(0)
+        last_segment = None
+        for key, segment in self.segments.items():
+            if key[0] > last:
+                last_segment = segment
+                last = key[0]
+
+        return last_segment
+
     def _close_segment(self, key: tuple[datetime, datetime | None, int], close_timestamp: datetime) -> None:
         """Close an open segment by replacing its key with a bounded one."""
         from_ts, _, version = key
@@ -232,6 +258,7 @@ class ReplayTimeline:
         segment.load_everything()
 
         self.segments[(from_timestamp, None, version)] = segment
+        self._time_stamp_cache = []
         return segment
 
     def _extend_segment(self, segment: "ReplaySegment") -> None:
@@ -241,4 +268,26 @@ class ReplayTimeline:
         segment.set_max_patches(new_max_patches)
         segment.load_append_mode()
 
+    def set_game(self, game):
+        for key, segment in self.segments.items():
+            segment.set_game(game=game)
+
+    def get_start_time(self):
+        return self.find_first_segment().get_start_time()
+
+    def get_last_time(self):
+        return self.find_last_segment().get_last_time()
+
+    def get_timestamp_cache(self):
+        if self._time_stamp_cache:
+            return self._time_stamp_cache
+        cache = []
+        for key, segment in self.segments.items():
+            cache.extend([
+                datetime.fromtimestamp(x, tz=UTC) for x in segment.storage.patch_graph.time_stamps_cache
+            ])
+        cache.sort()
+
+        self._time_stamp_cache = cache
+        return self._time_stamp_cache
 

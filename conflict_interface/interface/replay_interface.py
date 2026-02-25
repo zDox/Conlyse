@@ -7,7 +7,6 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
-from typing import Literal
 from typing import TYPE_CHECKING
 from typing import override
 
@@ -23,6 +22,7 @@ from conflict_interface.replay.constants import REPLACE_OPERATION
 from conflict_interface.replay.long_patch import create_long_patch
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
+from conflict_interface.replay.replay_timeline import ReplayTimeline
 from conflict_interface.replay.replaysegment import ReplaySegment
 
 if TYPE_CHECKING:
@@ -42,49 +42,32 @@ class ReplayInterface(GameInterface):
 
         self._time_stamps_cache = None
         self._file_path: Path = Path(file_path)
-        self._replay: ReplaySegment | None = None
-        self._replays: list[ReplaySegment] = []
+        self._replay: ReplayTimeline | None = None
         self._hook_system: ReplayHookSystem | None = None
+        self._current_segment: ReplaySegment | None = None
 
-        self._mode: Literal['r', 'rw'] | None = None
         self._is_open: bool = False
 
-    def open(self, mode: Literal['r', 'rw'], max_patches: int | None = None) -> bool:
-        # Auto close if already open
-        if mode not in ['r', 'rw']:
-            logger.warning(f"Unsupported mode: {mode}")
-            return False
-
+    def open(self) -> bool:
         if self._is_open:
             logger.warning("Replay is already open. Closing it for you ;)")
             self.close()
 
-        self._mode = mode
-
-        logger.debug("Creating Replay")
-        if self._mode == 'rw' and max_patches is None:
-            logger.warning("Max Patches was not set. Returning")
-            return False
-
-        self._replay = ReplaySegment(file_path=self._file_path, mode = self._mode, player_id=self.player_id, game_id=self.game_id, max_patches=max_patches)
+        logger.debug("Opening Replay")
+        self._replay = ReplayTimeline(self._file_path, 'r', player_id=self.player_id, game_id=self.game_id)
         self._replay.set_game(self)
         self._replay.open()
 
         self._hook_system = ReplayHookSystem(self._replay)
 
-        self.game_state = self._replay.storage.initial_game_state
-        self.game_state.states.map_state.map.set_static_map_data(self._replay.storage.static_map_data)
+        first_segment = self._replay.find_first_segment()
+        self.game_state = first_segment.storage.initial_game_state
+        self.game_state.states.map_state.map.set_static_map_data(first_segment.storage.static_map_data)
         self.game_state.set_game(self)
-
-        logger.debug("Parsing TimeStamps for the Cache")
-        _raw = self._replay.storage.patch_graph.time_stamps_cache
-        self._time_stamps_cache = [
-            datetime.fromtimestamp(ts, tz=UTC) for ts in _raw
-        ]
 
         # Step 5: final metadata
         self._update_player_id()
-        self.current_time = self._replay.get_start_time()
+        self.current_time = first_segment.get_start_time()
 
         self._is_open = True
         logger.debug("Initialization Completed Successfully")
@@ -96,11 +79,6 @@ class ReplayInterface(GameInterface):
             return
 
         assert self._replay is not None, "Replay is None"
-
-        if self._mode == 'rw':
-            logger.debug("Jumping to Last state for proper closing")
-            self.jump_to_last_time()
-            self._replay.set_last_game_state(self.game_state)
 
         self._replay.close()
 
@@ -146,18 +124,30 @@ class ReplayInterface(GameInterface):
             return
 
         if time_stamp < self._replay.get_start_time():
-            self.game_state = self._replay.storage.initial_game_state
-            self.game_state.set_game(self)
+            self.game_state = self._replay.find_first_segment().initial_game_state
             return
+        correct_segment = self._replay.find_segment(time_stamp)
+        if not correct_segment:
+            logger.warning(f"That time {time_stamp} is in no Segment, unable to jump!")
+            return
+
+        if correct_segment != self._current_segment:
+            self.game_state = correct_segment.storage.initial_game_state
+            self._hook_system.add_segment_switch_event()
+            self._current_segment = correct_segment
+            patches = self._current_segment.storage.patch_graph.find_patch_path(self._current_segment.get_start_time(),
+                                                                                time_stamp)
+        else:
+            patches = self._current_segment.storage.patch_graph.find_patch_path(self.current_time,
+                                                                                time_stamp)
         gc.disable()
-        patches = self._replay.storage.patch_graph.find_patch_path(self.current_time, time_stamp)
         if PatchGraph.cost(patches) > LONG_PATCH_THRESHOLD and len(patches) > 1 and create_long_patches:
             patches = [self.create_and_save_long_patch(self.current_time, time_stamp)]
 
         self._apply_patches_and_update_state(patches, time_stamp)
 
         # Update the current timestamp index for O(1) next/previous operations
-        self.current_timestamp_index = bisect.bisect_left(self._time_stamps_cache, time_stamp)
+        self.current_timestamp_index = bisect.bisect_left(self._replay.get_timestamp_cache(), time_stamp)
         gc.collect(0)
         gc.enable()
         # DEBUG ----------------
@@ -170,10 +160,10 @@ class ReplayInterface(GameInterface):
         Reduces code duplication across jump methods.
         """
         for patch in patches:
-            self._replay.apply_patch(patch, self.game_state, self)
+            self._current_segment.apply_patch(patch, self.game_state, self)
 
         self.current_time = target_time
-        self._update_player_id()
+        #self._update_player_id()
 
         if hasattr(self, '_hook_system'):
             self._hook_system.execute_queue()
@@ -190,7 +180,12 @@ class ReplayInterface(GameInterface):
         if next_timestamp is None:
             return False
 
-        patches = [self._replay.storage.patch_graph.patches[(int(self.current_time.timestamp()), int(next_timestamp.timestamp()))]]
+        correct_segment = self._replay.find_segment(next_timestamp)
+        if correct_segment != self._current_segment:
+            self.jump_to(next_timestamp, False)
+            return True
+
+        patches = [self._current_segment.storage.patch_graph.patches[(int(self.current_time.timestamp()), int(next_timestamp.timestamp()))]]
         if patches:
             self._apply_patches_and_update_state(patches, next_timestamp)
             self.current_timestamp_index += 1
@@ -210,7 +205,12 @@ class ReplayInterface(GameInterface):
         if prev_ts is None:
             return False
 
-        patches = [self._replay.storage.patch_graph.patches[(int(self.current_time.timestamp()), int(prev_ts.timestamp()))]]
+        correct_segment = self._replay.find_segment(prev_ts)
+        if correct_segment != self._current_segment:
+            self.jump_to(prev_ts, False)
+            return True
+
+        patches = [self._current_segment.storage.patch_graph.patches[(int(self.current_time.timestamp()), int(prev_ts.timestamp()))]]
 
         if patches:
             self._apply_patches_and_update_state(patches, prev_ts)
@@ -222,14 +222,14 @@ class ReplayInterface(GameInterface):
         self.jump_to(self._replay.get_last_time())
 
     def create_and_save_long_patch(self, from_time: datetime, to_time: datetime) -> PatchGraphNode:
-        path_tree = self._replay.storage.path_tree
-        patch_graph = self._replay.storage.patch_graph
+        path_tree = self._current_segment.storage.path_tree
+        patch_graph = self._current_segment.storage.patch_graph
         from_time_exact = self.find_closest_prev_timestamp(from_time)
         to_time_exact = self.find_closest_prev_timestamp(to_time)
         if from_time_exact is None or to_time_exact is None:
             raise ValueError(f"There are no timestamps satisfying this jump from {str(from_time)} to {str(to_time)}")
         long_patch_node = create_long_patch(from_time_exact, to_time_exact, patch_graph, path_tree)
-        self._replay.storage.patch_graph.add_edge(long_patch_node)
+        self._current_segment.storage.patch_graph.add_edge(long_patch_node)
         return long_patch_node
 
     def get_timestamps(self) -> list[datetime]:
@@ -275,7 +275,7 @@ class ReplayInterface(GameInterface):
         """
         # Convert datetime to Unix timestamp and delegate to PatchGraph
         target_unix = int(target.timestamp())
-        prev_unix = self._replay.storage.patch_graph.find_prev_timestamp(target_unix)
+        prev_unix = self._current_segment.storage.patch_graph.find_prev_timestamp(target_unix)
         
         if prev_unix is None:
             return None
@@ -343,7 +343,7 @@ class ReplayInterface(GameInterface):
             attributes: The name of the attributes to watch (e.g., ["owner_id", "resource_production"]).
         """
         path = ["states", "map_state", "map", "locations"]
-        path_idx = self._replay.storage.path_tree.path_list_to_idx(path)
+        path_idx = self._current_segment.storage.path_tree.path_list_to_idx(path)
 
         hook = ReplayHook(
             tag=ReplayHookTag.ProvinceChanged,
@@ -358,7 +358,7 @@ class ReplayInterface(GameInterface):
         """Remove a previously registered province attribute change hook."""
 
         path = ["states", "map_state", "map", "locations"]
-        path_idx = self._replay.storage.path_tree.path_list_to_idx(path)
+        path_idx = self._current_segment.storage.path_tree.path_list_to_idx(path)
         self._hook_system.unregister_hook(path_idx, callback)
 
     def register_player_trigger(self, attributes: list[str] | None = None):
