@@ -107,6 +107,33 @@ services:
     security_opt:
       - label=disable
 
+  # Conlyse API - FastAPI service for downloads & authentication
+  api:
+    build:
+      context: ./tools/api
+      dockerfile: Dockerfile
+    container_name: conflict-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-replays}
+      POSTGRES_USER: ${POSTGRES_USER:-converter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - conflict-network
+    restart: unless-stopped
+
   # Server Converter - Converts Redis streams to replay files
   server-converter:
     image: ghcr.io/zdox/server-converter:latest
