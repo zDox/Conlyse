@@ -19,11 +19,6 @@
   "scan_interval": 300.0,
   "enabled_scanning": true,
   "max_guest_games_per_account": -1,
-  "listing_account": {
-    "username": "listing_account_username",
-    "password": "listing_account_password",
-    "proxy_url": "socks5://proxy-user:proxy-pass@proxy-host:1080"
-  },
   "database": {
     "host": "localhost",
     "port": 5432,

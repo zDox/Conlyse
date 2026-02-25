@@ -1,6 +1,11 @@
 use crate::account_pool::AccountPool;
 use crate::db::{DbClient, DbConfig};
 use crate::game_finder::{GameFinder, GameFinderConfig};
+use crate::metrics::{
+    record_game_completed, record_game_failed, record_game_started, record_missed_interval,
+    record_scheduled_update_latency, record_game_update_completed, record_game_update_started,
+    set_active_games,
+};
 use crate::observation_session::{ObservationError, ObservationResult, ObservationSession};
 use crate::recording_registry::RecordingRegistry;
 use crate::redis_publisher::{RedisConfig, RedisPublisher};
@@ -103,8 +108,7 @@ impl ServerObserver {
             .map(str::to_string)
             .unwrap_or_else(|| format!("{output_dir}/static_maps"));
 
-        let s3_client = if let Some(s3_cfg) = config.pointer("/storage/s3").and_then(Value::as_object)
-        {
+        let s3_client = if let Some(s3_cfg) = config.pointer("/storage/s3").and_then(Value::as_object) {
             if let Some(parsed) = parse_s3_config(s3_cfg) {
                 Some(S3Client::new(parsed).await?)
             } else {
@@ -113,6 +117,8 @@ impl ServerObserver {
         } else {
             None
         };
+
+        let s3_enabled = s3_client.is_some();
 
         let map_cache = StaticMapCache::new(static_maps_dir, s3_client, db_client.clone()).await?;
 
@@ -148,6 +154,9 @@ impl ServerObserver {
             None
         };
 
+        let db_enabled = db_client.is_some();
+        let redis_enabled = redis_publisher.is_some();
+
         let scheduler = Arc::new(Scheduler::new(
             max_parallel_updates.max(1),
             max_parallel_first_updates.max(1),
@@ -164,7 +173,6 @@ impl ServerObserver {
                 enabled_scanning: true,
                 max_parallel_recordings,
                 max_guest_games_per_account: -1,
-                listing_account: None,
             });
         let mut game_finder =
             GameFinder::new(game_finder_cfg.clone(), Arc::clone(&account_pool), registry.clone());
@@ -190,6 +198,21 @@ impl ServerObserver {
             redis_publisher,
         });
 
+        tracing::info!(
+            max_parallel_recordings,
+            max_parallel_updates,
+            max_parallel_first_updates,
+            update_interval,
+            db_enabled,
+            s3_enabled,
+            redis_enabled,
+            output_dir = %observer.output_dir,
+            output_metadata_dir = %observer.output_metadata_dir,
+            long_term_storage_path = %observer.long_term_storage_path,
+            file_size_threshold = observer.file_size_threshold,
+            "initialized ServerObserver configuration"
+        );
+
         observer.install_game_finder_callbacks();
         observer.install_account_pool_callbacks().await;
         Ok(observer)
@@ -197,6 +220,17 @@ impl ServerObserver {
 
     pub async fn run(self: Arc<Self>) -> bool {
         self.stop_flag.store(false, Ordering::SeqCst);
+
+        let current_max_parallel = self.max_parallel_recordings.load(Ordering::SeqCst);
+        let current_update_interval = *self
+            .update_interval
+            .lock()
+            .expect("update interval mutex poisoned");
+        tracing::info!(
+            max_parallel_recordings = current_max_parallel,
+            update_interval = current_update_interval,
+            "server observer run loop started"
+        );
 
         self.resume_active().await;
         {
@@ -226,11 +260,14 @@ impl ServerObserver {
             self.start_due_updates().await;
         }
 
+        tracing::info!("server observer run loop stopping");
+
         true
     }
 
     pub async fn stop(&self) {
         self.stop_flag.store(true, Ordering::SeqCst);
+        tracing::info!("stop requested; shutting down scheduler and game finder");
         self.scheduler.stop();
 
         let mut game_finder = {
@@ -256,6 +293,13 @@ impl ServerObserver {
             tracing::warn!("no free account available for new observation");
             return;
         };
+
+        tracing::info!(
+            game_id,
+            scenario_id,
+            account = %account.username,
+            "starting new observation session"
+        );
 
         let metadata_path = if self.output_metadata_dir.is_empty() {
             String::new()
@@ -298,16 +342,23 @@ impl ServerObserver {
                 finder.mark_game_known(game_id);
             }
         }
+
+        // Record game started metric and update active games gauge
+        record_game_started(scenario_id);
+        self.update_active_games_metrics().await;
     }
 
     async fn resume_active(&self) {
         let active = self.registry.active();
+        tracing::info!(active_count = active.len(), "resuming active recordings from registry");
+        let mut resumed = 0usize;
         for (game_id, meta) in active {
             let scenario_id = meta
                 .get("scenario_id")
                 .and_then(Value::as_i64)
                 .unwrap_or(-1) as i32;
             if scenario_id < 0 {
+                tracing::warn!(game_id, "skipping registry entry with missing scenario_id");
                 continue;
             }
 
@@ -317,6 +368,7 @@ impl ServerObserver {
                 .expect("observer sessions mutex poisoned")
                 .contains_key(&game_id);
             if already_exists {
+                tracing::debug!(game_id, "skipping resume for game already in observer_sessions");
                 continue;
             }
 
@@ -327,14 +379,22 @@ impl ServerObserver {
                 .len()
                 >= self.max_parallel_recordings.load(Ordering::SeqCst) as usize
             {
+                tracing::warn!(
+                    "reached max_parallel_recordings while resuming; remaining sessions will be picked up later"
+                );
                 break;
             }
             self.start_observation_session(game_id, scenario_id).await;
+            resumed += 1;
         }
+        tracing::info!(resumed, "finished resuming active recordings");
     }
 
     async fn start_due_updates(self: &Arc<Self>) {
         let due_sessions = self.scheduler.get_due_updates();
+        if !due_sessions.is_empty() {
+            tracing::debug!(due_count = due_sessions.len(), "starting due updates");
+        }
         for game_id in due_sessions {
             self.scheduler.increment_active_coroutines();
             let observer = Arc::clone(self);
@@ -354,9 +414,42 @@ impl ServerObserver {
                 .cloned()
         };
         let Some(session_arc) = session_arc else {
+            tracing::debug!(game_id, "due update skipped; session no longer exists");
             self.scheduler.decrement_active_coroutines();
             return;
         };
+
+        // Record game update started and scheduled latency metrics
+        let scheduled_latency_secs = {
+            let session_opt = {
+                self.observer_sessions
+                    .lock()
+                    .expect("observer sessions mutex poisoned")
+                    .get(&game_id)
+                    .cloned()
+            };
+            if let Some(session_arc) = session_opt {
+                let session = session_arc.lock().await;
+                let now = SystemTime::now();
+                if now > session.next_update_at {
+                    now.duration_since(session.next_update_at)
+                        .map(|d| d.as_secs_f64())
+                        .ok()
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        record_game_update_started();
+        if let Some(latency) = scheduled_latency_secs {
+            record_scheduled_update_latency(latency);
+            if latency > 10.0 {
+                record_missed_interval();
+            }
+        }
 
         let result = {
             let mut session = session_arc.lock().await;
@@ -372,6 +465,7 @@ impl ServerObserver {
         }
 
         self.scheduler.cleanup_first_update_tracking(game_id);
+        record_game_update_completed();
         self.scheduler.decrement_active_coroutines();
     }
 
@@ -392,6 +486,12 @@ impl ServerObserver {
             .lock()
             .expect("observer sessions mutex poisoned")
             .remove(&game_id);
+
+        if let Some(scenario_id) = scenario_id {
+            record_game_completed(scenario_id);
+        }
+
+        self.update_active_games_metrics().await;
     }
 
     async fn handle_successful_update(&self, session_arc: &Arc<tokio::sync::Mutex<ObservationSession>>) {
@@ -403,6 +503,13 @@ impl ServerObserver {
             .unwrap_or(0.0);
         let update_interval = *self.update_interval.lock().expect("update interval mutex poisoned");
         let missed_update = latency_secs > update_interval;
+
+        tracing::info!(
+            game_id = session.game_id,
+            latency_secs,
+            missed_update,
+            "successful update completed"
+        );
 
         self.scheduler
             .schedule_next_update(&mut session, missed_update);
@@ -428,6 +535,13 @@ impl ServerObserver {
                 session.increment_attempt();
                 needs_proxy_reset = result.error_code == ObservationError::NetworkError;
                 let immediate = self.should_retry_immediately(result.error_code);
+                tracing::warn!(
+                    game_id,
+                    attempt = session.get_attempt(),
+                    ?result.error_code,
+                    immediate_retry = immediate,
+                    "update failed; scheduling retry"
+                );
                 if immediate {
                     self.scheduler.schedule_immediate_update(&mut session);
                 } else {
@@ -444,6 +558,12 @@ impl ServerObserver {
         }
 
         if drop_session {
+            tracing::error!(
+                game_id,
+                account = username,
+                error_message = %result.error_message,
+                "dropping observation session after exceeding max retries"
+            );
             self.registry.mark_failed(game_id, Some(&result.error_message));
             {
                 let mut pool = self.account_pool.lock().await;
@@ -453,6 +573,36 @@ impl ServerObserver {
                 .lock()
                 .expect("observer sessions mutex poisoned")
                 .remove(&game_id);
+            let error_type = match result.error_code {
+                ObservationError::AuthFailed => "auth_failed",
+                ObservationError::ServerError => "server_error",
+                ObservationError::NetworkError => "network_error",
+                ObservationError::PackageCreationFailed => "package_creation_failed",
+                ObservationError::UnknownError => "unknown_error",
+                ObservationError::Success | ObservationError::GameEnded => "unknown_error",
+            };
+            record_game_failed(error_type);
+
+            self.update_active_games_metrics().await;
+        }
+    }
+
+    async fn update_active_games_metrics(&self) {
+        let mut active_by_scenario = std::collections::HashMap::<i32, i64>::new();
+        {
+            let sessions = self
+                .observer_sessions
+                .lock()
+                .expect("observer sessions mutex poisoned");
+            for (&game_id, _) in sessions.iter() {
+                if let Some(scenario_id) = self.registry.get_scenario_id(game_id) {
+                    *active_by_scenario.entry(scenario_id).or_insert(0) += 1;
+                }
+            }
+        }
+
+        for (scenario_id, count) in active_by_scenario {
+            set_active_games(scenario_id, count);
         }
     }
 
@@ -508,6 +658,8 @@ impl ServerObserver {
                 })
                 .unwrap_or(0)
         }));
+
+        tracing::info!("installed GameFinder callbacks");
     }
 
     async fn install_account_pool_callbacks(self: &Arc<Self>) {
@@ -529,6 +681,7 @@ impl ServerObserver {
 
         let mut pool = self.account_pool.lock().await;
         pool.set_proxy_reset_callback(callback);
+        tracing::info!("installed AccountPool proxy reset callback");
     }
 }
 

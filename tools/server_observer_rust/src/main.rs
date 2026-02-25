@@ -21,11 +21,12 @@ use serde_json::Value;
 use std::env;
 use std::sync::Arc;
 use tokio::signal;
-use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let subscriber = FmtSubscriber::builder().finish();
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
     let args: Vec<String> = env::args().collect();
@@ -38,12 +39,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .cloned()
         .unwrap_or_else(|| "account_pool.json".to_string());
 
+    tracing::info!(
+        config_file = %config_file,
+        account_pool_file = %account_pool_file,
+        "starting server_observer_rust process"
+    );
+
     let config_contents = std::fs::read_to_string(&config_file)?;
     let config_json: Value = serde_json::from_str(&config_contents)?;
 
-    let _metrics_server = if let Some(port) = config_json.get("metrics_port").and_then(Value::as_u64) {
-        Some(MetricsServer::run(port as u16).await?)
+    let _metrics_server = if let Some(port) = config_json
+        .get("metrics_port")
+        .and_then(Value::as_u64)
+    {
+        let port_u16 = port as u16;
+        tracing::info!(metrics_port = port_u16, "metrics server enabled");
+        Some(MetricsServer::run(port_u16).await?)
     } else {
+        tracing::info!("metrics server disabled");
         None
     };
 

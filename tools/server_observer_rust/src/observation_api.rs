@@ -1,5 +1,6 @@
 use crate::account_pool::ProxyConfig;
 use crate::hub_interface_wrapper::AuthDetails;
+use crate::metrics::{record_request_completed, record_request_latency, record_response_size};
 use crate::observation_package::ObservationPackage;
 use regex::Regex;
 use reqwest::header::{COOKIE, HeaderName, HeaderValue};
@@ -170,10 +171,16 @@ impl ObservationApi {
             req = req.header(COOKIE, cookie_header);
         }
 
+        let start = SystemTime::now();
         let response = req.body(payload.to_string()).send().await;
+        let elapsed = start.elapsed().unwrap_or(Duration::from_secs(0));
+        let latency_secs = elapsed.as_secs_f64();
+        record_request_latency(latency_secs);
+
         let response = match response {
             Ok(resp) => resp,
             Err(err) => {
+                record_request_completed();
                 return HttpResponse {
                     timeout: err.is_timeout(),
                     status_code: 0,
@@ -184,13 +191,19 @@ impl ObservationApi {
         };
 
         let status = response.status().as_u16();
-        match response.text().await {
-            Ok(data) => HttpResponse {
-                timeout: false,
-                status_code: status,
-                data,
-                error_message: String::new(),
-            },
+        let body = response.text().await;
+        record_request_completed();
+
+        match body {
+            Ok(data) => {
+                record_response_size(data.len());
+                HttpResponse {
+                    timeout: false,
+                    status_code: status,
+                    data,
+                    error_message: String::new(),
+                }
+            }
             Err(err) => HttpResponse {
                 timeout: err.is_timeout(),
                 status_code: status,

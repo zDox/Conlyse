@@ -1,10 +1,8 @@
-use crate::account_pool::AccountPool;
+use crate::account_pool::{Account, AccountPool};
 use crate::hub_interface_wrapper::{HubGameProperties, HubInterfaceWrapper};
 use crate::recording_registry::RecordingRegistry;
 use serde::Deserialize;
 use std::collections::{HashSet, HashSet as Set};
-use std::fs::OpenOptions;
-use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
@@ -23,18 +21,6 @@ pub struct GameFinderConfig {
     pub max_parallel_recordings: i32,
     #[serde(default = "default_max_guest_games_per_account")]
     pub max_guest_games_per_account: i32,
-    #[serde(default)]
-    pub listing_account: Option<ListingAccountConfig>,
-}
-
-#[derive(Debug, Clone, Deserialize, Default)]
-pub struct ListingAccountConfig {
-    #[serde(default)]
-    pub username: String,
-    #[serde(default)]
-    pub password: String,
-    #[serde(default)]
-    pub proxy_url: String,
 }
 
 fn default_scan_interval() -> f64 {
@@ -173,39 +159,51 @@ impl GameFinder {
             while !stop_flag.load(Ordering::SeqCst) {
                 let cfg_snapshot = cfg.lock().unwrap().clone();
                 if cfg_snapshot.enabled_scanning {
-                    if let (Some(starter), Some(counter), Some(listing)) = (
-                        observation_starter.as_ref(),
-                        active_session_counter.as_ref(),
-                        cfg_snapshot.listing_account.as_ref(),
-                    ) {
-                        let mut active_sessions = counter();
-                        let selected_games = select_games(
-                            listing,
-                            &cfg_snapshot.scenario_ids,
-                            &known_games,
-                        );
-                        for (scenario_id, game) in selected_games {
-                            if active_sessions >= cfg_snapshot.max_parallel_recordings as usize {
-                                break;
-                            }
-                            let has_available_account = {
-                                let mut pool = account_pool.lock().await;
-                                pool.next_guest_account_owned(cfg_snapshot.max_guest_games_per_account)
+                    if let (Some(starter), Some(counter)) =
+                        (observation_starter.as_ref(), active_session_counter.as_ref())
+                    {
+                        let listing_account: Option<Account> = {
+                            let pool = account_pool.lock().await;
+                            pool.accounts.first().cloned()
+                        };
+                        if let Some(listing) = listing_account {
+                            tracing::info!("scanning for new games");
+                            let mut active_sessions = counter();
+                            let selected_games =
+                                select_games(&listing, &cfg_snapshot.scenario_ids, &known_games);
+                            for (scenario_id, game) in selected_games {
+                                if active_sessions
+                                    >= cfg_snapshot.max_parallel_recordings as usize
+                                {
+                                    break;
+                                }
+                                let has_available_account = {
+                                    let mut pool = account_pool.lock().await;
+                                    pool.next_guest_account_owned(
+                                        cfg_snapshot.max_guest_games_per_account,
+                                    )
                                     .is_some()
-                            };
-                            if !has_available_account {
-                                tracing::warn!(
-                                    "no account available for guest limit {}, ending scan batch",
-                                    cfg_snapshot.max_guest_games_per_account
-                                );
-                                break;
+                                };
+                                if !has_available_account {
+                                    tracing::warn!(
+                                        "no account available for guest limit {}, ending scan batch",
+                                        cfg_snapshot.max_guest_games_per_account
+                                    );
+                                    break;
+                                }
+                                starter(game.game_id, scenario_id);
+                                active_sessions += 1;
+                                known_games.lock().unwrap().insert(game.game_id);
                             }
-                            starter(game.game_id, scenario_id);
-                            active_sessions += 1;
-                            known_games.lock().unwrap().insert(game.game_id);
+                        } else {
+                            tracing::warn!(
+                                "no accounts available in account pool for listing; skipping scan iteration"
+                            );
                         }
                     } else {
-                        tracing::warn!("game finder scanning configured without callbacks/listing account");
+                        tracing::warn!(
+                            "game finder scanning configured without callbacks; skipping scan iteration"
+                        );
                     }
                 }
 
@@ -230,44 +228,24 @@ impl GameFinder {
 }
 
 fn select_games(
-    listing: &ListingAccountConfig,
+    listing: &Account,
     scenario_ids: &[i32],
     known_games: &Arc<Mutex<HashSet<i32>>>,
 ) -> Vec<(i32, HubGameProperties)> {
     let mut selected = Vec::new();
     let mut seen_games: Set<i32> = Set::new();
 
-    let interface = match HubInterfaceWrapper::new(listing.proxy_url.clone(), listing.proxy_url.clone()) {
+    let proxy_url = listing.proxy_config.to_url();
+    let interface = match HubInterfaceWrapper::new(proxy_url.clone(), proxy_url.clone()) {
         Ok(i) => i,
         Err(err) => {
             tracing::warn!(?err, "failed creating listing interface");
-            // #region agent log
-            if let Ok(mut file) = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/home/zdox/PycharmProjects/ConflictInterface/.cursor/debug-ef93be.log")
-            {
-                let error_str = format!("{err:?}").replace('"', "\\\"");
-                let timestamp = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_millis())
-                    .unwrap_or(0);
-                let payload = format!(
-                    "{{\"sessionId\":\"ef93be\",\"runId\":\"pre-fix\",\"hypothesisId\":\"H1\",\"location\":\"game_finder.rs:238-245\",\"message\":\"failed creating listing interface\",\"data\":{{\"error\":\"{error_str}\"}},\"timestamp\":{timestamp}}}"
-                );
-                let _ = writeln!(file, "{}", payload);
-            }
-            // #endregion agent log
             return selected;
         }
     };
     let mut interface = interface;
 
-    if interface
-        .login(&listing.username, &listing.password)
-        .ok()
-        != Some(true)
-    {
+    if interface.login(&listing.username, &listing.password).ok() != Some(true) {
         tracing::warn!(
             account = listing.username,
             "listing account login failed; skipping scan iteration"
