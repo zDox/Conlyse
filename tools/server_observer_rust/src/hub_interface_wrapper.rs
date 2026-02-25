@@ -86,6 +86,7 @@ impl HubInterfaceWrapper {
         Ok(success)
     }
 
+    #[allow(dead_code)]
     pub fn logout(&mut self) {
         self.authenticated = false;
     }
@@ -94,6 +95,7 @@ impl HubInterfaceWrapper {
         self.authenticated
     }
 
+    #[allow(dead_code)]
     pub fn get_auth_details(&self) -> Result<AuthDetails, HubInterfaceError> {
         Python::attach(|py| -> Result<AuthDetails, HubInterfaceError> {
             let hub = self.hub_interface.bind(py);
@@ -111,6 +113,7 @@ impl HubInterfaceWrapper {
         })
     }
 
+    #[allow(dead_code)]
     pub fn get_my_games(&self) -> Result<Vec<HubGameProperties>, HubInterfaceError> {
         Python::attach(|py| -> Result<Vec<HubGameProperties>, HubInterfaceError> {
             let hub = self.hub_interface.bind(py);

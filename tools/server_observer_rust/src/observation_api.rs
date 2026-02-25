@@ -289,7 +289,7 @@ impl ObservationApi {
             if let Some(new_server) = result_obj.get("newHostName").and_then(Value::as_str) {
                 error_message.push_str(": ");
                 error_message.push_str(new_server);
-                self.game_server_address = format!("https://{new_server}");
+                self.update_server_address(format!("https://{new_server}"));
                 if let Ok(client) = build_http_client(&self.proxy) {
                     self.client = client;
                 }

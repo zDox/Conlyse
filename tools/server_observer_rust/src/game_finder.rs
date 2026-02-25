@@ -59,7 +59,7 @@ type ActiveSessionCounter = Arc<dyn Fn() -> usize + Send + Sync>;
 
 pub struct GameFinder {
     cfg: Arc<Mutex<GameFinderConfig>>,
-    _account_pool: Arc<tokio::sync::Mutex<AccountPool>>,
+    account_pool: Arc<tokio::sync::Mutex<AccountPool>>,
     registry: RecordingRegistry,
     known_games: Arc<Mutex<HashSet<i32>>>,
     observation_starter: Option<ObservationStarter>,
@@ -84,7 +84,7 @@ impl GameFinder {
 
         Self {
             cfg: Arc::new(Mutex::new(cfg)),
-            _account_pool: account_pool,
+            account_pool,
             registry,
             known_games,
             observation_starter: None,
@@ -140,6 +140,15 @@ impl GameFinder {
 
     pub fn set_enabled_scanning(&mut self, enabled: bool) {
         self.cfg.lock().unwrap().enabled_scanning = enabled;
+        if enabled && self.scan_handle.is_none() {
+            if let Err(err) = self.start_scanning() {
+                tracing::warn!(?err, "failed to start scanning while enabling GameFinder");
+            }
+        }
+    }
+
+    pub fn is_scanning_enabled(&self) -> bool {
+        self.cfg.lock().unwrap().enabled_scanning
     }
 
     pub fn start_scanning(&mut self) -> Result<(), GameFinderError> {
@@ -155,6 +164,7 @@ impl GameFinder {
         let cfg = Arc::clone(&self.cfg);
         let stop_flag = Arc::clone(&self.stop_flag);
         let known_games = Arc::clone(&self.known_games);
+        let account_pool = Arc::clone(&self.account_pool);
         let observation_starter = self.observation_starter.clone();
         let active_session_counter = self.active_session_counter.clone();
         let handle = tokio::spawn(async move {
@@ -174,6 +184,18 @@ impl GameFinder {
                         );
                         for (scenario_id, game) in selected_games {
                             if active_sessions >= cfg_snapshot.max_parallel_recordings as usize {
+                                break;
+                            }
+                            let has_available_account = {
+                                let mut pool = account_pool.lock().await;
+                                pool.next_guest_account_owned(cfg_snapshot.max_guest_games_per_account)
+                                    .is_some()
+                            };
+                            if !has_available_account {
+                                tracing::warn!(
+                                    "no account available for guest limit {}, ending scan batch",
+                                    cfg_snapshot.max_guest_games_per_account
+                                );
                                 break;
                             }
                             starter(game.game_id, scenario_id);

@@ -168,16 +168,8 @@ impl ObservationSession {
         self.attempt = 1;
     }
 
-    pub fn set_attempt(&mut self, attempt: i32) {
-        self.attempt = attempt;
-    }
-
     pub fn get_attempt(&self) -> i32 {
         self.attempt
-    }
-
-    pub fn needs_update(&self, now: SystemTime) -> bool {
-        now >= self.next_update_at
     }
 
     fn ensure_storage(&mut self) -> Result<&mut RecordingStorage, ObservationSessionError> {
@@ -208,13 +200,14 @@ impl ObservationSession {
         }
 
         let resume_metadata = match self.ensure_storage() {
-            Ok(storage) => storage.get_resume_metadata(),
+            Ok(storage) if storage.has_resume_metadata() => storage.get_resume_metadata(),
+            Ok(_) => serde_json::Value::Null,
             Err(err) => {
                 tracing::warn!(?err, game_id = self.game_id, "failed to load resume metadata");
                 serde_json::Value::Null
             }
         };
-        if resume_metadata.get("auth").is_some() {
+        if resume_metadata.is_object() {
             self.package = ObservationPackage::from_json(resume_metadata);
             match ObservationApi::new(
                 self.package.headers.clone(),

@@ -195,21 +195,6 @@ impl Scheduler {
         }
     }
 
-    pub fn get_seconds_until_next_due(&self) -> f64 {
-        let queue = self.update_queue.lock().expect("scheduler queue mutex poisoned");
-        let Some((&next_due, _)) = queue.iter().next() else {
-            return 0.0;
-        };
-        let now = SystemTime::now();
-        if next_due <= now {
-            return 0.0;
-        }
-        next_due
-            .duration_since(now)
-            .map(|d| d.as_secs_f64())
-            .unwrap_or(0.0)
-    }
-
     pub fn increment_active_coroutines(&self) {
         self.active_coroutines.fetch_add(1, Ordering::SeqCst);
     }
@@ -240,13 +225,6 @@ impl Scheduler {
             self.max_parallel_first_updates
                 .store(max_first_updates, Ordering::SeqCst);
         }
-    }
-
-    pub fn get_update_interval(&self) -> f64 {
-        self.update_interval
-            .lock()
-            .expect("scheduler interval mutex poisoned")
-            .as_secs_f64()
     }
 
     fn update_interval_ms(&self) -> i64 {

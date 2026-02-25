@@ -1,7 +1,10 @@
-use aws_config::BehaviorVersion;
-use aws_config::Region;
-use aws_credential_types::Credentials;
-use aws_sdk_s3::{config::Builder as S3ConfigBuilder, primitives::ByteStream, Client};
+use minio::s3::builders::ObjectContent;
+use minio::s3::client::ClientBuilder;
+use minio::s3::creds::StaticProvider;
+use minio::s3::error::{Error as MinioError, ErrorCode};
+use minio::s3::http::BaseUrl;
+use minio::s3::types::S3Api;
+use minio::s3::Client;
 use serde::Deserialize;
 use std::path::Path;
 use thiserror::Error;
@@ -23,54 +26,51 @@ pub struct S3Client {
 
 impl S3Client {
     pub async fn new(cfg: S3Config) -> Result<Self, S3Error> {
-        let region = Region::new(cfg.region.clone());
-        let shared = aws_config::defaults(BehaviorVersion::latest())
-            .region(region)
-            .load()
-            .await;
+        let base_url = cfg
+            .endpoint_url
+            .parse::<BaseUrl>()
+            .map_err(|err| S3Error::Sdk(err.to_string()))?;
+        let provider = StaticProvider::new(&cfg.access_key, &cfg.secret_key, None);
+        let client = ClientBuilder::new(base_url)
+            .provider(Some(Box::new(provider)))
+            .build()
+            .map_err(|err| S3Error::Sdk(err.to_string()))?;
 
-        let creds = Credentials::new(
-            cfg.access_key.clone(),
-            cfg.secret_key.clone(),
-            None,
-            None,
-            "static",
-        );
-        let s3_conf = S3ConfigBuilder::from(&shared)
-            .endpoint_url(cfg.endpoint_url.clone())
-            .credentials_provider(creds)
-            .build();
-
-        let client = Client::from_conf(s3_conf);
         let s3 = Self { cfg, client };
 
-        // Ensure bucket exists on startup.
+        // Match C++ behavior: verify bucket and create it if missing.
         s3.ensure_bucket_exists().await?;
-
         Ok(s3)
     }
 
     async fn ensure_bucket_exists(&self) -> Result<(), S3Error> {
-        let head = self
-            .client
-            .head_bucket()
-            .bucket(&self.cfg.bucket_name)
-            .send()
-            .await;
-
-        if head.is_ok() {
+        if self.bucket_exists().await? {
             return Ok(());
         }
 
-        // Try to create if head failed
-        self.client
-            .create_bucket()
-            .bucket(&self.cfg.bucket_name)
+        self.create_bucket().await
+    }
+
+    pub async fn bucket_exists(&self) -> Result<bool, S3Error> {
+        let resp = self
+            .client
+            .bucket_exists(&self.cfg.bucket_name)
             .send()
             .await
-            .map_err(|e| S3Error::Sdk(e.to_string()))?;
+            .map_err(|err| S3Error::Sdk(err.to_string()))?;
+        Ok(resp.exists)
+    }
 
-        Ok(())
+    pub async fn create_bucket(&self) -> Result<(), S3Error> {
+        let create_req = self
+            .client
+            .create_bucket(&self.cfg.bucket_name)
+            .region((!self.cfg.region.is_empty()).then_some(self.cfg.region.clone()));
+        match create_req.send().await {
+            Ok(_) => Ok(()),
+            Err(err) if is_bucket_already_exists_error(&err) => Ok(()),
+            Err(err) => Err(S3Error::Sdk(err.to_string())),
+        }
     }
 
     pub async fn upload_file<P: AsRef<Path>>(
@@ -79,20 +79,25 @@ impl S3Client {
         s3_key: &str,
     ) -> Result<(), S3Error> {
         let path = local_path.as_ref();
-        let data = tokio::fs::read(path).await?;
-        let body = ByteStream::from(data);
-
         self.client
-            .put_object()
-            .bucket(&self.cfg.bucket_name)
-            .key(s3_key)
-            .body(body)
+            .put_object_content(&self.cfg.bucket_name, s3_key, ObjectContent::from(path))
             .send()
             .await
-            .map_err(|e| S3Error::Sdk(e.to_string()))?;
+            .map_err(|err| S3Error::Sdk(err.to_string()))?;
 
         Ok(())
     }
+}
+
+fn is_bucket_already_exists_error(err: &MinioError) -> bool {
+    if let MinioError::S3Error(resp) = err {
+        return match &resp.code {
+            ErrorCode::BucketAlreadyOwnedByYou => true,
+            ErrorCode::OtherError(code) if code == "bucketalreadyexists" => true,
+            _ => false,
+        };
+    }
+    false
 }
 
 #[derive(Debug, Error)]

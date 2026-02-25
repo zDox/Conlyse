@@ -46,6 +46,7 @@ impl RedisPublisher {
     /// Publish a pre-serialized JSON response to the Redis stream,
     /// matching the existing C++/Python contract:
     /// fields: timestamp (ms), game_id, player_id, response (zstd-compressed JSON bytes).
+    #[allow(dead_code)]
     pub fn publish_response(
         &self,
         game_id: i64,

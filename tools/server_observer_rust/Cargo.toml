@@ -4,13 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-aws-config = "1.8.14"
-aws-credential-types = "1.2.13"
-aws-sdk-s3 = "1.124.0"
 axum = "0.8.8"
 bb8 = "0.9.1"
 bb8-postgres = "0.9.0"
 config = "0.15.19"
+minio = { version = "0.3.0", default-features = false, features = ["rustls-tls", "ring"] }
 prometheus = "0.14.0"
 redis = { version = "1.0.4", features = ["tokio-comp"] }
 regex = "1.12.2"

@@ -24,6 +24,12 @@ pub struct MetricsServer {
     handle: JoinHandle<()>,
 }
 
+impl Drop for MetricsServer {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
+}
+
 impl MetricsServer {
     pub async fn run(port: u16) -> Result<Self, MetricsError> {
         let metrics = Metrics::new();

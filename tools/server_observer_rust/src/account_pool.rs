@@ -82,6 +82,7 @@ impl ProxyConfig {
 pub struct Account {
     pub username: String,
     pub password: String,
+    #[allow(dead_code)]
     pub email: String,
     pub proxy_config: ProxyConfig,
 }
@@ -123,7 +124,6 @@ pub struct AccountPool {
     pub accounts: Vec<Account>,
     pub proxies: HashMap<String, Proxy>,
     guest_join_counts: HashMap<String, usize>,
-    free_account_pointer: usize,
     guest_account_pointer: usize,
     _pool_path: String,
     webshare_token: String,
@@ -158,12 +158,20 @@ impl AccountPool {
         let mut accounts_missing_proxies: Vec<AccountEntry> = Vec::new();
 
         for entry in parsed.accounts {
-            if !entry.proxy_id.is_empty() && proxies.contains_key(&entry.proxy_id) {
-                if !assigned_proxy_ids.insert(entry.proxy_id.clone()) {
+            let mut requested_proxy_id = entry.proxy_id.clone();
+            if requested_proxy_id.is_empty() && !entry.proxy_url.is_empty() {
+                requested_proxy_id = proxies
+                    .iter()
+                    .find_map(|(id, proxy)| (proxy.proxy_url() == entry.proxy_url).then_some(id.clone()))
+                    .unwrap_or_default();
+            }
+
+            if !requested_proxy_id.is_empty() && proxies.contains_key(&requested_proxy_id) {
+                if !assigned_proxy_ids.insert(requested_proxy_id.clone()) {
                     accounts_missing_proxies.push(entry);
                 } else {
-                    unassigned_proxy_ids.remove(&entry.proxy_id);
-                    let proxy = &proxies[&entry.proxy_id];
+                    unassigned_proxy_ids.remove(&requested_proxy_id);
+                    let proxy = &proxies[&requested_proxy_id];
                     let cfg =
                         ProxyConfig::from_url(&proxy.proxy_url(), proxy.id.clone()).unwrap_or(
                             ProxyConfig {
@@ -220,7 +228,6 @@ impl AccountPool {
             accounts,
             proxies,
             guest_join_counts: HashMap::new(),
-            free_account_pointer: 0,
             guest_account_pointer: 0,
             _pool_path: path.as_ref().to_string_lossy().to_string(),
             webshare_token,

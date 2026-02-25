@@ -153,6 +153,9 @@ impl ServerObserver {
             max_parallel_first_updates.max(1),
             update_interval,
         ));
+        scheduler.set_update_interval(update_interval);
+        scheduler.set_max_parallel_updates(max_parallel_updates.max(1));
+        scheduler.set_max_parallel_first_updates(max_parallel_first_updates.max(1));
 
         let game_finder_cfg = serde_json::from_value::<GameFinderConfig>(config.clone())
             .unwrap_or(GameFinderConfig {
@@ -163,7 +166,12 @@ impl ServerObserver {
                 max_guest_games_per_account: -1,
                 listing_account: None,
             });
-        let game_finder = GameFinder::new(game_finder_cfg, Arc::clone(&account_pool), registry.clone());
+        let mut game_finder =
+            GameFinder::new(game_finder_cfg.clone(), Arc::clone(&account_pool), registry.clone());
+        game_finder.set_scan_interval(game_finder_cfg.scan_interval);
+        game_finder.set_scenario_ids(game_finder_cfg.scenario_ids.clone());
+        game_finder.set_max_parallel_recordings(game_finder_cfg.max_parallel_recordings);
+        game_finder.set_max_guest_games_per_account(game_finder_cfg.max_guest_games_per_account);
 
         let observer = Arc::new(Self {
             account_pool,
@@ -183,6 +191,7 @@ impl ServerObserver {
         });
 
         observer.install_game_finder_callbacks();
+        observer.install_account_pool_callbacks().await;
         Ok(observer)
     }
 
@@ -194,9 +203,8 @@ impl ServerObserver {
             let mut guard = self.game_finder.lock().expect("game finder mutex poisoned");
             if let Some(game_finder) = guard.as_mut() {
                 game_finder.refresh_known_games_from_registry();
-                if let Err(err) = game_finder.start_scanning() {
-                    tracing::warn!(?err, "failed to start game finder scanning");
-                }
+                let enabled = game_finder.is_scanning_enabled();
+                game_finder.set_enabled_scanning(enabled);
             }
         }
 
@@ -372,6 +380,8 @@ impl ServerObserver {
         game_id: i32,
         session_arc: &Arc<tokio::sync::Mutex<ObservationSession>>,
     ) {
+        let scenario_id = self.registry.get_scenario_id(game_id);
+        tracing::info!(game_id, ?scenario_id, "game ended, completing recording");
         self.registry.mark_completed(game_id);
         let username = session_arc.lock().await.account.username.clone();
         {
@@ -427,16 +437,9 @@ impl ServerObserver {
         }
 
         if needs_proxy_reset {
-            let new_proxy = {
-                let mut pool = self.account_pool.lock().await;
-                if pool.reset_account_proxy(&username).await {
-                    pool.get_account_proxy(&username)
-                } else {
-                    None
-                }
-            };
-            if let Some(proxy) = new_proxy {
-                self.reset_sessions_for_account(&username, proxy).await;
+            let mut pool = self.account_pool.lock().await;
+            if !pool.reset_account_proxy(&username).await {
+                tracing::warn!(account = username, "failed to reset proxy after network error");
             }
         }
 
@@ -505,6 +508,27 @@ impl ServerObserver {
                 })
                 .unwrap_or(0)
         }));
+    }
+
+    async fn install_account_pool_callbacks(self: &Arc<Self>) {
+        let weak = Arc::downgrade(self);
+        let callback = Arc::new(move |username: String| {
+            let Some(observer) = weak.upgrade() else {
+                return;
+            };
+            tokio::spawn(async move {
+                let new_proxy = {
+                    let pool = observer.account_pool.lock().await;
+                    pool.get_account_proxy(&username)
+                };
+                if let Some(proxy) = new_proxy {
+                    observer.reset_sessions_for_account(&username, proxy).await;
+                }
+            });
+        });
+
+        let mut pool = self.account_pool.lock().await;
+        pool.set_proxy_reset_callback(callback);
     }
 }
 
