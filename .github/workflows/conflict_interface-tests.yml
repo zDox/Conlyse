@@ -44,5 +44,5 @@ jobs:
 
 
       - name: Run conflict_interface tests
-        run: pytest -q
+        run: pytest -q tests
           
