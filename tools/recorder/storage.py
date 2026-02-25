@@ -7,12 +7,16 @@ import pickle
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import zstandard as zstd
 
-from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.data_types.static_map_data import StaticMapData
+
 from tools.recorder.recorder_logger import get_logger
+
+if TYPE_CHECKING:
+    from conflict_interface.data_types.newest.game_state.game_state import GameState
+    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 logger = get_logger()
 
