@@ -57,7 +57,7 @@ ext_modules = [
     Extension(
         "conflict_interface.replay.steiner_tree_cpp",
         sources=[
-            path.join("..", "conflict_interface", "replay", "steiner_tree.cpp"),
+            path.join("conflict_interface", "replay", "steiner_tree.cpp"),
         ],
         include_dirs=[pybind11.get_include()],
         language="c++",
@@ -65,7 +65,7 @@ ext_modules = [
     Extension(
         "conflict_interface.replay.op_tree_cpp",
         sources=[
-            path.join("..", "conflict_interface", "replay", "op_tree.cpp"),
+            path.join("conflict_interface", "replay", "op_tree.cpp"),
         ],
         include_dirs=[pybind11.get_include()],
         language="c++",
@@ -88,8 +88,7 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Operating System :: OS Independent",
     ],
-    packages=find_packages(where="..", include=["conflict_interface*"]),
-    package_dir={"": ".."},
+    packages=find_packages(where=".", include=["conflict_interface*"]),
     include_package_data=True,
     install_requires=[
         "setuptools",

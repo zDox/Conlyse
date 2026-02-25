@@ -3,3 +3,4 @@ __pycache__/
 *.swp
 *.egg
 conflict_interface/data_types/*
+conflict_interface.egg-info

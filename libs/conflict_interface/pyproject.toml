@@ -10,10 +10,10 @@ build-backend = "setuptools.build_meta"
 name = "conflict-interface"
 version = "0.1.2"
 description = "Conflict of Nations Interface"
-readme = "../../README.md"
+readme = "README.md"
 requires-python = ">=3.12"
 authors = [
-    { name = "zDox", email = "" },
+    { name = "zDox"}, { name = "NikNam3"}
 ]
 license = { text = "Proprietary" }
 classifiers = [
