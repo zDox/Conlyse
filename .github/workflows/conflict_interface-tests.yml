@@ -1,22 +1,13 @@
-name: conflict_interface-tests
+name: conflict_interface tests
 
-on:
-  push:
-    paths:
-      - 'libs/conflict_interface/**'
-      - '.github/workflows/conflict_interface-tests.yml'
-  pull_request:
-    paths:
-      - 'libs/conflict_interface/**'
-      - '.github/workflows/conflict_interface-tests.yml'
-  workflow_dispatch:
+on: [push, pull_request, workflow_dispatch]
 
 permissions:
   contents: write
 
 jobs:
   test:
-    name: conflict_interface tests
+    name: Run ConflictInterface tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -39,10 +30,20 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
-          pip install pytest
+          pip install -v -e .
 
 
-      - name: Run conflict_interface tests
-        run: pytest -q tests
-          
+      - name: get test data
+        run: |
+          mkdir -p tests/test_data
+          wget -O tests/test_data/full_test_data_1_v207.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_1_v207.json
+
+
+      - name: Run tests with unittest
+        env:
+          TEST_ACCOUNT_USERNAME: ${{ secrets.TEST_ACCOUNT_USERNAME }}
+          TEST_ACCOUNT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD }}
+          TEST_ACCOUNT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL }}
+          TEST_PROXY_URL: ${{secrets.TEST_PROXY_URL}}
+        run: |
+          python tests/run_tests.py
