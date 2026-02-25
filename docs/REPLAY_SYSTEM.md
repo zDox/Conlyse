@@ -304,7 +304,7 @@ data = {
 ```python
 from pathlib import Path
 from datetime import datetime, UTC
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replaysegment import ReplaySegment
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 
 # Create a new replay file
@@ -312,7 +312,7 @@ replay_path = Path("my_replay.bin")
 game_id = 12345
 player_id = 67890
 
-with Replay(replay_path, mode='w', game_id=game_id, player_id=player_id) as replay:
+with ReplaySegment(replay_path, mode='w', game_id=game_id, player_id=player_id) as replay:
     # Record the initial game state
     replay.record_initial_game_state(
         game_state=initial_state,

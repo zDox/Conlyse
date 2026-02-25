@@ -6,31 +6,32 @@ from functools import wraps
 from typing import Optional
 from typing import TYPE_CHECKING
 
-from conflict_interface.data_types.army_state.army import Army
-from conflict_interface.data_types.foreign_affairs_state.foreign_affairs_state_enums import ForeignAffairRelationTypes
-from conflict_interface.data_types.game_event_state.game_event import GameEvent
-from conflict_interface.data_types.game_info_state.game_info_state import GameInfoState
-from conflict_interface.data_types.game_state.game_state import GameState
-from conflict_interface.data_types.map_state.map import ProvinceType
-from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
-from conflict_interface.data_types.map_state.province import Province
-from conflict_interface.data_types.map_state.sea_province import SeaProvince
-from conflict_interface.data_types.mod_state.mod_state_enums import ModGameFeatures
-from conflict_interface.data_types.mod_state.unit_type import UnitType
-from conflict_interface.data_types.mod_state.upgrade_type import UpgradeType
-from conflict_interface.data_types.newspaper_state.article import Article
-from conflict_interface.data_types.player_state.faction import Faction
-from conflict_interface.data_types.player_state.player_profile import PlayerProfile
-from conflict_interface.data_types.player_state.team_profile import TeamProfile
-from conflict_interface.data_types.research_state.research_state import ResearchState
-from conflict_interface.data_types.research_state.research_type import ResearchType
-from conflict_interface.data_types.research_state.reserach import Research
-from conflict_interface.data_types.resource_state.resource_entry import ResourceEntry
-from conflict_interface.data_types.resource_state.resource_profile import ResourceProfile
-from conflict_interface.data_types.resource_state.resource_state_enums import ResourceType
 
 if TYPE_CHECKING:
     from conflict_interface.interface.online_interface import OnlineInterface
+    from conflict_interface.data_types.newest.game_state.game_state import GameState
+    from conflict_interface.data_types.newest.army_state.army import Army
+    from conflict_interface.data_types.newest.game_event_state.game_event import GameEvent
+    from conflict_interface.data_types.newest.game_info_state.game_info_state import GameInfoState
+    from conflict_interface.data_types.newest.map_state.map_state_enums import ProvinceType
+    from conflict_interface.data_types.newest.map_state.map_state_enums import ProvinceStateID
+    from conflict_interface.data_types.newest.map_state.province import Province
+    from conflict_interface.data_types.newest.map_state.sea_province import SeaProvince
+    from conflict_interface.data_types.newest.mod_state.mod_state_enums import ModGameFeatures
+    from conflict_interface.data_types.newest.mod_state.unit_type import UnitType
+    from conflict_interface.data_types.newest.mod_state.upgrade_type import UpgradeType
+    from conflict_interface.data_types.newest.newspaper_state.article import Article
+    from conflict_interface.data_types.newest.player_state.faction import Faction
+    from conflict_interface.data_types.newest.player_state.player_profile import PlayerProfile
+    from conflict_interface.data_types.newest.player_state.team_profile import TeamProfile
+    from conflict_interface.data_types.newest.research_state.research_state import ResearchState
+    from conflict_interface.data_types.newest.research_state.research_type import ResearchType
+    from conflict_interface.data_types.newest.research_state.reserach import Research
+    from conflict_interface.data_types.newest.resource_state.resource_entry import ResourceEntry
+    from conflict_interface.data_types.newest.resource_state.resource_profile import ResourceProfile
+    from conflict_interface.data_types.newest.resource_state.resource_state_enums import ResourceType
+    from conflict_interface.data_types.newest.foreign_affairs_state.foreign_affairs_state_enums import \
+        ForeignAffairRelationTypes
 
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException

@@ -1,4 +1,4 @@
-from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
+from conflict_interface.api.hub_types.hub_game import HubGameProperties
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
 from tools.recorder.proxy import Proxy

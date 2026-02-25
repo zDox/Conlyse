@@ -1,5 +1,6 @@
 import unittest
 
+from conflict_interface.data_types.newest.version import VERSION
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.utils.exceptions import AuthenticationException
 from tests.helper_functions import get_new_game_id
@@ -14,24 +15,24 @@ class HubInterfaceTests(unittest.TestCase):
 
         # Create a shared interface instance and log in once for all non-login tests
         # Reason: Rate limiting of number of logins
-        cls.shared_interface = HubInterface()
+        cls.shared_interface = HubInterface(VERSION)
         cls.shared_interface.login(cls.username, cls.password)
 
     # Login tests created their own HubInterface in order to properly reset it
     def test_login_success(self):
-        interface = HubInterface()
+        interface = HubInterface(VERSION)
         try:
             interface.login(self.username, self.password)
         except Exception as e:
             self.fail(f"Login raised an exception unexpectedly: {e}")
 
     def test_login_with_username_failure(self):
-        interface = HubInterface()
+        interface = HubInterface(VERSION)
         with self.assertRaises(AuthenticationException):
             interface.login(random_prefix + self.username, self.password)
 
     def test_login_with_password_failure(self):
-        interface = HubInterface()
+        interface = HubInterface(VERSION)
         with self.assertRaises(AuthenticationException):
             interface.login(self.username, random_prefix + self.password)
 

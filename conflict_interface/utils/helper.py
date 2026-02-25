@@ -2,6 +2,7 @@ import inspect
 import os
 from datetime import UTC
 from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 from typing import Optional
 
@@ -69,3 +70,18 @@ def create_parent_dirs(file_path: Path):
     parent = os.path.dirname(file_path)
     if parent:
         os.makedirs(parent, exist_ok=True)
+
+def dt_to_ns(dt: datetime | None) -> int:
+    """
+    Convert datetime to int nanoseconds since epoch.
+    None is encoded as -1.
+    """
+    if dt is None:
+        return -1
+    return int(dt.timestamp() * 1_000_000_000)
+
+def ns_to_dt(ns: int) -> datetime | None:
+    """Inverse of the writer's _dt_to_ns()."""
+    if ns == -1:
+        return None
+    return datetime.fromtimestamp(ns / 1_000_000_000, tz=timezone.utc)

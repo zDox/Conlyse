@@ -1,7 +1,8 @@
 import os
 
+from conflict_interface.api.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
-from conflict_interface.data_types.hub_types.hub_game import HubGameState
+from paths import TEST_DATA
 
 TEST_KEYS = ["TEST_ACCOUNT_USERNAME", "TEST_ACCOUNT_PASSWORD", "TEST_ACCOUNT_EMAIL", "TEST_PROXY_URL"]
 
@@ -13,12 +14,12 @@ def load_credentials() -> tuple[str, str, str, str]:
         return (os.getenv("TEST_ACCOUNT_USERNAME"), os.getenv("TEST_ACCOUNT_PASSWORD"), os.getenv("TEST_ACCOUNT_EMAIL"),
                 os.getenv("TEST_PROXY_URL"))
 
-    if not os.path.exists("test_data/credentials.json"):
+    if not os.path.exists(TEST_DATA / "credentials.json"):
         raise Exception("credentials.json file is missing")
     
     import json
 
-    with open("test_data/credentials.json", "r") as file:
+    with open(TEST_DATA / "credentials.json", "r") as file:
         credentials = json.load(file)
 
     missing_keys = [key for key in TEST_KEYS if key not in credentials]

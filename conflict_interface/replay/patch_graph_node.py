@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 import msgpack
 import numpy as np
 
-from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_binary import GameObjectSerializer
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_binary import GameObjectSerializer
 
 from conflict_interface.utils.binary import BinaryReader
 from conflict_interface.utils.binary import BinaryWriter
@@ -33,7 +33,7 @@ class PatchGraphNode:
 
     def compute_cost(self) -> int:
         """Compute the cost of this patch node."""
-        return len(self.op_types)
+        return max(1,len(self.op_types))
 
     def serialize(self, new_paths: list[tuple[int, int, str]], serializer: GameObjectSerializer) -> memoryview:
         writer = BinaryWriter()

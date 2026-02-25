@@ -1,10 +1,10 @@
 """Quick test to see if patches are loading correctly."""
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replaysegment import ReplaySegment
 
 replay_file = r"..\examples\replay.db"
 
 print("Opening replay...")
-replay = Replay(replay_file, mode='r')
+replay = ReplaySegment(replay_file, mode='r')
 replay.open()
 
 print(f"Timestamps: {len(replay.get_timestamps())}")

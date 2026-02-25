@@ -5,9 +5,10 @@ This module handles finding and joining games based on different parameter combi
 from time import sleep, time
 from typing import Optional, Set
 
-from conflict_interface.data_types.hub_types.hub_game import HubGameProperties
-from conflict_interface.utils.exceptions import GameActivationException, GameActivationErrorCodes
-from conflict_interface.data_types.hub_types.hub_game_state_enum import HubGameState
+from conflict_interface.api.hub_types.hub_game import HubGameProperties
+from conflict_interface.api.hub_types.hub_game_state_enum import HubGameState
+from conflict_interface.utils.exceptions import GameActivationErrorCodes
+from conflict_interface.utils.exceptions import GameActivationException
 from tools.recorder.account_pool import AccountPool
 from tools.recorder.account import Account
 from tools.recorder.recorder_logger import get_logger

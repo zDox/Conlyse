@@ -4,7 +4,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replaysegment import ReplaySegment
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from tools.recording_converter.recorder_logger import get_logger
 from tools.recording_converter.recording_reader import RecordingReader
@@ -59,7 +59,7 @@ class FromGameStateUsingMakeBiPatchToReplay:
             output_path.unlink()
 
         # Create replay in write mode
-        with Replay(file_path=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
+        with ReplaySegment(file_path=output_file, mode='w', game_id=game_id, player_id=player_id) as replay:
             # Record initial game state
             first_datetime = unix_ms_to_datetime(int(first_state.time_stamp))
             logger.info(f"Recording initial state at {first_datetime} game time")

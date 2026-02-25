@@ -3,7 +3,7 @@ import logging
 
 from pprint import pprint
 
-from conflict_interface.data_types.custom_types import ArrayList
+from ..custom_types import ArrayList
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
 

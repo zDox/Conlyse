@@ -1,52 +1,65 @@
+from __future__ import annotations
+
 import os.path
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from time import time
 from typing import Callable
+from typing import TYPE_CHECKING
 from typing import override
 
 from cloudscraper25 import CloudScraper
 
-from conflict_interface.action_handler import ActionHandler
-from conflict_interface.data_types.action import Action
-from conflict_interface.data_types.authentication import AuthDetails
-from conflict_interface.data_types.game_api_types.login_action import DEFAULT_LOGIN_ACTION
-from conflict_interface.data_types.game_api_types.login_action import LoginAction
-from conflict_interface.data_types.game_object import GameObject
-from conflict_interface.data_types.game_object_json import parse_any
-from conflict_interface.data_types.static_map_data import StaticMapData
-from conflict_interface.game_api import GameApi
+from conflict_interface.data_types.newest.action_handler import ActionHandler
+
+from conflict_interface.api.game_api import GameApi
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replaysegment import ReplaySegment
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
 from conflict_interface.utils.exceptions import GameActivationException
+# Online Interface must use newest datatypes (trivially)
+from conflict_interface.data_types.newest.static_map_data import StaticMapData
+
+if TYPE_CHECKING:
+    from conflict_interface.data_types.newest.action import Action
+    from conflict_interface.api.authentication import AuthDetails
+    from conflict_interface.data_types.newest.game_api_types.login_action import LoginAction
+
 
 logger = get_logger()
 
 class OnlineInterface(GameInterface):
-    def __init__(self, game_id: int,
+    def __init__(self, version: int, game_id: int,
                  session: CloudScraper,
                  auth_details: AuthDetails,
+                 login_action: LoginAction,
                  guest: bool = False,
                  proxy: dict = None,
                  replay_filepath: str = None):
         super().__init__()
-        self.replay: Replay | None = None
+        self.replay: ReplaySegment | None = None
         self.game_id = game_id
         self.game_api: GameApi = GameApi(session, auth_details, self.game_id, proxy=proxy)
         self.game_event_handler: Callable = self.default_event_handler
         self.guest: bool = guest
         self.action_handler = ActionHandler(self)
         self.static_map_data = None
+        self.version = version
+        self.parser = JsonParser(version)
+        self.parser.type_graph.build_graph()
+        self.loging_action = login_action
 
         self.replay_filepath = replay_filepath
 
     def _handle_replay_init(self, static_map_data: StaticMapData):
         if not os.path.exists(self.replay_filepath):
-            self.replay = Replay(file_path=Path(self.replay_filepath), mode="w", game_id=self.game_id, player_id=self.player_id, max_patches=400)
+            self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="w", game_id=self.game_id, player_id=self.player_id, max_patches=400)
             self.replay.open()
             self.replay.record_initial_game_state(
                                 time_stamp = self.client_time(),
@@ -58,7 +71,7 @@ class OnlineInterface(GameInterface):
                                 player_id = self.player_id,
                                 static_map_data = static_map_data)
         else:
-            self.replay = Replay(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
+            self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
             self.replay.open()
             last_game_state = self.replay.get_last_game_state()
             replay_patch = make_bireplay_patch(last_game_state, self.game_state)
@@ -113,10 +126,10 @@ class OnlineInterface(GameInterface):
                     random_team_country_selection=False,
                 )
                 logger.debug(f"Loading game with player id: {self.player_id}")
-                login_action: LoginAction = DEFAULT_LOGIN_ACTION
+                login_action: LoginAction = deepcopy(self.loging_action)
                 login_action.system_information.client_version = self.game_api.client_version
                 login_action.system_information.os_name = self.game_api.device_details.os
-                self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+                self.do_action(self.loging_action, execute_immediately=True)
             except GameActivationException as e:
                 if e.error_code != GameActivationErrorCodes.COUNTRY_SELECTION_REQUESTED:
                     raise e
@@ -124,7 +137,7 @@ class OnlineInterface(GameInterface):
                 self.game_state = self.action_handler.create_game_state_action(use_queue=False, send_state_ids=False)
 
         json_static_map_data = self.game_api.get_static_map_data()
-        self.static_map_data = parse_any(StaticMapData, json_static_map_data, self)
+        self.static_map_data = self.parser.parse_any(StaticMapData, json_static_map_data, self)
 
         if self.replay_filepath:
             self._handle_replay_init(self.static_map_data)
@@ -159,7 +172,7 @@ class OnlineInterface(GameInterface):
                                                            random_team_country_selection=random_country_team)
         self.game_state = None
         self.action_handler.game_state = None
-        self.do_action(DEFAULT_LOGIN_ACTION, execute_immediately=True)
+        self.do_action(self.loging_action, execute_immediately=True)
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
 
     def update(self):
@@ -184,7 +197,7 @@ class OnlineInterface(GameInterface):
 
     def record_patch(self, rp: BidirectionalReplayPatch):
         if self.is_recording():
-            self.replay = Replay(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
+            self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
             self.replay.open()
             self.replay.append_patches(
                 time_stamp=self.client_time(),

@@ -1,6 +1,5 @@
 from bisect import bisect_right
 
-import numpy as np
 from scipy.sparse import lil_matrix
 from datetime import datetime
 
@@ -25,7 +24,7 @@ class PatchGraph:
 
     @staticmethod
     def cost(patch_path: list[PatchGraphNode]):
-        return sum(x.cost for x in patch_path)
+        return max(1,sum(x.cost for x in patch_path))
 
     def find_prev_timestamp(self, target):
         """
@@ -136,13 +135,12 @@ class PatchGraph:
         src = self.time_to_dense_idx[from_time]
         dst = self.time_to_dense_idx[to_time]
 
-        p = dijkstra(
+        dist,pred = dijkstra(
             self.graph_csr,
             directed=True,
             indices=src,
             return_predecessors=True,
         )
-        pred: np.ndarray[int] = p[1]
 
         if pred[dst] == -9999:
             raise ValueError("No path")

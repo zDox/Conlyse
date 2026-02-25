@@ -5,7 +5,7 @@ from pathlib import Path
 import zstandard as zstd
 
 from conflict_interface.logger_config import get_logger, setup_library_logger
-from conflict_interface.replay.replay import Replay
+from conflict_interface.replay.replaysegment import ReplaySegment
 from paths import TEST_DATA
 
 logger = get_logger()
@@ -32,7 +32,7 @@ def decompress_file(src, dst):
     logger.debug(f"Decompressed {src} to {dst} in {(t2 - t1)*1000} ms")
 
 class ReplayCompressor:
-    def __init__(self, uncompressed_path: Path | None = None, replay: Replay | None = None, compressed_path: Path | None = None):
+    def __init__(self, uncompressed_path: Path | None = None, replay: ReplaySegment | None = None, compressed_path: Path | None = None):
         """
         :param uncompressed_path: Path to uncompressed file (compression input / decompression output). If not
             provided, and ``replay`` is given, the path will be taken from ``replay.file_path``.
