@@ -3,11 +3,11 @@ name: api-tests
 on:
   push:
     paths:
-      - "tools/api/**"
+      - "services/api/**"
       - ".github/workflows/api-tests.yml"
   pull_request:
     paths:
-      - "tools/api/**"
+      - "services/api/**"
       - ".github/workflows/api-tests.yml"
   workflow_dispatch:
 
@@ -20,7 +20,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: tools/api
+        working-directory: services/api
 
     steps:
       - name: Checkout code

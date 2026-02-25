@@ -5,17 +5,13 @@ on:
     branches:
       - main
     paths:
-      - 'tools/server_converter/**'
-      - 'conflict_interface/**'
-      - 'setup.py'
-      - 'pyproject.toml'
+      - 'services/server_converter/**'
+      - 'libs/conflict_interface/**'
       - '.github/workflows/server-converter-docker.yml'
   pull_request:
     paths:
-      - 'tools/server_converter/**'
-      - 'conflict_interface/**'
-      - 'setup.py'
-      - 'pyproject.toml'
+      - 'services/server_converter/**'
+      - 'libs/conflict_interface/**'
       - '.github/workflows/server-converter-docker.yml'
   workflow_dispatch:
 
@@ -59,7 +55,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: tools/server_converter/Dockerfile
+          file: services/server_converter/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
