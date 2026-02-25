@@ -58,7 +58,7 @@ tests/test_data/full_test_data_1_v206.json
 /tools/server_observer/recordings
 /tools/server_observer/long_term_storage
 /tools/server_observer/accounts.json
-/tools/server_observer/config.json
+/tools/server_observer/config.toml
 /tools/server_observer/account_pool.json
 /performance_tests/*.png
 json-output
@@ -70,6 +70,11 @@ _codeql_detected_source_root
 
 # Local development data directories
 data/
-docker/dev/config.json
-docker/server-observer-config/config.json
-docker/prod/config.json
+activate.sh
+docker/dev/account_pool.json
+docker/dev/server-converter-config.json
+docker/dev/server-observer-config.toml
+docker/prod/account_pool.json
+docker/prod/server-converter-config.json
+docker/prod/server-observer-config.toml
+docker/prod/server-observer-config.toml

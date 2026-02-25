@@ -1,10 +1,21 @@
 {
-  "COMMENT": "Example account pool for ServerObserver - Copy to account_pool.json and add your accounts",
+  "_comment": "Example account pool for server_observer_rust",
+  "_comment_usage": "Copy to account_pool.json and replace with real credentials",
+  "WEBSHARE_API_TOKEN": "your-webshare-api-token-if-not-set-in-config",
   "accounts": [
     {
-      "username": "your_username",
-      "password": "your_password"
+      "username": "observer_account_1",
+      "password": "observer_password_1",
+      "email": "observer1@example.com",
+      "proxy_id": "",
+      "proxy_url": ""
+    },
+    {
+      "username": "observer_account_2",
+      "password": "observer_password_2",
+      "email": "observer2@example.com",
+      "proxy_id": "",
+      "proxy_url": ""
     }
-  ],
-  "proxies": []
+  ]
 }

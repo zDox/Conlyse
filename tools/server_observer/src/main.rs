@@ -31,22 +31,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     let args: Vec<String> = env::args().collect();
-    let account_pool_file = if args.len() > 2 {
-        args[2].clone()
-    } else {
-        args.get(1)
-            .cloned()
-            .unwrap_or_else(|| "account_pool.json".to_string())
-    };
+
+    // CLI contract:
+    //   arg1 (optional): path to TOML config file. Defaults to "config.toml".
+    //   arg2 (optional): path to account_pool.json. Defaults to "account_pool.json".
+    let config_file = args
+        .get(1)
+        .cloned()
+        .unwrap_or_else(|| "config.toml".to_string());
+    let account_pool_file = args
+        .get(2)
+        .cloned()
+        .unwrap_or_else(|| "account_pool.json".to_string());
 
     tracing::info!(
-        config_source = "config-rs",
+        config_file = %config_file,
         account_pool_file = %account_pool_file,
-        "starting server_observer_rust process"
+        "starting server_observer process"
     );
 
     let settings = Config::builder()
-        .add_source(File::new("config", FileFormat::Toml))
+        .add_source(File::new(&config_file, FileFormat::Toml))
         .build()?;
     let config_json: Value = settings.try_deserialize()?;
 

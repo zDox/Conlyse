@@ -49,23 +49,27 @@ REDIS_PASSWORD=<optional-password>
 
 #### Server Observer Configuration
 
-Edit `docker/prod/server-observer-config.json`:
+Edit `docker/prod/server-observer-config.toml`:
 
-```json
-{
-  "recording_settings": {
-    "enable_recording": true,
-    "output_directory": "/recordings"
-  },
-  "redis": {
-    "host": "redis",
-    "port": 6379,
-    "stream_name": "game_responses"
-  },
-  "game_finder": {
-    "check_interval_seconds": 60
-  }
-}
+```toml
+max_parallel_recordings = 1
+update_interval = 10
+max_parallel_updates = 10
+max_parallel_first_updates = 10
+update_worker_threads = 4
+output_dir = "/app/recordings"
+output_metadata_dir = "/app/recordings/metadata"
+registry_path = "/app/recordings/server_observer_registry.json"
+
+[redis]
+host = "redis"
+port = 6379
+stream_name = "game_responses"
+
+[game_finder]
+enabled = false
+scan_interval_seconds = 300
+max_games_per_scan = 10
 ```
 
 Add game accounts to `docker/prod/account_pool.json`:
