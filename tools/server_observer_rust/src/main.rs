@@ -17,6 +17,7 @@ mod static_map_cache;
 use crate::hub_interface_wrapper::HubInterfaceWrapper;
 use crate::metrics::MetricsServer;
 use crate::server_observer::ServerObserver;
+use config::{Config, File, FileFormat};
 use serde_json::Value;
 use std::env;
 use std::sync::Arc;
@@ -30,23 +31,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     let args: Vec<String> = env::args().collect();
-    let config_file = args
-        .get(1)
-        .cloned()
-        .unwrap_or_else(|| "config.json".to_string());
-    let account_pool_file = args
-        .get(2)
-        .cloned()
-        .unwrap_or_else(|| "account_pool.json".to_string());
+    let account_pool_file = if args.len() > 2 {
+        args[2].clone()
+    } else {
+        args.get(1)
+            .cloned()
+            .unwrap_or_else(|| "account_pool.json".to_string())
+    };
 
     tracing::info!(
-        config_file = %config_file,
+        config_source = "config-rs",
         account_pool_file = %account_pool_file,
         "starting server_observer_rust process"
     );
 
-    let config_contents = std::fs::read_to_string(&config_file)?;
-    let config_json: Value = serde_json::from_str(&config_contents)?;
+    let settings = Config::builder()
+        .add_source(File::new("config", FileFormat::Toml))
+        .build()?;
+    let config_json: Value = settings.try_deserialize()?;
 
     let _metrics_server = if let Some(port) = config_json
         .get("metrics_port")

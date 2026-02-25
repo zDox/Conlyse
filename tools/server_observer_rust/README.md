@@ -17,13 +17,15 @@ The crate uses Tokio, reqwest, Redis, Postgres (`tokio-postgres` + `bb8`), S3/Mi
 
 ### Configuration
 
-Configuration is loaded from a `config.*` file in the working directory via the `config` crate. It should mirror the structure used by the existing C++ observer:
+Configuration is loaded from a `config.toml` file in the working directory using the [`config`](https://crates.io/crates/config) crate. The TOML structure mirrors the configuration used by the existing C++ observer:
 
 - `database`: Postgres connection parameters (host, port, database, user, password).
 - `redis`: Redis stream configuration (host, port, stream_name, optional password).
 - `storage.static_maps_dir`: Local directory for static map cache.
 - `storage.s3`: S3/MinIO settings (endpoint_url, access_key, secret_key, bucket_name, region).
 - `metrics_port`: Port on which to expose Prometheus metrics (optional).
+
+See `config.example.toml` for a complete example; copy it to `config.toml` and adjust values for your environment.
 
 Account and proxy information are loaded from `account_pool.json`, matching the current JSON format (`WEBSHARE_API_TOKEN`, `accounts` array, proxy metadata).
 
