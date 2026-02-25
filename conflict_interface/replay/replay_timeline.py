@@ -121,8 +121,9 @@ class ReplayTimeline:
         if self.file_path.exists():
             self.read_from_disk()
         if self._mode == "a":
-            for segment in self.segments.values():
-                segment.load_append_mode()
+            last_segment = self.find_last_segment()
+            if last_segment is not None:
+                last_segment.load_append_mode()
         elif self._mode == "r":
             for segment in self.segments.values():
                 segment.load_everything()
