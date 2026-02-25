@@ -1,6 +1,6 @@
 # terrain_view.py
-from conflict_interface.data_types.map_state.map_state_enums import TerrainType
-from conflict_interface.data_types.map_state.province import Province
+from conflict_interface.data_types.newest.map_state.map_state_enums import TerrainType
+from conflict_interface.data_types.newest.map_state.province import Province
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 
 from conlyse.pages.map_page.map_views.map_view import MapView

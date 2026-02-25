@@ -5,8 +5,8 @@ from PySide6.QtCore import QSize
 from PySide6.QtCore import Qt
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QSizePolicy
-from conflict_interface.data_types.map_state.map_state_enums import ProvinceStateID
-from conflict_interface.data_types.map_state.sea_province import SeaProvince
+from conflict_interface.data_types.newest.map_state.map_state_enums import ProvinceStateID
+from conflict_interface.data_types.newest.map_state.sea_province import SeaProvince
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 from conflict_interface.interface.replay_interface import ReplayInterface

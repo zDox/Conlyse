@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtGui import QWheelEvent
-from conflict_interface.data_types.point import Point
+from conflict_interface.data_types.newest.point import Point
 
 from conlyse.logger import get_logger
 from conlyse.managers.keybinding_manager.key_action import KeyAction

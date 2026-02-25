@@ -1,7 +1,7 @@
 # political_view.py
 
-from conflict_interface.data_types.map_state.province import Province
-from conflict_interface.data_types.map_state.sea_province import SeaProvince
+from conflict_interface.data_types.newest.map_state.province import Province
+from conflict_interface.data_types.newest.map_state.sea_province import SeaProvince
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 
 from conlyse.logger import get_logger

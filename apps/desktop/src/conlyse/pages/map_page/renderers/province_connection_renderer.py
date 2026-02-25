@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-from conflict_interface.data_types.map_state.map import  Map as MapData
+from conflict_interface.data_types.newest.map_state.map import  Map as MapData
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.constants import CONNECTION_LINE_COLOR

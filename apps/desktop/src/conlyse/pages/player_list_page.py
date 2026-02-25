@@ -17,7 +17,7 @@ from PySide6.QtWidgets import QMessageBox
 from PySide6.QtWidgets import QPushButton
 from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtWidgets import QWidget
-from conflict_interface.data_types.player_state.player_profile import PlayerProfile
+from conflict_interface.data_types.newest.player_state.player_profile import PlayerProfile
 from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 
 from conlyse.logger import get_logger

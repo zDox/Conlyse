@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from OpenGL import GL as gl
-from conflict_interface.data_types.point import Point
+from conflict_interface.data_types.newest.point import Point
 
 from conflict_interface.interface.replay_interface import ReplayInterface
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QScrollArea, QGridLayout
-from conflict_interface.data_types.map_state.province import Province
+from conflict_interface.data_types.newest.map_state.province import Province
 from conflict_interface.interface.replay_interface import ReplayInterface
 
 from conlyse.widgets.dock_system.docks.dock import Dock
