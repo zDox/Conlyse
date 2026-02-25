@@ -1,6 +1,7 @@
 """
 Storage management for recording sessions.
 """
+from __future__ import annotations
 import json
 import logging
 import pickle
