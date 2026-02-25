@@ -50,9 +50,9 @@ impl HubInterfaceWrapper {
         let proxy_http = proxy_http.into();
         let proxy_https = proxy_https.into();
 
-        PY_INIT.call_once(pyo3::prepare_freethreaded_python);
+        PY_INIT.call_once(Python::initialize);
 
-        let hub_interface = Python::with_gil(|py| -> Result<Py<PyAny>, HubInterfaceError> {
+        let hub_interface = Python::attach(|py| -> Result<Py<PyAny>, HubInterfaceError> {
             ensure_python_path(py)?;
 
             let module = py.import("conflict_interface.interface.hub_interface")?;
@@ -77,7 +77,7 @@ impl HubInterfaceWrapper {
     }
 
     pub fn login(&mut self, username: &str, password: &str) -> Result<bool, HubInterfaceError> {
-        let success = Python::with_gil(|py| -> Result<bool, HubInterfaceError> {
+        let success = Python::attach(|py| -> Result<bool, HubInterfaceError> {
             let hub = self.hub_interface.bind(py);
             let value = hub.call_method1("login", (username, password))?;
             Ok(value.extract::<bool>()?)
@@ -95,7 +95,7 @@ impl HubInterfaceWrapper {
     }
 
     pub fn get_auth_details(&self) -> Result<AuthDetails, HubInterfaceError> {
-        Python::with_gil(|py| -> Result<AuthDetails, HubInterfaceError> {
+        Python::attach(|py| -> Result<AuthDetails, HubInterfaceError> {
             let hub = self.hub_interface.bind(py);
             let auth_obj = hub.getattr("auth")?;
             if auth_obj.is_none() {
@@ -112,7 +112,7 @@ impl HubInterfaceWrapper {
     }
 
     pub fn get_my_games(&self) -> Result<Vec<HubGameProperties>, HubInterfaceError> {
-        Python::with_gil(|py| -> Result<Vec<HubGameProperties>, HubInterfaceError> {
+        Python::attach(|py| -> Result<Vec<HubGameProperties>, HubInterfaceError> {
             let hub = self.hub_interface.bind(py);
             let value = hub.call_method0("get_my_games")?;
             parse_game_list(&value)
@@ -120,7 +120,7 @@ impl HubInterfaceWrapper {
     }
 
     pub fn get_global_games(&self) -> Result<Vec<HubGameProperties>, HubInterfaceError> {
-        Python::with_gil(|py| -> Result<Vec<HubGameProperties>, HubInterfaceError> {
+        Python::attach(|py| -> Result<Vec<HubGameProperties>, HubInterfaceError> {
             let hub = self.hub_interface.bind(py);
             let value = hub.call_method0("get_global_games")?;
             parse_game_list(&value)
@@ -128,7 +128,7 @@ impl HubInterfaceWrapper {
     }
 
     pub fn join_game_as_guest(&self, game_id: i32) -> Result<GameApiData, HubInterfaceError> {
-        Python::with_gil(|py| -> Result<GameApiData, HubInterfaceError> {
+        Python::attach(|py| -> Result<GameApiData, HubInterfaceError> {
             let hub = self.hub_interface.bind(py);
             let game_api_module = py.import("conflict_interface.game_api")?;
             let game_api_class = game_api_module.getattr("GameApi")?;
@@ -210,13 +210,13 @@ fn parse_game_list(value: &Bound<'_, PyAny>) -> Result<Vec<HubGameProperties>, H
 }
 
 fn py_to_string_map(value: &Bound<'_, PyAny>) -> Result<HashMap<String, String>, HubInterfaceError> {
-    if let Ok(dict) = value.downcast::<PyDict>() {
+    if let Ok(dict) = value.cast::<PyDict>() {
         return dict_to_string_map(&dict);
     }
 
     if value.hasattr("get_dict")? {
         let cookie_dict = value.call_method0("get_dict")?;
-        if let Ok(dict) = cookie_dict.downcast::<PyDict>() {
+        if let Ok(dict) = cookie_dict.cast::<PyDict>() {
             return dict_to_string_map(&dict);
         }
     }

@@ -105,10 +105,11 @@ impl ServerObserver {
 
         let s3_client = if let Some(s3_cfg) = config.pointer("/storage/s3").and_then(Value::as_object)
         {
-            parse_s3_config(s3_cfg)
-                .map(S3Client::new)
-                .transpose()
-                .await?
+            if let Some(parsed) = parse_s3_config(s3_cfg) {
+                Some(S3Client::new(parsed).await?)
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -405,7 +406,7 @@ impl ServerObserver {
         result: ObservationResult,
     ) {
         let mut drop_session = false;
-        let mut username = String::new();
+        let username: String;
         let mut needs_proxy_reset = false;
 
         {

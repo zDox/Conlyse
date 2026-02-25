@@ -88,8 +88,8 @@ pub struct Account {
 
 #[derive(Debug, Deserialize)]
 struct AccountFile {
-    #[serde(default)]
-    WEBSHARE_API_TOKEN: String,
+    #[serde(default, rename = "WEBSHARE_API_TOKEN")]
+    webshare_api_token: String,
     #[serde(default)]
     accounts: Vec<AccountEntry>,
 }
@@ -119,7 +119,6 @@ pub enum AccountPoolError {
 
 pub type ProxyResetCallback = Arc<dyn Fn(String) + Send + Sync>;
 
-#[derive(Debug)]
 pub struct AccountPool {
     pub accounts: Vec<Account>,
     pub proxies: HashMap<String, Proxy>,
@@ -142,10 +141,10 @@ impl AccountPool {
 
         let webshare_token = explicit_token
             .or_else(|| {
-                if parsed.WEBSHARE_API_TOKEN.is_empty() {
+                if parsed.webshare_api_token.is_empty() {
                     None
                 } else {
-                    Some(parsed.WEBSHARE_API_TOKEN.clone())
+                    Some(parsed.webshare_api_token.clone())
                 }
             })
             .ok_or(AccountPoolError::MissingToken)?;
