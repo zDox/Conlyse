@@ -15,7 +15,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     defaults:
       run:
-        working-directory: apps/conlyse
+        working-directory: apps/desktop
 
     steps:
       - name: Checkout code
