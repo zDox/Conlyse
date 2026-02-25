@@ -1,0 +1,51 @@
+#dock_title {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#dock_label {
+    color: #888;
+}
+
+#dock_value {
+    font-weight: 500;
+}
+
+#dock_value_indented {
+    font-weight: 500;
+    margin-left: 20px;
+}
+
+#dock_item_title {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+#dock_item_meta {
+    color: #888;
+    font-size: 11px;
+}
+
+#dock_item_value {
+    font-size: 11px;
+}
+
+#event_item, #army_item, #city_item {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    padding: 8px;
+}
+
+#event_time {
+    color: #888;
+    font-size: 11px;
+}
+
+#event_type {
+    font-weight: bold;
+    font-size: 13px;
+}
+
+#event_desc {
+    font-size: 12px;
+}
