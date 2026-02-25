@@ -5,11 +5,11 @@ on:
     branches:
       - main
     paths:
-      - 'tools/api/**'
+      - 'services/api/**'
       - '.github/workflows/api-docker.yml'
   pull_request:
     paths:
-      - 'tools/api/**'
+      - 'services/api/**'
       - '.github/workflows/api-docker.yml'
   workflow_dispatch:
 
@@ -52,8 +52,8 @@ jobs:
         id: build-and-push
         uses: docker/build-push-action@v5
         with:
-          context: tools/api
-          file: tools/api/Dockerfile
+          context: services/api
+          file: services/api/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

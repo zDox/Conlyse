@@ -1,4 +1,4 @@
-name: tests
+name: conflict_interface tests
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -7,8 +7,11 @@ permissions:
 
 jobs:
   test:
-    name: Run Python Tests
+    name: Run ConflictInterface tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libs/conflict_interface
 
     steps:
       - name: Checkout code
@@ -27,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -v -e .[tests]
+          pip install -v -e .
 
 
       - name: get test data
@@ -44,4 +47,3 @@ jobs:
           TEST_PROXY_URL: ${{secrets.TEST_PROXY_URL}}
         run: |
           python tests/run_tests.py
-          

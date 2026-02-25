@@ -5,11 +5,9 @@ on:
     branches:
       - main
     paths:
-      - 'tools/server_observer/**'
-      - 'conflict_interface/**'
-      - 'setup.py'
-      - 'pyproject.toml'
-      - '.github/workflows/docker-build.yml'
+      - 'services/server_observer/**'
+      - 'libs/conflict_interface/**'
+      - '.github/workflows/server-observer-docker.yml'
   workflow_dispatch:
 
 permissions:
@@ -50,7 +48,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: tools/server_observer/Dockerfile
+          file: services/server_observer/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
