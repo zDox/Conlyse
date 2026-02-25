@@ -21,6 +21,7 @@
 #include "scheduler.hpp"
 #include "config_file_watcher.hpp"
 #include "redis_publisher.hpp"
+#include "db_client.hpp"
 
 using json = nlohmann::json;
 namespace asio = boost::asio;
@@ -59,6 +60,7 @@ private:
     std::atomic<bool> stop_flag_;
     std::condition_variable stop_cv_;
     std::shared_ptr<StaticMapCache> map_cache_;
+    std::shared_ptr<DbClient> db_client_;
 
     // Config file watching
     std::string config_file_path_;

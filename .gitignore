@@ -31,6 +31,10 @@ tests/test_data/full_test_data_4.json
 /doc/data3.json
 build
 /doc/main-built-min.js
+
+# vcpkg
+vcpkg_installed/
+.vcpkg-root
 tests/test_data/full_test_data_5.json
 *.db
 

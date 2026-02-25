@@ -74,7 +74,25 @@ docker-compose up --build
 
 ## Building from Source
 
-See [CMakeLists.txt](CMakeLists.txt) for build requirements.
+### System Requirements
+
+The following system packages are required:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install build-essential cmake git pkg-config \
+    libzstd-dev zlib1g-dev libssl-dev libcurl4-openssl-dev \
+    libcurlpp-dev libxml2-dev python3-dev
+
+# Fedora/RHEL
+sudo dnf install gcc-c++ cmake git pkg-config \
+    libzstd-devel zlib-devel openssl-devel libcurl-devel \
+    curlpp-devel libxml2-devel python3-devel
+```
+
+All other dependencies (MinIO C++ SDK, pybind11, nlohmann/json, etc.) are automatically downloaded and built by CMake using FetchContent.
+
+### Build Steps
 
 ```bash
 mkdir build && cd build
@@ -82,9 +100,12 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j$(nproc)
 ```
 
+See [CMakeLists.txt](CMakeLists.txt) for complete build configuration.
+
 ## Documentation
 
 - [DOCKER.md](DOCKER.md) - Complete Docker build and deployment guide
+- [MINIO_MIGRATION.md](MINIO_MIGRATION.md) - MinIO C++ SDK migration details
 - [CMakeLists.txt](CMakeLists.txt) - Build configuration
 - Example configs:
   - [config.example.json](config.example.json) - Application configuration template

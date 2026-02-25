@@ -7,7 +7,9 @@
 
 class DbClient {
 public:
-    DbClient();
+    // Constructor with explicit parameters (loaded from config.json)
+    DbClient(const std::string& host, int port, const std::string& dbname,
+             const std::string& user, const std::string& password);
     ~DbClient();
 
     bool is_connected() const;
@@ -21,8 +23,11 @@ public:
 private:
     PGconn* conn_;
 
-    // Builds a connection string from environment variables (PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD)
-    static std::string build_conninfo_from_env();
+    // Builds a connection string from explicit parameters
+    static std::string build_conninfo(const std::string& host, int port,
+                                      const std::string& dbname,
+                                      const std::string& user,
+                                      const std::string& password);
 };
 
 #endif // DB_CLIENT_HPP

@@ -65,7 +65,7 @@ public:
                                                   std::map<std::string, std::string> &state_ids,
                                                   std::map<std::string, std::string> &time_stamps);
 
-    json get_static_map_data(int map_id);
+    json get_static_map_data(const std::string &map_id);
 
     void update_package(ObservationPackage& pkg) const;
     void update_server_address(const std::string & url);

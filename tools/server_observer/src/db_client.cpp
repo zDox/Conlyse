@@ -2,29 +2,23 @@
 #include <cstdlib>
 #include <sstream>
 
-static std::string getenv_or_empty(const char* key) {
-    const char* v = std::getenv(key);
-    return v ? std::string(v) : std::string();
-}
-
-std::string DbClient::build_conninfo_from_env() {
+std::string DbClient::build_conninfo(const std::string& host, int port,
+                                      const std::string& dbname,
+                                      const std::string& user,
+                                      const std::string& password) {
     std::ostringstream ss;
-    auto host = getenv_or_empty("PGHOST");
-    auto port = getenv_or_empty("PGPORT");
-    auto db   = getenv_or_empty("PGDATABASE");
-    auto user = getenv_or_empty("PGUSER");
-    auto pass = getenv_or_empty("PGPASSWORD");
-
     if (!host.empty()) ss << " host=" << host;
-    if (!port.empty()) ss << " port=" << port;
-    if (!db.empty())   ss << " dbname=" << db;
+    if (port > 0) ss << " port=" << port;
+    if (!dbname.empty()) ss << " dbname=" << dbname;
     if (!user.empty()) ss << " user=" << user;
-    if (!pass.empty()) ss << " password=" << pass;
+    if (!password.empty()) ss << " password=" << password;
     return ss.str();
 }
 
-DbClient::DbClient() : conn_(nullptr) {
-    std::string conninfo = build_conninfo_from_env();
+DbClient::DbClient(const std::string& host, int port, const std::string& dbname,
+                   const std::string& user, const std::string& password)
+    : conn_(nullptr) {
+    std::string conninfo = build_conninfo(host, port, dbname, user, password);
     conn_ = PQconnectdb(conninfo.c_str());
 }
 

@@ -8,7 +8,6 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdlib>
-#include "db_client.hpp"
 
 static const int MAX_RETRIES = 3;
 static const int TIME_TILL_RETRY = 10;
@@ -154,93 +153,25 @@ void ObservationSession::reset_package() {
 }
 
 bool ObservationSession::ensure_static_map_data(ObservationApi &api, const std::string& map_id) {
-    // Check DB first
-    DbClient db;
-    if (!db.is_connected()) {
-        std::cerr << "DB connection failed; skipping static map DB check." << std::endl;
-    } else {
-        if (db.map_exists(map_id)) {
-            return true; // Already present in DB/S3
-        }
-    }
-
-    // Attempt numeric conversion for cache and fetch (static file service expects numeric id)
-    int numeric_map_id = -1;
-    try { numeric_map_id = std::stoi(map_id); } catch (...) { numeric_map_id = -1; }
-
-    // If already cached locally (best-effort), we can skip download
-    if (numeric_map_id != -1 && map_cache_ && map_cache_->is_cached(numeric_map_id)) {
-        // Still proceed to ensure S3 + DB if not present in DB
-        // Fall through to upload from cached file if needed
+    // If already cached locally, we're done
+    if (map_cache_ && map_cache_->is_cached(map_id)) {
+        return true;
     }
 
     try {
-        // 1) Download static map JSON
-        json static_map_data;
-        if (numeric_map_id != -1) {
-            static_map_data = api.get_static_map_data(numeric_map_id);
-        } else {
-            std::cerr << "Non-numeric map_id received; cannot fetch from static service: " << map_id << std::endl;
-            return false;
+        // Download static map JSON from the API
+        // Note: The API may still need a numeric conversion internally, but we pass the string
+        json static_map_data = api.get_static_map_data(map_id);
+        
+        // Save to cache (which handles S3 upload and DB recording if configured)
+        if (map_cache_) {
+            std::string saved_path = map_cache_->save(map_id, static_map_data);
+            return !saved_path.empty();
         }
-
-        // 2) Compress to a temp file using zstd
-        namespace fs = std::filesystem;
-        fs::path tmp_dir = fs::temp_directory_path();
-        fs::path out_path = tmp_dir / ("map_" + map_id + ".json.zst");
-
-        std::string json_str = static_map_data.dump();
-        size_t bound = ZSTD_compressBound(json_str.size());
-        std::vector<uint8_t> compressed(bound);
-        size_t actual = ZSTD_compress(
-            compressed.data(), compressed.size(),
-            json_str.data(), json_str.size(),
-            7 // a bit higher for static payloads
-        );
-        if (ZSTD_isError(actual)) {
-            std::cerr << "ZSTD compression failed: " << ZSTD_getErrorName(actual) << std::endl;
-            return false;
-        }
-        compressed.resize(actual);
-
-        std::ofstream of(out_path, std::ios::binary);
-        if (!of.is_open()) {
-            std::cerr << "Failed to open temp file for static map: " << out_path << std::endl;
-            return false;
-        }
-        of.write(reinterpret_cast<const char*>(compressed.data()), compressed.size());
-        of.close();
-
-        // 3) Upload to S3 using AWS CLI (assumes credentials/env configured)
-        std::string s3_key = "static-maps/" + map_id + ".json.zst";
-        std::string cmd = std::string("aws s3 cp ") + out_path.string() + " s3://static-map-data/" + s3_key + " --only-show-errors";
-        int rc = std::system(cmd.c_str());
-        if (rc != 0) {
-            std::cerr << "AWS CLI upload failed with code: " << rc << std::endl;
-            // Don't leave temp files around
-            std::error_code ec; fs::remove(out_path, ec);
-            return false;
-        }
-
-        // 4) Insert into DB maps table
-        bool inserted = false;
-        if (db.is_connected()) {
-            inserted = db.insert_map(map_id, s3_key, std::nullopt);
-            if (!inserted) {
-                std::cerr << "Failed to insert maps row for map_id=" << map_id << std::endl;
-            }
-        }
-
-        // 5) Save to local cache for faster future checks (best-effort)
-        if (numeric_map_id != -1 && map_cache_) {
-            map_cache_->save(numeric_map_id, static_map_data);
-        }
-
-        // Cleanup temp file
-        std::error_code ec; fs::remove(out_path, ec);
-        return inserted || true; // consider success if upload worked even if DB insert failed
+        
+        return false;
     } catch (const std::exception &e) {
-        std::cerr << "Failed to get/upload static map data: " << e.what() << std::endl;
+        std::cerr << "Failed to get/save static map data: " << e.what() << std::endl;
         return false;
     }
 }

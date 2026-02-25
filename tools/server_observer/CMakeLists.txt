@@ -96,8 +96,25 @@ pkg_check_modules(ZSTD REQUIRED libzstd)
 # Zlib for gzip decompression
 find_package(ZLIB REQUIRED)
 
-# OpenSSL for SHA1 and HMAC (also used for S3 signing)
+# OpenSSL for SHA1 and HMAC
 find_package(OpenSSL REQUIRED)
+
+# ============== MinIO C++ SDK Dependencies ==============
+
+# MinIO C++ SDK is now installed via vcpkg as a system requirement
+# This provides all necessary dependencies with proper CMake CONFIG packages:
+# - unofficial-curlpp (C++ wrapper for libcurl)
+# - unofficial-inih (INI file parsing)
+# - pugixml (XML parsing)
+# - nlohmann_json (JSON parsing)
+# - OpenSSL, ZLIB (already available)
+
+# Find MinIO C++ SDK (installed via vcpkg)
+find_package(miniocpp CONFIG REQUIRED)
+
+message(STATUS "MinIO C++ SDK Configuration:")
+message(STATUS "  Found via vcpkg CONFIG mode")
+message(STATUS "  Target: miniocpp::miniocpp")
 
 # PostgreSQL client library (libpq)
 find_package(PostgreSQL REQUIRED)
@@ -198,6 +215,8 @@ target_link_libraries(server_observer
         prometheus-cpp::core
         prometheus-cpp::pull
         ${PostgreSQL_LIBRARIES}
+        # MinIO SDK (installed via vcpkg, includes all dependencies)
+        miniocpp::miniocpp
 )
 
 target_include_directories(server_observer
@@ -205,6 +224,7 @@ target_include_directories(server_observer
         ${ZSTD_INCLUDE_DIRS}
         ${boost_SOURCE_DIR}
         ${magic_enum_SOURCE_DIR}/include
+        # MinIO SDK headers are provided via miniocpp::miniocpp target
 )
 
 # Installation

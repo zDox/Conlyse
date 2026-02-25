@@ -49,6 +49,30 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     
     registry_ = std::make_shared<RecordingRegistry>(registry_path);
 
+    // Initialize database client if configured
+    if (config.contains("database")) {
+        try {
+            auto db_config = config["database"];
+            db_client_ = std::make_shared<DbClient>(
+                db_config["host"].get<std::string>(),
+                db_config.value("port", 5432),
+                db_config["database"].get<std::string>(),
+                db_config["user"].get<std::string>(),
+                db_config["password"].get<std::string>()
+            );
+            
+            if (db_client_->is_connected()) {
+                std::cout << "Database client connected successfully" << std::endl;
+            } else {
+                std::cerr << "Warning: Failed to connect to database. Database features will be disabled." << std::endl;
+                db_client_.reset();
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Warning: Failed to initialize database client: " << e.what() << std::endl;
+            db_client_.reset();
+        }
+    }
+
     // Initialize map cache
     std::string static_maps_dir = output_dir_ + "/static_maps";
     if (config.contains("storage") && config["storage"].contains("static_maps_dir")) {
@@ -56,12 +80,8 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
     }
     
     // Check if S3 is enabled for static maps
-    bool s3_enabled = false;
-    if (config.contains("storage") && config["storage"].contains("s3_enabled")) {
-        s3_enabled = config["storage"]["s3_enabled"].get<bool>();
-    }
     
-    if (s3_enabled && config.contains("storage") && config["storage"].contains("s3")) {
+    if (config.contains("storage") && config["storage"].contains("s3")) {
         auto s3_config_json = config["storage"]["s3"];
         S3Config s3_config;
         s3_config.endpoint_url = s3_config_json["endpoint_url"].get<std::string>();
@@ -70,7 +90,7 @@ ServerObserver::ServerObserver(const json& config, std::shared_ptr<AccountPool> 
         s3_config.bucket_name = s3_config_json["bucket_name"].get<std::string>();
         s3_config.region = s3_config_json.value("region", "us-east-1");
         
-        map_cache_ = std::make_shared<StaticMapCache>(static_maps_dir, s3_config);
+        map_cache_ = std::make_shared<StaticMapCache>(static_maps_dir, s3_config, db_client_);
     } else {
         map_cache_ = std::make_shared<StaticMapCache>(static_maps_dir);
     }

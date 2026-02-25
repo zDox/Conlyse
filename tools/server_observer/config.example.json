@@ -18,6 +18,14 @@
       "region": "us-east-1"
     }
   },
+  "database": {
+    "enabled": false,
+    "host": "localhost",
+    "port": 5432,
+    "database": "conflict_replays",
+    "user": "postgres",
+    "password": "password"
+  },
   "proxy": {
     "http": "",
     "https": ""

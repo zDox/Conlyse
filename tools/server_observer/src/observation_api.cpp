@@ -316,9 +316,8 @@ GameServerResult ObservationApi::parse_and_validate_response(HttpResponse& respo
     return result;
 }
 
-json ObservationApi::get_static_map_data(int map_id) {
-    std::string url = "https://static1.bytro.com/fileadmin/mapjson/live/" +
-                      std::to_string(map_id) + ".json";
+json ObservationApi::get_static_map_data(const std::string &map_id) {
+    std::string url = "https://static1.bytro.com/fileadmin/mapjson/live/" + map_id + ".json";
     httplib::Client cli("https://static1.bytro.com");
     cli.set_follow_location(true);
 
@@ -336,7 +335,7 @@ json ObservationApi::get_static_map_data(int map_id) {
         {"Accept", "application/json, text/javascript, */*; q=0.01"}
     };
 
-    std::string path = "/fileadmin/mapjson/live/" + std::to_string(map_id) + ".json";
+    std::string path = "/fileadmin/mapjson/live/" + map_id + ".json";
     auto res = cli.Get(path, headers);
 
     if (!res || res->status != 200) {
