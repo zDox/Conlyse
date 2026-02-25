@@ -1,0 +1,558 @@
+/*
+ * Material UI Component Library Stylesheet
+ * =========================================
+ * Styling for MUI components: Buttons, Checkboxes, Radio Groups,
+ * Select, Switch, and TextField variants.
+ *
+ * Theme variables are substituted using syntax.
+ */
+
+/* =============================================================================
+ * BUTTONS - Base Styles
+ * ============================================================================= */
+
+/* Base Button Properties (shared by all button types) */
+MUIButton {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 4px;
+    min-height: 36px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+MUIButton:disabled {
+    opacity: 0.6;
+}
+
+/* Contained Button (filled background) */
+MUIButton[variant="contained"] {
+    background-color: $primary;
+    color: $on_primary;
+    border: none;
+}
+
+MUIButton[variant="contained"]:hover {
+    background-color: $primary_dark;
+}
+
+MUIButton[variant="contained"]:pressed {
+    background-color: $primary_darker;
+}
+
+MUIButton[variant="contained"]:disabled {
+    background-color: $surface_disabled;
+    color: $text_disabled;
+}
+
+/* Contained Secondary */
+MUIButton[variant="contained"][color="secondary"] {
+    background-color: $secondary;
+    color: $on_secondary;
+}
+
+MUIButton[variant="contained"][color="secondary"]:hover {
+    background-color: $secondary_dark;
+}
+
+/* Contained Error */
+MUIButton[variant="contained"][color="error"] {
+    background-color: $error;
+    color: $on_error;
+}
+
+MUIButton[variant="contained"][color="error"]:hover {
+    background-color: $error_dark;
+}
+
+/* Outlined Button (border only) */
+MUIButton[variant="outlined"] {
+    background-color: transparent;
+    color: $primary;
+    border: 1px solid $primary;
+}
+
+MUIButton[variant="outlined"]:hover {
+    background-color: $primary_hover_overlay;
+}
+
+MUIButton[variant="outlined"]:pressed {
+    background-color: $primary_pressed_overlay;
+}
+
+MUIButton[variant="outlined"]:disabled {
+    border-color: $border_disabled;
+    color: $text_disabled;
+}
+
+/* Outlined Secondary */
+MUIButton[variant="outlined"][color="secondary"] {
+    color: $secondary;
+    border-color: $secondary;
+}
+
+MUIButton[variant="outlined"][color="secondary"]:hover {
+    background-color: $secondary_hover_overlay;
+}
+
+/* Outlined Error */
+MUIButton[variant="outlined"][color="error"] {
+    color: $error;
+    border-color: $error;
+}
+
+MUIButton[variant="outlined"][color="error"]:hover {
+    background-color: $error_hover_overlay;
+}
+
+/* Text Button (no border, no background) */
+MUIButton[variant="text"] {
+    background-color: transparent;
+    color: $primary;
+    border: none;
+    padding: 8px 12px;
+}
+
+MUIButton[variant="text"]:hover {
+    background-color: $primary_hover_overlay;
+}
+
+MUIButton[variant="text"]:pressed {
+    background-color: $primary_pressed_overlay;
+}
+
+MUIButton[variant="text"]:disabled {
+    color: $text_disabled;
+}
+
+/* Text Secondary */
+MUIButton[variant="text"][color="secondary"] {
+    color: $secondary;
+}
+
+MUIButton[variant="text"][color="secondary"]:hover {
+    background-color: $secondary_hover_overlay;
+}
+
+/* Text Error */
+MUIButton[variant="text"][color="error"] {
+    color: $error;
+}
+
+MUIButton[variant="text"][color="error"]:hover {
+    background-color: $error_hover_overlay;
+}
+
+/* =============================================================================
+ * ICON BUTTON
+ * ============================================================================= */
+
+MUIIconButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 50%;
+    padding: 8px;
+    min-width: 40px;
+    min-height: 40px;
+    max-width: 40px;
+    max-height: 40px;
+}
+
+MUIIconButton:hover {
+    background-color: $icon_button_hover;
+}
+
+MUIIconButton:pressed {
+    background-color: $icon_button_pressed;
+}
+
+MUIIconButton:disabled {
+    opacity: 0.5;
+}
+
+MUIIconButton[color="primary"] {
+    color: $primary;
+}
+
+MUIIconButton[color="secondary"] {
+    color: $secondary;
+}
+
+MUIIconButton[color="error"] {
+    color: $error;
+}
+
+/* Small Icon Button */
+MUIIconButton[size="small"] {
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 32px;
+    max-height: 32px;
+    padding: 4px;
+}
+
+/* Large Icon Button */
+MUIIconButton[size="large"] {
+    min-width: 48px;
+    min-height: 48px;
+    max-width: 48px;
+    max-height: 48px;
+    padding: 12px;
+}
+
+/* =============================================================================
+ * CHECKBOX
+ * ============================================================================= */
+
+MUICheckbox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 2px solid $checkbox_border;
+    background-color: transparent;
+}
+
+MUICheckbox::indicator:hover {
+    border-color: $primary;
+}
+
+MUICheckbox::indicator:checked {
+    background-color: $primary;
+    border-color: $primary;
+}
+
+MUICheckbox::indicator:checked:hover {
+    background-color: $primary_dark;
+    border-color: $primary_dark;
+}
+
+MUICheckbox::indicator:disabled {
+    border-color: $border_disabled;
+}
+
+MUICheckbox::indicator:checked:disabled {
+    background-color: $surface_disabled;
+}
+
+MUICheckbox[color="secondary"]::indicator:checked {
+    background-color: $secondary;
+    border-color: $secondary;
+}
+
+MUICheckbox[color="error"]::indicator:checked {
+    background-color: $error;
+    border-color: $error;
+}
+
+/* Checkbox with Label */
+MUICheckboxWithLabel {
+    spacing: 8px;
+    color: $text_primary;
+    font-size: 14px;
+}
+
+MUICheckboxWithLabel:disabled {
+    color: $text_disabled;
+}
+
+/* =============================================================================
+ * RADIO BUTTON / RADIO GROUP
+ * ============================================================================= */
+
+MUIRadioButton::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    border: 2px solid $radio_border;
+    background-color: transparent;
+}
+
+MUIRadioButton::indicator:hover {
+    border-color: $primary;
+}
+
+MUIRadioButton::indicator:checked {
+    border-color: $primary;
+    background-color: transparent;
+}
+
+MUIRadioButton::indicator:checked::after {
+    background-color: $primary;
+}
+
+MUIRadioButton::indicator:disabled {
+    border-color: $border_disabled;
+}
+
+MUIRadioButton {
+    spacing: 8px;
+    color: $text_primary;
+    font-size: 14px;
+}
+
+MUIRadioButton:disabled {
+    color: $text_disabled;
+}
+
+MUIRadioButton[color="secondary"]::indicator:checked {
+    border-color: $secondary;
+}
+
+MUIRadioButton[color="error"]::indicator:checked {
+    border-color: $error;
+}
+
+/* Radio Group Container */
+MUIRadioGroup {
+    spacing: 8px;
+}
+
+/* =============================================================================
+ * SELECT (COMBOBOX)
+ * ============================================================================= */
+
+MUISelect {
+    padding: 8px 12px;
+    padding-right: 32px;
+    border: 1px solid $input_border;
+    border-radius: 4px;
+    background-color: $surface;
+    color: $text_primary;
+    font-size: 14px;
+    min-height: 40px;
+}
+
+MUISelect:hover {
+    border-color: $text_primary;
+}
+
+MUISelect:focus {
+    border-color: $primary;
+    border-width: 2px;
+    padding: 7px 11px;
+    padding-right: 31px;
+}
+
+MUISelect:disabled {
+    background-color: $surface_disabled;
+    color: $text_disabled;
+    border-color: $border_disabled;
+}
+
+MUISelect::drop-down {
+    border: none;
+    width: 32px;
+}
+
+MUISelect QAbstractItemView {
+    background-color: $surface;
+    border: 1px solid $input_border;
+    border-radius: 4px;
+    padding: 4px 0;
+    selection-background-color: $primary_hover_overlay;
+    selection-color: $text_primary;
+}
+
+MUISelect QAbstractItemView::item {
+    padding: 8px 12px;
+    min-height: 36px;
+}
+
+MUISelect QAbstractItemView::item:hover {
+    background-color: $hover_overlay;
+}
+
+/* =============================================================================
+ * SWITCH
+ * ============================================================================= */
+
+MUISwitch {
+    spacing: 8px;
+}
+
+MUISwitch::groove {
+    background-color: $switch_track_off;
+    border-radius: 7px;
+    height: 14px;
+    width: 34px;
+}
+
+MUISwitch::groove:checked {
+    background-color: $primary_light;
+}
+
+MUISwitch::handle {
+    background-color: $switch_thumb_off;
+    border-radius: 10px;
+    width: 20px;
+    height: 20px;
+    margin: -3px 0;
+}
+
+MUISwitch::handle:checked {
+    background-color: $primary;
+    margin-left: 14px;
+}
+
+MUISwitch::handle:hover {
+    background-color: $switch_thumb_hover;
+}
+
+MUISwitch::handle:checked:hover {
+    background-color: $primary_dark;
+}
+
+MUISwitch:disabled::groove {
+    background-color: $surface_disabled;
+}
+
+MUISwitch:disabled::handle {
+    background-color: $switch_thumb_disabled;
+}
+
+MUISwitch[color="secondary"]::groove:checked {
+    background-color: $secondary_light;
+}
+
+MUISwitch[color="secondary"]::handle:checked {
+    background-color: $secondary;
+}
+
+/* =============================================================================
+ * TEXT FIELD - Base Styles
+ * ============================================================================= */
+
+/* Base TextField styles */
+MUITextField {
+    padding: 12px;
+    font-size: 14px;
+    color: $text_primary;
+    background-color: transparent;
+}
+
+MUITextField:disabled {
+    color: $text_disabled;
+}
+
+/* Outlined TextField */
+MUITextField[variant="outlined"] {
+    border: 1px solid $input_border;
+    border-radius: 4px;
+    background-color: transparent;
+}
+
+MUITextField[variant="outlined"]:hover {
+    border-color: $text_primary;
+}
+
+MUITextField[variant="outlined"]:focus {
+    border-color: $primary;
+    border-width: 2px;
+    padding: 11px;
+}
+
+MUITextField[variant="outlined"]:disabled {
+    border-color: $border_disabled;
+    background-color: $surface_disabled;
+}
+
+MUITextField[variant="outlined"][error="true"] {
+    border-color: $error;
+}
+
+MUITextField[variant="outlined"][error="true"]:focus {
+    border-color: $error;
+}
+
+/* Filled TextField */
+MUITextField[variant="filled"] {
+    border: none;
+    border-bottom: 1px solid $input_border;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    background-color: $filled_input_bg;
+    padding: 20px 12px 8px 12px;
+}
+
+MUITextField[variant="filled"]:hover {
+    background-color: $filled_input_bg_hover;
+    border-bottom-color: $text_primary;
+}
+
+MUITextField[variant="filled"]:focus {
+    border-bottom: 2px solid $primary;
+    padding-bottom: 7px;
+}
+
+MUITextField[variant="filled"]:disabled {
+    background-color: $surface_disabled;
+    border-bottom-color: $border_disabled;
+}
+
+MUITextField[variant="filled"][error="true"] {
+    border-bottom-color: $error;
+}
+
+/* Standard TextField */
+MUITextField[variant="standard"] {
+    border: none;
+    border-bottom: 1px solid $input_border;
+    border-radius: 0;
+    background-color: transparent;
+    padding: 8px 0;
+}
+
+MUITextField[variant="standard"]:hover {
+    border-bottom-color: $text_primary;
+    border-bottom-width: 2px;
+    padding-bottom: 7px;
+}
+
+MUITextField[variant="standard"]:focus {
+    border-bottom-color: $primary;
+    border-bottom-width: 2px;
+    padding-bottom: 7px;
+}
+
+MUITextField[variant="standard"]:disabled {
+    border-bottom-style: dotted;
+    border-bottom-color: $border_disabled;
+}
+
+MUITextField[variant="standard"][error="true"] {
+    border-bottom-color: $error;
+}
+
+/* TextField placeholder */
+MUITextField::placeholder {
+    color: $text_hint;
+}
+
+/* =============================================================================
+ * HELPER TEXT / LABELS
+ * ============================================================================= */
+
+MUIHelperText {
+    font-size: 12px;
+    color: $text_secondary;
+    margin-top: 4px;
+}
+
+MUIHelperText[error="true"] {
+    color: $error;
+}
+
+MUIInputLabel {
+    font-size: 12px;
+    color: $text_secondary;
+    margin-bottom: 4px;
+}
+
+MUIInputLabel[focused="true"] {
+    color: $primary;
+}
+
+MUIInputLabel[error="true"] {
+    color: $error;
+}

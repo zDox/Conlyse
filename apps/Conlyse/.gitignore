@@ -1,0 +1,14 @@
+/.idea
+/__pycache__
+/src/conlyse/pages/__pycache__
+/src/conlyse/__pycache__
+/src/conlyse/managers/__pycache__
+/src/conlyse/utils/__pycache__
+/src/conlyse/managers/events/__pycache__
+*.pyc
+/tests/test_data/
+/app_data/
+/src/conlyse.egg-info/
+/src/conlyse/pages/map_page/test_replay.bin
+/build/
+/dist/

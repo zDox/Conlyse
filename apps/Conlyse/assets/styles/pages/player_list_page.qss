@@ -1,0 +1,22 @@
+PlayerListPage {
+    background-color: $bg_dark;
+}
+
+QLabel#player_list_page_header {
+    font-size: $H2;
+    font-weight: bold;
+    color: $text;
+    padding: 0;
+    margin: 0;
+}
+
+PlayerListPanel {
+    background-color: $bg;
+    border: 1px solid $border_muted;
+    border-radius: 8px;
+}
+
+TimelineControls {
+    background-color: $bg;
+    border-top: 1px solid $border_muted;
+}

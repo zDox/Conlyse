@@ -1,0 +1,38 @@
+[project]
+name = "conlyse"
+version = "0.1.0"
+description = "Conflict of Nations replay analytics tool"
+authors = [
+    { name = "zDox" },
+    { name = "Niknam3"}
+]
+readme = "README.md"
+requires-python = "==3.12.*"
+
+# Core dependencies (adjust as needed)
+dependencies = [
+    "PySide6>=6.2.0",
+    "PyOpenGL>=3.1.0",
+    "numpy>=1.21.0",
+    "qtawesome>=1.4.0",
+    "conflict-interface @ git+ssh://git@github.com/zDox/ConflictInterface.git@main",
+    "freetype-py>=2.3.0",
+    "mapbox-earcut>=1.0.0",
+]
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# This tells pip that Setuptools builds the project
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+"conlyse.assets" = ["*"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["conlyse"]
