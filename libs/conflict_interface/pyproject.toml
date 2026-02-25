@@ -1,0 +1,40 @@
+[build-system]
+requires = [
+    "setuptools>=64",
+    "wheel",
+    "pybind11>=2.11",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "conflict-interface"
+version = "0.1.2"
+description = "Conflict of Nations Interface"
+readme = "../../README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "zDox", email = "" },
+]
+license = { text = "Proprietary" }
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "setuptools",
+    "requests",
+    "requests[socks]",
+    "fake_useragent",
+    "lxml",
+    "numpy",
+    "shapely",
+    "cloudscraper25",
+    "msgpack",
+    "zstandard",
+    "lz4",
+    "msgspec",
+    "scipy",
+    "orjson",
+    "pybind11>=2.6.0",
+]
