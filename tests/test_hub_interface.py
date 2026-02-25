@@ -20,19 +20,19 @@ class HubInterfaceTests(unittest.TestCase):
 
     # Login tests created their own HubInterface in order to properly reset it
     def test_login_success(self):
-        interface = HubInterface(-1)
+        interface = HubInterface(VERSION)
         try:
             interface.login(self.username, self.password)
         except Exception as e:
             self.fail(f"Login raised an exception unexpectedly: {e}")
 
     def test_login_with_username_failure(self):
-        interface = HubInterface(-1)
+        interface = HubInterface(VERSION)
         with self.assertRaises(AuthenticationException):
             interface.login(random_prefix + self.username, self.password)
 
     def test_login_with_password_failure(self):
-        interface = HubInterface(-1)
+        interface = HubInterface(VERSION)
         with self.assertRaises(AuthenticationException):
             interface.login(self.username, random_prefix + self.password)
 

@@ -33,7 +33,7 @@ logger = get_logger()
 LONG_PATCH_THRESHOLD = 10
 
 class ReplayInterface(GameInterface):
-    def __init__(self, file_path: Path | str, player_id: int | None = None, game_id: int | None = None):
+    def __init__(self, file_path: Path | str, static_map_data: dict[int, Path], player_id: int | None = None, game_id: int | None = None):
         super().__init__()
         self.current_time: datetime | None = None
         self.current_timestamp_index: int = 0
@@ -44,8 +44,11 @@ class ReplayInterface(GameInterface):
         self._replay: ReplayTimeline | None = None
         self._hook_system: ReplayHookSystem | None = None
         self._current_segment: ReplaySegment | None = None
+        self._static_map_data = {v: ReplayTimeline.read_static_map_data(v, p) for v,p in static_map_data.items()}
 
         self._is_open: bool = False
+
+
 
     def open(self) -> bool:
         if self._is_open:
@@ -62,8 +65,7 @@ class ReplayInterface(GameInterface):
         first_segment = self._replay.find_first_segment()
         self._current_segment = first_segment
         self.game_state = first_segment.storage.initial_game_state
-        self.game_state.states.map_state.map.set_static_map_data(first_segment.storage.static_map_data)
-        self.game_state.set_game(self)
+        self._replay.setup(self, self._static_map_data)
 
         # Step 5: final metadata
         self._update_player_id()

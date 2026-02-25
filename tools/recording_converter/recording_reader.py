@@ -1,4 +1,4 @@
-from __future__ import  annotations
+from __future__ import annotations
 
 import json
 import os
@@ -13,27 +13,19 @@ import orjson
 import zstandard as zstd
 from tqdm import tqdm
 
-from conflict_interface.game_object.game_object_parse_json import JsonParser
 from tools.recording_converter.recorder_logger import get_logger
 
 if TYPE_CHECKING:
-    from conflict_interface.data_types.newest.static_map_data import StaticMapData
     from conflict_interface.data_types.newest.game_state.game_state import GameState
 
 logger = get_logger()
 
 class RecordingReader:
-    def __init__(self, recording_dir: Path, static_map_data_path: Path | None = None):
+    def __init__(self, recording_dir: Path, static_map_data_deprecated = None):
         self.recording_dir = Path(recording_dir)
         self.game_states_file = self.recording_dir / "game_states.bin"
         self.requests_file = self.recording_dir / "requests.jsonl.zst"
         self.responses_file = self.recording_dir / "responses.jsonl.zst"
-
-        # Use custom static map data path if provided, otherwise default to recording dir
-        if static_map_data_path is not None:
-            self.static_map_data_file = Path(static_map_data_path)
-        else:
-            self.static_map_data_file = self.recording_dir / "static_map_data.bin"
 
         self.metadata_file = self.recording_dir / "metadata.json"
 
@@ -73,41 +65,6 @@ class RecordingReader:
                 self.metadata = {}
         return self.metadata
 
-    def read_static_map_data(self) -> Optional[StaticMapData]:
-        """
-        Read static map data from the recording.
-
-        Returns:
-            StaticMapData object or None if not found
-        """
-        parser = JsonParser(209)
-        parser.type_graph.build_graph()
-        if not self.static_map_data_file.exists():
-            logger.warning(f"Static map data file not found: {self.static_map_data_file}")
-            return None
-
-        # If the static map data is stored as JSON, read it in text mode and parse directly.
-        if self.static_map_data_file.suffix == ".json":
-            with open(self.static_map_data_file, 'r', encoding='utf-8') as f:
-                json_data = json.load(f)
-            return parser.parse_static_map_data(json_data)
-
-        # Otherwise, assume the file contains compressed binary data.
-        with open(self.static_map_data_file, 'rb') as f:
-            compressed_data = f.read()
-
-        # Decompress and unpickle
-        decompressed = self._decompressor.decompress(compressed_data)
-        static_map_data = pickle.loads(decompressed)
-        if isinstance(static_map_data, StaticMapData):
-            logger.info("Loaded static map data as StaticMapData object")
-            return static_map_data
-        elif isinstance(static_map_data, dict):
-            logger.info("Loaded static map data as dict")
-            static_map_data = parser.parse_static_map_data(static_map_data)
-            return static_map_data
-        else:
-            raise ValueError(f"Unexpected static map data type: {type(static_map_data)}")
 
     def len_game_states(self) -> int:
         counter = 0

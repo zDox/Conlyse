@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_timeline import ReplayTimeline
 from conflict_interface.utils.helper import unix_ms_to_datetime

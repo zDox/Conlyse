@@ -8,7 +8,8 @@ from time import sleep
 from time import time
 from typing import Optional
 
-from conflict_interface.data_types.map_state.province_action_result import UpdateProvinceActionResult
+from conflict_interface.data_types.newest.map_state.province_action_result import UpdateProvinceActionResult
+from conflict_interface.data_types.newest.version import VERSION
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.interface.online_interface import OnlineInterface
 from tools.recorder.account import Account
@@ -109,7 +110,7 @@ class Recorder:
             return False
 
         try:
-            self.hub_itf = HubInterface()
+            self.hub_itf = HubInterface(VERSION)
 
             if proxy_url:
                 proxy = {'http': proxy_url, 'https': proxy_url}

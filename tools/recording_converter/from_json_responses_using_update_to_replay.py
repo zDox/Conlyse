@@ -12,8 +12,6 @@ from conflict_interface.replay.replay_builder import ReplayBuilder
 from tools.recording_converter.recorder_logger import get_logger
 from tools.recording_converter.recording_reader import RecordingReader
 
-from conflict_interface.data_types import *  # TODO what is the better way to do this? This ensures that all supported version are usable
-
 if TYPE_CHECKING:
     from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
@@ -76,10 +74,6 @@ class FromJsonResponsesUsingUpdateToReplay:
         if not self._prepare_output_file(output_file, overwrite):
             return False
 
-        # Load static map data
-        static_map_data = self._load_static_map_data()
-        if static_map_data is None:
-            return False
 
         # Create ReplayBuilder
         builder = ReplayBuilder(
@@ -93,7 +87,6 @@ class FromJsonResponsesUsingUpdateToReplay:
         logger.info("Creating initial replay...")
         initial_index = builder.create_replay(
             json_responses=json_responses,
-            static_map_data=static_map_data
         )
 
         # Append remaining JSON responses (skip the initial state already processed)
@@ -164,16 +157,3 @@ class FromJsonResponsesUsingUpdateToReplay:
                 return False
 
         return True
-
-    def _load_static_map_data(self) -> StaticMapData | None:
-        """Load static map data from recording."""
-        logger.info("Loading static map data...")
-        static_map_data = self.reader.read_static_map_data()
-
-        if not static_map_data:
-            logger.error("No static map data found in recording")
-            return None
-
-        logger.info("Static map data loaded successfully")
-        return static_map_data
-

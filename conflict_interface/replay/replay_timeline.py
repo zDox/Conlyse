@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import pickle
 import struct
 from datetime import UTC
 from datetime import datetime
@@ -9,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import zstandard as zstd
 
+from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replaysegment import ReplaySegment
@@ -112,8 +115,6 @@ class ReplayTimeline:
                     compressor.write(header)
                     compressor.write(payload)
 
-
-
     def open(self):
         if self._open:
             return
@@ -135,6 +136,12 @@ class ReplayTimeline:
                 segment.collapse_append_mode()
         self._write_to_disk()
         self._open = False
+
+    def setup(self, game, static_map_data):
+        assert self._open, "Must open before setup"
+        for (_,_, v), segment in self.segments.items():
+            segment.storage.initial_game_state.set_game(game)
+            segment.storage.initial_game_state.states.map_state.map.set_static_map_data(static_map_data[v])
 
     def get_mode(self):
         return self._mode
@@ -247,8 +254,6 @@ class ReplayTimeline:
 
         if segment is not None:
             self._close_segment(key, segment.get_last_time())
-        else:
-            logger.error(f"No open segment found! unable to close")
 
     def _create_segment(self, current_game_state: GameState, version: int, from_timestamp: datetime, static_map_data: StaticMapData | None = None) -> "ReplaySegment":
         assert self._mode == "a"
@@ -303,3 +308,33 @@ class ReplayTimeline:
         self._time_stamp_cache = cache
         return self._time_stamp_cache
 
+    @staticmethod
+    def read_static_map_data(version, path):
+        parser = JsonParser(version)
+        parser.type_graph.build_graph()
+        if not path.exists():
+            logger.warning(f"Static map data file not found: {path}")
+            return None
+
+        # If the static map data is stored as JSON, read it in text mode and parse directly.
+        if path.suffix == ".json":
+            with open(path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+            return parser.parse_static_map_data(json_data)
+
+        # Otherwise, assume the file contains compressed binary data.
+        with open(path, 'rb') as f:
+            compressed_data = f.read()
+
+        # Decompress and unpickle
+        decompressed = zstd.ZstdDecompressor().decompress(compressed_data)
+        static_map_data = pickle.loads(decompressed)
+        if isinstance(static_map_data, StaticMapData):
+            logger.info("Loaded static map data as StaticMapData object")
+            return static_map_data
+        elif isinstance(static_map_data, dict):
+            logger.info("Loaded static map data as dict")
+            static_map_data = parser.parse_static_map_data(static_map_data)
+            return static_map_data
+        else:
+            raise ValueError(f"Unexpected static map data type: {type(static_map_data)}")
