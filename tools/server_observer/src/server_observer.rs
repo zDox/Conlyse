@@ -12,7 +12,7 @@ use crate::redis_publisher::{RedisConfig, RedisPublisher};
 use crate::s3_client::{S3Client, S3Config};
 use crate::scheduler::Scheduler;
 use crate::static_map_cache::{StaticMapCache, StaticMapError};
-use serde_json::Value;
+use config::Config as AppConfig;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Mutex};
@@ -52,106 +52,90 @@ pub struct ServerObserver {
 
 impl ServerObserver {
     pub async fn new(
-        config: Value,
+        settings: &AppConfig,
         account_pool: Arc<tokio::sync::Mutex<AccountPool>>,
     ) -> Result<Arc<Self>, ServerObserverError> {
-        let max_parallel_recordings = i64_at(&config, "max_parallel_recordings", 1) as i32;
-        let max_parallel_updates = i64_at(&config, "max_parallel_updates", 1) as i32;
-        let max_parallel_first_updates = i64_at(&config, "max_parallel_first_updates", 1) as i32;
-        let update_interval = f64_at(&config, "update_interval", 60.0);
+        let max_parallel_recordings = settings
+            .get::<i64>("max_parallel_recordings")
+            .unwrap_or(1) as i32;
+        let max_parallel_updates = settings
+            .get::<i64>("max_parallel_updates")
+            .unwrap_or(1) as i32;
+        let max_parallel_first_updates = settings
+            .get::<i64>("max_parallel_first_updates")
+            .unwrap_or(1) as i32;
+        let update_interval = settings
+            .get::<f64>("update_interval")
+            .unwrap_or(60.0);
 
-        let output_dir = str_at(&config, "output_dir")
-            .unwrap_or("./recordings")
-            .to_string();
-        let output_metadata_dir = str_at(&config, "output_metadata_dir")
-            .unwrap_or_default()
-            .to_string();
-        let long_term_storage_path = str_at(&config, "long_term_storage_path")
-            .unwrap_or_default()
-            .to_string();
-        let file_size_threshold = i64_at(&config, "file_size_threshold", 0);
+        let output_dir = settings
+            .get::<String>("output_dir")
+            .unwrap_or_else(|_| "./recordings".to_string());
+        let output_metadata_dir = settings
+            .get::<String>("output_metadata_dir")
+            .unwrap_or_default();
+        let long_term_storage_path = settings
+            .get::<String>("long_term_storage_path")
+            .unwrap_or_default();
+        let file_size_threshold = settings
+            .get::<i64>("file_size_threshold")
+            .unwrap_or(0);
 
         let registry_default_dir = if output_metadata_dir.is_empty() {
             output_dir.clone()
         } else {
             output_metadata_dir.clone()
         };
-        let registry_path = str_at(&config, "registry_path")
-            .map(str::to_string)
-            .unwrap_or_else(|| format!("{registry_default_dir}/server_observer_registry.json"));
+        let registry_path = settings
+            .get::<String>("registry_path")
+            .unwrap_or_else(|_| format!("{registry_default_dir}/server_observer_registry.json"));
         let registry = RecordingRegistry::new(registry_path);
 
-        let db_client = if let Some(database_cfg) = config.get("database").and_then(Value::as_object) {
-            let maybe_cfg = parse_db_config(database_cfg);
-            if let Some(cfg) = maybe_cfg {
-                match DbClient::new(cfg).await {
-                    Ok(client) if client.is_connected().await => Some(client),
-                    Ok(_) => {
-                        tracing::warn!("database configured but connection test failed; disabling DB features");
-                        None
-                    }
-                    Err(err) => {
-                        tracing::warn!(?err, "failed to initialize database client; disabling DB features");
-                        None
-                    }
+        let db_client = match settings.get::<DbConfig>("database") {
+            Ok(cfg) => match DbClient::new(cfg).await {
+                Ok(client) if client.is_connected().await => Some(client),
+                Ok(_) => {
+                    tracing::warn!(
+                        "database configured but connection test failed; disabling DB features"
+                    );
+                    None
                 }
-            } else {
-                None
-            }
-        } else {
-            None
+                Err(err) => {
+                    tracing::warn!(
+                        ?err,
+                        "failed to initialize database client; disabling DB features"
+                    );
+                    None
+                }
+            },
+            Err(_) => None,
         };
 
-        let static_maps_dir = config
-            .pointer("/storage/static_maps_dir")
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .unwrap_or_else(|| format!("{output_dir}/static_maps"));
+        let static_maps_dir = settings
+            .get::<String>("storage.static_maps_dir")
+            .unwrap_or_else(|_| format!("{output_dir}/static_maps"));
 
-        let s3_client = if let Some(s3_cfg) = config.pointer("/storage/s3").and_then(Value::as_object) {
-            if let Some(parsed) = parse_s3_config(s3_cfg) {
-                Some(S3Client::new(parsed).await?)
-            } else {
-                None
-            }
-        } else {
-            None
+        let s3_client = match settings.get::<S3Config>("storage.s3") {
+            Ok(parsed) => Some(S3Client::new(parsed).await?),
+            Err(_) => None,
         };
 
         let s3_enabled = s3_client.is_some();
 
         let map_cache = StaticMapCache::new(static_maps_dir, s3_client, db_client.clone()).await?;
 
-        let redis_publisher = if let Some(redis_cfg) = config.get("redis").and_then(Value::as_object) {
-            let cfg = RedisConfig {
-                host: redis_cfg
-                    .get("host")
-                    .and_then(Value::as_str)
-                    .unwrap_or("localhost")
-                    .to_string(),
-                port: redis_cfg
-                    .get("port")
-                    .and_then(Value::as_u64)
-                    .unwrap_or(6379) as u16,
-                stream_name: redis_cfg
-                    .get("stream_name")
-                    .and_then(Value::as_str)
-                    .unwrap_or("game_responses")
-                    .to_string(),
-                password: redis_cfg
-                    .get("password")
-                    .and_then(Value::as_str)
-                    .map(str::to_string),
-            };
-            match RedisPublisher::new(cfg) {
+        let redis_publisher = match settings.get::<RedisConfig>("redis") {
+            Ok(cfg) => match RedisPublisher::new(cfg) {
                 Ok(redis) => Some(redis),
                 Err(err) => {
-                    tracing::warn!(?err, "failed to initialize redis publisher; disabling redis");
+                    tracing::warn!(
+                        ?err,
+                        "failed to initialize redis publisher; disabling redis"
+                    );
                     None
                 }
-            }
-        } else {
-            None
+            },
+            Err(_) => None,
         };
 
         let db_enabled = db_client.is_some();
@@ -166,14 +150,33 @@ impl ServerObserver {
         scheduler.set_max_parallel_updates(max_parallel_updates.max(1));
         scheduler.set_max_parallel_first_updates(max_parallel_first_updates.max(1));
 
-        let game_finder_cfg = serde_json::from_value::<GameFinderConfig>(config.clone())
-            .unwrap_or(GameFinderConfig {
-                scenario_ids: Vec::new(),
-                scan_interval: 30.0,
-                enabled_scanning: true,
-                max_parallel_recordings,
-                max_guest_games_per_account: -1,
-            });
+        let enabled_scanning = settings
+            .get::<bool>("game_finder.enabled")
+            .unwrap_or(false);
+
+        let scan_interval = settings
+            .get::<f64>("game_finder.scan_interval_seconds")
+            .unwrap_or(300.0);
+
+        let max_parallel_recordings_cfg = settings
+            .get::<i64>("game_finder.max_games_per_scan")
+            .unwrap_or(max_parallel_recordings as i64) as i32;
+
+        let scenario_ids = settings
+            .get::<Vec<i32>>("game_finder.scenario_ids")
+            .unwrap_or_else(|_| Vec::new());
+
+        let max_guest_games_per_account = settings
+            .get::<i64>("game_finder.max_guest_games_per_account")
+            .unwrap_or(-1) as i32;
+
+        let game_finder_cfg = GameFinderConfig {
+            scenario_ids,
+            scan_interval,
+            enabled_scanning,
+            max_parallel_recordings: max_parallel_recordings_cfg,
+            max_guest_games_per_account,
+        };
         let mut game_finder =
             GameFinder::new(game_finder_cfg.clone(), Arc::clone(&account_pool), registry.clone());
         game_finder.set_scan_interval(game_finder_cfg.scan_interval);
@@ -355,7 +358,7 @@ impl ServerObserver {
         for (game_id, meta) in active {
             let scenario_id = meta
                 .get("scenario_id")
-                .and_then(Value::as_i64)
+                .and_then(serde_json::Value::as_i64)
                 .unwrap_or(-1) as i32;
             if scenario_id < 0 {
                 tracing::warn!(game_id, "skipping registry entry with missing scenario_id");
@@ -685,38 +688,3 @@ impl ServerObserver {
     }
 }
 
-fn str_at<'a>(config: &'a Value, key: &str) -> Option<&'a str> {
-    config.get(key).and_then(Value::as_str)
-}
-
-fn i64_at(config: &Value, key: &str, default: i64) -> i64 {
-    config.get(key).and_then(Value::as_i64).unwrap_or(default)
-}
-
-fn f64_at(config: &Value, key: &str, default: f64) -> f64 {
-    config.get(key).and_then(Value::as_f64).unwrap_or(default)
-}
-
-fn parse_db_config(map: &serde_json::Map<String, Value>) -> Option<DbConfig> {
-    Some(DbConfig {
-        host: map.get("host")?.as_str()?.to_string(),
-        port: map.get("port").and_then(Value::as_u64).unwrap_or(5432) as u16,
-        database: map.get("database")?.as_str()?.to_string(),
-        user: map.get("user")?.as_str()?.to_string(),
-        password: map.get("password")?.as_str()?.to_string(),
-    })
-}
-
-fn parse_s3_config(map: &serde_json::Map<String, Value>) -> Option<S3Config> {
-    Some(S3Config {
-        endpoint_url: map.get("endpoint_url")?.as_str()?.to_string(),
-        access_key: map.get("access_key")?.as_str()?.to_string(),
-        secret_key: map.get("secret_key")?.as_str()?.to_string(),
-        bucket_name: map.get("bucket_name")?.as_str()?.to_string(),
-        region: map
-            .get("region")
-            .and_then(Value::as_str)
-            .unwrap_or("us-east-1")
-            .to_string(),
-    })
-}

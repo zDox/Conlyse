@@ -18,7 +18,6 @@ use crate::hub_interface_wrapper::HubInterfaceWrapper;
 use crate::metrics::MetricsServer;
 use crate::server_observer::ServerObserver;
 use config::{Config, File, FileFormat};
-use serde_json::Value;
 use std::env;
 use std::sync::Arc;
 use tokio::signal;
@@ -53,30 +52,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let settings = Config::builder()
         .add_source(File::new(&config_file, FileFormat::Toml))
         .build()?;
-    let config_json: Value = settings.try_deserialize()?;
 
-    let _metrics_server = if let Some(port) = config_json
-        .get("metrics_port")
-        .and_then(Value::as_u64)
-    {
-        let port_u16 = port as u16;
-        tracing::info!(metrics_port = port_u16, "metrics server enabled");
-        Some(MetricsServer::run(port_u16).await?)
-    } else {
-        tracing::info!("metrics server disabled");
-        None
+    let _metrics_server = match settings.get::<u16>("metrics_port") {
+        Ok(port_u16) => {
+            tracing::info!(metrics_port = port_u16, "metrics server enabled");
+            Some(MetricsServer::run(port_u16).await?)
+        }
+        Err(_) => {
+            tracing::info!("metrics server disabled");
+            None
+        }
     };
 
-    let webshare_token = config_json
-        .get("WEBSHARE_API_TOKEN")
-        .and_then(Value::as_str)
-        .map(str::to_string);
+    let webshare_token = settings.get::<String>("WEBSHARE_API_TOKEN").ok();
 
     let account_pool =
         account_pool::AccountPool::load_from_file(&account_pool_file, webshare_token).await?;
     let account_pool = Arc::new(tokio::sync::Mutex::new(account_pool));
 
-    let observer = ServerObserver::new(config_json, Arc::clone(&account_pool)).await?;
+    let observer = ServerObserver::new(&settings, Arc::clone(&account_pool)).await?;
     let mut run_task = {
         let observer = Arc::clone(&observer);
         tokio::spawn(async move { observer.run().await })
