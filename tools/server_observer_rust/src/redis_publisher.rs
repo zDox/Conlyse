@@ -58,7 +58,16 @@ impl RedisPublisher {
         let timestamp_ms = now.as_millis() as i64;
 
         let compressed = encode_all(response_json.as_bytes(), 3)?;
+        self.publish_compressed_response(timestamp_ms, game_id, player_id, &compressed)
+    }
 
+    pub fn publish_compressed_response(
+        &self,
+        timestamp_ms: i64,
+        game_id: i64,
+        player_id: i64,
+        compressed_response: &[u8],
+    ) -> Result<(), RedisPublisherError> {
         let mut conn = self.client.get_connection()?;
 
         let mut cmd = redis::cmd("XADD");
@@ -71,7 +80,7 @@ impl RedisPublisher {
             .arg("player_id")
             .arg(player_id)
             .arg("response")
-            .arg(compressed);
+            .arg(compressed_response);
 
         let _: String = cmd.query(&mut conn)?;
         Ok(())

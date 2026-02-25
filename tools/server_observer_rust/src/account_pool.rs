@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,7 +28,7 @@ impl Proxy {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProxyConfig {
     pub proxy_id: String,
     pub enabled: bool,
@@ -39,15 +40,14 @@ pub struct ProxyConfig {
 
 impl ProxyConfig {
     pub fn from_url(url: &str, id: String) -> Option<Self> {
-        // Very small parser for urls like socks5://user:pass@host:port
         let without_scheme = url.split("://").nth(1)?;
-        let mut parts = without_scheme.split('@');
-        let creds = parts.next()?;
-        let host_port = parts.next()?;
-
-        let mut cred_parts = creds.splitn(2, ':');
-        let username = cred_parts.next()?.to_string();
-        let password = cred_parts.next().unwrap_or("").to_string();
+        let (username, password, host_port) = if let Some((creds, hp)) = without_scheme.split_once('@')
+        {
+            let (u, p) = creds.split_once(':').unwrap_or((creds, ""));
+            (u.to_string(), p.to_string(), hp)
+        } else {
+            (String::new(), String::new(), without_scheme)
+        };
 
         let mut hp_parts = host_port.splitn(2, ':');
         let host = hp_parts.next()?.to_string();
@@ -117,6 +117,8 @@ pub enum AccountPoolError {
     MissingToken,
 }
 
+pub type ProxyResetCallback = Arc<dyn Fn(String) + Send + Sync>;
+
 #[derive(Debug)]
 pub struct AccountPool {
     pub accounts: Vec<Account>,
@@ -124,8 +126,9 @@ pub struct AccountPool {
     guest_join_counts: HashMap<String, usize>,
     free_account_pointer: usize,
     guest_account_pointer: usize,
-    pool_path: String,
+    _pool_path: String,
     webshare_token: String,
+    proxy_reset_callback: Option<ProxyResetCallback>,
 }
 
 impl AccountPool {
@@ -220,8 +223,9 @@ impl AccountPool {
             guest_join_counts: HashMap::new(),
             free_account_pointer: 0,
             guest_account_pointer: 0,
-            pool_path: path.as_ref().to_string_lossy().to_string(),
+            _pool_path: path.as_ref().to_string_lossy().to_string(),
             webshare_token,
+            proxy_reset_callback: None,
         })
     }
 
@@ -280,7 +284,6 @@ impl AccountPool {
 
         while checked < total {
             let idx = self.guest_account_pointer % total;
-            self.guest_account_pointer += 1;
             checked += 1;
 
             let account = &self.accounts[idx];
@@ -294,9 +297,15 @@ impl AccountPool {
             {
                 return Some(account);
             }
+
+            self.guest_account_pointer += 1;
         }
 
         None
+    }
+
+    pub fn next_guest_account_owned(&mut self, max_guest_games_per_account: i32) -> Option<Account> {
+        self.next_guest_account(max_guest_games_per_account).cloned()
     }
 
     pub fn increment_guest_join(&mut self, username: &str) {
@@ -310,6 +319,89 @@ impl AccountPool {
                 *counter -= 1;
             }
         }
+    }
+
+    pub fn set_proxy_reset_callback(&mut self, callback: ProxyResetCallback) {
+        self.proxy_reset_callback = Some(callback);
+    }
+
+    pub fn get_account_proxy(&self, username: &str) -> Option<ProxyConfig> {
+        self.accounts
+            .iter()
+            .find(|a| a.username == username)
+            .map(|a| a.proxy_config.clone())
+    }
+
+    pub async fn reset_account_proxy(&mut self, username: &str) -> bool {
+        let old_proxy_id = self
+            .accounts
+            .iter()
+            .find(|a| a.username == username)
+            .map(|a| a.proxy_config.proxy_id.clone())
+            .unwrap_or_default();
+
+        let updated_proxies = match Self::fetch_proxies(&self.webshare_token).await {
+            Ok(map) if !map.is_empty() => map,
+            Ok(_) => {
+                tracing::error!("no proxies available from WebShare");
+                return false;
+            }
+            Err(err) => {
+                tracing::error!(?err, "failed refreshing proxies from WebShare");
+                return false;
+            }
+        };
+        self.proxies = updated_proxies;
+
+        let assigned_ids: HashSet<String> = self
+            .accounts
+            .iter()
+            .filter(|acc| acc.username != username)
+            .map(|acc| acc.proxy_config.proxy_id.clone())
+            .filter(|id| self.proxies.contains_key(id))
+            .collect();
+
+        let Some(new_proxy_id) = self
+            .proxies
+            .keys()
+            .find(|id| !assigned_ids.contains(*id))
+            .cloned()
+        else {
+            tracing::error!("no unassigned proxy available for reset");
+            return false;
+        };
+
+        let Some(proxy) = self.proxies.get(&new_proxy_id) else {
+            return false;
+        };
+        let new_cfg = ProxyConfig::from_url(&proxy.proxy_url(), proxy.id.clone()).unwrap_or(
+            ProxyConfig {
+                proxy_id: proxy.id.clone(),
+                enabled: false,
+                host: proxy.address.clone(),
+                port: proxy.port,
+                username: proxy.username.clone(),
+                password: proxy.password.clone(),
+            },
+        );
+
+        let Some(account) = self.accounts.iter_mut().find(|a| a.username == username) else {
+            return false;
+        };
+        account.proxy_config = new_cfg;
+
+        tracing::info!(
+            account = username,
+            old_proxy_id = old_proxy_id,
+            new_proxy_id = new_proxy_id,
+            "successfully reset account proxy"
+        );
+
+        if let Some(callback) = &self.proxy_reset_callback {
+            callback(username.to_string());
+        }
+
+        true
     }
 }
 

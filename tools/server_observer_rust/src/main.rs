@@ -1,74 +1,88 @@
 mod account_pool;
 mod db;
+mod game_finder;
+mod hub_interface_wrapper;
 mod metrics;
+mod observation_api;
+mod observation_package;
+mod observation_session;
 mod recording_registry;
+mod recording_storage;
 mod redis_publisher;
 mod s3_client;
+mod scheduler;
+mod server_observer;
 mod static_map_cache;
 
+use crate::hub_interface_wrapper::HubInterfaceWrapper;
 use crate::metrics::MetricsServer;
-use config::{Config, File};
+use crate::server_observer::ServerObserver;
+use serde_json::Value;
+use std::env;
+use std::sync::Arc;
 use tokio::signal;
 use tracing_subscriber::FmtSubscriber;
 
-#[derive(Debug, serde::Deserialize)]
-struct AppConfig {
-    database: Option<db::DbConfig>,
-    redis: Option<redis_publisher::RedisConfig>,
-    s3: Option<s3_client::S3Config>,
-    metrics_port: Option<u16>,
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
     let subscriber = FmtSubscriber::builder().finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
-    // Load configuration from ./config.(toml/json/...) using `config` crate defaults.
-    let settings = Config::builder()
-        .add_source(File::with_name("config").required(false))
-        .build()?;
-    let config: AppConfig = settings.try_deserialize()?;
+    let args: Vec<String> = env::args().collect();
+    let config_file = args
+        .get(1)
+        .cloned()
+        .unwrap_or_else(|| "config.json".to_string());
+    let account_pool_file = args
+        .get(2)
+        .cloned()
+        .unwrap_or_else(|| "account_pool.json".to_string());
 
-    // Initialize core infrastructure clients (DB, Redis, S3, Metrics)
-    let db_pool = if let Some(db_cfg) = &config.database {
-        Some(db::DbClient::new(db_cfg.clone()).await?)
+    let config_contents = std::fs::read_to_string(&config_file)?;
+    let config_json: Value = serde_json::from_str(&config_contents)?;
+
+    let _metrics_server = if let Some(port) = config_json.get("metrics_port").and_then(Value::as_u64) {
+        Some(MetricsServer::run(port as u16).await?)
     } else {
         None
     };
 
-    let redis_client = if let Some(redis_cfg) = &config.redis {
-        Some(redis_publisher::RedisPublisher::new(redis_cfg.clone())?)
-    } else {
-        None
+    let webshare_token = config_json
+        .get("WEBSHARE_API_TOKEN")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+
+    let account_pool =
+        account_pool::AccountPool::load_from_file(&account_pool_file, webshare_token).await?;
+    let account_pool = Arc::new(tokio::sync::Mutex::new(account_pool));
+
+    let observer = ServerObserver::new(config_json, Arc::clone(&account_pool)).await?;
+    let mut run_task = {
+        let observer = Arc::clone(&observer);
+        tokio::spawn(async move { observer.run().await })
     };
 
-    let s3_client = if let Some(s3_cfg) = &config.s3 {
-        Some(s3_client::S3Client::new(s3_cfg.clone()).await?)
-    } else {
-        None
-    };
+    tokio::select! {
+        _ = signal::ctrl_c() => {
+            tracing::info!("Shutdown signal received, stopping observer...");
+            observer.stop().await;
+        }
+        result = &mut run_task => {
+            match result {
+                Ok(success) => {
+                    tracing::info!(success = success, "observer loop exited");
+                }
+                Err(err) => {
+                    tracing::error!(?err, "observer task failed");
+                }
+            }
+            HubInterfaceWrapper::shutdown_python();
+            return Ok(());
+        }
+    }
 
-    let _metrics_server = if let Some(port) = config.metrics_port {
-        Some(MetricsServer::run(port).await?)
-    } else {
-        None
-    };
+    let _ = run_task.await;
 
-    tracing::info!(
-        "Core infrastructure initialized: db={:?}, redis={:?}, s3={:?}",
-        db_pool.is_some(),
-        redis_client.is_some(),
-        s3_client.is_some()
-    );
-
-    // TODO: Wire observer orchestration here in later stages.
-    tracing::info!("Rust ServerObserver skeleton is running. Press Ctrl+C to exit.");
-
-    // Wait for shutdown signal
-    signal::ctrl_c().await?;
-
-    tracing::info!("Shutdown signal received, exiting.");
+    HubInterfaceWrapper::shutdown_python();
     Ok(())
 }
