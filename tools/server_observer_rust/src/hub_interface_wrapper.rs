@@ -77,13 +77,13 @@ impl HubInterfaceWrapper {
     }
 
     pub fn login(&mut self, username: &str, password: &str) -> Result<bool, HubInterfaceError> {
-        let success = Python::attach(|py| -> Result<bool, HubInterfaceError> {
+        Python::attach(|py| -> Result<bool, HubInterfaceError> {
             let hub = self.hub_interface.bind(py);
-            let value = hub.call_method1("login", (username, password))?;
-            Ok(value.extract::<bool>()?)
+            hub.call_method1("login", (username, password))?;
+            Ok(true)
         })?;
-        self.authenticated = success;
-        Ok(success)
+        self.authenticated = true;
+        Ok(true)
     }
 
     #[allow(dead_code)]

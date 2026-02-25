@@ -3,6 +3,8 @@ use crate::hub_interface_wrapper::{HubGameProperties, HubInterfaceWrapper};
 use crate::recording_registry::RecordingRegistry;
 use serde::Deserialize;
 use std::collections::{HashSet, HashSet as Set};
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
@@ -235,13 +237,27 @@ fn select_games(
     let mut selected = Vec::new();
     let mut seen_games: Set<i32> = Set::new();
 
-    let interface = match HubInterfaceWrapper::new(
-        listing.proxy_url.clone(),
-        listing.proxy_url.clone(),
-    ) {
+    let interface = match HubInterfaceWrapper::new(listing.proxy_url.clone(), listing.proxy_url.clone()) {
         Ok(i) => i,
         Err(err) => {
             tracing::warn!(?err, "failed creating listing interface");
+            // #region agent log
+            if let Ok(mut file) = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/home/zdox/PycharmProjects/ConflictInterface/.cursor/debug-ef93be.log")
+            {
+                let error_str = format!("{err:?}").replace('"', "\\\"");
+                let timestamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0);
+                let payload = format!(
+                    "{{\"sessionId\":\"ef93be\",\"runId\":\"pre-fix\",\"hypothesisId\":\"H1\",\"location\":\"game_finder.rs:238-245\",\"message\":\"failed creating listing interface\",\"data\":{{\"error\":\"{error_str}\"}},\"timestamp\":{timestamp}}}"
+                );
+                let _ = writeln!(file, "{}", payload);
+            }
+            // #endregion agent log
             return selected;
         }
     };
