@@ -16,6 +16,10 @@
         "anti_aliasing": true,
         "msaa_samples": 4
     },
+    "api": {
+        "base_url": "http://localhost:8000/api/v1",
+        "timeout_seconds": 10
+    },
     "file": {
         "default_open_path": "",
         "replay_file_extension": ".bin"

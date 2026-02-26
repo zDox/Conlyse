@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSpacerItem, QSizePolicy
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSpacerItem, QSizePolicy, QLineEdit
 from PySide6.QtCore import Qt, Signal
 
 class SettingsField(QWidget):
@@ -33,6 +33,22 @@ class SettingsField(QWidget):
 
     def set_value(self, value):
         raise NotImplementedError
+
+
+class TextField(SettingsField):
+    """Simple text input field backed by a QLineEdit."""
+
+    def _create_widget(self) -> QWidget:
+        self.line_edit = QLineEdit()
+        # Emit current text whenever it changes so settings are saved eagerly.
+        self.line_edit.textChanged.connect(self.value_changed.emit)
+        return self.line_edit
+
+    def get_value(self):
+        return self.line_edit.text()
+
+    def set_value(self, value):
+        self.line_edit.setText("" if value is None else str(value))
 
 from PySide6.QtWidgets import QCheckBox
 

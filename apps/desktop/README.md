@@ -52,9 +52,21 @@ python -m conlyse
 - `src/conlyse/`: Core application logic.
   - `managers/`: State and resource management (Assets, Config, Events, Replays, Styles).
   - `pages/`: Main application views (Map, Replay List, Player List, Settings).
+  - `api/`: HTTP client for talking to the Conlyse backend (`services/api`).
   - `widgets/`: Reusable UI components and the custom Dock system.
   - `utils/`: Common helpers and enumerations.
 - `assets/`: Icons, styles, and other static resources.
 - `app_data/`: Local configuration and keybindings.
+
+## Backend API configuration
+
+The desktop client can connect to the Conlyse backend (`services/api`) using a configurable base URL.
+
+- Default base URL (development): `http://localhost:8000/api/v1`
+- These options are stored in `app_data/main_config.json` under the `api` key:
+  - `api.base_url`: Base URL for the Conlyse API.
+  - `api.timeout_seconds`: Request timeout used by the desktop HTTP client.
+
+You can change these values via the **Settings → API** section in the application UI.
 ---
 Developed by **zDox** and **Niknam3**.

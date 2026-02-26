@@ -5,6 +5,9 @@ from PySide6.QtCore import QElapsedTimer
 from PySide6.QtWidgets import QApplication
 
 from conlyse.logger import get_logger
+from conlyse.api import ApiClient, ApiConfig
+from conlyse.managers.auth_manager import AuthManager
+from conlyse.managers.update_manager import UpdateManager
 from conlyse.main_window import MainWindow
 from conlyse.managers.asset_manager import AssetManager
 from conlyse.managers.config_manager.config_manager import ConfigManager
@@ -32,6 +35,12 @@ class App:
 
         self.asset_manager      = AssetManager(self)
         self.config_manager     = ConfigManager(self)
+        # API client for talking to the Conlyse backend (services/api).
+        api_base_url = self.config_manager.get("api.base_url", "http://localhost:8000/api/v1")
+        api_timeout = float(self.config_manager.get("api.timeout_seconds", 10))
+        self.api_client        = ApiClient(ApiConfig(base_url=api_base_url, timeout_seconds=api_timeout))
+        self.auth_manager      = AuthManager(self)
+        self.update_manager    = UpdateManager(self)
         self.keybinding_manager = KeybindingManager(self)
         self.event_handler      = EventManager(self)
         self.style_manager      = StyleManager(self)
@@ -99,6 +108,9 @@ class App:
                 if self.render_rate != 0:
                     self.render_acc -= self.render_dt
 
+            # Update API/auth status indicator in the header.
+            self._update_api_status_indicator()
+
             # Process Qt events to keep UI responsive
             self.q_app.processEvents()
             if not self.main_window.isVisible():
@@ -119,6 +131,25 @@ class App:
                 sleep_time = max(0.0, self.render_dt - self.render_acc)
                 if sleep_time > 0.0:
                     time.sleep(sleep_time)
+
+    def _update_api_status_indicator(self):
+        """Refresh the header status label based on API connectivity and auth state."""
+        api = self.api_client
+        auth = self.auth_manager
+
+        if api.last_ok is False:
+            status = "API: Offline"
+        elif api.last_ok is True:
+            status = "API: Online"
+        else:
+            status = "API: Unknown"
+
+        if auth.is_authenticated and auth.current_user:
+            user = auth.current_user
+            tier = auth.subscription_tier or "free"
+            status += f" | {user.email} ({tier})"
+
+        self.main_window.header.set_api_status(status)
 
     def update_simulation_rate(self):
         self.logic_rate = self.config_manager.get("simulation.ups")
