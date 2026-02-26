@@ -110,7 +110,7 @@ services:
   # Conlyse API - FastAPI service for downloads & authentication
   api:
     build:
-      context: ./tools/api
+      context: ./services/api
       dockerfile: Dockerfile
     container_name: conflict-api
     depends_on:

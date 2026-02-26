@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # PostgreSQL
-    POSTGRES_HOST: str = "postgres"
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "replays"
     POSTGRES_USER: str = "converter"
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
         )
 
     # S3 / MinIO
-    MINIO_ENDPOINT: str = "http://minio:9000"
+    MINIO_ENDPOINT: str = "http://localhost:9000"
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET_REPLAYS: str = "replays"

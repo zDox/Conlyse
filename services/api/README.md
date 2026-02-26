@@ -122,7 +122,7 @@ docker-compose exec api alembic upgrade head
 Or during local development (with dependencies installed):
 
 ```bash
-cd tools/api
+cd services/api
 alembic upgrade head
 ```
 

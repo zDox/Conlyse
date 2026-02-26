@@ -147,10 +147,10 @@ async def get_analysis_url(db: AsyncSession, game_id: str, player_id: str) -> st
 async def get_static_map_url(db: AsyncSession, map_id: str) -> str:
     """Return a pre-signed URL for static map data for *map_id*."""
     row = await db.execute(
-        text("SELECT s3_path FROM static_map_data WHERE map_id = :mid"),
+        text("SELECT s3_key FROM maps WHERE map_id = :mid"),
         {"mid": map_id},
     )
     record = row.mappings().first()
     if not record:
         raise LookupError(f"Map data not found for map_id={map_id}")
-    return _generate_presigned_url(settings.MINIO_BUCKET_MAPS, record["s3_path"])
+    return _generate_presigned_url(settings.MINIO_BUCKET_MAPS, record["s3_key"])

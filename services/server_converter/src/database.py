@@ -98,14 +98,13 @@ class ReplayDatabase:
 
         # Maps table stores static map payloads uploaded to S3 (compressed with zstd).
         # Schema explanation:
-        # - map_id: integer identifier of the static map (primary key, unique across versions if map_id encodes version).
-        # - version: optional textual version tag if map_id does not encode version; can be NULL.
+        # - map_id: string identifier of the static map (primary key, unique across versions if map_id encodes version).
         # - s3_key: full S3 object key where the compressed payload is stored.
         # - created_at/updated_at: timestamps for bookkeeping.
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS maps (
                 id SERIAL PRIMARY KEY,
-                map_id INTEGER NOT NULL UNIQUE,
+                map_id VARCHAR(40) NOT NULL UNIQUE,
                 version VARCHAR(64),
                 s3_key TEXT NOT NULL,
                 created_at TIMESTAMP NOT NULL,
