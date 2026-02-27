@@ -3,6 +3,7 @@ from enum import StrEnum
 
 
 class PageType(Enum):
+    AuthPage = auto()
     ReplayListPage = auto()
     DashBoardPage = auto()
     ProvinceListPage = auto()

@@ -17,6 +17,7 @@ from conlyse.managers.keybinding_manager.keybinding_manager import KeybindingMan
 from conlyse.managers.page_manager import PageManager
 from conlyse.managers.replay_manager import ReplayManager
 from conlyse.managers.style_manager import StyleManager
+from conlyse.pages.auth_page import AuthPage
 from conlyse.pages.map_page.map_page import MapPage
 from conlyse.pages.player_list_page import PlayerListPage
 from conlyse.pages.replay_list_page.replay_list_page import ReplayListPage
@@ -62,6 +63,7 @@ class App:
 
     def start(self):
         # Setup pages
+        self.page_manager.register_page(PageType.AuthPage, AuthPage)
         self.page_manager.register_page(PageType.ReplayListPage, ReplayListPage)
         self.page_manager.register_page(PageType.ReplayLoadPage, ReplayLoadPage)
         self.page_manager.register_page(PageType.PlayerListPage, PlayerListPage)
@@ -73,8 +75,11 @@ class App:
         self.keybinding_manager.register_action(KeyAction.TOGGLE_DRAWER, self.main_window.toggle_drawer)
         self.keybinding_manager.register_action(KeyAction.TOGGLE_PERFORMANCE_WINDOW, self.performance_window.toggle_visibility)
 
-        # Start with home
-        self.page_manager.switch_to(PageType.ReplayListPage)
+        # Start with authentication page if not logged in; otherwise go straight to home.
+        if self.auth_manager.is_authenticated:
+            self.page_manager.switch_to(PageType.ReplayListPage)
+        else:
+            self.page_manager.switch_to(PageType.AuthPage)
         self.page_manager.update(self.logic_dt)
 
         self.toggle_fullscreen()
