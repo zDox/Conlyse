@@ -79,6 +79,7 @@ class AuthPage(Page):
 
         # Status label
         self.status_label = QLabel("")
+        self.status_label.setObjectName("status_label")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.status_label)
 
@@ -186,17 +187,14 @@ class AuthPage(Page):
     def _on_register_clicked(self):
         """Simple registration flow using the auth API."""
         import re
+        from PySide6.QtWidgets import QInputDialog
         from conlyse.api import ApiError, NetworkError
 
         username = self.username_input.text().strip()
         password = self.password_input.text()
 
         # Ask for email in a simple dialog to avoid cluttering the main form.
-        email, ok = QMessageBox.getText(
-            self,
-            "Register",
-            "Enter your email address:",
-        )
+        email, ok = QInputDialog.getText(self, "Register", "Email address:")
         if not ok or not email:
             return
 

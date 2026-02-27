@@ -33,6 +33,7 @@ ASSET_NAME_TO_PATH = {
     "theme_dark": Path("styles/theme_dark.json"),
 
     # Page Styles
+    "auth_page_style": Path("styles/pages/auth_page.qss"),
     "replay_list_page_style": Path("styles/pages/replay_list_page.qss"),
     "replay_load_page_style": Path("styles/pages/replay_load_page.qss"),
     "player_list_page_style": Path("styles/pages/player_list_page.qss"),
