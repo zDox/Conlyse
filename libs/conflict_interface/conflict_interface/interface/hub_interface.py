@@ -33,11 +33,10 @@ def protected(func):
 
 
 class HubInterface:
-    def __init__(self, version: int, proxy: dict = None):
+    def __init__(self, proxy: dict = None):
         self.api: HubApi = HubApi(proxy)
         self.auth = False
-        self.version = version
-        self.parser = JsonParser(self.version)
+        self.parser = JsonParser(VERSION)
         self.parser.type_graph.build_graph()
 
     def set_proxy(self, proxy: dict):

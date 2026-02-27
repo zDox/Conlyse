@@ -388,6 +388,7 @@ impl ObservationSession {
                 timestamp_ms,
                 self.game_id as i64,
                 0,
+                self.package.client_version as i64,
                 &compressed_response,
             ) {
                 tracing::warn!(?err, game_id = self.game_id, "failed redis publish");

@@ -171,6 +171,7 @@ impl GameFinder {
                             let mut active_sessions = counter();
                             let selected_games =
                                 select_games(&listing, &cfg_snapshot.scenario_ids, &known_games);
+                            tracing::info!("Found: {:#?} games", selected_games.len());
                             for (scenario_id, game) in selected_games {
                                 if active_sessions
                                     >= cfg_snapshot.max_parallel_recordings as usize

@@ -199,7 +199,7 @@ class AuthPage(Page):
             return
 
         email = email.strip()
-        if not re.match(r".+@.+\\..+", email):
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
             self.status_label.setText("Please enter a valid email address.")
             return
 

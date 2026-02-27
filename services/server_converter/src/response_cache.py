@@ -72,13 +72,14 @@ class ResponseCache:
                 except Exception as e:
                     logger.error(f"Error initializing count for {cache_file.name}: {e}")
         
-    def add_response(self, game_id: int, player_id: int, timestamp: int, response: dict):
+    def add_response(self, game_id: int, player_id: int, client_version: int, timestamp: int, response: dict):
         """
         Add a response to the cache.
         
         Args:
             game_id: Game ID
             player_id: Player ID
+            client_version: Client version
             timestamp: Unix timestamp in milliseconds
             response: Response JSON dict
             
@@ -92,6 +93,7 @@ class ResponseCache:
         with open(cache_file, 'a') as f:
             entry = {
                 'timestamp': timestamp,
+                'client_version': client_version,
                 'response': response
             }
             f.write(json.dumps(entry) + '\n')
@@ -150,6 +152,7 @@ class ResponseCache:
             for line in f:
                 if line.strip():
                     entry = json.loads(line)
+                    entry['response']["client_version"] = entry["client_version"]
                     responses.append((entry['timestamp'], entry['response']))
 
         return responses

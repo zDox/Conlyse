@@ -13,6 +13,7 @@
   "storage": {
     "hot_storage_dir": "/app/hot_storage",
     "cold_storage_enabled": false,
+    "always_update_cold_storage": true,
     "s3": {
       "endpoint_url": "https://your-hetzner-s3-endpoint.com",
       "access_key": "your-access-key",

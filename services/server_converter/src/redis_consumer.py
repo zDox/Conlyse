@@ -42,9 +42,13 @@ class RedisStreamConsumer:
             password=redis_config.password,
             decode_responses=False  # We'll handle decoding manually
         )
-        
+
         # Create decompressor for reuse across messages (responses are always compressed)
         self.decompressor = zstd.ZstdDecompressor()
+        # Upper bound for a single decompressed response payload (bytes).
+        # Needed because some zstd frames produced by the publisher do not
+        # include a content size in the frame header.
+        self.max_response_size = 100 * 1024 * 1024
         
         # Create consumer group if it doesn't exist
         self._ensure_consumer_group()
@@ -106,17 +110,24 @@ class RedisStreamConsumer:
                             if key_str == 'response':
                                 # Response is always compressed binary data
                                 if not isinstance(value, bytes):
-                                    raise ValueError(f"Expected compressed bytes for response field, got {type(value)}")
-                                
-                                # Decompress the response
-                                decompressed = self.decompressor.decompress(value)
+                                    raise ValueError(
+                                        f"Expected compressed bytes for response field, got {type(value)}"
+                                    )
+
+                                # Decompress the response. Some frames produced by the
+                                # publisher may not include a content size in the frame
+                                # header, so we must provide an explicit upper bound.
+                                decompressed = self.decompressor.decompress(
+                                    value,
+                                    max_output_size=self.max_response_size,
+                                )
                                 value_str = decompressed.decode('utf-8')
                                 decoded_data[key_str] = json.loads(value_str)
                             else:
-                                # Other fields (timestamp, game_id, player_id) are simple values
+                                # Other fields (timestamp, game_id, player_id, client_version) are simple values
                                 value_str = value.decode('utf-8') if isinstance(value, bytes) else value
                                 # Try to convert to int if it's a numeric field
-                                if key_str in ('timestamp', 'game_id', 'player_id'):
+                                if key_str in ('timestamp', 'game_id', 'player_id', 'client_version'):
                                     decoded_data[key_str] = int(value_str)
                                 else:
                                     decoded_data[key_str] = value_str
@@ -125,7 +136,7 @@ class RedisStreamConsumer:
                         result.append((message_id_str, decoded_data))
                         
             return result
-            
+
         except Exception as e:
             logger.error(f"Error reading from Redis stream: {e}")
             return []
