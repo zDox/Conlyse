@@ -70,5 +70,113 @@ impl DbClient {
         .await?;
         Ok(())
     }
+
+    pub async fn upsert_discovered_game(
+        &self,
+        game_id: i32,
+        scenario_id: i32,
+    ) -> Result<(), DbClientError> {
+        let conn = self.pool.get().await?;
+        conn.execute(
+            "INSERT INTO games (game_id, scenario_id, status, discovered_date, started_date, completed_date, failed_reason, created_at, updated_at) \
+             VALUES ($1, $2, 'discovered', NOW(), NULL, NULL, NULL, NOW(), NOW()) \
+             ON CONFLICT (game_id) DO UPDATE SET scenario_id = EXCLUDED.scenario_id, updated_at = NOW()",
+            &[&game_id, &scenario_id],
+        )
+        .await?;
+        Ok(())
+    }
+
+    pub async fn mark_game_recording(
+        &self,
+        game_id: i32,
+        scenario_id: i32,
+    ) -> Result<(), DbClientError> {
+        let conn = self.pool.get().await?;
+        conn.execute(
+            "INSERT INTO games (game_id, scenario_id, status, discovered_date, started_date, completed_date, failed_reason, created_at, updated_at) \
+             VALUES ($1, $2, 'recording', NOW(), NOW(), NULL, NULL, NOW(), NOW()) \
+             ON CONFLICT (game_id) DO UPDATE SET \
+               scenario_id = EXCLUDED.scenario_id, \
+               status = 'recording', \
+               started_date = COALESCE(games.started_date, NOW()), \
+               updated_at = NOW()",
+            &[&game_id, &scenario_id],
+        )
+        .await?;
+        Ok(())
+    }
+
+    pub async fn mark_game_completed(&self, game_id: i32) -> Result<(), DbClientError> {
+        let conn = self.pool.get().await?;
+        conn.execute(
+            "UPDATE games SET status = 'completed', completed_date = NOW(), updated_at = NOW() WHERE game_id = $1",
+            &[&game_id],
+        )
+        .await?;
+        Ok(())
+    }
+
+    pub async fn mark_game_failed(
+        &self,
+        game_id: i32,
+        reason: Option<&str>,
+    ) -> Result<(), DbClientError> {
+        let conn = self.pool.get().await?;
+        conn.execute(
+            "UPDATE games SET status = 'failed', failed_reason = $2, completed_date = NOW(), updated_at = NOW() WHERE game_id = $1",
+            &[&game_id, &reason],
+        )
+        .await?;
+        Ok(())
+    }
+
+    pub async fn get_active_games(&self) -> Result<Vec<(i32, i32)>, DbClientError> {
+        let conn = self.pool.get().await?;
+        let rows = conn
+            .query(
+                "SELECT game_id, scenario_id FROM games WHERE status = 'recording'",
+                &[],
+            )
+            .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            let game_id: i32 = row.get(0);
+            let scenario_id: i32 = row.get(1);
+            out.push((game_id, scenario_id));
+        }
+        Ok(out)
+    }
+
+    pub async fn is_on_any_recording_list(&self, game_id: i32) -> Result<bool, DbClientError> {
+        let conn = self.pool.get().await?;
+        let row = conn
+            .query_opt(
+                "SELECT 1 FROM recording_list WHERE game_id = $1 LIMIT 1",
+                &[&game_id],
+            )
+            .await?;
+        Ok(row.is_some())
+    }
+
+    pub async fn get_recording_list_candidates(&self) -> Result<Vec<(i32, i32)>, DbClientError> {
+        let conn = self.pool.get().await?;
+        let rows = conn
+            .query(
+                "SELECT DISTINCT g.game_id, g.scenario_id \
+                 FROM games g \
+                 JOIN recording_list r ON r.game_id = g.game_id \
+                 WHERE g.status NOT IN ('recording', 'completed')",
+                &[],
+            )
+            .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            let game_id: i32 = row.get(0);
+            let scenario_id: i32 = row.get(1);
+            out.push((game_id, scenario_id));
+        }
+        Ok(out)
+    }
 }
 

@@ -165,12 +165,12 @@ If no arguments are provided, it defaults to `config.toml` and `account_pool.jso
 
 ### Conlyse API
 
-The Conlyse API is a FastAPI application located in `tools/api/`. It connects to the same PostgreSQL and MinIO instances.
+The Conlyse API is a FastAPI application located in `services/api/`. It connects to the same PostgreSQL and MinIO instances.
 
 #### Setup
 
 ```bash
-cd tools/api
+cd services/api
 
 # Install runtime dependencies
 pip install -r requirements.txt
@@ -182,13 +182,13 @@ pip install -r requirements-test.txt
 #### Running Locally
 
 ```bash
-cd tools/api
+cd services/api
 
 # Start the API (infrastructure must be running via docker-compose.dev.yml)
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Set environment variables (or create a `.env` file in `tools/api/`) to point at the local infrastructure:
+Set environment variables (or create a `.env` file in `services/api/`) to point at the local infrastructure:
 
 ```bash
 export POSTGRES_HOST=localhost
@@ -199,17 +199,22 @@ export JWT_SECRET_KEY=dev-secret-key
 
 The interactive API docs are available at **http://localhost:8000/docs**.
 
+Recording list endpoints (authenticated):
+- `GET /api/v1/recording-list`
+- `POST /api/v1/recording-list` (body: `{ "game_id": 123 }`)
+- `DELETE /api/v1/recording-list/{game_id}`
+
 #### Running Database Migrations
 
 ```bash
-cd tools/api
+cd services/api
 alembic upgrade head
 ```
 
 #### Running Tests
 
 ```bash
-cd tools/api
+cd services/api
 pytest tests/ -v
 ```
 
@@ -218,7 +223,7 @@ Tests use an in-memory SQLite database — no running PostgreSQL or MinIO instan
 #### Linting & Formatting
 
 ```bash
-cd tools/api
+cd services/api
 ruff check app/     # lint
 black app/          # format (--check for dry run)
 ```
@@ -242,6 +247,11 @@ Location: `docker/dev/server-observer-config.toml`
 Key settings for local development:
 - `redis.host`: `"localhost"` (not `"redis"`)
 - `output_dir`: `"./data/recordings"` (local directory)
+- `max_parallel_normal_recordings`: cap for non-recording-list games (priority games can still fill remaining slots up to `max_parallel_recordings`)
+
+The observer persists discovered and recording state in PostgreSQL:
+- `games` table: discovered/started timestamps and status
+- `recording_list` table: per-user recording preferences (managed via the API)
 
 ### Account Pool
 
@@ -259,6 +269,12 @@ docker compose -f docker-compose.dev.yml exec postgres psql -U converter -d repl
 
 # View replays
 SELECT * FROM replays ORDER BY created_at DESC LIMIT 10;
+
+# View discovered games / recording status
+SELECT * FROM games ORDER BY discovered_date DESC LIMIT 10;
+
+# View recording list entries
+SELECT * FROM recording_list ORDER BY created_at DESC LIMIT 10;
 ```
 
 **Redis:**

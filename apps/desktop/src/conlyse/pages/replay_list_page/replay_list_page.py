@@ -146,6 +146,36 @@ class ReplayListPage(Page):
         self.download_analysis_btn.clicked.connect(self._on_download_analysis_from_api)
         buttons_layout.addWidget(self.download_analysis_btn)
 
+        self.recording_list_view_btn = CButton(
+            "Recording List",
+            "outlined",
+            "primary",
+            "mdi.format-list-bulleted",
+            parent=self,
+        )
+        self.recording_list_view_btn.clicked.connect(self._on_view_recording_list)
+        buttons_layout.addWidget(self.recording_list_view_btn)
+
+        self.recording_list_add_btn = CButton(
+            "Add to Recording List",
+            "outlined",
+            "primary",
+            "mdi.record-circle",
+            parent=self,
+        )
+        self.recording_list_add_btn.clicked.connect(self._on_add_to_recording_list)
+        buttons_layout.addWidget(self.recording_list_add_btn)
+
+        self.recording_list_remove_btn = CButton(
+            "Remove from Recording List",
+            "outlined",
+            "secondary",
+            "mdi.record-circle-outline",
+            parent=self,
+        )
+        self.recording_list_remove_btn.clicked.connect(self._on_remove_from_recording_list)
+        buttons_layout.addWidget(self.recording_list_remove_btn)
+
         buttons_layout.addStretch()
         header_layout.addLayout(buttons_layout)
 
@@ -166,6 +196,12 @@ class ReplayListPage(Page):
             self.download_analysis_btn.setEnabled(api_online and auth.is_pro)
         if hasattr(self, "download_replay_btn"):
             self.download_replay_btn.setEnabled(api_online)
+        if hasattr(self, "recording_list_view_btn"):
+            self.recording_list_view_btn.setEnabled(api_online and auth.is_authenticated)
+        if hasattr(self, "recording_list_add_btn"):
+            self.recording_list_add_btn.setEnabled(api_online and auth.is_authenticated)
+        if hasattr(self, "recording_list_remove_btn"):
+            self.recording_list_remove_btn.setEnabled(api_online and auth.is_authenticated)
 
     def _update_details(self):
         """Update the details panel with selected replay info"""
@@ -230,6 +266,12 @@ class ReplayListPage(Page):
             return None, None
 
         return game_id.strip(), player_id.strip()
+
+    def _ask_game_id(self, title: str) -> str | None:
+        game_id, ok = QInputDialog.getText(self, title, "Game ID:")
+        if not ok or not game_id:
+            return None
+        return game_id.strip()
 
     def _default_replay_directory(self) -> str:
         """Return a directory path for storing downloaded replays."""
@@ -391,6 +433,75 @@ class ReplayListPage(Page):
         logger.debug(f"Downloaded analysis to {dest_path}")
         # For now, the desktop client only stores analysis files locally.
         # Future versions can integrate them into the replay analysis workflows.
+
+    def _on_view_recording_list(self):
+        """Show the current user's recording list."""
+        from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
+
+        try:
+            items = self.app.api_client.get("/recording-list", requires_auth=True)
+        except (AuthError, PermissionError, ApiError, NetworkError, Exception) as exc:
+            logger.error(f"Failed to fetch recording list: {exc}")
+            self._show_error_dialog("Failed to fetch recording list from API.", str(exc))
+            return
+
+        if not items:
+            QMessageBox.information(self, "Recording List", "Your recording list is empty.")
+            return
+
+        lines = []
+        for item in items:
+            try:
+                gid = item.get("game_id")
+                sid = item.get("scenario_id")
+                lines.append(f"- game_id={gid} (scenario_id={sid})")
+            except Exception:
+                lines.append(f"- {item}")
+        QMessageBox.information(self, "Recording List", "\n".join(lines))
+
+    def _on_add_to_recording_list(self):
+        """Prompt for a game ID and add it to the recording list."""
+        from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
+
+        game_id = self._ask_game_id("Add to Recording List")
+        if not game_id:
+            return
+
+        try:
+            self.app.api_client.post(
+                "/recording-list",
+                requires_auth=True,
+                json={"game_id": int(game_id)},
+            )
+        except (AuthError, PermissionError, ApiError, NetworkError, Exception) as exc:
+            logger.error(f"Failed to add game to recording list: {exc}")
+            self._show_error_dialog("Failed to add game to recording list.", str(exc))
+            return
+
+        QMessageBox.information(self, "Recording List", f"Game {game_id} added to recording list.")
+
+    def _on_remove_from_recording_list(self):
+        """Prompt for a game ID and remove it from the recording list."""
+        from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
+
+        game_id = self._ask_game_id("Remove from Recording List")
+        if not game_id:
+            return
+
+        try:
+            self.app.api_client.delete(
+                f"/recording-list/{int(game_id)}",
+                requires_auth=True,
+                expects_body=False,
+            )
+        except (AuthError, PermissionError, ApiError, NetworkError, Exception) as exc:
+            logger.error(f"Failed to remove game from recording list: {exc}")
+            self._show_error_dialog("Failed to remove game from recording list.", str(exc))
+            return
+
+        QMessageBox.information(
+            self, "Recording List", f"Game {game_id} removed from recording list."
+        )
 
     def _on_delete_clicked(self):
         """Handle delete replay button click"""

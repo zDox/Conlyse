@@ -4,12 +4,12 @@
 WEBSHARE_API_TOKEN = "your-webshare-api-token"
 metrics_port = 9090
 max_parallel_recordings = 5
+max_parallel_normal_recordings = 5
 max_parallel_updates = 3
 max_parallel_first_updates = 2
 update_interval = 60.0
 output_dir = "./recordings"
 output_metadata_dir = "./recordings/metadata"
-registry_path = "./recordings/metadata/server_observer_registry.json"
 long_term_storage_path = "./long_term_storage"
 file_size_threshold = 104857600
 scenario_ids = [3328, 3332]

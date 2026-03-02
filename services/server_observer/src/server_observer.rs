@@ -31,18 +31,23 @@ pub enum ServerObserverError {
     S3(#[from] crate::s3_client::S3Error),
     #[error("redis error: {0}")]
     Redis(#[from] crate::redis_publisher::RedisPublisherError),
+    #[error("configuration error: {0}")]
+    Config(String),
 }
 
 pub struct ServerObserver {
     account_pool: Arc<tokio::sync::Mutex<AccountPool>>,
     scheduler: Arc<Scheduler>,
     max_parallel_recordings: AtomicI32,
+    max_parallel_normal_recordings: AtomicI32,
     update_interval: Mutex<f64>,
     output_dir: String,
     output_metadata_dir: String,
     long_term_storage_path: String,
     file_size_threshold: i64,
     observer_sessions: Mutex<HashMap<i32, Arc<tokio::sync::Mutex<ObservationSession>>>>,
+    priority_sessions: Mutex<std::collections::HashSet<i32>>,
+    db_client: DbClient,
     registry: RecordingRegistry,
     game_finder: Mutex<Option<GameFinder>>,
     stop_flag: AtomicBool,
@@ -58,6 +63,9 @@ impl ServerObserver {
         let max_parallel_recordings = settings
             .get::<i64>("max_parallel_recordings")
             .unwrap_or(1) as i32;
+        let max_parallel_normal_recordings = settings
+            .get::<i64>("max_parallel_normal_recordings")
+            .unwrap_or(max_parallel_recordings as i64) as i32;
         let max_parallel_updates = settings
             .get::<i64>("max_parallel_updates")
             .unwrap_or(1) as i32;
@@ -81,35 +89,17 @@ impl ServerObserver {
             .get::<i64>("file_size_threshold")
             .unwrap_or(0);
 
-        let registry_default_dir = if output_metadata_dir.is_empty() {
-            output_dir.clone()
-        } else {
-            output_metadata_dir.clone()
-        };
-        let registry_path = settings
-            .get::<String>("registry_path")
-            .unwrap_or_else(|_| format!("{registry_default_dir}/server_observer_registry.json"));
-        let registry = RecordingRegistry::new(registry_path);
+        let db_cfg = settings
+            .get::<DbConfig>("database")
+            .map_err(|_| ServerObserverError::Config("missing required [database] config".into()))?;
+        let db_client = DbClient::new(db_cfg).await?;
+        if !db_client.is_connected().await {
+            return Err(ServerObserverError::Config(
+                "database connection test failed".into(),
+            ));
+        }
 
-        let db_client = match settings.get::<DbConfig>("database") {
-            Ok(cfg) => match DbClient::new(cfg).await {
-                Ok(client) if client.is_connected().await => Some(client),
-                Ok(_) => {
-                    tracing::warn!(
-                        "database configured but connection test failed; disabling DB features"
-                    );
-                    None
-                }
-                Err(err) => {
-                    tracing::warn!(
-                        ?err,
-                        "failed to initialize database client; disabling DB features"
-                    );
-                    None
-                }
-            },
-            Err(_) => None,
-        };
+        let registry = RecordingRegistry::new(db_client.clone()).await?;
 
         let static_maps_dir = settings
             .get::<String>("storage.static_maps_dir")
@@ -122,7 +112,8 @@ impl ServerObserver {
 
         let s3_enabled = s3_client.is_some();
 
-        let map_cache = StaticMapCache::new(static_maps_dir, s3_client, db_client.clone()).await?;
+        let map_cache =
+            StaticMapCache::new(static_maps_dir, s3_client, Some(db_client.clone())).await?;
 
         let redis_publisher = match settings.get::<RedisConfig>("redis") {
             Ok(cfg) => match RedisPublisher::new(cfg) {
@@ -138,7 +129,7 @@ impl ServerObserver {
             Err(_) => None,
         };
 
-        let db_enabled = db_client.is_some();
+        let db_enabled = true;
         let redis_enabled = redis_publisher.is_some();
 
         let scheduler = Arc::new(Scheduler::new(
@@ -188,12 +179,19 @@ impl ServerObserver {
             account_pool,
             scheduler,
             max_parallel_recordings: AtomicI32::new(max_parallel_recordings.max(1)),
+            max_parallel_normal_recordings: AtomicI32::new(
+                max_parallel_normal_recordings
+                    .max(0)
+                    .min(max_parallel_recordings.max(1)),
+            ),
             update_interval: Mutex::new(update_interval),
             output_dir,
             output_metadata_dir,
             long_term_storage_path,
             file_size_threshold,
             observer_sessions: Mutex::new(HashMap::new()),
+            priority_sessions: Mutex::new(std::collections::HashSet::new()),
+            db_client,
             registry,
             game_finder: Mutex::new(Some(game_finder)),
             stop_flag: AtomicBool::new(false),
@@ -203,6 +201,7 @@ impl ServerObserver {
 
         tracing::info!(
             max_parallel_recordings,
+            max_parallel_normal_recordings,
             max_parallel_updates,
             max_parallel_first_updates,
             update_interval,
@@ -225,12 +224,14 @@ impl ServerObserver {
         self.stop_flag.store(false, Ordering::SeqCst);
 
         let current_max_parallel = self.max_parallel_recordings.load(Ordering::SeqCst);
+        let current_max_normal = self.max_parallel_normal_recordings.load(Ordering::SeqCst);
         let current_update_interval = *self
             .update_interval
             .lock()
             .expect("update interval mutex poisoned");
         tracing::info!(
             max_parallel_recordings = current_max_parallel,
+            max_parallel_normal_recordings = current_max_normal,
             update_interval = current_update_interval,
             "server observer run loop started"
         );
@@ -246,18 +247,33 @@ impl ServerObserver {
         }
 
         while !self.stop_flag.load(Ordering::SeqCst) {
-            let pending = self.scheduler.get_pending_new_sessions();
-            for (game_id, scenario_id) in pending {
-                let can_start = {
-                    let sessions = self
-                        .observer_sessions
-                        .lock()
-                        .expect("observer sessions mutex poisoned");
-                    sessions.len() < self.max_parallel_recordings.load(Ordering::SeqCst) as usize
-                };
-                if can_start {
-                    self.start_observation_session(game_id, scenario_id).await;
-                }
+            let (capacity_total, capacity_normal) = {
+                let sessions = self
+                    .observer_sessions
+                    .lock()
+                    .expect("observer sessions mutex poisoned");
+                let active_total = sessions.len() as i32;
+                let max_total = self.max_parallel_recordings.load(Ordering::SeqCst);
+                let total_left = (max_total - active_total).max(0) as usize;
+
+                let active_priority = self
+                    .priority_sessions
+                    .lock()
+                    .expect("priority sessions mutex poisoned")
+                    .len() as i32;
+                let active_normal = (active_total - active_priority).max(0);
+                let max_normal = self.max_parallel_normal_recordings.load(Ordering::SeqCst);
+                let normal_left = (max_normal - active_normal).max(0) as usize;
+                (total_left, normal_left)
+            };
+
+            let pending = self
+                .scheduler
+                .get_pending_new_sessions_with_limits(capacity_total, capacity_normal);
+            for (game_id, scenario_id, is_priority) in pending {
+                let _ = self
+                    .start_observation_session(game_id, scenario_id, is_priority)
+                    .await;
             }
 
             self.start_due_updates().await;
@@ -285,16 +301,25 @@ impl ServerObserver {
             .lock()
             .expect("observer sessions mutex poisoned")
             .clear();
+        self.priority_sessions
+            .lock()
+            .expect("priority sessions mutex poisoned")
+            .clear();
     }
 
-    async fn start_observation_session(&self, game_id: i32, scenario_id: i32) {
+    async fn start_observation_session(
+        &self,
+        game_id: i32,
+        scenario_id: i32,
+        is_priority: bool,
+    ) -> bool {
         let account = {
             let mut pool = self.account_pool.lock().await;
             pool.next_guest_account_owned(-1)
         };
         let Some(account) = account else {
             tracing::warn!("no free account available for new observation");
-            return;
+            return false;
         };
 
         tracing::info!(
@@ -321,7 +346,10 @@ impl ServerObserver {
             self.redis_publisher.clone(),
         );
 
-        self.registry.mark_recording(game_id, scenario_id, Some(""));
+        if let Err(err) = self.registry.mark_recording(game_id, scenario_id).await {
+            tracing::error!(?err, game_id, "failed to mark game recording in db");
+            return false;
+        }
         self.scheduler.initialize_session_schedule(&mut session);
         self.scheduler.mark_first_update(game_id);
         self.scheduler.schedule_update(&session);
@@ -332,6 +360,12 @@ impl ServerObserver {
                 .lock()
                 .expect("observer sessions mutex poisoned");
             sessions.insert(game_id, Arc::new(tokio::sync::Mutex::new(session)));
+        }
+        if is_priority {
+            self.priority_sessions
+                .lock()
+                .expect("priority sessions mutex poisoned")
+                .insert(game_id);
         }
 
         {
@@ -349,21 +383,33 @@ impl ServerObserver {
         // Record game started metric and update active games gauge
         record_game_started(scenario_id);
         self.update_active_games_metrics().await;
+        true
     }
 
     async fn resume_active(&self) {
         let active = self.registry.active();
         tracing::info!(active_count = active.len(), "resuming active recordings from registry");
         let mut resumed = 0usize;
-        for (game_id, meta) in active {
-            let scenario_id = meta
-                .get("scenario_id")
-                .and_then(serde_json::Value::as_i64)
-                .unwrap_or(-1) as i32;
-            if scenario_id < 0 {
-                tracing::warn!(game_id, "skipping registry entry with missing scenario_id");
-                continue;
+        let mut priority = Vec::new();
+        let mut normal = Vec::new();
+        for (game_id, scenario_id) in active {
+            let is_priority = self
+                .db_client
+                .is_on_any_recording_list(game_id)
+                .await
+                .unwrap_or(false);
+            if is_priority {
+                priority.push((game_id, scenario_id));
+            } else {
+                normal.push((game_id, scenario_id));
             }
+        }
+
+        let mut ordered = Vec::with_capacity(priority.len() + normal.len());
+        ordered.extend(priority);
+        ordered.extend(normal);
+
+        for (game_id, scenario_id) in ordered {
 
             let already_exists = self
                 .observer_sessions
@@ -387,7 +433,31 @@ impl ServerObserver {
                 );
                 break;
             }
-            self.start_observation_session(game_id, scenario_id).await;
+            let is_priority = self
+                .db_client
+                .is_on_any_recording_list(game_id)
+                .await
+                .unwrap_or(false);
+            if !is_priority {
+                let active_total = self
+                    .observer_sessions
+                    .lock()
+                    .expect("observer sessions mutex poisoned")
+                    .len() as i32;
+                let active_priority = self
+                    .priority_sessions
+                    .lock()
+                    .expect("priority sessions mutex poisoned")
+                    .len() as i32;
+                let active_normal = (active_total - active_priority).max(0);
+                let max_normal = self.max_parallel_normal_recordings.load(Ordering::SeqCst);
+                if active_normal >= max_normal {
+                    continue;
+                }
+            }
+            let _ = self
+                .start_observation_session(game_id, scenario_id, is_priority)
+                .await;
             resumed += 1;
         }
         tracing::info!(resumed, "finished resuming active recordings");
@@ -479,7 +549,9 @@ impl ServerObserver {
     ) {
         let scenario_id = self.registry.get_scenario_id(game_id);
         tracing::info!(game_id, ?scenario_id, "game ended, completing recording");
-        self.registry.mark_completed(game_id);
+        if let Err(err) = self.registry.mark_completed(game_id).await {
+            tracing::error!(?err, game_id, "failed to mark game completed in db");
+        }
         let username = session_arc.lock().await.account.username.clone();
         {
             let mut pool = self.account_pool.lock().await;
@@ -488,6 +560,10 @@ impl ServerObserver {
         self.observer_sessions
             .lock()
             .expect("observer sessions mutex poisoned")
+            .remove(&game_id);
+        self.priority_sessions
+            .lock()
+            .expect("priority sessions mutex poisoned")
             .remove(&game_id);
 
         if let Some(scenario_id) = scenario_id {
@@ -567,7 +643,13 @@ impl ServerObserver {
                 error_message = %result.error_message,
                 "dropping observation session after exceeding max retries"
             );
-            self.registry.mark_failed(game_id, Some(&result.error_message));
+            if let Err(err) = self
+                .registry
+                .mark_failed(game_id, Some(&result.error_message))
+                .await
+            {
+                tracing::error!(?err, game_id, "failed to mark game failed in db");
+            }
             {
                 let mut pool = self.account_pool.lock().await;
                 pool.decrement_guest_join(&username);
@@ -575,6 +657,10 @@ impl ServerObserver {
             self.observer_sessions
                 .lock()
                 .expect("observer sessions mutex poisoned")
+                .remove(&game_id);
+            self.priority_sessions
+                .lock()
+                .expect("priority sessions mutex poisoned")
                 .remove(&game_id);
             let error_type = match result.error_code {
                 ObservationError::AuthFailed => "auth_failed",
@@ -645,7 +731,20 @@ impl ServerObserver {
 
         game_finder.set_observation_starter(Arc::new(move |game_id, scenario_id| {
             if let Some(observer) = weak.upgrade() {
-                observer.scheduler.queue_new_session(game_id, scenario_id);
+                let db = observer.db_client.clone();
+                let scheduler = Arc::clone(&observer.scheduler);
+                let is_active = observer
+                    .observer_sessions
+                    .lock()
+                    .expect("observer sessions mutex poisoned")
+                    .contains_key(&game_id);
+                if is_active {
+                    return;
+                }
+                tokio::spawn(async move {
+                    let is_priority = db.is_on_any_recording_list(game_id).await.unwrap_or(false);
+                    scheduler.queue_new_session(game_id, scenario_id, is_priority);
+                });
             }
         }));
 

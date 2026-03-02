@@ -57,13 +57,13 @@ Edit `docker/prod/server-observer-config.toml`:
 
 ```toml
 max_parallel_recordings = 1
+max_parallel_normal_recordings = 1
 update_interval = 10
 max_parallel_updates = 10
 max_parallel_first_updates = 10
 update_worker_threads = 4
 output_dir = "/app/recordings"
 output_metadata_dir = "/app/recordings/metadata"
-registry_path = "/app/recordings/server_observer_registry.json"
 
 [redis]
 host = "redis"

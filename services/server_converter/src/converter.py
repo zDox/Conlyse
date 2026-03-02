@@ -432,6 +432,14 @@ class ServerConverter:
             cold_storage_path=cold_storage_path
         )
 
+        try:
+            self.db.remove_game_from_recording_lists(game_id)
+        except Exception as e:
+            logger.warning(
+                f"Failed to remove game {game_id} from recording lists: {e}",
+                exc_info=True,
+            )
+
         metrics.replay_operations_total.labels(operation='complete', status='success').inc()
         logger.info(f"Marked replay as {status.value}: game {game_id}, player {player_id}")
         return True

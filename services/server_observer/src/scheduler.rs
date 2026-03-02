@@ -10,7 +10,10 @@ pub struct Scheduler {
     max_parallel_first_updates: AtomicI32,
     update_interval: Mutex<Duration>,
     update_queue: Mutex<BTreeMap<SystemTime, VecDeque<i32>>>,
-    pending_new_sessions: Mutex<VecDeque<(i32, i32)>>,
+    pending_priority_sessions: Mutex<VecDeque<(i32, i32)>>,
+    pending_normal_sessions: Mutex<VecDeque<(i32, i32)>>,
+    queued_priority: Mutex<HashSet<i32>>,
+    queued_normal: Mutex<HashSet<i32>>,
     first_update_sessions: Mutex<HashSet<i32>>,
     running_first_updates: Mutex<HashSet<i32>>,
     active_coroutines: AtomicI32,
@@ -28,7 +31,10 @@ impl Scheduler {
             max_parallel_first_updates: AtomicI32::new(max_parallel_first_updates.max(1)),
             update_interval: Mutex::new(Duration::from_secs_f64(update_interval.max(0.1))),
             update_queue: Mutex::new(BTreeMap::new()),
-            pending_new_sessions: Mutex::new(VecDeque::new()),
+            pending_priority_sessions: Mutex::new(VecDeque::new()),
+            pending_normal_sessions: Mutex::new(VecDeque::new()),
+            queued_priority: Mutex::new(HashSet::new()),
+            queued_normal: Mutex::new(HashSet::new()),
             first_update_sessions: Mutex::new(HashSet::new()),
             running_first_updates: Mutex::new(HashSet::new()),
             active_coroutines: AtomicI32::new(0),
@@ -96,22 +102,127 @@ impl Scheduler {
             .remove(&game_id);
     }
 
-    pub fn queue_new_session(&self, game_id: i32, scenario_id: i32) {
-        self.pending_new_sessions
-            .lock()
-            .expect("scheduler pending-session mutex poisoned")
-            .push_back((game_id, scenario_id));
+    pub fn queue_new_session(&self, game_id: i32, scenario_id: i32, is_priority: bool) {
+        if is_priority {
+            // If already queued priority, nothing to do.
+            if self
+                .queued_priority
+                .lock()
+                .expect("scheduler queued-priority mutex poisoned")
+                .contains(&game_id)
+            {
+                return;
+            }
+
+            // If it was queued as normal, promote: remove from normal queue + sets.
+            {
+                let mut queued_normal = self
+                    .queued_normal
+                    .lock()
+                    .expect("scheduler queued-normal mutex poisoned");
+                if queued_normal.remove(&game_id) {
+                    let mut normal_q = self
+                        .pending_normal_sessions
+                        .lock()
+                        .expect("scheduler pending-normal mutex poisoned");
+                    let mut new_q = VecDeque::with_capacity(normal_q.len());
+                    while let Some(item) = normal_q.pop_front() {
+                        if item.0 != game_id {
+                            new_q.push_back(item);
+                        }
+                    }
+                    *normal_q = new_q;
+                }
+            }
+
+            self.pending_priority_sessions
+                .lock()
+                .expect("scheduler pending-priority mutex poisoned")
+                .push_back((game_id, scenario_id));
+            self.queued_priority
+                .lock()
+                .expect("scheduler queued-priority mutex poisoned")
+                .insert(game_id);
+        } else {
+            // Don't queue if already queued (either queue).
+            if self
+                .queued_priority
+                .lock()
+                .expect("scheduler queued-priority mutex poisoned")
+                .contains(&game_id)
+            {
+                return;
+            }
+            if self
+                .queued_normal
+                .lock()
+                .expect("scheduler queued-normal mutex poisoned")
+                .contains(&game_id)
+            {
+                return;
+            }
+
+            self.pending_normal_sessions
+                .lock()
+                .expect("scheduler pending-normal mutex poisoned")
+                .push_back((game_id, scenario_id));
+            self.queued_normal
+                .lock()
+                .expect("scheduler queued-normal mutex poisoned")
+                .insert(game_id);
+        }
     }
 
-    pub fn get_pending_new_sessions(&self) -> Vec<(i32, i32)> {
-        let mut queue = self
-            .pending_new_sessions
-            .lock()
-            .expect("scheduler pending-session mutex poisoned");
-        let mut out = Vec::with_capacity(queue.len());
-        while let Some(item) = queue.pop_front() {
-            out.push(item);
+    pub fn get_pending_new_sessions_with_limits(
+        &self,
+        max_total: usize,
+        max_normal: usize,
+    ) -> Vec<(i32, i32, bool)> {
+        if max_total == 0 {
+            return Vec::new();
         }
+
+        let mut out = Vec::new();
+        out.reserve(max_total);
+
+        {
+            let mut q = self
+                .pending_priority_sessions
+                .lock()
+                .expect("scheduler pending-priority mutex poisoned");
+            while out.len() < max_total {
+                let Some((game_id, scenario_id)) = q.pop_front() else {
+                    break;
+                };
+                self.queued_priority
+                    .lock()
+                    .expect("scheduler queued-priority mutex poisoned")
+                    .remove(&game_id);
+                out.push((game_id, scenario_id, true));
+            }
+        }
+
+        if out.len() >= max_total || max_normal == 0 {
+            return out;
+        }
+
+        let mut normals_started = 0usize;
+        let mut q = self
+            .pending_normal_sessions
+            .lock()
+            .expect("scheduler pending-normal mutex poisoned");
+        while out.len() < max_total && normals_started < max_normal {
+            let Some((game_id, scenario_id)) = q.pop_front() else {
+                break;
+            };
+            self.queued_normal
+                .lock()
+                .expect("scheduler queued-normal mutex poisoned")
+                .remove(&game_id);
+            out.push((game_id, scenario_id, false));
+            normals_started += 1;
+        }
+
         out
     }
 

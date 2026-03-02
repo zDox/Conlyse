@@ -153,6 +153,8 @@ impl GameFinder {
         let stop_flag = Arc::clone(&self.stop_flag);
         let known_games = Arc::clone(&self.known_games);
         let account_pool = Arc::clone(&self.account_pool);
+        let registry = self.registry.clone();
+        let db = self.registry.db().clone();
         let observation_starter = self.observation_starter.clone();
         let active_session_counter = self.active_session_counter.clone();
         let handle = tokio::spawn(async move {
@@ -162,6 +164,21 @@ impl GameFinder {
                     if let (Some(starter), Some(counter)) =
                         (observation_starter.as_ref(), active_session_counter.as_ref())
                     {
+                        // Periodically re-check DB for newly prioritized games.
+                        // This is important when a game was previously queued/blocked as normal
+                        // but later got added to any user's recording list (priority).
+                        match db.get_recording_list_candidates().await {
+                            Ok(candidates) => {
+                                for (game_id, scenario_id) in candidates {
+                                    starter(game_id, scenario_id);
+                                    known_games.lock().unwrap().insert(game_id);
+                                }
+                            }
+                            Err(err) => {
+                                tracing::warn!(?err, "failed to fetch recording list candidates");
+                            }
+                        }
+
                         let listing_account: Option<Account> = {
                             let pool = account_pool.lock().await;
                             pool.accounts.first().cloned()
@@ -173,10 +190,19 @@ impl GameFinder {
                                 select_games(&listing, &cfg_snapshot.scenario_ids, &known_games);
                             tracing::info!("Found: {:#?} games", selected_games.len());
                             for (scenario_id, game) in selected_games {
+                                if let Err(err) =
+                                    registry.mark_discovered(game.game_id, scenario_id).await
+                                {
+                                    tracing::warn!(
+                                        ?err,
+                                        game_id = game.game_id,
+                                        "failed to upsert discovered game into db"
+                                    );
+                                }
                                 if active_sessions
                                     >= cfg_snapshot.max_parallel_recordings as usize
                                 {
-                                    break;
+                                    continue;
                                 }
                                 let has_available_account = {
                                     let mut pool = account_pool.lock().await;
@@ -187,10 +213,10 @@ impl GameFinder {
                                 };
                                 if !has_available_account {
                                     tracing::warn!(
-                                        "no account available for guest limit {}, ending scan batch",
+                                        "no account available for guest limit {}, skipping start for this game",
                                         cfg_snapshot.max_guest_games_per_account
                                     );
-                                    break;
+                                    continue;
                                 }
                                 starter(game.game_id, scenario_id);
                                 active_sessions += 1;
