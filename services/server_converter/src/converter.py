@@ -236,7 +236,9 @@ class ServerConverter:
 
             # Create the replay
             initial_index = builder.create_replay(json_responses, static_map_data)
-            
+            remaining_responses = json_responses[initial_index + 1:] if initial_index + 1 < len(json_responses) else []
+            builder.append_json_responses(remaining_responses)
+
             # Create database entry
             recording_start_time = datetime.fromtimestamp(json_responses[0][0] / 1000.0)
             replay_name = f"game_{game_id}_player_{player_id}"

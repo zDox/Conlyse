@@ -110,7 +110,9 @@ class ReplayBuilder:
             logger.debug("No static map data provided; skipping static map recording")
         logger.info(f"Recording initial game state at {current_timestamp} (game time)")
         self.replay_timeline.que_append_patch(version, to_time_stamp=current_timestamp,replay_patch=None, current_game_state=initial_state, static_map_data=static_map_data)
-
+        self.replay_timeline.execute_append_que()
+        self.replay_timeline.set_last_game_state(initial_state)
+        self.replay_timeline.close()
         # Clear game references and update replay's last state
         self.created = True
         
@@ -127,7 +129,6 @@ class ReplayBuilder:
         if self.replay_timeline is None:
             self.replay_timeline = ReplayTimeline(self.path, mode="a", game_id=self.game_id, player_id=self.player_id)
             self.replay_timeline.open()
-
         self.replay_timeline.set_mode("a")
         self.replay_timeline.open()
         self.replay_timeline.execute_append_que()

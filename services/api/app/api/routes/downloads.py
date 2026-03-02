@@ -66,8 +66,8 @@ async def download_binary_version(
 
 @router.get("/replay/{game_id}/{player_id}", response_model=PresignedURLResponse)
 async def download_replay(
-    game_id: str,
-    player_id: str,
+    game_id: int,
+    player_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> PresignedURLResponse:
     """Return a pre-signed S3 URL for a replay file. No authentication required."""

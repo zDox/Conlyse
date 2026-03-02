@@ -123,7 +123,7 @@ async def test_register_binary_duplicate(db_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_get_replay_url_not_found(db_session: AsyncSession) -> None:
     with pytest.raises(LookupError, match="Replay not found"):
-        await dl_service.get_replay_url(db_session, "game1", "player1")
+        await dl_service.get_replay_url(db_session, 1, 1)
 
 
 @pytest.mark.asyncio

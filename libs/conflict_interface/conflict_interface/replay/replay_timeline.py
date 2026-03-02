@@ -84,9 +84,17 @@ class ReplayTimeline:
                     end_dt = ns_to_dt(end_ns)
 
                     key = (start_dt, end_dt, seg_version)
-                    result[key] = ReplaySegment(payload, seg_version, game_id = self.game_id , player_id = self.player_id)
+                    result[key] = ReplaySegment(payload, seg_version, game_id=self.game_id, player_id=self.player_id)
 
-        self.segments =result
+        self.segments = result
+
+        # Update latest_version based on the versions present in the file.
+        # This ensures that operations like get_last_game_state() work correctly
+        # after reading an existing replay from disk.
+        if self.segments:
+            self.latest_version = max(key[2] for key in self.segments.keys())
+        else:
+            self.latest_version = -1
 
     def _write_to_disk(self):
         cctx = self.compressor
