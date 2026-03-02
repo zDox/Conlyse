@@ -34,7 +34,9 @@ class ReplayTimeline:
         self._mode: Literal['r','a'] = mode
         self._open = False
         self.file_path = file_path
-        self.segments: dict[tuple[datetime, datetime | None, int], ReplaySegment] = {} # [From_ts, To_ts, version] -> segment
+        # Mapping from (start_time, end_time) -> ReplaySegment.
+        # There must never be overlapping intervals; at most one segment may be active at any time.
+        self.segments: dict[tuple[datetime, datetime | None], ReplaySegment] = {}
         self.game_id = game_id
         self.player_id = player_id
         self.latest_version = -1
@@ -48,7 +50,7 @@ class ReplayTimeline:
     def read_from_disk(self):
         assert not self._open, "Reading to a Open Timeline is not Supported"
 
-        result: dict[tuple[datetime, datetime | None, int], ReplaySegment] = {}
+        result: dict[tuple[datetime, datetime | None], ReplaySegment] = {}
 
         dctx = self.decompressor
 
@@ -83,16 +85,15 @@ class ReplayTimeline:
                     start_dt = ns_to_dt(start_ns)
                     end_dt = ns_to_dt(end_ns)
 
-                    key = (start_dt, end_dt, seg_version)
+                    key = (start_dt, end_dt)
                     result[key] = ReplaySegment(payload, seg_version, game_id=self.game_id, player_id=self.player_id)
 
         self.segments = result
 
-        # Update latest_version based on the versions present in the file.
-        # This ensures that operations like get_last_game_state() work correctly
-        # after reading an existing replay from disk.
+        # Validate structure and update latest_version based on segments present in the file.
+        self._validate_segments_non_overlapping()
         if self.segments:
-            self.latest_version = max(key[2] for key in self.segments.keys())
+            self.latest_version = max(segment.version for segment in self.segments.values())
         else:
             self.latest_version = -1
 
@@ -100,6 +101,9 @@ class ReplayTimeline:
         cctx = self.compressor
         # Always sort for determinism.
         ordered_items = sorted(self.segments.items(), key=lambda kv: kv[0])
+
+        # Ensure structural invariants before persisting.
+        self._validate_segments_non_overlapping()
 
         with open(self.file_path, "wb") as raw:
             with cctx.stream_writer(raw) as compressor:
@@ -109,14 +113,15 @@ class ReplayTimeline:
                 compressor.write(struct.pack("<Q", len(ordered_items)))
 
                 # ---- segments ----
-                for (start, end, idx), segment in ordered_items:
+                for (start, end), segment in ordered_items:
                     payload = segment.get_binary()  # bytearray
+                    seg_version = segment.version
 
                     header = struct.pack(
                         "<qqiQ",
                         dt_to_ns(start),
                         dt_to_ns(end),
-                        idx,
+                        seg_version,
                         len(payload),
                     )
 
@@ -148,7 +153,8 @@ class ReplayTimeline:
 
     def setup(self, game, static_map_data):
         assert self._open, "Must open before setup"
-        for (_,_, v), segment in self.segments.items():
+        for (_, _), segment in self.segments.items():
+            v = segment.version
             segment.storage.initial_game_state.set_game(game)
             segment.storage.initial_game_state.states.map_state.map.set_static_map_data(static_map_data[v])
 
@@ -209,13 +215,18 @@ class ReplayTimeline:
     def _find_open_segment(self, version: int) -> tuple | None:
         """Return the (key, segment) pair for the open segment of the given version, or None."""
         return next(
-            ((key, seg) for (key, seg) in self.segments.items() if key[2] == version and key[1] is None),
+            (
+                (key, seg)
+                for (key, seg) in self.segments.items()
+                if key[1] is None and seg.version == version
+            ),
             None
         )
 
     def find_segment(self, time: datetime):
         for key, segment in self.segments.items():
-            if key[0] < time and (key[1] is None or key[1] >= time):
+            start, end = key
+            if start < time and (end is None or end >= time):
                 return segment
 
         return None
@@ -225,18 +236,20 @@ class ReplayTimeline:
         first = self.find_last_segment().get_last_time()
         first_segment = None
         for key, segment in self.segments.items():
-            if key[0] < first:
+            start, _ = key
+            if start < first:
                 first_segment = segment
-                first = key[0]
+                first = start
         return first_segment
 
     def find_last_segment(self):
         last = datetime.fromtimestamp(0, tz=UTC)
         last_segment = None
         for key, segment in self.segments.items():
-            if key[0] > last:
+            start, _ = key
+            if start > last:
                 last_segment = segment
-                last = key[0]
+                last = start
 
         return last_segment
 
@@ -245,24 +258,55 @@ class ReplayTimeline:
         last_segment = None
         last_key = None
         for key, segment in self.segments.items():
-            if key[0] > last:
+            start, _ = key
+            if start > last:
                 last_segment = segment
-                last = key[0]
+                last = start
                 last_key = key
 
         return last_key, last_segment
 
     def _close_segment(self, key: tuple[datetime, datetime | None, int], close_timestamp: datetime) -> None:
         """Close an open segment by replacing its key with a bounded one."""
-        from_ts, _, version = key
+        from_ts, _ = key
         segment = self.segments.pop(key)
-        self.segments[(from_ts, close_timestamp, version)] = segment
+        self.segments[(from_ts, close_timestamp)] = segment
 
     def close_last_segment(self):
         key, segment = self._find_last_key_segment()
 
         if segment is not None:
             self._close_segment(key, segment.get_last_time())
+
+    def _validate_segments_non_overlapping(self) -> None:
+        """
+        Ensure that there is at most one segment covering any point in time.
+
+        Segments are defined by half-open intervals [start, end] where end may be None
+        for an open-ended segment. After sorting by start time, no segment is allowed
+        to start before the previous one has ended.
+        """
+        if not self.segments:
+            return
+
+        # Sort by (start, end) so we can check neighbors for overlap.
+        ordered_keys = sorted(self.segments.keys(), key=lambda k: (k[0], k[1]))
+
+        prev_start, prev_end = ordered_keys[0]
+        for start, end in ordered_keys[1:]:
+            # If previous segment is open-ended, any later segment would overlap.
+            if prev_end is None:
+                raise ValueError(
+                    f"Overlapping replay segments detected: open segment starting at {prev_start} "
+                    f"overlaps with segment starting at {start}."
+                )
+            # Otherwise, the next segment must not start before previous end.
+            if start < prev_end:
+                raise ValueError(
+                    f"Overlapping replay segments detected: segment [{prev_start}, {prev_end}] "
+                    f"overlaps with [{start}, {end}]."
+                )
+            prev_start, prev_end = start, end
 
     def _create_segment(self, current_game_state: GameState, version: int, from_timestamp: datetime, static_map_data: StaticMapData | None = None) -> "ReplaySegment":
         assert self._mode == "a"
@@ -283,7 +327,7 @@ class ReplayTimeline:
         segment.collapse_all()
         segment.load_everything()
 
-        self.segments[(from_timestamp, None, version)] = segment
+        self.segments[(from_timestamp, None)] = segment
         self._time_stamp_cache = []
         return segment
 
@@ -309,9 +353,12 @@ class ReplayTimeline:
             return self._time_stamp_cache
         cache = []
         for key, segment in self.segments.items():
-            cache.extend([
-                datetime.fromtimestamp(x, tz=UTC) for x in segment.storage.patch_graph.time_stamps_cache
-            ])
+            cache.extend(
+                [
+                    datetime.fromtimestamp(x, tz=UTC)
+                    for x in segment.storage.patch_graph.time_stamps_cache
+                ]
+            )
         cache.sort()
 
         self._time_stamp_cache = cache

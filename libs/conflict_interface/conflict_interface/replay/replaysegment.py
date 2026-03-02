@@ -27,6 +27,9 @@ class ReplaySegment:
         self.game_id = game_id
         self.player_id = player_id
 
+        # Store version on the segment so timeline logic can reason about it
+        self.version: int = version
+
         self.storage = ReplayStorage(data, version)
 
         self._op_counter = 0
