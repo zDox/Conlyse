@@ -5,14 +5,19 @@ from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWidgets import QHBoxLayout
 from PySide6.QtWidgets import QLabel
 from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QTabWidget
 from PySide6.QtWidgets import QVBoxLayout
 from PySide6.QtWidgets import QInputDialog
+from PySide6.QtWidgets import QWidget
 
 from conlyse.constants import START_REPLAY_PAGE
 from conlyse.logger import get_logger
 from conlyse.managers.keybinding_manager.key_action import KeyAction
 from conlyse.pages.page import Page
+from conlyse.pages.replay_list_page.games_tab_panel import GamesTabPanel
+from conlyse.pages.replay_list_page.recording_list_tab_panel import RecordingListTabPanel
 from conlyse.pages.replay_list_page.replay_details_panel import ReplayDetailsPanel
+from conlyse.pages.replay_list_page.replay_library_tab_panel import ReplayLibraryTabPanel
 from conlyse.pages.replay_list_page.replay_list_panel import ReplayListPanel
 from conlyse.utils.enums import PageType
 from conlyse.utils.downloads import download_to_file
@@ -36,6 +41,11 @@ class ReplayListPage(Page):
         # UI Components
         self.header_label = None
         self.subheader_label = None
+        self.tab_widget: QTabWidget | None = None
+        self.games_tab: GamesTabPanel | None = None
+        self.recording_list_tab: RecordingListTabPanel | None = None
+        self.replay_library_tab: ReplayLibraryTabPanel | None = None
+        self.local_tab: QWidget | None = None
         self.list_panel: ReplayListPanel | None = None
         self.details_panel: ReplayDetailsPanel | None = None
 
@@ -74,27 +84,60 @@ class ReplayListPage(Page):
         # Header section
         self._setup_header(main_layout)
 
-        # Content area (list + details)
-        content_layout = QHBoxLayout()
-        content_layout.setSpacing(24)
+        # Content area: tabbed layout
+        self.tab_widget = QTabWidget(self)
+
+        # Games tab
+        self.games_tab = GamesTabPanel(self)
+        self.games_tab.set_callbacks(
+            on_refresh=self._refresh_games_tab,
+            on_add_to_recording_list=self._add_game_to_recording_list_from_games,
+            on_add_to_replay_library=self._add_game_to_replay_library_from_games,
+        )
+        self.tab_widget.addTab(self.games_tab, "Games")
+
+        # Recording List tab
+        self.recording_list_tab = RecordingListTabPanel(self)
+        self.recording_list_tab.set_callbacks(
+            on_refresh=self._refresh_recording_list_tab,
+            on_add_by_game_id=self._add_recording_list_entry_from_tab,
+            on_remove=self._remove_recording_list_entry_from_tab,
+            on_add_to_replay_library=self._add_game_to_replay_library_from_recording_tab,
+        )
+        self.tab_widget.addTab(self.recording_list_tab, "Recording List")
+
+        # Replay Library tab
+        self.replay_library_tab = ReplayLibraryTabPanel(self)
+        self.replay_library_tab.set_callbacks(
+            on_refresh=self._refresh_replay_library_tab,
+            on_download_replay=self._download_replay_for_library_game,
+        )
+        self.tab_widget.addTab(self.replay_library_tab, "Replay Library")
+
+        # Local Games tab (reuses existing list + details panels)
+        self.local_tab = QWidget(self)
+        local_layout = QHBoxLayout(self.local_tab)
+        local_layout.setSpacing(24)
 
         # Left side - Replay list
         self.list_panel = ReplayListPanel()
         self.list_panel.set_callbacks(
             on_open=self.on_open_replay,
-            on_selection_changed=self._on_replay_selected
+            on_selection_changed=self._on_replay_selected,
         )
-        content_layout.addWidget(self.list_panel)
+        local_layout.addWidget(self.list_panel)
 
         # Right side - Details
         self.details_panel = ReplayDetailsPanel()
         self.details_panel.set_callbacks(
             on_analyze=self._on_analyze_clicked,
-            on_delete=self._on_delete_clicked
+            on_delete=self._on_delete_clicked,
         )
-        content_layout.addWidget(self.details_panel)
+        local_layout.addWidget(self.details_panel)
 
-        main_layout.addLayout(content_layout)
+        self.tab_widget.addTab(self.local_tab, "Local Games")
+
+        main_layout.addWidget(self.tab_widget)
 
     def _setup_header(self, parent_layout):
         """Setup the page header"""
@@ -183,25 +226,21 @@ class ReplayListPage(Page):
 
     def page_update(self, delta_time: float):
         """Called every frame - check for changes and update if needed"""
-        # Check if replay count has changed
-        current_replay_count = len(self.app.replay_manager.get_replays())
-        if current_replay_count != self._previous_replay_count:
-            self._previous_replay_count = current_replay_count
-            self.list_panel.refresh_list(self.app.replay_manager.get_replays())
+        # Check if replay count has changed (Local Games tab)
+        if self.tab_widget and self.local_tab and self.tab_widget.currentWidget() is self.local_tab:
+            current_replay_count = len(self.app.replay_manager.get_replays())
+            if current_replay_count != self._previous_replay_count:
+                self._previous_replay_count = current_replay_count
+                if self.list_panel:
+                    self.list_panel.refresh_list(self.app.replay_manager.get_replays())
 
         # Update Pro-only controls based on subscription status.
         auth = self.app.auth_manager
-        api_online = self.app.api_client.last_ok is not False  # Treat None as \"unknown/assumed online\".
+        api_online = self.app.api_client.last_ok is not False  # Treat None as "unknown/assumed online".
         if hasattr(self, "download_analysis_btn"):
             self.download_analysis_btn.setEnabled(api_online and auth.is_pro)
         if hasattr(self, "download_replay_btn"):
             self.download_replay_btn.setEnabled(api_online)
-        if hasattr(self, "recording_list_view_btn"):
-            self.recording_list_view_btn.setEnabled(api_online and auth.is_authenticated)
-        if hasattr(self, "recording_list_add_btn"):
-            self.recording_list_add_btn.setEnabled(api_online and auth.is_authenticated)
-        if hasattr(self, "recording_list_remove_btn"):
-            self.recording_list_remove_btn.setEnabled(api_online and auth.is_authenticated)
 
     def _update_details(self):
         """Update the details panel with selected replay info"""
@@ -434,9 +473,75 @@ class ReplayListPage(Page):
         # For now, the desktop client only stores analysis files locally.
         # Future versions can integrate them into the replay analysis workflows.
 
-    def _on_view_recording_list(self):
-        """Show the current user's recording list."""
+    # ------------------------------------------------------------------ #
+    # Games tab helpers
+    # ------------------------------------------------------------------ #
+
+    def _refresh_games_tab(self):
+        """Load games discovered by the observer into the Games tab."""
         from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
+
+        if not self.games_tab:
+            return
+
+        try:
+            games = self.app.api_client.get("/games", requires_auth=True)
+        except (AuthError, PermissionError, ApiError, NetworkError, Exception) as exc:
+            logger.error(f"Failed to fetch games: {exc}")
+            self._show_error_dialog("Failed to fetch games from API.", str(exc))
+            return
+
+        self.games_tab.update_games(games or [])
+
+    def _add_game_to_recording_list_from_games(self, game_id: int):
+        """Add a game to the recording list from the Games tab."""
+        from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
+
+        try:
+            self.app.api_client.post(
+                "/recording-list",
+                requires_auth=True,
+                json={"game_id": int(game_id)},
+            )
+        except (AuthError, PermissionError, ApiError, NetworkError, Exception) as exc:
+            logger.error(f"Failed to add game to recording list: {exc}")
+            self._show_error_dialog("Failed to add game to recording list.", str(exc))
+            return
+
+        QMessageBox.information(self, "Recording List", f"Game {game_id} added to recording list.")
+        # Keep recording list tab up to date if user switches to it.
+        if self.recording_list_tab:
+            self._refresh_recording_list_tab()
+
+    def _add_game_to_replay_library_from_games(self, game_id: int):
+        """Add a game to the replay library from the Games tab."""
+        from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
+
+        try:
+            self.app.api_client.post(
+                "/replay-library",
+                requires_auth=True,
+                json={"game_id": int(game_id)},
+            )
+        except (AuthError, PermissionError, ApiError, NetworkError, Exception) as exc:
+            logger.error(f"Failed to add game to replay library: {exc}")
+            self._show_error_dialog("Failed to add game to replay library.", str(exc))
+            return
+
+        QMessageBox.information(self, "Replay Library", f"Game {game_id} added to replay library.")
+        if self.replay_library_tab:
+            self._refresh_replay_library_tab()
+
+    # ------------------------------------------------------------------ #
+    # Recording List tab helpers
+    # ------------------------------------------------------------------ #
+
+    def _refresh_recording_list_tab(self):
+        """Refresh the recording list tab with the current user's recording list."""
+        from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
+
+        if not self.recording_list_tab:
+            return
 
         try:
             items = self.app.api_client.get("/recording-list", requires_auth=True)
@@ -445,22 +550,10 @@ class ReplayListPage(Page):
             self._show_error_dialog("Failed to fetch recording list from API.", str(exc))
             return
 
-        if not items:
-            QMessageBox.information(self, "Recording List", "Your recording list is empty.")
-            return
+        self.recording_list_tab.update_items(items or [])
 
-        lines = []
-        for item in items:
-            try:
-                gid = item.get("game_id")
-                sid = item.get("scenario_id")
-                lines.append(f"- game_id={gid} (scenario_id={sid})")
-            except Exception:
-                lines.append(f"- {item}")
-        QMessageBox.information(self, "Recording List", "\n".join(lines))
-
-    def _on_add_to_recording_list(self):
-        """Prompt for a game ID and add it to the recording list."""
+    def _add_recording_list_entry_from_tab(self):
+        """Prompt for a game ID and add it to the recording list, then refresh."""
         from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
 
         game_id = self._ask_game_id("Add to Recording List")
@@ -479,14 +572,11 @@ class ReplayListPage(Page):
             return
 
         QMessageBox.information(self, "Recording List", f"Game {game_id} added to recording list.")
+        self._refresh_recording_list_tab()
 
-    def _on_remove_from_recording_list(self):
-        """Prompt for a game ID and remove it from the recording list."""
+    def _remove_recording_list_entry_from_tab(self, game_id: int):
+        """Remove a game from the recording list, then refresh."""
         from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
-
-        game_id = self._ask_game_id("Remove from Recording List")
-        if not game_id:
-            return
 
         try:
             self.app.api_client.delete(
@@ -502,6 +592,88 @@ class ReplayListPage(Page):
         QMessageBox.information(
             self, "Recording List", f"Game {game_id} removed from recording list."
         )
+        self._refresh_recording_list_tab()
+
+    def _add_game_to_replay_library_from_recording_tab(self, game_id: int):
+        """Add a game from the recording list tab to the replay library."""
+        from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
+
+        try:
+            self.app.api_client.post(
+                "/replay-library",
+                requires_auth=True,
+                json={"game_id": int(game_id)},
+            )
+        except (AuthError, PermissionError, ApiError, NetworkError, Exception) as exc:
+            logger.error(f"Failed to add game to replay library: {exc}")
+            self._show_error_dialog("Failed to add game to replay library.", str(exc))
+            return
+
+        QMessageBox.information(self, "Replay Library", f"Game {game_id} added to replay library.")
+        self._refresh_replay_library_tab()
+
+    # ------------------------------------------------------------------ #
+    # Replay Library tab helpers
+    # ------------------------------------------------------------------ #
+
+    def _refresh_replay_library_tab(self):
+        """Refresh the replay library tab with the current user's library entries."""
+        from conlyse.api import AuthError, ApiError, NetworkError, PermissionError
+
+        if not self.replay_library_tab:
+            return
+
+        try:
+            items = self.app.api_client.get("/replay-library", requires_auth=True)
+        except (AuthError, PermissionError, ApiError, NetworkError, Exception) as exc:
+            logger.error(f"Failed to fetch replay library: {exc}")
+            self._show_error_dialog("Failed to fetch replay library from API.", str(exc))
+            return
+
+        self.replay_library_tab.update_items(items or [])
+
+    def _download_replay_for_library_game(self, game_id: int):
+        """Download a replay for a game from the replay library tab."""
+        # Game ID is known; ask only for player ID.
+        player_id, ok = QInputDialog.getText(self, "Download Replay", "Player ID:")
+        if not ok or not player_id:
+            return
+
+        dest_path = self._download_replay_file(str(game_id), player_id.strip())
+        if not dest_path:
+            return
+
+        logger.debug(f"Downloaded replay for game {game_id} to {dest_path}")
+        success = self.app.replay_manager.add_replay(dest_path)
+        if success:
+            self._previous_replay_count = len(self.app.replay_manager.get_replays())
+            self.selected_replay = self.app.replay_manager.get_replay(dest_path)
+            self.selected_filepath = dest_path
+            self.app.config_manager.set("file.default_open_path", dest_path)
+            if self.list_panel:
+                self.list_panel.refresh_list(self.app.replay_manager.get_replays())
+            self._update_details()
+        else:
+            self._show_error_dialog(
+                "Downloaded replay file could not be opened.",
+                "The file may be corrupted or invalid.",
+            )
+
+    def _on_view_recording_list(self):
+        """Refresh the recording list tab with the current user's recording list."""
+        self._refresh_recording_list_tab()
+
+    def _on_add_to_recording_list(self):
+        """Prompt for a game ID and add it to the recording list, then refresh the tab."""
+        self._add_recording_list_entry_from_tab()
+
+    def _on_remove_from_recording_list(self):
+        """Prompt for a game ID and remove it from the recording list, then refresh the tab."""
+        # Reuse the same helper as the tab but with an explicit prompt.
+        game_id = self._ask_game_id("Remove from Recording List")
+        if not game_id:
+            return
+        self._remove_recording_list_entry_from_tab(int(game_id))
 
     def _on_delete_clicked(self):
         """Handle delete replay button click"""
