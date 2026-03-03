@@ -4,11 +4,13 @@ from pathlib import Path
 from typing import Callable
 from typing import Optional
 from typing import TYPE_CHECKING
+from typing import Tuple
 
 from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_timeline import ReplayTimeline
+from conflict_interface.replay.response_metadata import ResponseMetadata
 from conflict_interface.utils.helper import unix_ms_to_datetime
 
 if TYPE_CHECKING:
@@ -46,12 +48,12 @@ class ReplayBuilder:
             self.parsers[v] = JsonParser(v)
 
     @staticmethod
-    def _find_initial_game_state_index(json_responses: list[tuple[int, dict]]) -> int:
+    def _find_initial_game_state_index(json_responses: list[Tuple[ResponseMetadata, dict]]) -> int:
         """
         Find the index of the first game state after game activation.
 
         Args:
-            json_responses: List of (timestamp, response) tuples
+            json_responses: List of (ResponseMetadata, response) tuples
 
         Returns:
             Index of initial game state, or -1 if not found
@@ -66,13 +68,13 @@ class ReplayBuilder:
 
     def create_replay(
             self,
-            json_responses: list[tuple[int, dict]],
+            json_responses: list[Tuple[ResponseMetadata, dict]],
             static_map_data: Optional[StaticMapData] = None) -> int:
         """
         Create a new replay from JSON responses.
         
         Args:
-            json_responses: List of (timestamp, response) tuples
+            json_responses: List of (ResponseMetadata, response) tuples
             static_map_data: Optional static map data for the replay (if None, static map will not be recorded)
 
         Returns:
@@ -86,8 +88,8 @@ class ReplayBuilder:
             raise ValueError("Initial game state not found.")
 
         # Parse initial game state
-        _, initial_json = json_responses[initial_index]
-        version = int(initial_json["client_version"])
+        initial_meta, initial_json = json_responses[initial_index]
+        version = int(initial_meta.client_version)
 
         parser = self.parsers[version]
         initial_state: GameState = parser.parse_game_state(initial_json["result"], None)
@@ -125,7 +127,7 @@ class ReplayBuilder:
         return initial_index
 
     def append_json_responses(self,
-                              json_responses: list[tuple[int, dict]],
+                              json_responses: list[Tuple[ResponseMetadata, dict]],
                               progress_callback: Optional[Callable[[int, int], None]] = None):
         if not self.created:
             raise ValueError("Replay not created yet.")
@@ -152,7 +154,7 @@ class ReplayBuilder:
             if progress_callback:
                 progress_callback(i, num_responses)
 
-            _, json_response = json_responses[i]
+            meta, json_response = json_responses[i]
 
             # Skip everything except game state updates
             if not ("result" in json_response) or json_response["result"].get("@c") not in (ReplayBuilder.FULL_STATE_TYPE, ReplayBuilder.AUTO_STATE_TYPE):
@@ -166,7 +168,7 @@ class ReplayBuilder:
                 json_response["full"] = True
 
             # Parse new state
-            version = int(json_response["client_version"])
+            version = int(meta.client_version)
             parser = self.parsers[version]
             new_state: GameState = parser.parse_game_state(
                 json_response["result"], None

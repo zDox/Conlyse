@@ -6,6 +6,7 @@ mod metrics;
 mod observation_api;
 mod observation_package;
 mod observation_session;
+mod response_metadata;
 mod recording_registry;
 mod recording_storage;
 mod redis_publisher;

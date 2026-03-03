@@ -89,7 +89,8 @@ class FromRecordingToJson:
 
     def dump_responses_to_json(self, json_responses):
         for i in tqdm(range(len(json_responses)), desc="Dumping JSON responses: ", unit="Response", unit_scale=True):
-            timestamp_ms, json_response = json_responses[i]
+            metadata, json_response = json_responses[i]
+            timestamp_ms = metadata.timestamp
             timestamp_dt = unix_ms_to_datetime(timestamp_ms)
 
             # Create filename with timestamp
@@ -101,7 +102,8 @@ class FromRecordingToJson:
                 "timestamp_ms": timestamp_ms,
                 "timestamp_iso": timestamp_dt.isoformat(),
                 "response_index": i,
-                "response": json_response
+                "metadata": metadata.to_dict(),
+                "response": json_response,
             }
 
             # Write to file

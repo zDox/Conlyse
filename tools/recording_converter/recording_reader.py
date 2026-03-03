@@ -13,6 +13,7 @@ import orjson
 import zstandard as zstd
 from tqdm import tqdm
 
+from conflict_interface.replay.response_metadata import ResponseMetadata
 from tools.recording_converter.recorder_logger import get_logger
 
 if TYPE_CHECKING:
@@ -168,7 +169,11 @@ class RecordingReader:
         return len(updates)
 
     def read_json_response_file(self, file):
-        json_responses = []
+        """
+        Read a single responses_XXXX.jsonl.zst file and return a list of
+        (ResponseMetadata, response_dict) tuples.
+        """
+        json_responses: List[Tuple[ResponseMetadata, dict]] = []
         with open(self.recording_dir/file, 'rb') as f:
             while True:
                 # Read timestamp (8 bytes)
@@ -190,21 +195,53 @@ class RecordingReader:
                     logger.warning(f"Incomplete JSON data at timestamp {timestamp_ms}")
                     break
 
-                # Decompress and parse JSON
+                # Decompress and parse inner payload.
                 decompressed = self._decompressor.decompress(compressed_data)
-                decoded = decompressed.decode('utf-8')
-                json_response = orjson.loads(decoded)
-                json_responses.append((timestamp_ms, json_response))
+
+                # format: [4 bytes BE metadata_len][metadata JSON][4 bytes BE response_len][response JSON]
+                try:
+                    meta_len = int.from_bytes(decompressed[0:4], "big")
+                    resp_offset = 4 + meta_len
+                    if meta_len > 0 and resp_offset + 4 <= len(decompressed):
+                        resp_len = int.from_bytes(
+                            decompressed[resp_offset:resp_offset + 4],
+                            "big",
+                        )
+                        meta_start = 4
+                        meta_end = meta_start + meta_len
+                        resp_start = resp_offset + 4
+                        resp_end = resp_start + resp_len
+
+                        if resp_end <= len(decompressed):
+                            meta_bytes = decompressed[meta_start:meta_end]
+                            resp_bytes = decompressed[resp_start:resp_end]
+
+                            metadata = ResponseMetadata.from_string(
+                                meta_bytes.decode("utf-8")
+                            )
+                            json_response = orjson.loads(resp_bytes)
+
+                            # Prefer the inner timestamp if present; otherwise, keep outer.
+                            if metadata.timestamp == 0:
+                                metadata.timestamp = int(timestamp_ms)
+
+                            json_responses.append((metadata, json_response))
+                            continue
+                except Exception as exc:
+                    logger.warning(
+                        f"Failed to parse response frame at timestamp {timestamp_ms}: {exc}"
+                    )
+
         return json_responses
-    
-    def read_json_responses(self, limit: int = None) -> List[Tuple[int, dict]]:
+
+    def read_json_responses(self, limit: int = None) -> List[Tuple[ResponseMetadata, dict]]:
         """
         Read all JSON responses from the recording.
 
         Returns:
-            List of (timestamp_ms, json_response) tuples
+            List of (ResponseMetadata, json_response) tuples
         """
-        json_responses = []
+        json_responses: List[Tuple[ResponseMetadata, dict]] = []
         len_updates = self.len_updates()
         number_of_responses_to_process = len_updates if limit is None else min(limit, len_updates)
         response_files = []

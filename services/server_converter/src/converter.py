@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional, List, Tuple, Dict, Any
 
 from conflict_interface.replay.replay_builder import ReplayBuilder
+from conflict_interface.replay.response_metadata import ResponseMetadata
 from server_converter.config import ServerConverterConfig
 from server_converter.database import ReplayDatabase, ReplayStatus
 from server_converter.redis_consumer import RedisStreamConsumer
@@ -94,14 +95,14 @@ class ServerConverter:
             cached_message_ids = []
             for message_id, message_data in messages:
                 try:
-                    game_id = message_data['game_id']
-                    player_id = message_data['player_id']
-                    timestamp = message_data['timestamp']
-                    client_version = message_data['client_version']
-                    response = message_data['response']
-                    
+                    # Extract core metadata from the ResponseMetadata payload.
+                    meta_dict = message_data["metadata"]
+                    response = message_data["response"]
+
+                    metadata = ResponseMetadata.from_dict(meta_dict)
+
                     # Cache to disk
-                    self.response_cache.add_response(game_id, player_id, client_version, timestamp, response)
+                    self.response_cache.add_response(metadata, response)
                     cached_message_ids.append(message_id)
                     
                 except Exception as e:
@@ -174,7 +175,7 @@ class ServerConverter:
                 metrics.errors_total.labels(error_type='processing').inc()
         
     def _process_game_responses(self, game_id: int, player_id: int,
-                                json_responses: List[Tuple[int, dict]]) -> bool:
+                                json_responses: List[Tuple[ResponseMetadata, dict]]) -> bool:
         """
         Process responses for a specific game and player.
         
@@ -207,7 +208,7 @@ class ServerConverter:
             return False
             
     def _create_new_replay(self, game_id: int, player_id: int,
-                          json_responses: List[Tuple[int, dict]]) -> bool:
+                          json_responses: List[Tuple[ResponseMetadata, dict]]) -> bool:
         """
         Create a new replay file.
         
@@ -240,7 +241,9 @@ class ServerConverter:
             builder.append_json_responses(remaining_responses)
 
             # Create database entry
-            recording_start_time = datetime.fromtimestamp(json_responses[0][0] / 1000.0)
+            # recording_start_time is based on the first response metadata timestamp (ms)
+            first_meta = json_responses[0][0]
+            recording_start_time = datetime.fromtimestamp(first_meta.timestamp / 1000.0)
             replay_name = f"game_{game_id}_player_{player_id}"
             
             self.db.create_replay_entry(
@@ -303,7 +306,7 @@ class ServerConverter:
             metrics.replay_creation_duration_seconds.observe(duration)
             
     def _append_to_replay(self, game_id: int, player_id: int,
-                         json_responses: List[Tuple[int, dict]],
+                         json_responses: List[Tuple[ResponseMetadata, dict]],
                          replay_entry: Dict[str, Any]) -> bool:
         """
         Append responses to an existing replay.

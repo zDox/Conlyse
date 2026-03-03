@@ -84,6 +84,10 @@ class ReplayInterface(GameInterface):
         self._replay = ReplayTimeline(self._file_path, mode, player_id=self.player_id, game_id=self.game_id)
         self._replay.open()
 
+        # In full read mode, ensure that all required static map data is available.
+        if mode == "r":
+            self._validate_static_map_data()
+
         if mode == "read metadata":
             # Metadata-only mode: don't create hook system or load game state.
             self._is_open = True
@@ -161,6 +165,51 @@ class ReplayInterface(GameInterface):
 
         # No valid player found
         raise Exception("Could not determine player ID")
+
+    def _validate_static_map_data(self) -> None:
+        """
+        Ensure that for all segments in this replay, any declared map_id has
+        corresponding static map data configured and available on disk.
+
+        Raises:
+            ValueError: If static map data is missing or incomplete for any map_id.
+        """
+        if self._replay is None:
+            return
+
+        required_map_ids = self.get_required_map_ids()
+        if not required_map_ids:
+            raise ValueError(
+                "Replay requires static map data for map_ids, "
+                "but no map_ids were found in the replay metadata."
+            )
+
+        if not self._static_map_paths:
+            raise ValueError(
+                f"Replay requires static map data for map_ids {sorted(required_map_ids)}, "
+                "but no static_map_data was provided to ReplayInterface."
+            )
+
+        missing_ids: list[str] = []
+        missing_files: list[str] = []
+
+        for map_id in required_map_ids:
+            path = self._static_map_paths.get(map_id)
+            if path is None:
+                missing_ids.append(map_id)
+            elif not path.is_file():
+                missing_files.append(str(path))
+
+        if missing_ids or missing_files:
+            parts: list[str] = []
+            if missing_ids:
+                parts.append(f"missing map_ids: {sorted(missing_ids)}")
+            if missing_files:
+                parts.append(f"non-existent files: {missing_files}")
+
+            message = "Static map data is incomplete for this replay: " + "; ".join(parts)
+            logger.error(message)
+            raise ValueError(message)
 
     @override
     def client_time(self) -> datetime:

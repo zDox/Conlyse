@@ -10,6 +10,8 @@ from typing import Dict
 from typing import List
 from typing import Tuple
 
+from conflict_interface.replay.response_metadata import ResponseMetadata
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,8 +41,10 @@ class ResponseCache:
         # Initialize counts from existing cache files
         self._initialize_counts()
         
-        logger.info(f"Response cache initialized at {self.cache_dir}, batch_size={batch_size}, "
-                   f"found {len(self._response_counts)} cached games")
+        logger.info(
+            f"Response cache initialized at {self.cache_dir}, batch_size={batch_size}, "
+            f"found {len(self._response_counts)} cached games"
+        )
         
     def _get_cache_file(self, game_id: int, player_id: int) -> Path:
         """Get the cache file path for a game/player combination."""
@@ -72,31 +76,29 @@ class ResponseCache:
                 except Exception as e:
                     logger.error(f"Error initializing count for {cache_file.name}: {e}")
         
-    def add_response(self, game_id: int, player_id: int, client_version: int, timestamp: int, response: dict):
+    def add_response(self, metadata: ResponseMetadata, response: dict):
         """
         Add a response to the cache.
         
         Args:
-            game_id: Game ID
-            player_id: Player ID
-            client_version: Client version
-            timestamp: Unix timestamp in milliseconds
-            response: Response JSON dict
+            metadata: Cross-language response metadata for this entry
+            response: Response JSON dict (without embedded client_version)
             
         Note:
             No locking is needed as each thread is guaranteed to work on
             different games.
         """
+        game_id = int(metadata.game_id)
+        player_id = int(metadata.player_id)
         cache_file = self._get_cache_file(game_id, player_id)
 
         # Append response to cache file (one JSON per line)
         with open(cache_file, 'a') as f:
             entry = {
-                'timestamp': timestamp,
-                'client_version': client_version,
-                'response': response
+                "metadata": metadata.to_dict(),
+                "response": response,
             }
-            f.write(json.dumps(entry) + '\n')
+            f.write(json.dumps(entry) + "\n")
 
         # Increment in-memory counter
         key = (game_id, player_id)
@@ -131,7 +133,7 @@ class ResponseCache:
         """
         return self.get_response_count(game_id, player_id) >= self.batch_size
         
-    def get_cached_responses(self, game_id: int, player_id: int) -> List[Tuple[int, dict]]:
+    def get_cached_responses(self, game_id: int, player_id: int) -> List[Tuple[ResponseMetadata, dict]]:
         """
         Get all cached responses for a game/player.
         
@@ -140,20 +142,34 @@ class ResponseCache:
             player_id: Player ID
             
         Returns:
-            List of (timestamp, response) tuples
+            List of (ResponseMetadata, response) tuples
         """
         cache_file = self._get_cache_file(game_id, player_id)
         
         if not cache_file.exists():
             return []
 
-        responses = []
+        responses: List[Tuple[ResponseMetadata, dict]] = []
         with open(cache_file, 'r') as f:
             for line in f:
                 if line.strip():
                     entry = json.loads(line)
-                    entry['response']["client_version"] = entry["client_version"]
-                    responses.append((entry['timestamp'], entry['response']))
+                    meta_dict = entry.get("metadata")
+                    if not isinstance(meta_dict, dict):
+                        logger.warning("Skipping cache entry without valid metadata")
+                        continue
+                    try:
+                        metadata = ResponseMetadata.from_dict(meta_dict)
+                    except (KeyError, ValueError, TypeError) as exc:
+                        logger.warning(f"Skipping malformed cache metadata: {exc}")
+                        continue
+
+                    response = entry.get("response")
+                    if not isinstance(response, dict):
+                        logger.warning("Skipping cache entry with non-dict response")
+                        continue
+
+                    responses.append((metadata, response))
 
         return responses
 

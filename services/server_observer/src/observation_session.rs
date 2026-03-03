@@ -4,7 +4,9 @@ use crate::observation_api::{GameServerError, GameServerResult, ObservationApi, 
 use crate::observation_package::ObservationPackage;
 use crate::recording_storage::{RecordingStorage, RecordingStorageError};
 use crate::redis_publisher::RedisPublisher;
+use crate::response_metadata::ResponseMetadata;
 use crate::static_map_cache::{StaticMapCache, StaticMapError};
+use serde_json;
 use std::io;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
@@ -98,6 +100,8 @@ pub enum ObservationSessionError {
     StaticMap(#[from] StaticMapError),
     #[error("compression error: {0}")]
     Compression(#[from] io::Error),
+    #[error("json error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 pub struct ObservationSession {
@@ -383,22 +387,49 @@ impl ObservationSession {
             .unwrap_or(Duration::from_secs(0))
             .as_millis() as i64;
 
+        let metadata = ResponseMetadata {
+            timestamp: timestamp_ms,
+            game_id: self.game_id as i64,
+            // Guest observer sessions currently use player_id = 0; this is kept for
+            // compatibility while allowing future expansion.
+            player_id: 0,
+            client_version: self.package.client_version as i64,
+            map_id: result.map_id.clone(),
+        };
+
         if let Some(redis) = &self.redis_publisher {
             if let Err(err) = redis.publish_compressed_response(
-                timestamp_ms,
-                self.game_id as i64,
-                0,
-                self.package.client_version as i64,
+                &metadata,
                 &compressed_response,
             ) {
                 tracing::warn!(?err, game_id = self.game_id, "failed redis publish");
             }
         }
 
+        // For on-disk recording, store metadata and raw JSON response together in a
+        // single zstd-compressed frame with the following layout:
+        //   [4 bytes BE metadata_len][metadata JSON bytes]
+        //   [4 bytes BE response_len][raw response JSON bytes]
+        let metadata_json = serde_json::to_vec(&metadata)?;
+        let response_bytes = result.raw_response.as_bytes();
+
+        let meta_len = metadata_json.len() as u32;
+        let resp_len = response_bytes.len() as u32;
+
+        let mut combined = Vec::with_capacity(
+            4 + metadata_json.len() + 4 + response_bytes.len(),
+        );
+        combined.extend_from_slice(&meta_len.to_be_bytes());
+        combined.extend_from_slice(&metadata_json);
+        combined.extend_from_slice(&resp_len.to_be_bytes());
+        combined.extend_from_slice(response_bytes);
+
+        let compressed_recording = encode_all(&combined[..], 3)?;
+
         let pkg_json = self.package.to_json();
         let storage = self.ensure_storage()?;
         storage.update_resume_metadata(pkg_json);
-        storage.save_response(compressed_response)?;
+        storage.save_response(compressed_recording)?;
         Ok(())
     }
 
