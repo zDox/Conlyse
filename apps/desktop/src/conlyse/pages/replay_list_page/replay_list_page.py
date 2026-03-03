@@ -1,4 +1,4 @@
-# conlyse/pages/replay_list_page.py
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFileDialog
@@ -23,6 +23,7 @@ from conlyse.utils.enums import PageType
 from conlyse.utils.downloads import download_to_file
 from conlyse.widgets.mui.button import CButton
 from conlyse.widgets.mui.icon_button import CIconButton
+from conlyse.managers.config_manager.config_file import CONFIG_DIR
 
 logger = get_logger()
 
@@ -313,15 +314,14 @@ class ReplayListPage(Page):
         return game_id.strip()
 
     def _default_replay_directory(self) -> str:
-        """Return a directory path for storing downloaded replays."""
-        import os
+        """Return a directory path for storing downloaded replays.
 
-        default_path = self.app.config_manager.get("file.default_open_path", "")
-        if default_path:
-            directory = os.path.dirname(default_path)
-            if directory:
-                return directory
-        return os.getcwd()
+        Downloaded replays are stored under the app_data/replays directory to keep
+        them alongside other application data.
+        """
+        base_dir = Path(CONFIG_DIR) / "replays"
+        base_dir.mkdir(parents=True, exist_ok=True)
+        return str(base_dir)
 
     def _download_replay_file(self, game_id: str, player_id: str) -> str | None:
         """Use the API to retrieve and download a replay file. Returns local path or None."""

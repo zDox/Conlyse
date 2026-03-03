@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 DEFAULT_MAX_PATCHES = 10000
+MAX_STATIC_MAP_DATA_SIZE = 1024 * 1024 * 10 # 10 Mb
 
 logger = get_logger()
 
@@ -405,14 +406,7 @@ class ReplayTimeline:
             compressed_data = f.read()
 
         # Decompress and unpickle
-        decompressed = zstd.ZstdDecompressor().decompress(compressed_data)
-        static_map_data = pickle.loads(decompressed)
-        if isinstance(static_map_data, StaticMapData):
-            logger.info("Loaded static map data as StaticMapData object")
-            return static_map_data
-        elif isinstance(static_map_data, dict):
-            logger.info("Loaded static map data as dict")
-            static_map_data = parser.parse_static_map_data(static_map_data)
-            return static_map_data
-        else:
-            raise ValueError(f"Unexpected static map data type: {type(static_map_data)}")
+        decompressed = zstd.ZstdDecompressor().decompress(compressed_data, max_output_size=MAX_STATIC_MAP_DATA_SIZE)
+        json_data = json.loads(decompressed)
+
+        return parser.parse_static_map_data(json_data)

@@ -155,4 +155,4 @@ async def get_static_map_url(db: AsyncSession, map_id: str) -> str:
     record = row.mappings().first()
     if not record:
         raise LookupError(f"Map data not found for map_id={map_id}")
-    return _generate_presigned_url(settings.MINIO_BUCKET_MAPS, record["s3_key"])
+    return _generate_presigned_url(settings.MINIO_BUCKET_REPLAYS, record["s3_key"])

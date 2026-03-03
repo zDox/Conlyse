@@ -132,7 +132,13 @@ class ReplayDetailsPanel(QWidget):
         status_title.setObjectName("replay_details_section_title")
         status_left.addWidget(status_title)
 
-        status_date = QLabel("-1")  # TODO: Add actual date
+        # Show the replay start time if available.
+        meta = getattr(self.selected_replay, "list_metadata", {}) or {}
+        start_time = meta.get("start_time")
+        if start_time is not None:
+            status_date = QLabel(start_time.isoformat(sep=" ", timespec="seconds"))
+        else:
+            status_date = QLabel("Unknown")
         status_date.setObjectName("replay_details_section_subtitle")
         status_left.addWidget(status_date)
 
@@ -140,7 +146,8 @@ class ReplayDetailsPanel(QWidget):
         status_layout.addStretch()
 
         # Right side - status badge
-        is_running = True  # TODO: Get actual status
+        status_text = meta.get("status", "Running")
+        is_running = status_text == "Running"
         status_badge = CChip(
             '▶ Running' if is_running else '⏹ Ended',
             variant="outlined",
@@ -157,21 +164,32 @@ class ReplayDetailsPanel(QWidget):
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
 
+        meta = getattr(self.selected_replay, "list_metadata", {}) or {}
+
+        game_id = meta.get("game_id", "Unknown")
+        game_mode = meta.get("game_mode", "Unknown")
+        length = meta.get("length", "-1")
+        day = meta.get("day", -1)
+        file_size_bytes = meta.get("file_size_bytes", -1)
+        start_time = meta.get("start_time")
+        started_str = start_time.isoformat(sep=" ", timespec="seconds") if start_time is not None else "Unknown"
+
         # Row 0
-        self._add_info_field(grid, 0, 0, "mdi6.gamepad-square", "Game ID", "-1")
-        self._add_info_field(grid, 0, 1, "mdi6.gamepad-circle-down", "Game Mode", "WW III")
+        self._add_info_field(grid, 0, 0, "mdi6.gamepad-square", "Game ID", f"{game_id}")
+        self._add_info_field(grid, 0, 1, "mdi6.gamepad-circle-down", "Game Mode", f"{game_mode}")
 
         # Row 1
-        self._add_info_field(grid, 1, 0, "mdi.clock-time-three", "Replay Length", "-1")
-        self._add_info_field(grid, 1, 1, "ei.calendar", "Game Day", "Day -1")
+        self._add_info_field(grid, 1, 0, "mdi.clock-time-three", "Replay Length", f"{length}")
+        self._add_info_field(grid, 1, 1, "ei.calendar", "Game Day", f"Day {day}")
 
         # Row 2
         self._add_info_field(grid, 2, 0, "mdi.speedometer", "Game Speed", "-1")
         self._add_info_field(grid, 2, 1, "ei.map-marker", "Player Country", "-1")
 
         # Row 3
-        self._add_info_field(grid, 3, 0, "ei.file", "File Size", "-1")
-        self._add_info_field(grid, 3, 1, "mdi.calendar-start", "Started", "-1")
+        human_size = f"{file_size_bytes / (1024 * 1024):.2f} MB" if isinstance(file_size_bytes, (int, float)) and file_size_bytes >= 0 else "Unknown"
+        self._add_info_field(grid, 3, 0, "ei.file", "File Size", human_size)
+        self._add_info_field(grid, 3, 1, "mdi.calendar-start", "Started", started_str)
 
         self.details_content_layout.addLayout(grid)
 

@@ -105,7 +105,8 @@ class ReplayListPanel(QWidget):
         self.replay_list.clear()
 
         for filepath, replay in replays.items():
-            replay_data = {}  # TODO: populate with actual data from replay
+            # Metadata is prepared by ReplayManager when the replay is added.
+            replay_data = getattr(replay, "list_metadata", {}) or {}
             item = QListWidgetItem(self.replay_list)
             item.setSizeHint(QSize(340, 120))
             widget = ReplayListItem(replay_data)

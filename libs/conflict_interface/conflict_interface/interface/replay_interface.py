@@ -70,14 +70,14 @@ class ReplayInterface(GameInterface):
 
 
 
-    def open(self, mode: Literal['r', 'read metadata'] = 'r') -> bool:
+    def open(self, mode: Literal['r', 'read_metadata'] = 'r') -> bool:
         if self._is_open:
             logger.warning("Replay is already open. Closing it for you ;)")
             self.close()
 
         logger.debug("Opening Replay")
 
-        if mode not in ("r", "read metadata"):
+        if mode not in ("r", "read_metadata"):
             raise ValueError(f"Unsupported replay open mode: {mode}")
 
 
@@ -88,7 +88,7 @@ class ReplayInterface(GameInterface):
         if mode == "r":
             self._validate_static_map_data()
 
-        if mode == "read metadata":
+        if mode == "read_metadata":
             # Metadata-only mode: don't create hook system or load game state.
             self._is_open = True
             logger.debug("Metadata-only replay open completed successfully")
