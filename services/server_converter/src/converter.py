@@ -231,12 +231,9 @@ class ServerConverter:
             # Create replay builder
             builder = ReplayBuilder(replay_path, game_id, player_id)
             builder.setup_parsers()
-            
-            # Static map data is intentionally never included in server converter replays
-            static_map_data = None
 
-            # Create the replay
-            initial_index = builder.create_replay(json_responses, static_map_data)
+
+            initial_index = builder.create_replay(json_responses)
             remaining_responses = json_responses[initial_index + 1:] if initial_index + 1 < len(json_responses) else []
             builder.append_json_responses(remaining_responses)
 

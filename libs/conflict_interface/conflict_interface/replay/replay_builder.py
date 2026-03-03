@@ -15,7 +15,6 @@ from conflict_interface.utils.helper import unix_ms_to_datetime
 
 if TYPE_CHECKING:
     from conflict_interface.data_types.newest.game_state.game_state import GameState
-    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 logger = get_logger()
 
@@ -68,14 +67,12 @@ class ReplayBuilder:
 
     def create_replay(
             self,
-            json_responses: list[Tuple[ResponseMetadata, dict]],
-            static_map_data: Optional[StaticMapData] = None) -> int:
+            json_responses: list[Tuple[ResponseMetadata, dict]]) -> int:
         """
         Create a new replay from JSON responses.
         
         Args:
-            json_responses: List of (ResponseMetadata, response) tuples
-            static_map_data: Optional static map data for the replay (if None, static map will not be recorded)
+            json_responses: List of (ResponseMetadata, response) tuples.
 
         Returns:
             Index of the initial state that was used to create the replay
@@ -107,9 +104,8 @@ class ReplayBuilder:
         self.replay_timeline.last_time = current_timestamp
 
         logger.info(f"Recording initial game state at {current_timestamp} (game time)")
-        map_id: str | None = None
-        if static_map_data is not None and getattr(static_map_data, "map_id", None) is not None:
-            map_id = static_map_data.map_id
+
+        map_id: str = initial_meta.map_id
         self.replay_timeline.que_append_patch(
             version,
             to_time_stamp=current_timestamp,
@@ -168,15 +164,14 @@ class ReplayBuilder:
                 json_response["full"] = True
 
             # Parse new state
-            version = int(meta.client_version)
-            parser = self.parsers[version]
+            parser = self.parsers[meta.client_version]
             new_state: GameState = parser.parse_game_state(
                 json_response["result"], None
             )
             current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
             if json_response["full"]:
                 self.replay_timeline.close_last_segment()
-            self.replay_timeline.latest_version = version
+            self.replay_timeline.latest_version = meta.client_version
             # Create appropriate patch
             bipatch = ReplayBuilder._create_patch_from_json(
                 json_response, current_state, new_state
@@ -188,10 +183,11 @@ class ReplayBuilder:
 
             # Record patch to replay
             self.replay_timeline.que_append_patch(
-                version = version,
+                version=meta.client_version,
                 to_time_stamp=current_timestamp,
                 replay_patch=bipatch,
-                current_game_state=current_state
+                current_game_state=current_state,
+                map_id=meta.map_id,
             )
 
         # Finalize
