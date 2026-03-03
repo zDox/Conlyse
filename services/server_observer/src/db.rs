@@ -77,6 +77,24 @@ impl DbClient {
         Ok(())
     }
 
+    /// Return all known map IDs from the `maps` table.
+    ///
+    /// Each entry is the opaque string identifier stored in the `map_id`
+    /// column (e.g. "map42"). This is used to initialize the in-memory
+    /// static map cache at startup.
+    pub async fn get_all_map_ids(&self) -> Result<Vec<String>, DbClientError> {
+        let conn = self.pool.get().await?;
+        let rows = conn
+            .query("SELECT map_id FROM maps", &[])
+            .await?;
+        let mut ids = Vec::with_capacity(rows.len());
+        for row in rows {
+            let id: String = row.get(0);
+            ids.push(id);
+        }
+        Ok(ids)
+    }
+
     pub async fn upsert_discovered_game(
         &self,
         game_id: i32,

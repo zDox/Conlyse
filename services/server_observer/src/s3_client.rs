@@ -87,6 +87,24 @@ impl S3Client {
 
         Ok(())
     }
+
+    /// Upload object content directly from an in-memory buffer without
+    /// touching the local filesystem. This is useful when the caller
+    /// already has compressed bytes and does not want to persist a
+    /// temporary file on disk.
+    pub async fn upload_bytes(
+        &self,
+        data: Vec<u8>,
+        s3_key: &str,
+    ) -> Result<(), S3Error> {
+        self.client
+            .put_object_content(&self.cfg.bucket_name, s3_key, ObjectContent::from(data))
+            .send()
+            .await
+            .map_err(|err| S3Error::Sdk(err.to_string()))?;
+
+        Ok(())
+    }
 }
 
 fn is_bucket_already_exists_error(err: &MinioError) -> bool {
