@@ -20,10 +20,8 @@ pub struct ResponseMetadata {
     /// Game client version used to communicate with the server.
     pub client_version: i64,
     /// Static map identifier associated with this response, if any.
-    ///
     /// This is a string field to match the map IDs used by the game
-    /// servers. It is optional on the wire; older payloads may omit it.
-    #[serde(default)]
+    /// servers.
     pub map_id: String,
 }
 

@@ -26,7 +26,7 @@ class RedisStreamConsumer:
                 \"game_id\": <int>,
                 \"player_id\": <int>,
                 \"client_version\": <int>,
-                \"map_id\": <str>  # optional, may be absent on older producers
+                \"map_id\": <str>
             }
         - ``response``: zstd-compressed JSON response body
     """
@@ -92,7 +92,7 @@ class RedisStreamConsumer:
         Returns:
             List of (message_id, message_data) tuples where message_data contains:
                 - metadata: dict with keys ``timestamp``, ``game_id``, ``player_id``,
-                  ``client_version``, and optional ``map_id`` (string)
+                  ``client_version``, and ``map_id`` (string)
                 - response: JSON response dict
         """
         if count is None:
@@ -148,10 +148,8 @@ class RedisStreamConsumer:
                                         raise KeyError(f"Missing '{field}' in metadata")
                                     normalized[field] = int(meta[field])
 
-                                # Optional string field for static map identifier.
-                                # For backward compatibility, default to empty string if missing.
-                                map_id = meta.get('map_id', '')
-                                normalized['map_id'] = str(map_id)
+                                # string field for static map identifier.
+                                normalized['map_id'] = str(meta['map_id'])
 
                                 decoded_data['metadata'] = normalized
                             else:
