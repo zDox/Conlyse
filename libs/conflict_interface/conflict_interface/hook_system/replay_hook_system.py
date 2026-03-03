@@ -14,7 +14,7 @@ from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
 
 if TYPE_CHECKING:
-    from conflict_interface.replay.replaysegment import ReplaySegment
+    from conflict_interface.replay.replay_segment import ReplaySegment
 
 logger = getLogger()
 

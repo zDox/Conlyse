@@ -106,14 +106,17 @@ impl StaticMapCache {
 
         // Record in DB if configured
         if let Some(db) = &self.db {
-            let map_id_int: i64 = map_id.parse().unwrap_or(0);
-            if !db.map_exists(map_id_int).await? {
+            // `map_id` is an opaque string identifier (e.g. "map42") and is
+            // stored as such in the `maps` table. Avoid parsing it as an
+            // integer so we don't collapse different map IDs into a single
+            // numeric value like 0.
+            if !db.map_exists(map_id).await? {
                 let version = static_map_data
                     .get("version")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string());
                 db.insert_map(
-                    map_id_int,
+                    map_id,
                     &s3_key,
                     version.as_deref(),
                 )

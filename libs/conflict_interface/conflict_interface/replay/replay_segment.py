@@ -6,7 +6,6 @@ from datetime import datetime
 from logging import getLogger
 from typing import TYPE_CHECKING
 
-
 from conflict_interface.replay.apply_replay_helper import apply_operation
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
@@ -15,7 +14,6 @@ from conflict_interface.replay.replay_storage import ReplayStorage
 if TYPE_CHECKING:
     from conflict_interface.interface.replay_interface import ReplayInterface
     from conflict_interface.data_types.newest.game_state.game_state import GameState
-    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 logger = getLogger()
 
@@ -62,7 +60,6 @@ class ReplaySegment:
         self.storage.read_all()
         self.storage.load_metadata()
         self.storage.load_initial_game_state(self._game)
-        self.storage.load_static_map_data(self._game)
         self.storage.load_path_tree()
         self.storage.load_patches(self._game)
         self.storage.path_tree.precompute()
@@ -102,11 +99,6 @@ class ReplaySegment:
 
         # copy the game state to avoid mutations
         self.storage.unload_initial_game_state(game_state)
-
-    def record_static_map_data(self, static_map_data: StaticMapData,game_id: int, player_id: int):
-        self.validate_game(game_id, player_id)
-
-        self.storage.unload_static_map_data(static_map_data)
 
     def _create_nodes_from_bireplay_patch(self, replay_patch: BidirectionalReplayPatch, from_timestamp: int, to_timestamp: int) -> tuple[PatchGraphNode, PatchGraphNode]:
         forward = replay_patch.forward_patch

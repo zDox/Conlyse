@@ -46,7 +46,10 @@ impl DbClient {
     }
 
     /// Check if a row exists in maps table for given map_id.
-    pub async fn map_exists(&self, map_id: i64) -> Result<bool, DbClientError> {
+    ///
+    /// `map_id` is stored as a string (VARCHAR) in the `maps` table and is
+    /// treated as an opaque identifier (e.g. "map42"), not a numeric ID.
+    pub async fn map_exists(&self, map_id: &str) -> Result<bool, DbClientError> {
         let conn = self.pool.get().await?;
         let row = conn
             .query_opt("SELECT 1 FROM maps WHERE map_id = $1 LIMIT 1", &[&map_id])
@@ -55,9 +58,12 @@ impl DbClient {
     }
 
     /// Insert a row into maps table; version may be None.
+    ///
+    /// `map_id` is stored as a string (VARCHAR) in the `maps` table, matching
+    /// how other services (e.g. the API and converter) treat map identifiers.
     pub async fn insert_map(
         &self,
-        map_id: i64,
+        map_id: &str,
         s3_key: &str,
         version: Option<&str>,
     ) -> Result<(), DbClientError> {

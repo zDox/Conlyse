@@ -7,6 +7,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
+from typing import Literal
 from typing import TYPE_CHECKING
 from typing import override
 
@@ -23,7 +24,7 @@ from conflict_interface.replay.long_patch import create_long_patch
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay_timeline import ReplayTimeline
-from conflict_interface.replay.replaysegment import ReplaySegment
+from conflict_interface.replay.replay_segment import ReplaySegment
 
 if TYPE_CHECKING:
     from conflict_interface.data_types.newest.map_state.province import Province
@@ -33,7 +34,7 @@ logger = get_logger()
 LONG_PATCH_THRESHOLD = 10
 
 class ReplayInterface(GameInterface):
-    def __init__(self, file_path: Path | str, static_map_data: dict[int, Path], player_id: int | None = None, game_id: int | None = None):
+    def __init__(self, file_path: Path | str, static_map_data: dict[str, Path] | None = None, player_id: int | None = None, game_id: int | None = None):
         """
         Initialize a replay-only game interface backed by a recorded replay file.
 
@@ -59,28 +60,70 @@ class ReplayInterface(GameInterface):
         self._replay: ReplayTimeline | None = None
         self._hook_system: ReplayHookSystem | None = None
         self._current_segment: ReplaySegment | None = None
-        self._static_map_data = {v: ReplayTimeline.read_static_map_data(v, p) for v,p in static_map_data.items()}
+
+        # Mapping from map_id -> path to static map data.
+        self._static_map_paths: dict[str, Path] = {k: Path(v) for k, v in (static_map_data or {}).items()}
+        # Cache from map_id -> loaded StaticMapData object.
+        self._static_map_cache: dict[str, object] = {}
 
         self._is_open: bool = False
 
 
 
-    def open(self) -> bool:
+    def open(self, mode: Literal['r', 'read metadata'] = 'r') -> bool:
         if self._is_open:
             logger.warning("Replay is already open. Closing it for you ;)")
             self.close()
 
         logger.debug("Opening Replay")
-        self._replay = ReplayTimeline(self._file_path, 'r', player_id=self.player_id, game_id=self.game_id)
-        self._replay.set_game(self)
+
+        if mode not in ("r", "read metadata"):
+            raise ValueError(f"Unsupported replay open mode: {mode}")
+
+
+        self._replay = ReplayTimeline(self._file_path, mode, player_id=self.player_id, game_id=self.game_id)
         self._replay.open()
 
+        if mode == "read metadata":
+            # Metadata-only mode: don't create hook system or load game state.
+            self._is_open = True
+            logger.debug("Metadata-only replay open completed successfully")
+            return True
+
+        # Full replay mode
+        self._replay.set_game(self)
         self._hook_system = ReplayHookSystem(self._replay)
+
+        # Attach static map data per segment based on map_id stored in metadata.
+        for _, segment in self._replay.segments.items():
+            # Link game objects back to this interface.
+            segment.storage.initial_game_state.set_game(self)
+
+            if not self._static_map_paths:
+                continue
+
+            meta = segment.storage.metadata
+            map_id = getattr(meta, "map_id", "") if meta is not None else ""
+            if not map_id:
+                logger.warning("Segment has no map_id in metadata; static map data cannot be attached.")
+                continue
+
+            path = self._static_map_paths.get(map_id)
+            if path is None:
+                logger.warning(f"No static map path configured for map_id '{map_id}'.")
+                continue
+
+            if map_id not in self._static_map_cache:
+                static_map = ReplayTimeline.read_static_map_data(segment.version, path)
+                self._static_map_cache[map_id] = static_map
+            else:
+                static_map = self._static_map_cache[map_id]
+
+            segment.storage.initial_game_state.states.map_state.map.set_static_map_data(static_map)
 
         first_segment = self._replay.find_first_segment()
         self._current_segment = first_segment
         self.game_state = first_segment.storage.initial_game_state
-        self._replay.setup(self, self._static_map_data)
 
         # Step 5: final metadata
         self._update_player_id()
@@ -98,6 +141,7 @@ class ReplayInterface(GameInterface):
         assert self._replay is not None, "Replay is None"
 
         self._replay.close()
+        self._is_open = False
 
     def _update_player_id(self):
         valid_states = {"ACTIVE", "UNKNOWN", "INACTIVE", "ABANDONED"}
@@ -129,6 +173,34 @@ class ReplayInterface(GameInterface):
     @property
     def last_time(self) -> datetime:
         return self._replay.get_last_time()
+
+    def get_segments_metadata(self):
+        """
+        Return per-segment metadata when the replay is opened (in any mode).
+        """
+        assert self._replay is not None, "Replay is not open"
+        return self._replay.get_segments_metadata()
+
+    def get_required_map_ids(self) -> set[str]:
+        """
+        Return the set of all map_ids referenced by segments in this replay.
+        """
+        metas = self.get_segments_metadata()
+        return {m.map_id for m in metas.values() if getattr(m, "map_id", "")}
+
+    def get_required_versions(self) -> set[int]:
+        """
+        Return the set of all datatype versions used by segments in this replay.
+        """
+        assert self._replay is not None, "Replay is not open"
+        return {segment.version for segment in self._replay.segments.values()}
+
+    def get_total_patches(self) -> int:
+        """
+        Return the total number of patches across all segments in this replay.
+        """
+        metas = self.get_segments_metadata()
+        return sum(m.current_patches for m in metas.values())
 
     def jump_to(self, time_stamp: datetime, create_long_patches = True) -> None:
         """

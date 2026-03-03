@@ -14,7 +14,7 @@ import zstandard as zstd
 from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
-from conflict_interface.replay.replaysegment import ReplaySegment
+from conflict_interface.replay.replay_segment import ReplaySegment
 from conflict_interface.utils.helper import dt_to_ns
 from conflict_interface.utils.helper import ns_to_dt
 
@@ -30,8 +30,8 @@ _MAGIC = b"RPLYZSTD"
 _VERSION = 1
 
 class ReplayTimeline:
-    def __init__(self,file_path: Path, mode: Literal['r', 'a'] = 'r', game_id = None, player_id= None):
-        self._mode: Literal['r','a'] = mode
+    def __init__(self,file_path: Path, mode: Literal['r', 'a', 'read_metadata'] = 'r', game_id = None, player_id= None):
+        self._mode: Literal['r','a','read_metadata'] = mode
         self._open = False
         self.file_path = file_path
         # Mapping from (start_time, end_time) -> ReplaySegment.
@@ -140,6 +140,11 @@ class ReplayTimeline:
         elif self._mode == "r":
             for segment in self.segments.values():
                 segment.load_everything()
+        elif self._mode == "read_metadata":
+            # Only load per-segment metadata; skip heavy structures.
+            for segment in self.segments.values():
+                segment.storage.read_metadata_from_disk()
+                segment.storage.load_metadata()
         self._open = True
 
     def close(self):
@@ -161,7 +166,7 @@ class ReplayTimeline:
     def get_mode(self):
         return self._mode
 
-    def set_mode(self, mode: Literal['r', 'a']):
+    def set_mode(self, mode: Literal['r', 'a', 'read_metadata']):
         if mode == self._mode:
             return
         if self._open:
@@ -181,16 +186,18 @@ class ReplayTimeline:
         key, segment = key_segment
         return segment.get_last_game_state()
 
-    def que_append_patch(self, version :int, to_time_stamp: datetime, replay_patch: BidirectionalReplayPatch | None, current_game_state: GameState | None = None, static_map_data: StaticMapData | None = None):
+    def que_append_patch(self, version :int, to_time_stamp: datetime, replay_patch: BidirectionalReplayPatch | None, current_game_state: GameState | None = None, map_id: str | None = None):
         assert self._mode == "a"
         segment = self._find_open_segment(version)
         if segment is not None:
             segment = segment[1]
         else:
-            segment = self._create_segment(current_game_state,
-                                           version,
-                                           self.last_time,
-                                           static_map_data=static_map_data)
+            segment = self._create_segment(
+                current_game_state,
+                version,
+                self.last_time,
+                map_id=map_id,
+            )
 
         if segment is None:
             raise Exception(f"Unable to create last segment in version: {version}")
@@ -308,7 +315,7 @@ class ReplayTimeline:
                 )
             prev_start, prev_end = start, end
 
-    def _create_segment(self, current_game_state: GameState, version: int, from_timestamp: datetime, static_map_data: StaticMapData | None = None) -> "ReplaySegment":
+    def _create_segment(self, current_game_state: GameState, version: int, from_timestamp: datetime, map_id: str | None = None) -> "ReplaySegment":
         assert self._mode == "a"
         assert current_game_state is not None, "Had to create a new Segment but got no game state"
 
@@ -319,10 +326,10 @@ class ReplayTimeline:
 
         segment.set_last_game_state(current_game_state)
         segment.storage.initialize(DEFAULT_MAX_PATCHES)
+        if map_id is not None:
+            segment.storage.metadata.map_id = map_id
         segment.record_initial_game_state(current_game_state, from_timestamp, game_id=self.game_id,
                                           player_id=self.player_id)
-        if static_map_data is not None:
-            segment.record_static_map_data(static_map_data, game_id=self.game_id, player_id=self.player_id)
 
         segment.collapse_all()
         segment.load_everything()
@@ -363,6 +370,21 @@ class ReplayTimeline:
 
         self._time_stamp_cache = cache
         return self._time_stamp_cache
+
+    def get_segments_metadata(self) -> dict[tuple[datetime, datetime | None], "Metadata"]:
+        """
+        Return a mapping from segment time-interval keys to their loaded Metadata objects.
+
+        This assumes metadata has already been loaded (either via full open() or
+        metadata-only mode).
+        """
+        from conflict_interface.replay.metadata import Metadata
+
+        result: dict[tuple[datetime, datetime | None], Metadata] = {}
+        for key, segment in self.segments.items():
+            if segment.storage.metadata is not None:
+                result[key] = segment.storage.metadata
+        return result
 
     @staticmethod
     def read_static_map_data(version, path):

@@ -4,7 +4,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
-from conflict_interface.replay.replaysegment import ReplaySegment
+from conflict_interface.replay.replay_segment import ReplaySegment
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from tools.recording_converter.recorder_logger import get_logger
 from tools.recording_converter.recording_reader import RecordingReader
@@ -68,19 +68,6 @@ class FromGameStateUsingMakeBiPatchToReplay:
                 game_id=game_id,
                 player_id=player_id,
                 game_state=first_state
-            )
-
-            # Record static map data if available
-            static_map_data = self.reader.read_static_map_data()
-            if not static_map_data:
-                logger.error("No static map data found in recording")
-                return False
-
-            logger.info("Recording static map data")
-            replay.record_static_map_data(
-                static_map_data=static_map_data,
-                game_id=game_id,
-                player_id=player_id
             )
 
             # Create patches between consecutive states

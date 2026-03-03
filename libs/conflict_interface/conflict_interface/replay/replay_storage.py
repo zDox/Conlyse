@@ -49,7 +49,6 @@ class ReplayStorage:
         self._data_b: bytearray = data
         self._metadata_b: bytes | None = None
         self._initial_game_state_b: bytes | None = None
-        self._static_map_data_b: bytes | None = None
         self._path_tree_b: bytes | None = None
         self._patch_index_b: bytes | None = None
         self._d_pool_b: bytes | None = None  # Data pool containing all patches
@@ -58,7 +57,6 @@ class ReplayStorage:
         # Deserialized objects for in-memory use
         self.metadata: Metadata | None = None
         self.initial_game_state: GameState | None = None
-        self.static_map_data: StaticMapData | None = None
         self.path_tree: PathTree | None = None
         self.patch_graph: PatchGraph | None = None
         self.last_game_state: GameState | None = None
@@ -82,11 +80,10 @@ class ReplayStorage:
         File structure (in order):
         1. Metadata (uncompressed, fixed size)
         2. Initial game state (LZ4 compressed)
-        3. Static map data (LZ4 compressed) - optional
-        4. Path tree (LZ4 compressed)
-        5. Patch index (uncompressed for random access)
-        6. Data pool (uncompressed patches)
-        7. Last game state (LZ4 compressed)
+        3. Path tree (LZ4 compressed)
+        4. Patch index (uncompressed for random access)
+        5. Data pool (uncompressed patches)
+        6. Last game state (LZ4 compressed)
         """
 
         def read_compressed(r) -> bytes:
@@ -107,11 +104,6 @@ class ReplayStorage:
 
         # Read compressed sections
         self._initial_game_state_b = read_compressed(reader)
-
-        # Conditionally read static map data based on metadata flag
-        if self.metadata.has_static_map_data:
-            self._static_map_data_b = read_compressed(reader)
-
         self._path_tree_b = read_compressed(reader)
 
         # Read patch index (uncompressed for direct access)
@@ -144,11 +136,6 @@ class ReplayStorage:
         # Skip initial game state (not needed for appending)
         length = reader.read_int32()
         reader.skip(length)
-
-        # Skip static map data if it exists (not needed for appending)
-        if self.metadata.has_static_map_data:
-            length = reader.read_int32()
-            reader.skip(length)
 
         # Read and decompress path tree
         length = reader.read_int32()
@@ -208,14 +195,6 @@ class ReplayStorage:
 
         # Write compressed game data
         write_compressed(data, self._initial_game_state_b)
-
-        # Write static map data only if it's set
-        if self._static_map_data_b is not None:
-            write_compressed(data, self._static_map_data_b)
-            self.metadata.has_static_map_data = True
-        else:
-            self.metadata.has_static_map_data = False
-
         write_compressed(data, self._path_tree_b)
 
         # Write patch index uncompressed (enables direct indexing)
@@ -338,7 +317,8 @@ class ReplayStorage:
             max_patches=max_patches,
             current_patches=0,
             patch_index_start=0,
-            is_fragmented=False
+            is_fragmented=False,
+            map_id="",
         )
         self.path_tree = PathTree()
         self.patch_graph = PatchGraph()
@@ -375,20 +355,6 @@ class ReplayStorage:
 
         self.last_game_state = pickle.loads(self._last_game_state_b)
         return self.last_game_state
-
-    def load_static_map_data(self, game: ReplayInterface | None) -> object:
-        """
-        Deserializes static map data (terrain, objectives, etc.).
-
-        Args:
-            game: Optional replay interface to link game objects to
-        """
-        if self._static_map_data_b is None:
-            return None
-        self.static_map_data = self.serializer.deserialize(self._static_map_data_b)
-        if game is not None:
-            GameObject.set_game_recursive(self.static_map_data, game)
-        return self.static_map_data
 
     def load_path_tree(self) -> PathTree:
         """
@@ -507,15 +473,6 @@ class ReplayStorage:
         assert self.last_game_state is not None, "No GameState provided."
         assert self.last_game_state.game is None, "Last game state has game set"
         self._last_game_state_b = pickle.dumps(self.last_game_state)
-
-    def unload_static_map_data(self, static_map_data: StaticMapData):
-        """
-        Serializes static map data using pickle.
-
-        Temporarily removes game references before serialization.
-        """
-        self._static_map_data_b = self.serializer.serialize_game_object(static_map_data)
-        self.static_map_data = static_map_data
 
     def unload_path_tree(self):
         """

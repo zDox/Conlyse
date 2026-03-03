@@ -5,7 +5,7 @@ from pathlib import Path
 import zstandard as zstd
 
 from conflict_interface.logger_config import get_logger, setup_library_logger
-from conflict_interface.replay.replaysegment import ReplaySegment
+from conflict_interface.replay.replay_segment import ReplaySegment
 from paths import TEST_DATA
 
 logger = get_logger()

@@ -19,7 +19,7 @@ from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
-from conflict_interface.replay.replaysegment import ReplaySegment
+from conflict_interface.replay.replay_segment import ReplaySegment
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
 from conflict_interface.utils.exceptions import GameActivationException
@@ -66,10 +66,6 @@ class OnlineInterface(GameInterface):
                                 game_id = self.game_id,
                                 player_id = self.player_id,
                                 game_state = self.game_state)
-            self.replay.record_static_map_data(
-                                game_id = self.game_id,
-                                player_id = self.player_id,
-                                static_map_data = static_map_data)
         else:
             self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
             self.replay.open()

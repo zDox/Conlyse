@@ -104,12 +104,17 @@ class ReplayBuilder:
         self.replay_timeline.open()
         self.replay_timeline.last_time = current_timestamp
 
-        logger.debug("Recording static map data to replay")
-
-        if static_map_data is None:
-            logger.debug("No static map data provided; skipping static map recording")
         logger.info(f"Recording initial game state at {current_timestamp} (game time)")
-        self.replay_timeline.que_append_patch(version, to_time_stamp=current_timestamp,replay_patch=None, current_game_state=initial_state, static_map_data=static_map_data)
+        map_id: str | None = None
+        if static_map_data is not None and getattr(static_map_data, "map_id", None) is not None:
+            map_id = static_map_data.map_id
+        self.replay_timeline.que_append_patch(
+            version,
+            to_time_stamp=current_timestamp,
+            replay_patch=None,
+            current_game_state=initial_state,
+            map_id=map_id,
+        )
         self.replay_timeline.execute_append_que()
         self.replay_timeline.set_last_game_state(initial_state)
         self.replay_timeline.close()
