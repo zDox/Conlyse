@@ -147,6 +147,19 @@ class ReplayDatabase:
             """
         )
 
+        # Replay library table stores per-user references to completed game replays.
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS replay_library (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                game_id INTEGER NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                UNIQUE(user_id, game_id)
+            )
+            """
+        )
+
         self.conn.commit()
         
     def create_replay_entry(self, game_id: int, player_id: int, 

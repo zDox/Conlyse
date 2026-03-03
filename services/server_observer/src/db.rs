@@ -114,6 +114,13 @@ impl DbClient {
             &[&game_id],
         )
         .await?;
+        conn.execute(
+            "INSERT INTO replay_library (user_id, game_id, created_at) \
+             SELECT user_id, game_id, NOW() FROM recording_list WHERE game_id = $1 \
+             ON CONFLICT (user_id, game_id) DO NOTHING",
+            &[&game_id],
+        )
+        .await?;
         Ok(())
     }
 
