@@ -86,7 +86,7 @@ class ReplayDatabase:
                 player_id INTEGER NOT NULL,
                 replay_name VARCHAR(255) NOT NULL UNIQUE,
                 hot_storage_path TEXT,
-                cold_storage_path TEXT,
+                s3_key TEXT,
                 status VARCHAR(50) NOT NULL,
                 recording_start_time TIMESTAMP,
                 recording_end_time TIMESTAMP,
@@ -221,9 +221,13 @@ class ReplayDatabase:
         row = cursor.fetchone()
         return dict(row) if row else None
         
-    def update_replay_status(self, replay_id: int, status: ReplayStatus,
-                            recording_end_time: Optional[datetime] = None,
-                            cold_storage_path: Optional[str] = None):
+    def update_replay_status(
+        self,
+        replay_id: int,
+        status: ReplayStatus,
+        recording_end_time: Optional[datetime] = None,
+        s3_key: Optional[str] = None,
+    ):
         """
         Update the status of a replay.
         
@@ -231,39 +235,53 @@ class ReplayDatabase:
             replay_id: Database ID of the replay
             status: New status
             recording_end_time: When recording ended (optional)
-            cold_storage_path: Path in cold storage (optional)
+            s3_key: S3 object key in cold storage (optional)
         """
         cursor = self.conn.cursor()
         now = datetime.now()
         
-        if recording_end_time and cold_storage_path:
-            query = self._format_query("""
+        if recording_end_time and s3_key:
+            query = self._format_query(
+                """
                 UPDATE replays 
                 SET status = {}, recording_end_time = {}, 
-                    cold_storage_path = {}, updated_at = {}
+                    s3_key = {}, updated_at = {}
                 WHERE id = {}
-            """, 5)
-            cursor.execute(query, (status.value, recording_end_time, cold_storage_path, now, replay_id))
+            """,
+                5,
+            )
+            cursor.execute(
+                query, (status.value, recording_end_time, s3_key, now, replay_id)
+            )
         elif recording_end_time:
-            query = self._format_query("""
+            query = self._format_query(
+                """
                 UPDATE replays 
                 SET status = {}, recording_end_time = {}, updated_at = {}
                 WHERE id = {}
-            """, 4)
+            """,
+                4,
+            )
             cursor.execute(query, (status.value, recording_end_time, now, replay_id))
-        elif cold_storage_path:
-            query = self._format_query("""
+        elif s3_key:
+            query = self._format_query(
+                """
                 UPDATE replays 
-                SET status = {}, cold_storage_path = {}, updated_at = {}
+                SET status = {}, s3_key = {}, updated_at = {}
                 WHERE id = {}
-            """, 4)
-            cursor.execute(query, (status.value, cold_storage_path, now, replay_id))
+            """,
+                4,
+            )
+            cursor.execute(query, (status.value, s3_key, now, replay_id))
         else:
-            query = self._format_query("""
+            query = self._format_query(
+                """
                 UPDATE replays 
                 SET status = {}, updated_at = {}
                 WHERE id = {}
-            """, 3)
+            """,
+                3,
+            )
             cursor.execute(query, (status.value, now, replay_id))
         
         self.conn.commit()

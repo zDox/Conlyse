@@ -52,7 +52,7 @@ class ColdStorageManager:
             player_id: Player ID
             
         Returns:
-            S3 key/path if successful, None otherwise
+            S3 object key if successful, None otherwise
         """
         if not local_path.exists():
             logger.error(f"Local file not found: {local_path}")
@@ -64,10 +64,11 @@ class ColdStorageManager:
             self.s3_client.upload_file(
                 str(local_path),
                 self.bucket_name,
-                s3_key
+                s3_key,
             )
             logger.info(f"Uploaded replay to S3: {s3_key}")
-            return f"s3://{self.bucket_name}/{s3_key}"
+            # Only return the S3 object key; bucket name is configured separately.
+            return s3_key
         except Exception as e:
             logger.error(f"Failed to upload to S3: {e}")
             return None

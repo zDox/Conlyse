@@ -123,13 +123,15 @@ def upload_binary_to_s3(platform: str, version: str, file_data: bytes, filename:
 async def get_replay_url(db: AsyncSession, game_id: int, player_id: int) -> str:
     """Return a pre-signed URL for the replay file of *game_id*/*player_id*."""
     row = await db.execute(
-        text("SELECT cold_storage_path FROM replays WHERE game_id = :gid AND player_id = :pid"),
+        text(
+            "SELECT s3_key FROM replays WHERE game_id = :gid AND player_id = :pid"
+        ),
         {"gid": game_id, "pid": player_id},
     )
     record = row.mappings().first()
     if not record:
         raise LookupError(f"Replay not found for game_id={game_id}, player_id={player_id}")
-    return _generate_presigned_url(settings.MINIO_BUCKET_REPLAYS, record["cold_storage_path"])
+    return _generate_presigned_url(settings.MINIO_BUCKET_REPLAYS, record["s3_key"])
 
 
 async def get_analysis_url(db: AsyncSession, game_id: str, player_id: str) -> str:

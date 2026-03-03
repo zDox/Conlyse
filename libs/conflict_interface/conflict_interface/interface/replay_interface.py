@@ -34,6 +34,21 @@ LONG_PATCH_THRESHOLD = 10
 
 class ReplayInterface(GameInterface):
     def __init__(self, file_path: Path | str, static_map_data: dict[int, Path], player_id: int | None = None, game_id: int | None = None):
+        """
+        Initialize a replay-only game interface backed by a recorded replay file.
+
+        This does not open or parse the replay immediately. Call ``open()`` before
+        accessing timestamps or game state.
+
+        Args:
+            file_path: Path to the replay file produced by the recording/online interface.
+            static_map_data: Mapping from game version to the path of the corresponding
+                static map data file. The files are eagerly read and cached.
+            player_id: Optional player identifier to associate with this replay. If not
+                provided, it may be inferred from the replay metadata when opening.
+            game_id: Optional game identifier for the replay; used for metadata and
+                hook system initialization.
+        """
         super().__init__()
         self.current_time: datetime | None = None
         self.current_timestamp_index: int = 0

@@ -262,13 +262,15 @@ class ServerConverter:
                     f"game {game_id}, player {player_id}"
                 )
                 try:
-                    cold_storage_path = self.cold_storage.upload_replay(replay_path, game_id, player_id)
-                    if cold_storage_path:
-                        # Keep status as RECORDING but store/update cold_storage_path.
+                    s3_key = self.cold_storage.upload_replay(
+                        replay_path, game_id, player_id
+                    )
+                    if s3_key:
+                        # Keep status as RECORDING but store/update S3 key.
                         self.db.update_replay_status(
-                            replay_entry['id'],
+                            replay_entry["id"],
                             ReplayStatus.RECORDING,
-                            cold_storage_path=cold_storage_path,
+                            s3_key=s3_key,
                         )
                         metrics.cold_storage_uploads_total.labels(status='success').inc()
                     else:
@@ -339,13 +341,15 @@ class ServerConverter:
                     f"game {game_id}, player {player_id}"
                 )
                 try:
-                    cold_storage_path = self.cold_storage.upload_replay(replay_path, game_id, player_id)
-                    if cold_storage_path:
-                        # Keep status as RECORDING but store/update cold_storage_path.
+                    s3_key = self.cold_storage.upload_replay(
+                        replay_path, game_id, player_id
+                    )
+                    if s3_key:
+                        # Keep status as RECORDING but store/update S3 key.
                         self.db.update_replay_status(
-                            replay_entry['id'],
+                            replay_entry["id"],
                             ReplayStatus.RECORDING,
-                            cold_storage_path=cold_storage_path,
+                            s3_key=s3_key,
                         )
                         metrics.cold_storage_uploads_total.labels(status='success').inc()
                     else:
@@ -403,20 +407,22 @@ class ServerConverter:
         recording_end_time = datetime.now()
 
         # Move to cold storage if enabled
-        cold_storage_path = None
+        s3_key = None
         if self.cold_storage:
             logger.info(f"Moving replay to cold storage: game {game_id}, player {player_id}")
             try:
-                cold_storage_path = self.cold_storage.upload_replay(replay_path, game_id, player_id)
+                s3_key = self.cold_storage.upload_replay(
+                    replay_path, game_id, player_id
+                )
 
-                if cold_storage_path:
+                if s3_key:
                     # Delete from hot storage after successful upload
                     self.hot_storage.delete_replay(game_id, player_id)
                     metrics.hot_storage_replays.dec()
-                    metrics.cold_storage_uploads_total.labels(status='success').inc()
+                    metrics.cold_storage_uploads_total.labels(status="success").inc()
                 else:
-                    metrics.cold_storage_uploads_total.labels(status='error').inc()
-                    metrics.errors_total.labels(error_type='storage').inc()
+                    metrics.cold_storage_uploads_total.labels(status="error").inc()
+                    metrics.errors_total.labels(error_type="storage").inc()
 
             except Exception as e:
                 logger.error(f"Failed to upload to cold storage: {e}", exc_info=True)
@@ -424,12 +430,12 @@ class ServerConverter:
                 metrics.errors_total.labels(error_type='storage').inc()
 
         # Update database
-        status = ReplayStatus.ARCHIVED if cold_storage_path else ReplayStatus.COMPLETED
+        status = ReplayStatus.ARCHIVED if s3_key else ReplayStatus.COMPLETED
         self.db.update_replay_status(
-            replay_entry['id'],
+            replay_entry["id"],
             status,
             recording_end_time=recording_end_time,
-            cold_storage_path=cold_storage_path
+            s3_key=s3_key,
         )
 
         try:

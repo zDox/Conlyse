@@ -131,7 +131,7 @@ async def test_get_replay_url_not_found(db_session: AsyncSession) -> None:
 async def test_get_replay_url_success(db_session: AsyncSession) -> None:
     await db_session.execute(
         text(
-            "INSERT INTO replays (game_id, player_id, cold_storage_path) "
+            "INSERT INTO replays (game_id, player_id, s3_key) "
             "VALUES (:gid, :pid, :path)"
         ),
         {"gid": 1, "pid": 1, "path": "replays/game1/player1/replay.bin"},

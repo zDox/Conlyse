@@ -35,7 +35,7 @@ async def db_engine():
                 player_id INTEGER NOT NULL,
                 replay_name TEXT,
                 hot_storage_path TEXT,
-                cold_storage_path TEXT,
+                s3_key TEXT,
                 s3_analysis_path TEXT,
                 status TEXT,
                 recording_start_time TEXT,

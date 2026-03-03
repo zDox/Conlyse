@@ -142,7 +142,7 @@ CREATE TABLE replays (
     player_id INTEGER NOT NULL,
     replay_name VARCHAR(255) NOT NULL UNIQUE,
     hot_storage_path TEXT,
-    cold_storage_path TEXT,
+    s3_key TEXT,
     status VARCHAR(50) NOT NULL,  -- 'recording', 'completed', 'archived'
     recording_start_time TIMESTAMP,
     recording_end_time TIMESTAMP,
