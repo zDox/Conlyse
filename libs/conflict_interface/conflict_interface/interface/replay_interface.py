@@ -58,8 +58,9 @@ class ReplayInterface(GameInterface):
 
         self._file_path: Path = Path(file_path)
         self._replay: ReplayTimeline | None = None
-        self._hook_system: ReplayHookSystem | None = None
+        self._hook_systems: dict[int, ReplayHookSystem] = {}
         self._current_segment: ReplaySegment | None = None
+        self._current_hook_system: ReplayHookSystem | None = None
 
         # Mapping from map_id -> path to static map data.
         self._static_map_paths: dict[str, Path] = {k: Path(v) for k, v in (static_map_data or {}).items()}
@@ -67,6 +68,7 @@ class ReplayInterface(GameInterface):
         self._static_map_cache: dict[str, object] = {}
 
         self._is_open: bool = False
+        self.game_state = None
 
 
 
@@ -94,9 +96,7 @@ class ReplayInterface(GameInterface):
             logger.debug("Metadata-only replay open completed successfully")
             return True
 
-        # Full replay mode
-        self._replay.set_game(self)
-        self._hook_system = ReplayHookSystem(self._replay)
+
 
         # Attach static map data per segment based on map_id stored in metadata.
         for _, segment in self._replay.segments.items():
@@ -134,6 +134,9 @@ class ReplayInterface(GameInterface):
         self.current_time = first_segment.get_start_time()
 
         self._is_open = True
+
+        self.register_hook_systems()
+        self._current_hook_system = self._hook_systems[self._current_segment.version]
         logger.debug("Initialization Completed Successfully")
         return True
 
@@ -251,6 +254,10 @@ class ReplayInterface(GameInterface):
         metas = self.get_segments_metadata()
         return sum(m.current_patches for m in metas.values())
 
+    def register_hook_systems(self):
+        for segment in self._replay.segments:
+            self._hook_systems[segment.version] = ReplayHookSystem(segment)
+
     def jump_to(self, time_stamp: datetime, create_long_patches = True) -> None:
         """
         Jumps to the specified timestamp in the replay.
@@ -271,8 +278,10 @@ class ReplayInterface(GameInterface):
 
         if correct_segment.get_last_time() != self._current_segment.get_last_time(): # TODO bettter comparison should be some sort of !=
             self.game_state = correct_segment.storage.initial_game_state
-            self._hook_system.add_segment_switch_event()
             self._current_segment = correct_segment
+            self._current_hook_system = self._hook_systems[self._current_segment.version]
+            self._current_hook_system.add_segment_switch_event()
+
             patches = self._current_segment.storage.patch_graph.find_patch_path(self._current_segment.get_start_time(),
                                                                                 time_stamp)
         else:
@@ -304,7 +313,7 @@ class ReplayInterface(GameInterface):
         #self._update_player_id()
 
         if hasattr(self, '_hook_system'):
-            self._hook_system.execute_queue()
+            self._current_hook_system.execute_queue()
 
     def jump_to_next_patch(self) -> bool:
         """
@@ -441,10 +450,10 @@ class ReplayInterface(GameInterface):
     Hook System
     """
     def get_hook_system(self) -> ReplayHookSystem:
-        return self._hook_system
+        return self._current_hook_system
 
     def poll_events(self) -> dict[ReplayHookTag, list[ReplayHookEvent]]:
-        events = self._hook_system.poll_events()
+        events = self._current_hook_system.poll_events()
         grouped_events = {}
         for event in events:
             if event.tag not in grouped_events:
@@ -453,18 +462,21 @@ class ReplayInterface(GameInterface):
         return grouped_events
 
     def unregister_all_hooks(self):
-        self._hook_system.unregister_all_hooks()
+        for hs in self._hook_systems.values():
+            hs.unregister_all_hooks()
 
     def register_province_trigger(self, attributes: list[str]):
         path = ["states", "map_state", "map", "locations"]
-        self._hook_system.register_event_trigger(
-            tag=ReplayHookTag.ProvinceChanged,
-            path=path,
-            attributes=attributes
-        )
+        for hs in self._hook_systems.values():
+            hs.register_event_trigger(
+                tag=ReplayHookTag.ProvinceChanged,
+                path=path,
+                attributes=attributes
+            )
     def unregister_province_trigger(self):
         path = ["states", "map_state", "map", "locations"]
-        self._hook_system.unregister_event_trigger(path)
+        for hs in self._hook_systems.values():
+            hs.unregister_event_trigger(path)
 
     def on_province_attribute_change(self, callback: Callable[[LandProvince, dict], None], attributes: list[str]) -> None:
         """
@@ -490,58 +502,77 @@ class ReplayInterface(GameInterface):
             attributes=attributes,
             path=path_idx
         )
-        self._hook_system.register_hook(hook)
+
+        for hs in self._hook_systems.values():
+            hs.register_hook(hook)
 
     def remove_province_attribute_change_callback(self, callback: Callable[[LandProvince, dict], None]) -> None:
         """Remove a previously registered province attribute change hook."""
 
         path = ["states", "map_state", "map", "locations"]
         path_idx = self._current_segment.storage.path_tree.path_list_to_idx(path)
-        self._hook_system.unregister_hook(path_idx, callback)
+        for hs in self._hook_systems.values():
+            hs.unregister_hook(path_idx, callback)
 
     def register_player_trigger(self, attributes: list[str] | None = None):
         path = ["states", "player_state", "players"]
-        self._hook_system.register_event_trigger(
-            tag=ReplayHookTag.PlayerChanged,
-            path=path,
-            attributes=attributes
-        )
+
+        for hs in self._hook_systems.values():
+            hs.register_event_trigger(
+                tag=ReplayHookTag.PlayerChanged,
+                path=path,
+                attributes=attributes
+            )
     def unregister_player_trigger(self):
         path = ["states", "player_state", "players"]
-        self._hook_system.unregister_event_trigger(path)
+
+        for hs in self._hook_systems.values():
+            hs.unregister_event_trigger(path)
 
     def register_team_trigger(self, attributes: list[str] | None = None):
         path = ["states", "player_state", "teams"]
-        self._hook_system.register_event_trigger(
-            tag=ReplayHookTag.TeamChanged,
-            path=path,
-            attributes=attributes
-        )
+
+        for hs in self._hook_systems.values():
+            hs.register_event_trigger(
+                tag=ReplayHookTag.TeamChanged,
+                path=path,
+                attributes=attributes
+            )
 
     def unregister_team_trigger(self):
         path = ["states", "player_state", "teams"]
-        self._hook_system.unregister_event_trigger(path)
+
+        for hs in self._hook_systems.values():
+            hs.unregister_event_trigger(path)
 
     def register_army_trigger(self, attributes: list[str] | None = None):
         path = ["states", "army_state", "armies"]
-        self._hook_system.register_event_trigger(
-            tag=ReplayHookTag.ArmyChanged,
-            path=path,
-            attributes=attributes
-        )
+
+        for hs in self._hook_systems.values():
+            hs.register_event_trigger(
+                tag=ReplayHookTag.ArmyChanged,
+                path=path,
+                attributes=attributes
+            )
 
     def unregister_army_trigger(self):
         path = ["states", "army_state", "armies"]
-        self._hook_system.unregister_event_trigger(path)
+
+        for hs in self._hook_systems.values():
+            hs.unregister_event_trigger(path)
 
     def register_game_info_trigger(self, attributes: list[str] | None = None):
         path = ["states", "game_info_state"]
-        self._hook_system.register_event_trigger(
-            tag=ReplayHookTag.GameInfoChanged,
-            path=path,
-            attributes=attributes
-        )
+
+        for hs in self._hook_systems.values():
+            hs.register_event_trigger(
+                tag=ReplayHookTag.GameInfoChanged,
+                path=path,
+                attributes=attributes
+            )
 
     def unregister_game_info_trigger(self):
         path = ["states", "game_info_state"]
-        self._hook_system.unregister_event_trigger(path)
+
+        for hs in self._hook_systems.values():
+            hs.unregister_event_trigger(path)

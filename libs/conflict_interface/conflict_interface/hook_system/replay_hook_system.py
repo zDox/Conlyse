@@ -12,7 +12,6 @@ from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 from conflict_interface.replay.constants import ADD_OPERATION
 from conflict_interface.replay.constants import REMOVE_OPERATION
 from conflict_interface.replay.constants import REPLACE_OPERATION
-from conflict_interface.replay.replay_timeline import ReplayTimeline
 
 if TYPE_CHECKING:
     from conflict_interface.replay.replay_segment import ReplaySegment
@@ -21,12 +20,12 @@ logger = getLogger()
 
 
 class ReplayHookSystem:
-    def __init__(self, replay: ReplayTimeline):
+    def __init__(self, replay: ReplaySegment):
         self._tags = set()  # Set of all registered hook tags
         self._hooks: dict[int, list[ReplayHook]] = {}  # Listening to Path -> list of Hooks
         self._hook_queue: dict[int, list[ReplayHookQueueElement]] = {}
         self._hook_events: list[ReplayHookEvent] = []
-        self.replay: ReplayTimeline  = replay
+        self.replay: ReplaySegment  = replay
 
     def register_hook(self, replay_hook: ReplayHook):
         if replay_hook.path in self._hooks:
