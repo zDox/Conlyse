@@ -443,7 +443,6 @@ class JsonParser:
         return None
 
     def _match_dict_type(self, json_obj: dict, possible_type: TypeGraphNode) -> TypeGraphNode | None:
-
         """Match dict types with optional @c discriminator or structural checks."""
         # Check for explicit type discriminator
         if "@c" in json_obj:

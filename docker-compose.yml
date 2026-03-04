@@ -109,9 +109,7 @@ services:
 
   # Conlyse API - FastAPI service for downloads & authentication
   api:
-    build:
-      context: ./services/api
-      dockerfile: Dockerfile
+    image: ghcr.io/zdox/conflict-api:latest
     container_name: conflict-api
     depends_on:
       postgres:
@@ -165,6 +163,56 @@ services:
     restart: unless-stopped
     security_opt:
       - label=disable
+  traefik:
+    image: traefik
+    container_name: traefik
+    command:
+      
+      - "--api.insecure=true"                     # optional dashboard
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=zdox@artixus.de"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt:/letsencrypt"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.artixus.de`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=myresolver"
+      - "traefik.http.routers.prometheus.middlewares=prometheus-auth"
+      - "traefik.http.middlewares.prometheus-auth.basicauth.users=${PROMETHEUS_USER}:${PROMETHEUS_PASSWORD_HASH}"
+    restart: unless-stopped
+
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SERVER_ROOT_URL=https://grafana.artixus.de
+    volumes:
+      - grafana_data:/var/lib/grafana
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.artixus.de`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=myresolver"
+    restart: unless-stopped
 
 volumes:
   postgres-data:
@@ -178,6 +226,12 @@ volumes:
   observer-long-term-storage:
     driver: local
   converter-hot-storage:
+    driver: local
+  grafana_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  letsencrypt:
     driver: local
 
 networks:

@@ -27,7 +27,7 @@ from conflict_interface.replay.replay_timeline import ReplayTimeline
 from conflict_interface.replay.replay_segment import ReplaySegment
 
 if TYPE_CHECKING:
-    from conflict_interface.data_types.newest.map_state.province import Province
+    from conflict_interface.data_types.newest.map_state.land_province import LandProvince
 
 logger = get_logger()
 
@@ -466,7 +466,7 @@ class ReplayInterface(GameInterface):
         path = ["states", "map_state", "map", "locations"]
         self._hook_system.unregister_event_trigger(path)
 
-    def on_province_attribute_change(self, callback: Callable[[Province, dict], None], attributes: list[str]) -> None:
+    def on_province_attribute_change(self, callback: Callable[[LandProvince, dict], None], attributes: list[str]) -> None:
         """
         Register a callback for when an attribute of a province changes.
 
@@ -492,7 +492,7 @@ class ReplayInterface(GameInterface):
         )
         self._hook_system.register_hook(hook)
 
-    def remove_province_attribute_change_callback(self, callback: Callable[[Province, dict], None]) -> None:
+    def remove_province_attribute_change_callback(self, callback: Callable[[LandProvince, dict], None]) -> None:
         """Remove a previously registered province attribute change hook."""
 
         path = ["states", "map_state", "map", "locations"]

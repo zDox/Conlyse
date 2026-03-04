@@ -1,6 +1,6 @@
 import mapbox_earcut as earcut
 import numpy as np
-from conflict_interface.data_types.newest.map_state.static_province import StaticProvince
+from conflict_interface.data_types.newest.map_state.province import Province
 
 from conlyse.logger import get_logger
 from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import BufferUsageType
@@ -9,7 +9,7 @@ from conlyse.pages.map_page.opengl_wrapper.vertex_buffer_object import VertexBuf
 logger = get_logger()
 
 
-def prepare_provinces(locations: list[StaticProvince]):
+def prepare_provinces(locations: list[Province]):
     """
     Prepare VBO data for provinces
     Returns:
@@ -20,7 +20,7 @@ def prepare_provinces(locations: list[StaticProvince]):
     province_color_index_data = []
     max_province_id = 0
     for location in locations:
-        # random color for province
+        # random color for a province
         color_index = location.id
         max_province_id = max(max_province_id, color_index)
         border_points = location.borders
@@ -61,7 +61,7 @@ def prepare_provinces(locations: list[StaticProvince]):
     return vertex_data, province_color_index_data, max_province_id
 
 class ProvinceMesh:
-    def __init__(self, locations: list[StaticProvince]):
+    def __init__(self, locations: list[Province]):
         self._vertex_data, self._province_color_index_data, self.max_province_id = prepare_provinces(locations)
         self.vertex_vbo = None
         self.province_color_index_vbo = None

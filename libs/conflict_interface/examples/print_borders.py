@@ -17,5 +17,5 @@ if __name__ == "__main__":
     pprint(f"Joining new game:  {game_id}")
     game = interface.join_game(game_id)
 
-    print(list(game.get_my_provinces().values())[0].static_data.borders)
+    print(list(game.get_my_provinces().values())[0].borders)
     print(game.game_state.states.map_state.map.get_connections()[0: 100])

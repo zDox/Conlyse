@@ -3,7 +3,7 @@
 from collections import defaultdict
 
 from conflict_interface.data_types.newest.map_state.map_state_enums import ResourceProductionType
-from conflict_interface.data_types.newest.map_state.province import Province
+from conflict_interface.data_types.newest.map_state.land_province import LandProvince
 from conflict_interface.data_types.newest.map_state.sea_province import SeaProvince
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 
@@ -117,7 +117,7 @@ class ResourceView(MapView):
             r, g, b = interpolate_color(min_color, max_color, factor)
             self.color_data[pid] = (r, g, b, 255)
 
-    def _recolor_single_province(self, province: Province):
+    def _recolor_single_province(self, province: LandProvince):
         rt = province.resource_production_type
         min_color, max_color = RESOURCE_PRODUCTION_COLOR_RANGE.get(rt,
             RESOURCE_PRODUCTION_COLOR_RANGE[ResourceProductionType.NONE])
@@ -131,7 +131,7 @@ class ResourceView(MapView):
     def update_provinces(self, events: list[ReplayHookEvent]):
         resource_type_rebuild_needed = set()
         for event in events:
-            province: Province = event.reference
+            province: LandProvince = event.reference
             changed_attributes: dict = event.attributes
 
             if "resource_production" not in changed_attributes:
