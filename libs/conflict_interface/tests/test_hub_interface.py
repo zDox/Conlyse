@@ -15,10 +15,7 @@ class HubInterfaceTests(unittest.TestCase):
 
         # Create a shared interface instance and log in once for all non-login tests
         # Reason: Rate limiting of number of logins
-        cls.shared_interface = HubInterface({
-            "http": cls.proxy_url,
-            "https": cls.proxy_url,
-        })
+        cls.shared_interface = HubInterface()
         cls.shared_interface.login(cls.username, cls.password)
 
     # Login tests created their own HubInterface in order to properly reset it
