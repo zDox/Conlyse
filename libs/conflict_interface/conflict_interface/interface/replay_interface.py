@@ -233,6 +233,13 @@ class ReplayInterface(GameInterface):
         assert self._replay is not None, "Replay is not open"
         return self._replay.get_segments_metadata()
 
+    def get_timeline_metadata(self):
+        """
+        Return the timeline-level metadata for this replay, if available.
+        """
+        assert self._replay is not None, "Replay is not open"
+        return self._replay.get_timeline_metadata()
+
     def get_required_map_ids(self) -> set[str]:
         """
         Return the set of all map_ids referenced by segments in this replay.

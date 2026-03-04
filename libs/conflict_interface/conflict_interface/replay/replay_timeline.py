@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import pickle
 import struct
 from datetime import UTC
 from datetime import datetime
@@ -15,12 +14,12 @@ from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_segment import ReplaySegment
+from conflict_interface.replay.metadata import TimelineMetadata
 from conflict_interface.utils.helper import dt_to_ns
 from conflict_interface.utils.helper import ns_to_dt
 
 if TYPE_CHECKING:
     from conflict_interface.data_types.newest.game_state.game_state import GameState
-    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 DEFAULT_MAX_PATCHES = 10000
 MAX_STATIC_MAP_DATA_SIZE = 1024 * 1024 * 10 # 10 Mb
@@ -28,7 +27,8 @@ MAX_STATIC_MAP_DATA_SIZE = 1024 * 1024 * 10 # 10 Mb
 logger = get_logger()
 
 _MAGIC = b"RPLYZSTD"
-_VERSION = 1
+_VERSION = 2
+
 
 class ReplayTimeline:
     def __init__(self,file_path: Path, mode: Literal['r', 'a', 'read_metadata'] = 'r', game_id = None, player_id= None):
@@ -47,6 +47,7 @@ class ReplayTimeline:
         self.decompressor = zstd.ZstdDecompressor()
 
         self.last_time: datetime | None = None
+        self.timeline_metadata: TimelineMetadata | None = None
 
     def read_from_disk(self):
         assert not self._open, "Reading to a Open Timeline is not Supported"
@@ -64,6 +65,14 @@ class ReplayTimeline:
                         raise EOFError("Unexpected end of file while reading replay")
                     return data
 
+                def read_or_none(n: int) -> bytes | None:
+                    data = reader.read(n)
+                    if not data:
+                        return None
+                    if len(data) != n:
+                        raise EOFError("Unexpected end of file while reading replay")
+                    return data
+
                 # ---- file header ----
                 magic = read_exact(len(_MAGIC))
                 if magic != _MAGIC:
@@ -73,13 +82,18 @@ class ReplayTimeline:
                 if version != _VERSION:
                     raise ValueError(f"Unsupported file version: {version}")
 
-                (count,) = struct.unpack("<Q", read_exact(8))
+                # Per-timeline metadata header
+                meta_bytes = read_exact(TimelineMetadata.size)
+                self.timeline_metadata = TimelineMetadata.deserialize(meta_bytes)
 
                 # ---- segments ----
-                for _ in range(count):
-                    start_ns, end_ns, seg_version, size = struct.unpack(
-                        "<qqiQ", read_exact(struct.calcsize("<qqiQ"))
-                    )
+                header_size = struct.calcsize("<qqiQ")
+                while True:
+                    header = read_or_none(header_size)
+                    if header is None:
+                        break
+
+                    start_ns, end_ns, seg_version, size = struct.unpack("<qqiQ", header)
 
                     payload = bytearray(read_exact(size))
 
@@ -106,12 +120,29 @@ class ReplayTimeline:
         # Ensure structural invariants before persisting.
         self._validate_segments_non_overlapping()
 
+        # Ensure we have timeline metadata populated
+        if self.timeline_metadata is None:
+            self.timeline_metadata = TimelineMetadata(
+                game_ended=False,
+                start_of_game=0,
+                end_of_game=0,
+                game_id=int(self.game_id) if self.game_id is not None else 0,
+                player_id=int(self.player_id) if self.player_id is not None else 0,
+                scenario_id=0,
+                day_of_game=0,
+                speed=0,
+                segment_count=len(ordered_items),
+            )
+        else:
+            # Keep segment_count in sync with current segments
+            self.timeline_metadata.segment_count = len(ordered_items)
+
         with open(self.file_path, "wb") as raw:
             with cctx.stream_writer(raw) as compressor:
                 # ---- file header ----
                 compressor.write(_MAGIC)  # magic
                 compressor.write(struct.pack("<I", _VERSION))  # version
-                compressor.write(struct.pack("<Q", len(ordered_items)))
+                compressor.write(self.timeline_metadata.serialize())
 
                 # ---- segments ----
                 for (start, end), segment in ordered_items:
@@ -186,6 +217,70 @@ class ReplayTimeline:
         if key_segment is None: return None
         key, segment = key_segment
         return segment.get_last_game_state()
+
+    def set_metadata(
+        self,
+        game_ended: bool,
+        start_of_game: datetime | None,
+        end_of_game: datetime | None,
+        scenario_id: int,
+        day_of_game: int | None,
+        speed: int,
+    ) -> None:
+        """
+        Set or update the timeline-level metadata for this replay.
+
+        Times are stored as Unix seconds; missing values are encoded as 0.
+        """
+        def to_unix_seconds(dt: datetime | None) -> int:
+            if dt is None:
+                return 0
+            return int(dt.timestamp())
+
+        start_ts = to_unix_seconds(start_of_game)
+        end_ts = to_unix_seconds(end_of_game)
+        game_id = int(self.game_id) if self.game_id is not None else 0
+        player_id = int(self.player_id) if self.player_id is not None else 0
+
+        if day_of_game is None:
+            day_of_game_int = 0
+        else:
+            day_of_game_int = int(day_of_game)
+
+        segment_count = len(self.segments)
+
+        self.timeline_metadata = TimelineMetadata(
+            game_ended=bool(game_ended),
+            start_of_game=start_ts,
+            end_of_game=end_ts,
+            game_id=game_id,
+            player_id=player_id,
+            scenario_id=int(scenario_id),
+            day_of_game=day_of_game_int,
+            speed=int(speed),
+            segment_count=segment_count,
+        )
+
+    def set_day_of_game(self, day_of_game: int) -> None:
+        """
+        Update only the day_of_game field in the timeline metadata.
+        """
+        if self.timeline_metadata is None:
+            game_id = int(self.game_id) if self.game_id is not None else 0
+            player_id = int(self.player_id) if self.player_id is not None else 0
+            self.timeline_metadata = TimelineMetadata(
+                game_ended=False,
+                start_of_game=0,
+                end_of_game=0,
+                game_id=game_id,
+                player_id=player_id,
+                scenario_id=0,
+                day_of_game=int(day_of_game),
+                speed=0,
+                segment_count=len(self.segments),
+            )
+        else:
+            self.timeline_metadata.day_of_game = int(day_of_game)
 
     def que_append_patch(self, version :int, to_time_stamp: datetime, replay_patch: BidirectionalReplayPatch | None, current_game_state: GameState | None = None, map_id: str | None = None):
         assert self._mode == "a"
@@ -386,6 +481,13 @@ class ReplayTimeline:
             if segment.storage.metadata is not None:
                 result[key] = segment.storage.metadata
         return result
+
+    def get_timeline_metadata(self) -> TimelineMetadata | None:
+        """
+        Return the timeline-level metadata for this replay, if available.
+        """
+        return self.timeline_metadata
+
 
     @staticmethod
     def read_static_map_data(version, path):

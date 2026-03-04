@@ -286,6 +286,48 @@ Replay segment payloads managed by `ReplayStorage` use a chunked binary format w
 
 Static map data is no longer embedded inside replay segments. Instead, each segment's metadata stores a `map_id: str` that can be used to look up `StaticMapData` externally.
 
+### ReplayTimeline file header
+
+Replay files written by `ReplayTimeline` (version 2) are zstd-compressed and have the following header before the per-segment records:
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│ Magic            8 bytes   ASCII "RPLYZSTD"                   │
+├───────────────────────────────────────────────────────────────┤
+│ Version          4 bytes   little-endian uint32 (currently 2)│
+├───────────────────────────────────────────────────────────────┤
+│ TimelineMetadata N bytes   fixed-size struct, see below      │
+├───────────────────────────────────────────────────────────────┤
+│ Segments         ...       repeated segment records          │
+└───────────────────────────────────────────────────────────────┘
+```
+
+The `TimelineMetadata` struct is a fixed-size little-endian layout:
+
+```text
+bool   game_ended
+int32  start_of_game   # Unix seconds, 0 if unknown
+int32  end_of_game     # Unix seconds, 0 if unknown
+int32  game_id
+int32  player_id
+int32  scenario_id
+int32  day_of_game
+int32  speed           # integer speed multiplier (e.g. 1, 2, 4)
+int32  segment_count   # number of segments in this file
+```
+
+After the header, each segment is stored as:
+
+```text
+int64 start_ns    # nanoseconds since epoch
+int64 end_ns      # nanoseconds since epoch (can be equal to start_ns)
+int32 version     # datatype version for this segment
+uint64 size       # number of bytes in the following payload
+bytes payload     # raw segment data managed by ReplayStorage
+```
+
+Note that there is **no separate segment-count field in the header** anymore; the total number of segments is stored inside `TimelineMetadata.segment_count`.
+
 ### Patch Serialization
 
 Individual patches use a columnar storage format for efficiency:

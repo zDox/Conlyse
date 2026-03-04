@@ -118,14 +118,18 @@ class ReplayManager:
             minutes = (total_seconds % 3600) // 60
             length_str = f"{hours}h {minutes}m"
 
-        # Approximate in-game day as days since start, starting from Day 1.
-        day = (duration.days + 1) if duration.days >= 0 else 1
+        timeline_meta = ritf.get_timeline_metadata()
 
-        # Determine status based on fragmentation/open-ended segments.
-        segments_meta = ritf.get_segments_metadata()
-        has_open_segment = any(end is None for (start, end) in segments_meta.keys())
-        is_fragmented = any(m.is_fragmented for m in segments_meta.values())
-        status = "Running" if has_open_segment or is_fragmented else "Ended"
+        # Day of game from metadata (fallback to 1 if invalid).
+        day = timeline_meta.day_of_game if timeline_meta.day_of_game > 0 else 1
+        # Status from game_ended flag.
+        status = "Ended" if timeline_meta.game_ended else "Running"
+        speed = timeline_meta.speed
+        scenario_id = timeline_meta.scenario_id
+        segment_count = timeline_meta.segment_count
+        # Prefer metadata game_id when present.
+        meta_game_id: int | str = timeline_meta.game_id if timeline_meta.game_id != 0 else (game_id if game_id is not None else "Unknown")
+    
 
         # Map IDs and patch count for potential detailed views.
         required_map_ids = sorted(ritf.get_required_map_ids())
@@ -138,7 +142,7 @@ class ReplayManager:
             file_size = -1
 
         metadata: dict = {
-            "game_id": game_id if game_id is not None else "Unknown",
+            "game_id": meta_game_id,
             "status": status,
             "game_mode": "Unknown",
             "length": length_str,
@@ -148,6 +152,9 @@ class ReplayManager:
             "total_patches": total_patches,
             "map_ids": required_map_ids,
             "file_size_bytes": file_size,
+            "speed": speed,
+            "scenario_id": scenario_id,
+            "segment_count": segment_count,
         }
         return metadata
 

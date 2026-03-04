@@ -115,6 +115,19 @@ class ReplayBuilder:
         )
         self.replay_timeline.execute_append_que()
         self.replay_timeline.set_last_game_state(initial_state)
+
+        # Initialize timeline-level metadata from the initial GameInfoState
+        game_info = initial_state.states.game_info_state
+        speed_int = int(round(1 / game_info.time_scale)) if game_info.time_scale else 0
+        self.replay_timeline.set_metadata(
+            game_ended=False,
+            start_of_game=game_info.start_of_game,
+            end_of_game=game_info.end_of_game,
+            scenario_id=game_info.scenario_id,
+            day_of_game=game_info.day_of_game,
+            speed=speed_int,
+        )
+
         self.replay_timeline.close()
         # Clear game references and update replay's last state
         self.created = True
@@ -141,6 +154,9 @@ class ReplayBuilder:
         if current_state is None:
             self.replay_timeline.close()
             raise ValueError("No last game state found in replay")
+
+        # Track latest GameInfoState for timeline metadata
+        latest_game_info = current_state.states.game_info_state
 
         # Process JSON responses
         num_responses = len(json_responses)
@@ -181,6 +197,8 @@ class ReplayBuilder:
             if json_response["full"]:
                 current_state = new_state
 
+            latest_game_info = new_state.states.game_info_state
+
             # Record patch to replay
             self.replay_timeline.que_append_patch(
                 version=meta.client_version,
@@ -194,6 +212,11 @@ class ReplayBuilder:
         logger.debug("Finalizing replay...")
         self.replay_timeline.execute_append_que()
         self.replay_timeline.set_last_game_state(current_state)
+        if latest_game_info is not None:
+            self.replay_timeline.set_day_of_game(
+                latest_game_info.day_of_game
+            )
+
         self.replay_timeline.close()
 
         logger.debug(f"Successfully appended to replay: {self.path}")

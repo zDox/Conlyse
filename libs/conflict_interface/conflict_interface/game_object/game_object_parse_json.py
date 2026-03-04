@@ -246,7 +246,6 @@ class JsonParser:
 
     def parse_any(self, cls: Any, json_obj: dict | list | int | str, game: GameInterface = None):
         if cls not in self.type_graph.type_to_node:
-            logger.warning(f"Trying to parse a type that is not used in any dataclass {cls}")
             self.type_graph.add_new_type_branch(cls)
 
         return self._parse_any(json_obj, [self.type_graph.type_to_node[cls]], game = game)

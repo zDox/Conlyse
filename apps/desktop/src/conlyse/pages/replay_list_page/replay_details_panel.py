@@ -173,6 +173,11 @@ class ReplayDetailsPanel(QWidget):
         file_size_bytes = meta.get("file_size_bytes", -1)
         start_time = meta.get("start_time")
         started_str = start_time.isoformat(sep=" ", timespec="seconds") if start_time is not None else "Unknown"
+        speed = meta.get("speed")
+        if isinstance(speed, int) and speed > 0:
+            speed_str = f"{speed}x"
+        else:
+            speed_str = "Unknown"
 
         # Row 0
         self._add_info_field(grid, 0, 0, "mdi6.gamepad-square", "Game ID", f"{game_id}")
@@ -183,7 +188,7 @@ class ReplayDetailsPanel(QWidget):
         self._add_info_field(grid, 1, 1, "ei.calendar", "Game Day", f"Day {day}")
 
         # Row 2
-        self._add_info_field(grid, 2, 0, "mdi.speedometer", "Game Speed", "-1")
+        self._add_info_field(grid, 2, 0, "mdi.speedometer", "Game Speed", speed_str)
         self._add_info_field(grid, 2, 1, "ei.map-marker", "Player Country", "-1")
 
         # Row 3
