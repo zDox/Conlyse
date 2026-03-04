@@ -7,10 +7,6 @@ on:
     paths:
       - 'services/api/**'
       - '.github/workflows/api-docker.yml'
-  pull_request:
-    paths:
-      - 'services/api/**'
-      - '.github/workflows/api-docker.yml'
   workflow_dispatch:
 
 permissions:

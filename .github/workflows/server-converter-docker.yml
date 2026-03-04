@@ -8,11 +8,6 @@ on:
       - 'services/server_converter/**'
       - 'libs/conflict_interface/**'
       - '.github/workflows/server-converter-docker.yml'
-  pull_request:
-    paths:
-      - 'services/server_converter/**'
-      - 'libs/conflict_interface/**'
-      - '.github/workflows/server-converter-docker.yml'
   workflow_dispatch:
 
 permissions:
