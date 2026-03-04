@@ -147,7 +147,6 @@ class ReplayBuilder:
             self.replay_timeline.open()
         self.replay_timeline.set_mode("a")
         self.replay_timeline.open()
-        self.replay_timeline.execute_append_que()
 
         current_state = self.replay_timeline.get_last_game_state()
 
