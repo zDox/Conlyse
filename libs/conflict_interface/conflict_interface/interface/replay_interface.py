@@ -255,7 +255,7 @@ class ReplayInterface(GameInterface):
         return sum(m.current_patches for m in metas.values())
 
     def register_hook_systems(self):
-        for segment in self._replay.segments:
+        for segment in self._replay.segments.values():
             self._hook_systems[segment.version] = ReplayHookSystem(segment)
 
     def jump_to(self, time_stamp: datetime, create_long_patches = True) -> None:
