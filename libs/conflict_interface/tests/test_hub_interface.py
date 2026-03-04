@@ -15,24 +15,27 @@ class HubInterfaceTests(unittest.TestCase):
 
         # Create a shared interface instance and log in once for all non-login tests
         # Reason: Rate limiting of number of logins
-        cls.shared_interface = HubInterface(VERSION)
+        cls.shared_interface = HubInterface({
+            "http": cls.proxy_url,
+            "https": cls.proxy_url,
+        })
         cls.shared_interface.login(cls.username, cls.password)
 
     # Login tests created their own HubInterface in order to properly reset it
     def test_login_success(self):
-        interface = HubInterface(VERSION)
+        interface = HubInterface()
         try:
             interface.login(self.username, self.password)
         except Exception as e:
             self.fail(f"Login raised an exception unexpectedly: {e}")
 
     def test_login_with_username_failure(self):
-        interface = HubInterface(VERSION)
+        interface = HubInterface()
         with self.assertRaises(AuthenticationException):
             interface.login(random_prefix + self.username, self.password)
 
     def test_login_with_password_failure(self):
-        interface = HubInterface(VERSION)
+        interface = HubInterface()
         with self.assertRaises(AuthenticationException):
             interface.login(self.username, random_prefix + self.password)
 
