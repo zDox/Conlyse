@@ -36,7 +36,7 @@ This approach:
 The easiest way to run the server converter is using Docker Compose:
 
 ```bash
-cd tools/server_converter
+cd services/server_converter
 
 # Create configuration file (use config.docker.json for Docker deployment)
 cp config.docker.json config.json
@@ -294,7 +294,7 @@ Enable verbose logging with `-v` flag for detailed debug information.
 The included `docker-compose.yml` sets up a complete stack with PostgreSQL, Redis, and the server converter:
 
 ```bash
-cd tools/server_converter
+cd services/server_converter
 
 # Create and edit configuration (use config.docker.json for Docker)
 cp config.docker.json config.json
@@ -320,7 +320,7 @@ docker-compose down
 
 ```bash
 # From repository root
-docker build -f tools/server_converter/Dockerfile -t server-converter:latest .
+docker build -f services/server_converter/Dockerfile -t server-converter:latest .
 
 # Run manually
 docker run -d \

@@ -12,26 +12,27 @@ A Python interface for [Conflict of Nations](https://www.conflictnations.com/), 
 
 ## Installation
 
+### Python library (`conflict-interface`)
+
+From the repository root:
+
 ```bash
-pip install -e .
+pip install -e libs/conflict_interface
 ```
 
-### Optional Dependencies
+#### Optional dependencies
 
 Install additional features with extras:
 
 ```bash
 # Documentation generation
-pip install -e ".[docs]"
+pip install -e "libs/conflict_interface[docs]"
 
-# All CLI tools
-pip install -e ".[tools]"
+# Development helpers
+pip install -e "libs/conflict_interface[dev]"
 
-# Testing utilities
-pip install -e ".[tests]"
-
-# Development dependencies
-pip install -e ".[dev]"
+# Long-patch test utilities
+pip install -e "libs/conflict_interface[test-long-patches]"
 ```
 
 ## Docker Deployment 🐳
@@ -143,7 +144,7 @@ Process game responses from Redis streams and convert them to replay files. Work
 server-converter config.json
 ```
 
-See [Server Converter Documentation](tools/server_converter/README.md) for details.
+See [Server Converter Documentation](services/server_converter/README.md) for details.
 
 ### replay-debug
 
@@ -167,38 +168,38 @@ docker-compose up -d api
 open http://localhost:8000/docs
 ```
 
-See [API Documentation](tools/api/README.md) for full setup and endpoint reference.
+See [API Documentation](services/api/README.md) for full setup and endpoint reference.
 
 ## Documentation
 
 - **[Replay System](docs/REPLAY_SYSTEM.md)**: Comprehensive documentation on the replay system architecture, algorithms, and usage
 - **[API Documentation](https://conflict-interface.readthedocs.io/)**: Full API reference (ReadTheDocs)
-- **Examples**: See the [examples/](examples/) directory for code samples
+- **Examples**: See the [libs/conflict_interface/examples/](libs/conflict_interface/examples/) directory for code samples
 
 ## Project Structure
 
 ```
 ConflictInterface/
-├── conflict_interface/      # Main package
-│   ├── data_types/          # Game state data structures
-│   ├── interface/           # Game and replay interfaces
-│   ├── replay/              # Replay system implementation
-│   ├── utils/               # Utility modules
-│   ├── game_api.py          # Game server API wrapper
-│   └── hub_api.py           # Hub API wrapper
-├── tools/                   # Command-line tools & services
-│   ├── api/                 # Conlyse API (FastAPI service)
-│   ├── recorder/            # Game session recorder
-│   ├── recording_converter/ # Recording format converter
-│   └── replay_debug/        # Replay debugging tool
-├── examples/                # Example scripts
-├── tests/                   # Test suite
-└── docs/                    # Documentation
+├── libs/
+│   └── conflict_interface/   # Core Python library (game & replay interfaces)
+├── services/
+│   ├── api/                  # Conlyse API (FastAPI service)
+│   ├── server_converter/     # Redis → replay converter
+│   └── server_observer/      # Rust server observer
+├── apps/
+│   └── desktop/              # Conlyse desktop replay client
+├── tools/                    # CLI tools built on the library
+│   ├── recorder/             # Game session recorder
+│   ├── recording_converter/  # Recording format converter
+│   └── replay_debug/         # Replay debugging tool
+├── docker/                   # Docker and Compose files
+├── docs/                     # Documentation
+└── ...                       # Config, CI, and support files
 ```
 
 ## Examples
 
-The [examples/](examples/) directory contains various usage examples:
+The `libs/conflict_interface/examples/` directory contains various usage examples, including:
 
 - `game_join.py` - Join a game session
 - `start_of_game.py` - Initialize a new game
@@ -214,18 +215,20 @@ The [examples/](examples/) directory contains various usage examples:
 ### Running Tests
 
 ```bash
-# Install test dependencies
-pip install -e ".[tests]"
+cd libs/conflict_interface
 
-# Run tests
-python -m pytest tests/
+# Install the library (and any extras you need)
+pip install -e .
+
+# Run the library test suite
+python tests/run_tests.py
 ```
 
 ### Building Documentation
 
 ```bash
 # Install documentation dependencies
-pip install -e ".[docs]"
+pip install -e "libs/conflict_interface[docs]"
 
 # Build documentation
 cd docs
