@@ -140,8 +140,7 @@ Patch creation modes:
             case 'rtj' :
                 op_mode = OperatingMode.rtj
 
-        static_map_path = Path(args.static_map_data) if args.static_map_data is not None else None
-        converter = RecordingConverter(Path(args.recording_dir), op_mode, static_map_path)
+        converter = RecordingConverter(Path(args.recording_dir), op_mode)
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}")
         sys.exit(1)
