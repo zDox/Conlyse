@@ -14,7 +14,7 @@ from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_segment import ReplaySegment
-from conflict_interface.replay.metadata import TimelineMetadata
+from conflict_interface.replay.timeline_metadata import TimelineMetadata
 from conflict_interface.utils.helper import dt_to_ns
 from conflict_interface.utils.helper import ns_to_dt
 
@@ -474,9 +474,9 @@ class ReplayTimeline:
         This assumes metadata has already been loaded (either via full open() or
         metadata-only mode).
         """
-        from conflict_interface.replay.metadata import Metadata
+        from conflict_interface.replay.segment_metadata import SegmentMetadata
 
-        result: dict[tuple[datetime, datetime | None], Metadata] = {}
+        result: dict[tuple[datetime, datetime | None], SegmentMetadata] = {}
         for key, segment in self.segments.items():
             if segment.storage.metadata is not None:
                 result[key] = segment.storage.metadata

@@ -13,7 +13,7 @@ import numpy as np
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import GameObjectSerializer
 from conflict_interface.replay.constants import PATCH_INDEX_DTYPE
-from conflict_interface.replay.metadata import Metadata
+from conflict_interface.replay.segment_metadata import SegmentMetadata
 from conflict_interface.replay.patch_graph import PatchGraph
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.path_tree import PathTree
@@ -55,7 +55,7 @@ class ReplayStorage:
         self._last_game_state_b: bytes | None = None
 
         # Deserialized objects for in-memory use
-        self.metadata: Metadata | None = None
+        self.metadata: SegmentMetadata | None = None
         self.initial_game_state: GameState | None = None
         self.path_tree: PathTree | None = None
         self.patch_graph: PatchGraph | None = None
@@ -190,8 +190,8 @@ class ReplayStorage:
         data = BinaryWriter()
 
         # Reserve space for metadata at the beginning (fixed size for easy updates)
-        data.write_int32(Metadata.size)
-        data.seek(Metadata.size + 4)  # Skip ahead to leave placeholder
+        data.write_int32(SegmentMetadata.size)
+        data.seek(SegmentMetadata.size + 4)  # Skip ahead to leave placeholder
 
         # Write compressed game data
         write_compressed(data, self._initial_game_state_b)
@@ -311,7 +311,7 @@ class ReplayStorage:
         Args:
             max_patches: Maximum number of patches the replay can hold
         """
-        self.metadata = Metadata(
+        self.metadata = SegmentMetadata(
             start_time=0,
             last_time=0,
             max_patches=max_patches,
@@ -325,11 +325,11 @@ class ReplayStorage:
         # Pre-allocate patch index array
         self._patch_index_b = np.zeros(max_patches, dtype=PATCH_INDEX_DTYPE)
 
-    def load_metadata(self) -> Metadata:
+    def load_metadata(self) -> SegmentMetadata:
         """Deserializes and returns the replay metadata."""
         if self._metadata_b is None:
             raise ValueError("Metadata is not recorded in the replay.")
-        self.metadata = Metadata.deserialize(self._metadata_b)
+        self.metadata = SegmentMetadata.deserialize(self._metadata_b)
         return self.metadata
 
     def load_initial_game_state(self, game: ReplayInterface | None) -> object:
