@@ -273,13 +273,16 @@ Replay segment payloads managed by `ReplayStorage` use a chunked binary format w
 │  Chunk 3: PathTree                                  │
 │  [4 bytes: length][compressed data]                 │
 ├─────────────────────────────────────────────────────┤
-│  Chunk 4: Patch index (uncompressed)                │
+│  Chunk 4: Patch Graph (compressed)                  │
+│  [4 bytes: length][compressed data]                 │
+├─────────────────────────────────────────────────────┤
+│  Chunk 5: Patch index (uncompressed)                │
 │  [4 bytes: length][raw bytes]                       │
 ├─────────────────────────────────────────────────────┤
-│  Chunk 5: Data pool (patch data, uncompressed)      │
+│  Chunk 6: Data pool (patch data, uncompressed)      │
 │  [4 bytes: length][raw bytes]                       │
 ├─────────────────────────────────────────────────────┤
-│  Chunk 6: Last Game State (pickled / binary)        │
+│  Chunk 7: Last Game State (pickled / binary)        │
 │  [4 bytes: length][compressed data]                 │
 └─────────────────────────────────────────────────────┘
 ```
