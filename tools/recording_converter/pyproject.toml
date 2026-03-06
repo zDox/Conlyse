@@ -14,3 +14,10 @@ dependencies = [
 
 [project.scripts]
 recording-converter = "recording_converter.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

@@ -1,5 +1,5 @@
 """
-CLI entry point for the record-to-replay converter tool.
+CLI entry point for the recording-converter converter tool.
 """
 import argparse
 import logging
@@ -7,9 +7,9 @@ import os
 import sys
 from pathlib import Path
 
-from tools.recording_converter.converter import RecordingConverter, convert_recordings_root
-from tools.recording_converter.enums import OperatingMode
-from tools.recording_converter.recorder_logger import setup_converter_logger
+from .converter import RecordingConverter, convert_recordings_root
+from .enums import OperatingMode
+from .recorder_logger import setup_converter_logger
 
 
 def main():
@@ -20,22 +20,22 @@ def main():
         epilog="""
 Examples:
   # Convert a recording to a replay file (default: state-based mode)
-  record-to-replay recordings/my_recording replay.db
+  recording-converter recordings/my_recording replay.db
   
   # Convert using JSON-based mode
-  record-to-replay recordings/my_recording replay.db --mode json
+  recording-converter recordings/my_recording replay.db --mode json
   
   # Dump game states and JSON requests/responses to separate files
-  record-to-replay recordings/my_recording --dump-json
+  recording-converter recordings/my_recording --dump-json
   
   # Convert with verbose output
-  record-to-replay recordings/my_recording replay.db -v
+  recording-converter recordings/my_recording replay.db -v
   
   # Specify game and player IDs explicitly
-  record-to-replay recordings/my_recording replay.db --game-id 12345 --player-id 67890
+  recording-converter recordings/my_recording replay.db --game-id 12345 --player-id 67890
   
   # Use a custom static map data file
-  record-to-replay recordings/my_recording replay.db --static-map-data /path/to/custom_static_map.bin
+  recording-converter recordings/my_recording replay.db --static-map-data /path/to/custom_static_map.bin
 
 The recording directory should contain:
   - game_states.bin: Binary file with compressed game states
@@ -248,3 +248,4 @@ Patch creation modes:
 
 if __name__ == '__main__':
     main()
+

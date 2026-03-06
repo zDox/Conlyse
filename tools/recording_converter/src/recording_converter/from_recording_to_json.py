@@ -4,10 +4,10 @@ import shutil
 
 from tqdm import tqdm
 
-from conflict_interface.data_types.newest.to_json import dump_any # TODO dumping is only allowed inside datatypes
+from conflict_interface.data_types.newest.to_json import dump_any  # TODO dumping is only allowed inside datatypes
 from conflict_interface.utils.helper import unix_ms_to_datetime
-from tools.recording_converter.recorder_logger import get_logger
-from tools.recording_converter.recording_reader import RecordingReader
+from .recorder_logger import get_logger
+from .recording_reader import RecordingReader
 
 logger = get_logger()
 
@@ -182,3 +182,4 @@ game
         except Exception as e:
             logger.error(f"Error dumping to JSON: {e}", exc_info=True)
             return False
+

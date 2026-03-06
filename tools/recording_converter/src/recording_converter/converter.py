@@ -8,11 +8,11 @@ from typing import List, Optional, Sequence, Tuple
 from tqdm import tqdm
 
 from conflict_interface.logger_config import get_logger
-from tools.recording_converter.enums import OperatingMode
-from tools.recording_converter.from_game_state_using_make_bipatch_to_replay import FromGameStateUsingMakeBiPatchToReplay
-from tools.recording_converter.from_json_responses_using_update_to_replay import FromJsonResponsesUsingUpdateToReplay
-from tools.recording_converter.from_recording_to_json import FromRecordingToJson
-from tools.recording_converter.recording_reader import RecordingReader
+from .enums import OperatingMode
+from .from_game_state_using_make_bipatch_to_replay import FromGameStateUsingMakeBiPatchToReplay
+from .from_json_responses_using_update_to_replay import FromJsonResponsesUsingUpdateToReplay
+from .from_recording_to_json import FromRecordingToJson
+from .recording_reader import RecordingReader
 
 logger = get_logger()
 
@@ -265,3 +265,4 @@ def convert_recordings_root(
         )
 
     return overall_success
+
