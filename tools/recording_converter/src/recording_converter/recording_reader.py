@@ -14,7 +14,7 @@ import zstandard as zstd
 from tqdm import tqdm
 
 from conflict_interface.replay.response_metadata import ResponseMetadata
-from tools.recording_converter.recorder_logger import get_logger
+from .recorder_logger import get_logger
 
 if TYPE_CHECKING:
     from conflict_interface.data_types.newest.game_state.game_state import GameState
@@ -309,3 +309,4 @@ class RecordingReader:
 
         logger.info(f"Read {len(json_requests)} JSON requests from recording")
         return json_requests
+
