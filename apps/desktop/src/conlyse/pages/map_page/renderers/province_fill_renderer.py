@@ -85,6 +85,13 @@ class ProvinceFillRenderer:
                          element_type=OpenGLTypes.INT)
 
         self.vao.unbind()
+    def reset_mesh(self):
+        self.province_mesh.update_mesh(self.ritf.game_state.states.map_state.map.locations)
+
+    def reset_map_views(self):
+        for map_view in self.map_views.values():
+            map_view.build_color_data()
+            map_view.update_texture()
 
     def render(self, map_view_type: MapViewType):
         map_view = self.map_views.get(map_view_type)

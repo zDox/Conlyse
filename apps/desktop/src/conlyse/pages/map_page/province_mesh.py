@@ -66,6 +66,11 @@ class ProvinceMesh:
         self.vertex_vbo = None
         self.province_color_index_vbo = None
 
+    def update_mesh(self, locations: list[Province]):
+        self._vertex_data, self._province_color_index_data, _ = prepare_provinces(locations)
+        self.vertex_vbo.update_data(self._vertex_data)
+        self.province_color_index_vbo.update_data(self._province_color_index_data)
+
     def initialize(self):
         self.vertex_vbo = VertexBufferObject(self._vertex_data, BufferUsageType.STATIC_DRAW)
         self.province_color_index_vbo = VertexBufferObject(self._province_color_index_data, BufferUsageType.STATIC_DRAW)
