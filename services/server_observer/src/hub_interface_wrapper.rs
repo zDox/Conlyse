@@ -133,7 +133,7 @@ impl HubInterfaceWrapper {
     pub fn join_game_as_guest(&self, game_id: i32) -> Result<GameApiData, HubInterfaceError> {
         Python::attach(|py| -> Result<GameApiData, HubInterfaceError> {
             let hub = self.hub_interface.bind(py);
-            let game_api_module = py.import("conflict_interface.game_api")?;
+            let game_api_module = py.import("conflict_interface.api.game_api")?;
             let game_api_class = game_api_module.getattr("GameApi")?;
 
             let api = hub.getattr("api")?;
@@ -182,19 +182,40 @@ fn ensure_python_path(py: Python<'_>) -> Result<(), HubInterfaceError> {
     let sys = py.import("sys")?;
     let path = sys.getattr("path")?;
 
-    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+    let workspace_root_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .and_then(|p| p.parent())
+        .and_then(|p| p.parent());
+
+    let workspace_root = workspace_root_path
         .and_then(|p| p.to_str())
         .unwrap_or("/workspace")
         .to_string();
 
-    let contains = path
+    let libs_conflict_interface = workspace_root_path
+        .map(|p| p.join("libs").join("conflict_interface"));
+
+    let libs_conflict_interface_str = libs_conflict_interface
+        .as_ref()
+        .and_then(|p| p.to_str())
+        .unwrap_or("")
+        .to_string();
+
+    let contains_workspace = path
         .call_method1("__contains__", (workspace_root.clone(),))?
         .extract::<bool>()?;
-    if !contains {
+    if !contains_workspace {
         path.call_method1("insert", (0usize, workspace_root))?;
     }
+
+    if !libs_conflict_interface_str.is_empty() {
+        let contains_libs = path
+            .call_method1("__contains__", (libs_conflict_interface_str.clone(),))?
+            .extract::<bool>()?;
+        if !contains_libs {
+            path.call_method1("insert", (0usize, libs_conflict_interface_str))?;
+        }
+    }
+
     Ok(())
 }
 

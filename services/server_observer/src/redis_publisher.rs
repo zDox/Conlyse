@@ -1,7 +1,7 @@
+use crate::response_metadata::ResponseMetadata;
 use serde::Deserialize;
-use std::time::{SystemTime, UNIX_EPOCH};
+use serde_json;
 use thiserror::Error;
-use zstd::stream::encode_all;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct RedisConfig {
@@ -23,6 +23,8 @@ pub enum RedisPublisherError {
     Redis(#[from] redis::RedisError),
     #[error("Compression error: {0}")]
     Compression(#[from] std::io::Error),
+    #[error("Metadata serialization error: {0}")]
+    Json(String),
 }
 
 #[derive(Clone)]
@@ -43,43 +45,26 @@ impl RedisPublisher {
         Ok(Self { cfg, client })
     }
 
-    /// Publish a pre-serialized JSON response to the Redis stream,
-    /// matching the existing C++/Python contract:
-    /// fields: timestamp (ms), game_id, player_id, response (zstd-compressed JSON bytes).
-    #[allow(dead_code)]
-    pub fn publish_response(
-        &self,
-        game_id: i64,
-        player_id: i64,
-        response_json: &str,
-    ) -> Result<(), RedisPublisherError> {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default();
-        let timestamp_ms = now.as_millis() as i64;
-
-        let compressed = encode_all(response_json.as_bytes(), 3)?;
-        self.publish_compressed_response(timestamp_ms, game_id, player_id, &compressed)
-    }
-
+    /// Publish a compressed game server response and its associated metadata to Redis.
+    ///
+    /// Wire format (Redis stream entry fields):
+    /// - `metadata`: JSON string of `ResponseMetadata`
+    /// - `response`: zstd-compressed response body bytes
     pub fn publish_compressed_response(
         &self,
-        timestamp_ms: i64,
-        game_id: i64,
-        player_id: i64,
+        metadata: &ResponseMetadata,
         compressed_response: &[u8],
     ) -> Result<(), RedisPublisherError> {
         let mut conn = self.client.get_connection()?;
 
+        let meta_json =
+            serde_json::to_string(metadata).map_err(|e| RedisPublisherError::Json(e.to_string()))?;
+
         let mut cmd = redis::cmd("XADD");
         cmd.arg(&self.cfg.stream_name)
             .arg("*")
-            .arg("timestamp")
-            .arg(timestamp_ms)
-            .arg("game_id")
-            .arg(game_id)
-            .arg("player_id")
-            .arg(player_id)
+            .arg("metadata")
+            .arg(meta_json)
             .arg("response")
             .arg(compressed_response);
 

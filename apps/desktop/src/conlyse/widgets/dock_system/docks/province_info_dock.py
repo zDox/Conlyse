@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
 )
 
-from conflict_interface.data_types.newest.map_state.province import Province
+from conflict_interface.data_types.newest.map_state.land_province import LandProvince
 from conflict_interface.data_types.newest.map_state.sea_province import SeaProvince
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
@@ -175,7 +175,7 @@ class ProvinceInfoDock(Dock):
             self.no_selection_label.show()
         self._set_grid_visible(False)
 
-    def _show_land_province(self, province: Province) -> None:
+    def _show_land_province(self, province: LandProvince) -> None:
         """Display information for a land province.
 
         Args:
@@ -266,7 +266,7 @@ class ProvinceInfoDock(Dock):
         province_events = events.get(ReplayHookTag.ProvinceChanged, [])
 
         for event in province_events:
-            province = cast(Province, event.reference)
+            province = cast(LandProvince, event.reference)
             if province.id == self.selected_province_id:
                 self._update_ui()
                 return

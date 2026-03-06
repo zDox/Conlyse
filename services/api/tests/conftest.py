@@ -27,21 +27,32 @@ async def db_engine():
     engine = create_async_engine(TEST_DB_URL, future=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Create legacy tables used by server-converter (raw SQL queries in downloads service)
+        # Create raw SQL tables used by the downloads service so its text() queries work
         await conn.exec_driver_sql(
             """CREATE TABLE IF NOT EXISTS replays (
                 id INTEGER PRIMARY KEY,
-                game_id TEXT,
-                player_id TEXT,
-                s3_replay_path TEXT,
-                s3_analysis_path TEXT
+                game_id INTEGER NOT NULL,
+                player_id INTEGER NOT NULL,
+                replay_name TEXT,
+                hot_storage_path TEXT,
+                s3_key TEXT,
+                s3_analysis_path TEXT,
+                status TEXT,
+                recording_start_time TEXT,
+                recording_end_time TEXT,
+                created_at TEXT,
+                updated_at TEXT,
+                response_count INTEGER DEFAULT 0
             )"""
         )
         await conn.exec_driver_sql(
-            """CREATE TABLE IF NOT EXISTS static_map_data (
+            """CREATE TABLE IF NOT EXISTS maps (
                 id INTEGER PRIMARY KEY,
-                map_id TEXT,
-                s3_path TEXT
+                map_id TEXT NOT NULL,
+                version TEXT,
+                s3_key TEXT NOT NULL,
+                created_at TEXT,
+                updated_at TEXT
             )"""
         )
     yield engine

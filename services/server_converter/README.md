@@ -83,6 +83,7 @@ cp config.example.json config.json
 - **storage**: Storage configuration
   - `hot_storage_dir`: Local directory for active replays (also stores `.response_cache/` subdirectory)
   - `cold_storage_enabled`: Enable S3 cold storage
+  - `always_update_cold_storage`: When true, the converter mirrors the replay to cold storage after each create/append operation (and again on completion). When false, uploads to cold storage only happen when a replay is explicitly marked as completed.
   - `s3`: S3 configuration (required if cold_storage_enabled is true)
     - `endpoint_url`: S3-compatible endpoint (e.g., Hetzner)
     - `access_key`: S3 access key
@@ -141,7 +142,7 @@ CREATE TABLE replays (
     player_id INTEGER NOT NULL,
     replay_name VARCHAR(255) NOT NULL UNIQUE,
     hot_storage_path TEXT,
-    cold_storage_path TEXT,
+    s3_key TEXT,
     status VARCHAR(50) NOT NULL,  -- 'recording', 'completed', 'archived'
     recording_start_time TIMESTAMP,
     recording_end_time TIMESTAMP,

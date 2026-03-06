@@ -38,6 +38,40 @@ Dump to JSON files:
 recording-converter --recording-dir <recording_dir> --mode rtj --output-dir <output_dir>
 ```
 
+### Bulk folder conversion
+
+Convert an entire root folder of recordings into replay files using multiple processes. Each
+immediate subdirectory of `<recordings_root>` is treated as a single recording, and a replay
+file named `<subdir>.db` is written to `<output_dir>`:
+
+```bash
+recording-converter \
+  --recording-dir <recordings_root> \
+  --output-dir <output_dir> \
+  --mode gmr \
+  --bulk \
+  --processes 8
+```
+
+or, using the JSON-responses-based mode:
+
+```bash
+recording-converter \
+  --recording-dir <recordings_root> \
+  --output-dir <output_dir> \
+  --mode rur \
+  --bulk \
+  --processes 8
+```
+
+Notes:
+
+- Bulk mode currently supports only `gmr` and `rur` modes (not `rtj`).
+- The `--processes` option controls the number of worker processes; by default it uses all
+  available CPU cores.
+~- Overall progress is shown as a `Recordings` progress bar, while per-recording progress bars
+  may appear from individual workers.~
+
 ### Arguments
 
 - `--recording-dir`: Path to the recording directory containing recording files

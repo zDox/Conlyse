@@ -45,6 +45,14 @@ class Header(QWidget):
 
         # Placeholder stretch for right side (optional icons later)
         layout.addStretch()
+
+        # API / auth status label on the right
+        self.api_status_label = QLabel("API: Unknown")
+        self.api_status_label.setObjectName("apiStatusLabel")
+        self.api_status_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.api_status_label.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
+        layout.addWidget(self.api_status_label)
+
         layout.addLayout(self.actions_layout)
 
     def set_drawer_toggle_function(self, toggle_function):
@@ -64,3 +72,7 @@ class Header(QWidget):
 
         for widget in widgets:
             self.actions_layout.addWidget(widget)
+
+    def set_api_status(self, text: str):
+        """Update the right-side API status label."""
+        self.api_status_label.setText(text)

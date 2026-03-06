@@ -1,28 +1,25 @@
 from dataclasses import dataclass
 from typing import Union
 
-from .custom_types import ArrayList
-from conflict_interface.game_object.game_object_binary import SerializationCategory
-from conflict_interface.game_object.decorators import conflict_serializable
-from.map_state.b64_decoder import decode_connections
-from .map_state.b64_decoder import graph
-from .map_state.province import Province
-from .map_state.sea_province import SeaProvince
-from .map_state.static_province import StaticProvince
-from .map_state.triangulation import Triangulation
-from .point import Point
-
-from conflict_interface.game_object.game_object import GameObject
-
 from shapely.geometry import Polygon
 from shapely.strtree import STRtree
 
+from conflict_interface.game_object.decorators import conflict_serializable
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from .custom_types import ArrayList
+from .map_state.b64_decoder import decode_connections
+from .map_state.b64_decoder import graph
+from .map_state.province import Province
+from .map_state.triangulation import Triangulation
+from .point import Point
 from .version import VERSION
+
 
 @conflict_serializable(SerializationCategory.STATIC_MAP_DATA, version = VERSION)
 @dataclass
 class StaticMapData(GameObject):
-    locations: ArrayList[Union[Province, SeaProvince]]
+    locations: ArrayList[Province]
     connections_b64: str
     overlap_x: int
     use_minimal_localization: bool
@@ -45,7 +42,7 @@ class StaticMapData(GameObject):
     _str_tree: STRtree = None
     _polygons: list[Polygon] = None
 
-    _province_to_location: dict[int, StaticProvince] = None
+    _province_to_location: dict[int, Province] = None
 
     MAPPING = {
         "locations": "locations",
@@ -83,7 +80,7 @@ class StaticMapData(GameObject):
         return self._str_tree, self._polygons
 
     @property
-    def province_to_location(self) -> dict[int, StaticProvince]:
+    def province_to_location(self) -> dict[int, Province]:
         if self._province_to_location is None:
             self.setup_locations_cache()
         return self._province_to_location
@@ -109,7 +106,7 @@ class StaticMapData(GameObject):
             self._province_to_location[province.id] = province
 
 
-def compute_str_tree(locations: ArrayList[StaticProvince]) -> tuple[STRtree, list[Polygon]]:
+def compute_str_tree(locations: ArrayList[Province]) -> tuple[STRtree, list[Polygon]]:
     polygons = []
     for location in locations:
         border = []

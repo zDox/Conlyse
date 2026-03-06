@@ -12,7 +12,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.models.user import User
-from tests.conftest import auth_headers
+from .conftest import auth_headers
 
 
 # ---------------------------------------------------------------------------

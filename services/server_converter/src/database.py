@@ -75,17 +75,18 @@ class ReplayDatabase:
     def _create_tables(self):
         """Create database tables if they don't exist."""
         cursor = self.conn.cursor()
-        
+
         # PostgreSQL schema
         # Replays table stores per-game replay tracking metadata.
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS replays (
                 id SERIAL PRIMARY KEY,
                 game_id INTEGER NOT NULL,
                 player_id INTEGER NOT NULL,
                 replay_name VARCHAR(255) NOT NULL UNIQUE,
                 hot_storage_path TEXT,
-                cold_storage_path TEXT,
+                s3_key TEXT,
                 status VARCHAR(50) NOT NULL,
                 recording_start_time TIMESTAMP,
                 recording_end_time TIMESTAMP,
@@ -94,25 +95,71 @@ class ReplayDatabase:
                 response_count INTEGER DEFAULT 0,
                 UNIQUE(game_id, player_id)
             )
-        """)
+            """
+        )
 
         # Maps table stores static map payloads uploaded to S3 (compressed with zstd).
         # Schema explanation:
-        # - map_id: integer identifier of the static map (primary key, unique across versions if map_id encodes version).
-        # - version: optional textual version tag if map_id does not encode version; can be NULL.
+        # - map_id: string identifier of the static map (primary key, unique across versions if map_id encodes version).
         # - s3_key: full S3 object key where the compressed payload is stored.
         # - created_at/updated_at: timestamps for bookkeeping.
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS maps (
                 id SERIAL PRIMARY KEY,
-                map_id INTEGER NOT NULL UNIQUE,
+                map_id VARCHAR(40) NOT NULL UNIQUE,
                 version VARCHAR(64),
                 s3_key TEXT NOT NULL,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
             )
-        """)
-        
+            """
+        )
+
+        # Games table stores per-game metadata shared between observer, converter, and API.
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS games (
+                id SERIAL PRIMARY KEY,
+                game_id INTEGER NOT NULL UNIQUE,
+                scenario_id INTEGER NOT NULL,
+                status VARCHAR(32) NOT NULL,
+                discovered_date TIMESTAMP NOT NULL,
+                started_date TIMESTAMP,
+                completed_date TIMESTAMP,
+                failed_reason TEXT,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """
+        )
+
+        # Recording list table stores per-user recording preferences for games.
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS recording_list (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                game_id INTEGER NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                UNIQUE(user_id, game_id)
+            )
+            """
+        )
+
+        # Replay library table stores per-user references to completed game replays.
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS replay_library (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                game_id INTEGER NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                UNIQUE(user_id, game_id)
+            )
+            """
+        )
+
         self.conn.commit()
         
     def create_replay_entry(self, game_id: int, player_id: int, 
@@ -174,9 +221,13 @@ class ReplayDatabase:
         row = cursor.fetchone()
         return dict(row) if row else None
         
-    def update_replay_status(self, replay_id: int, status: ReplayStatus,
-                            recording_end_time: Optional[datetime] = None,
-                            cold_storage_path: Optional[str] = None):
+    def update_replay_status(
+        self,
+        replay_id: int,
+        status: ReplayStatus,
+        recording_end_time: Optional[datetime] = None,
+        s3_key: Optional[str] = None,
+    ):
         """
         Update the status of a replay.
         
@@ -184,39 +235,53 @@ class ReplayDatabase:
             replay_id: Database ID of the replay
             status: New status
             recording_end_time: When recording ended (optional)
-            cold_storage_path: Path in cold storage (optional)
+            s3_key: S3 object key in cold storage (optional)
         """
         cursor = self.conn.cursor()
         now = datetime.now()
         
-        if recording_end_time and cold_storage_path:
-            query = self._format_query("""
+        if recording_end_time and s3_key:
+            query = self._format_query(
+                """
                 UPDATE replays 
                 SET status = {}, recording_end_time = {}, 
-                    cold_storage_path = {}, updated_at = {}
+                    s3_key = {}, updated_at = {}
                 WHERE id = {}
-            """, 5)
-            cursor.execute(query, (status.value, recording_end_time, cold_storage_path, now, replay_id))
+            """,
+                5,
+            )
+            cursor.execute(
+                query, (status.value, recording_end_time, s3_key, now, replay_id)
+            )
         elif recording_end_time:
-            query = self._format_query("""
+            query = self._format_query(
+                """
                 UPDATE replays 
                 SET status = {}, recording_end_time = {}, updated_at = {}
                 WHERE id = {}
-            """, 4)
+            """,
+                4,
+            )
             cursor.execute(query, (status.value, recording_end_time, now, replay_id))
-        elif cold_storage_path:
-            query = self._format_query("""
+        elif s3_key:
+            query = self._format_query(
+                """
                 UPDATE replays 
-                SET status = {}, cold_storage_path = {}, updated_at = {}
+                SET status = {}, s3_key = {}, updated_at = {}
                 WHERE id = {}
-            """, 4)
-            cursor.execute(query, (status.value, cold_storage_path, now, replay_id))
+            """,
+                4,
+            )
+            cursor.execute(query, (status.value, s3_key, now, replay_id))
         else:
-            query = self._format_query("""
+            query = self._format_query(
+                """
                 UPDATE replays 
                 SET status = {}, updated_at = {}
                 WHERE id = {}
-            """, 3)
+            """,
+                3,
+            )
             cursor.execute(query, (status.value, now, replay_id))
         
         self.conn.commit()
@@ -257,6 +322,13 @@ class ReplayDatabase:
         cursor.execute(query, (ReplayStatus.RECORDING.value,))
         
         return [dict(row) for row in cursor.fetchall()]
+
+    def remove_game_from_recording_lists(self, game_id: int) -> None:
+        """Remove a game from all users' recording lists."""
+        cursor = self.conn.cursor()
+        query = self._format_query("DELETE FROM recording_list WHERE game_id = {}", 1)
+        cursor.execute(query, (game_id,))
+        self.conn.commit()
 
     # --- Static maps helpers -------------------------------------------------
     def get_map_by_id(self, map_id: int) -> Optional[Dict[str, Any]]:

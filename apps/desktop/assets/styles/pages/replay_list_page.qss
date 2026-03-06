@@ -149,3 +149,40 @@ QLabel#replay_details_empty {
     color: $text_muted;
     padding: 40px;
 }
+
+/* --- Tabs: Games / Recording List / Replay Library --- */
+
+QLabel#replay_games_header,
+QLabel#replay_recording_header,
+QLabel#replay_library_header {
+    font-size: $H4;
+    font-weight: 600;
+    color: $text;
+}
+
+QLabel#replay_games_badge,
+QLabel#replay_recording_badge,
+QLabel#replay_library_badge {
+    background-color: $bg_light;
+    color: $text;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: $body;
+    font-weight: 500;
+}
+
+QTableWidget#replay_games_table,
+QTableWidget#replay_recording_table,
+QTableWidget#replay_library_table {
+    background-color: transparent;
+    border: none;
+    gridline-color: $border_muted;
+}
+
+QLabel#replay_games_empty,
+QLabel#replay_recording_empty,
+QLabel#replay_library_empty {
+    font-size: $body;
+    color: $text_muted;
+    padding: 40px;
+}

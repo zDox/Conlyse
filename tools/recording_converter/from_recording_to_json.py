@@ -14,11 +14,12 @@ logger = get_logger()
 # Just a note: Converting is the process of reading data and then dumping it to JSON files.
 
 class FromRecordingToJson:
-    def __init__(self, recording_reader: RecordingReader):
+    def __init__(self, recording_reader: RecordingReader, use_tqdm: bool = True):
         self.reader = recording_reader
         self.game_states_dir = None
         self.json_requests_dir = None
         self.json_responses_dir = None
+        self._use_tqdm = use_tqdm
 
     def setup_output_dir(self, output_dir, overwrite: bool):
         # Set up output directory
@@ -67,7 +68,15 @@ class FromRecordingToJson:
             json.dump(output_data, f, indent=2, ensure_ascii=False)
 
     def dump_requests_to_json(self, json_requests):
-        for i in tqdm(range(len(json_requests)), desc="Dumping JSON requests: ", unit="Request", unit_scale=True):
+        iterator = range(len(json_requests))
+        if self._use_tqdm:
+            iterator = tqdm(
+                iterator,
+                desc="Dumping JSON requests: ",
+                unit="Request",
+                unit_scale=True,
+            )
+        for i in iterator:
             timestamp_ms, json_request = json_requests[i]
             timestamp_dt = unix_ms_to_datetime(timestamp_ms)
 
@@ -88,8 +97,17 @@ class FromRecordingToJson:
                 json.dump(output_data, f, indent=2, ensure_ascii=False)
 
     def dump_responses_to_json(self, json_responses):
-        for i in tqdm(range(len(json_responses)), desc="Dumping JSON responses: ", unit="Response", unit_scale=True):
-            timestamp_ms, json_response = json_responses[i]
+        iterator = range(len(json_responses))
+        if self._use_tqdm:
+            iterator = tqdm(
+                iterator,
+                desc="Dumping JSON responses: ",
+                unit="Response",
+                unit_scale=True,
+            )
+        for i in iterator:
+            metadata, json_response = json_responses[i]
+            timestamp_ms = metadata.timestamp
             timestamp_dt = unix_ms_to_datetime(timestamp_ms)
 
             # Create filename with timestamp
@@ -101,7 +119,8 @@ class FromRecordingToJson:
                 "timestamp_ms": timestamp_ms,
                 "timestamp_iso": timestamp_dt.isoformat(),
                 "response_index": i,
-                "response": json_response
+                "metadata": metadata.to_dict(),
+                "response": json_response,
             }
 
             # Write to file
@@ -129,7 +148,15 @@ game
             len_game_states = self.reader.len_game_states()
             game_states_to_process = len_game_states if limit is None else min(limit, len_game_states)
             if len_game_states != 0:
-                for i in tqdm(range(game_states_to_process), desc="Dumping Game States: ", unit="State", unit_scale=True):
+                iterator = range(game_states_to_process)
+                if self._use_tqdm:
+                    iterator = tqdm(
+                        iterator,
+                        desc="Dumping Game States: ",
+                        unit="State",
+                        unit_scale=True,
+                    )
+                for i in iterator:
                     self.dump_game_state_to_json(i, game_states_to_process)
             else:
                 logger.info(f"No Game states found in recording")

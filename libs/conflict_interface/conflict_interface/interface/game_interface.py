@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from conflict_interface.data_types.newest.game_info_state.game_info_state import GameInfoState
     from conflict_interface.data_types.newest.map_state.map_state_enums import ProvinceType
     from conflict_interface.data_types.newest.map_state.map_state_enums import ProvinceStateID
-    from conflict_interface.data_types.newest.map_state.province import Province
+    from conflict_interface.data_types.newest.map_state.land_province import LandProvince
     from conflict_interface.data_types.newest.map_state.sea_province import SeaProvince
     from conflict_interface.data_types.newest.mod_state.mod_state_enums import ModGameFeatures
     from conflict_interface.data_types.newest.mod_state.unit_type import UnitType
@@ -144,7 +144,7 @@ class GameInterface:
                 res[province.id] = province
         return res
 
-    def get_land_provinces(self, **filters) -> dict[int, Province]:
+    def get_land_provinces(self, **filters) -> dict[int, LandProvince]:
         res = {}
         for province in self.game_state.states.map_state.map.provinces.values():
             if isinstance(province, SeaProvince):

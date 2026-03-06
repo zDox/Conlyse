@@ -4,16 +4,17 @@ from pathlib import Path
 from typing import Callable
 from typing import Optional
 from typing import TYPE_CHECKING
+from typing import Tuple
 
 from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_timeline import ReplayTimeline
+from conflict_interface.replay.response_metadata import ResponseMetadata
 from conflict_interface.utils.helper import unix_ms_to_datetime
 
 if TYPE_CHECKING:
     from conflict_interface.data_types.newest.game_state.game_state import GameState
-    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 logger = get_logger()
 
@@ -46,12 +47,12 @@ class ReplayBuilder:
             self.parsers[v] = JsonParser(v)
 
     @staticmethod
-    def _find_initial_game_state_index(json_responses: list[tuple[int, dict]]) -> int:
+    def _find_initial_game_state_index(json_responses: list[Tuple[ResponseMetadata, dict]]) -> int:
         """
         Find the index of the first game state after game activation.
 
         Args:
-            json_responses: List of (timestamp, response) tuples
+            json_responses: List of (ResponseMetadata, response) tuples
 
         Returns:
             Index of initial game state, or -1 if not found
@@ -66,14 +67,12 @@ class ReplayBuilder:
 
     def create_replay(
             self,
-            json_responses: list[tuple[int, dict]],
-            static_map_data: Optional[StaticMapData] = None) -> int:
+            json_responses: list[Tuple[ResponseMetadata, dict]]) -> int:
         """
         Create a new replay from JSON responses.
         
         Args:
-            json_responses: List of (timestamp, response) tuples
-            static_map_data: Optional static map data for the replay (if None, static map will not be recorded)
+            json_responses: List of (ResponseMetadata, response) tuples.
 
         Returns:
             Index of the initial state that was used to create the replay
@@ -86,8 +85,8 @@ class ReplayBuilder:
             raise ValueError("Initial game state not found.")
 
         # Parse initial game state
-        _, initial_json = json_responses[initial_index]
-        version = int(initial_json["client_version"])
+        initial_meta, initial_json = json_responses[initial_index]
+        version = int(initial_meta.client_version)
 
         parser = self.parsers[version]
         initial_state: GameState = parser.parse_game_state(initial_json["result"], None)
@@ -104,13 +103,32 @@ class ReplayBuilder:
         self.replay_timeline.open()
         self.replay_timeline.last_time = current_timestamp
 
-        logger.debug("Recording static map data to replay")
-
-        if static_map_data is None:
-            logger.debug("No static map data provided; skipping static map recording")
         logger.info(f"Recording initial game state at {current_timestamp} (game time)")
-        self.replay_timeline.que_append_patch(version, to_time_stamp=current_timestamp,replay_patch=None, current_game_state=initial_state, static_map_data=static_map_data)
 
+        map_id: str = initial_meta.map_id
+        self.replay_timeline.que_append_patch(
+            version,
+            to_time_stamp=current_timestamp,
+            replay_patch=None,
+            current_game_state=initial_state,
+            map_id=map_id,
+        )
+        self.replay_timeline.execute_append_que()
+        self.replay_timeline.set_last_game_state(initial_state)
+
+        # Initialize timeline-level metadata from the initial GameInfoState
+        game_info = initial_state.states.game_info_state
+        speed_int = int(round(1 / game_info.time_scale)) if game_info.time_scale else 0
+        self.replay_timeline.set_metadata(
+            game_ended=False,
+            start_of_game=game_info.start_of_game,
+            end_of_game=game_info.end_of_game,
+            scenario_id=game_info.scenario_id,
+            day_of_game=game_info.day_of_game,
+            speed=speed_int,
+        )
+
+        self.replay_timeline.close()
         # Clear game references and update replay's last state
         self.created = True
         
@@ -118,7 +136,7 @@ class ReplayBuilder:
         return initial_index
 
     def append_json_responses(self,
-                              json_responses: list[tuple[int, dict]],
+                              json_responses: list[Tuple[ResponseMetadata, dict]],
                               progress_callback: Optional[Callable[[int, int], None]] = None):
         if not self.created:
             raise ValueError("Replay not created yet.")
@@ -127,16 +145,17 @@ class ReplayBuilder:
         if self.replay_timeline is None:
             self.replay_timeline = ReplayTimeline(self.path, mode="a", game_id=self.game_id, player_id=self.player_id)
             self.replay_timeline.open()
-
         self.replay_timeline.set_mode("a")
         self.replay_timeline.open()
-        self.replay_timeline.execute_append_que()
 
         current_state = self.replay_timeline.get_last_game_state()
 
         if current_state is None:
             self.replay_timeline.close()
             raise ValueError("No last game state found in replay")
+
+        # Track latest GameInfoState for timeline metadata
+        latest_game_info = current_state.states.game_info_state
 
         # Process JSON responses
         num_responses = len(json_responses)
@@ -146,7 +165,7 @@ class ReplayBuilder:
             if progress_callback:
                 progress_callback(i, num_responses)
 
-            _, json_response = json_responses[i]
+            meta, json_response = json_responses[i]
 
             # Skip everything except game state updates
             if not ("result" in json_response) or json_response["result"].get("@c") not in (ReplayBuilder.FULL_STATE_TYPE, ReplayBuilder.AUTO_STATE_TYPE):
@@ -160,15 +179,14 @@ class ReplayBuilder:
                 json_response["full"] = True
 
             # Parse new state
-            version = int(json_response["client_version"])
-            parser = self.parsers[version]
+            parser = self.parsers[meta.client_version]
             new_state: GameState = parser.parse_game_state(
                 json_response["result"], None
             )
             current_timestamp = unix_ms_to_datetime(int(new_state.time_stamp))
             if json_response["full"]:
                 self.replay_timeline.close_last_segment()
-            self.replay_timeline.latest_version = version
+            self.replay_timeline.latest_version = meta.client_version
             # Create appropriate patch
             bipatch = ReplayBuilder._create_patch_from_json(
                 json_response, current_state, new_state
@@ -178,18 +196,26 @@ class ReplayBuilder:
             if json_response["full"]:
                 current_state = new_state
 
+            latest_game_info = new_state.states.game_info_state
+
             # Record patch to replay
             self.replay_timeline.que_append_patch(
-                version = version,
+                version=meta.client_version,
                 to_time_stamp=current_timestamp,
                 replay_patch=bipatch,
-                current_game_state=current_state
+                current_game_state=current_state,
+                map_id=meta.map_id,
             )
 
         # Finalize
         logger.debug("Finalizing replay...")
         self.replay_timeline.execute_append_que()
         self.replay_timeline.set_last_game_state(current_state)
+        if latest_game_info is not None:
+            self.replay_timeline.set_day_of_game(
+                latest_game_info.day_of_game
+            )
+
         self.replay_timeline.close()
 
         logger.debug(f"Successfully appended to replay: {self.path}")

@@ -1,7 +1,11 @@
 """
 Converter for transforming recorder data to replay format.
 """
+from multiprocessing import Pool
 from pathlib import Path
+from typing import List, Optional, Sequence, Tuple
+
+from tqdm import tqdm
 
 from conflict_interface.logger_config import get_logger
 from tools.recording_converter.enums import OperatingMode
@@ -11,7 +15,6 @@ from tools.recording_converter.from_recording_to_json import FromRecordingToJson
 from tools.recording_converter.recording_reader import RecordingReader
 
 logger = get_logger()
-
 
 
 class RecordingConverter:
@@ -30,7 +33,12 @@ class RecordingConverter:
         Converts the recording to multiple json files
     """
     
-    def __init__(self, recording_dir: str | Path, operating_mode: OperatingMode):
+    def __init__(
+        self,
+        recording_dir: str | Path,
+        operating_mode: OperatingMode,
+        use_tqdm: bool = True,
+    ):
         """
         Initialize converter with recording directory.
         
@@ -39,7 +47,10 @@ class RecordingConverter:
             operating_mode: One of the three operating modes
         """
         self.path = Path(recording_dir)
-        self.reader = RecordingReader(self.path)
+        # Controls whether tqdm-based progress bars are enabled for this converter.
+        # In multiprocessing worker processes we usually disable tqdm to avoid garbled output.
+        self._use_tqdm = use_tqdm
+        self.reader = RecordingReader(self.path, use_tqdm=self._use_tqdm)
         self.op_mode = operating_mode
 
         self.check_op_mode_requirements()
@@ -72,24 +83,185 @@ class RecordingConverter:
             logger.error(f"Output file already exists: {output}")
             return False
         if self.op_mode == OperatingMode.gmr:
-            gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader)
+            gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader, use_tqdm=self._use_tqdm)
             return gmr.convert(output_file=output,
                                overwrite=overwrite,
                                limit=limit,
                                game_id=game_id,
                                player_id=player_id)
         elif self.op_mode == OperatingMode.rur:
-            rur = FromJsonResponsesUsingUpdateToReplay(self.reader)
+            rur = FromJsonResponsesUsingUpdateToReplay(self.reader, use_tqdm=self._use_tqdm)
             return rur.convert(output_file=output,
                                overwrite=overwrite,
                                limit=limit,
                                game_id=game_id,
                                player_id=player_id)
         elif self.op_mode == OperatingMode.rtj:
-            rtj = FromRecordingToJson(self.reader)
+            rtj = FromRecordingToJson(self.reader, use_tqdm=self._use_tqdm)
             return rtj.convert(output_dir=output,
                                overwrite=overwrite,
                                limit=limit)
         else:
             logger.error(f"Invalid patch mode: {self.op_mode}")
             return False
+
+
+def _convert_single_recording_worker(
+    args: Tuple[Path, Path, OperatingMode, bool, Optional[int], Optional[int], Optional[int]],
+) -> Tuple[Path, bool]:
+    """
+    Worker function to convert a single recording directory in a separate process.
+    """
+    (
+        recording_dir,
+        output_file,
+        op_mode,
+        overwrite,
+        limit,
+        game_id,
+        player_id,
+    ) = args
+
+    try:
+        # Disable tqdm inside worker processes to avoid clashing with the
+        # main-process progress bar in bulk mode.
+        converter = RecordingConverter(recording_dir, op_mode, use_tqdm=False)
+        success = converter.convert(
+            output=output_file,
+            overwrite=overwrite,
+            limit=limit,
+            game_id=game_id,
+            player_id=player_id,
+        )
+        return recording_dir, success
+    except Exception as exc:  # pragma: no cover - defensive logging in worker
+        logger.error("Failed to convert recording %s: %s", recording_dir, exc)
+        return recording_dir, False
+
+
+def convert_recordings_root(
+    root: Path,
+    output_dir: Path,
+    op_mode: OperatingMode,
+    processes: int,
+    overwrite: bool = False,
+    limit: Optional[int] = None,
+    game_id: Optional[int] = None,
+    player_id: Optional[int] = None,
+    use_tqdm: bool = True,
+) -> bool:
+    """
+    Convert all recording subdirectories under a root directory into replay files.
+
+    Each immediate child directory of ``root`` is treated as a recording directory.
+    For each such directory ``<root>/<name>``, a replay file ``<output_dir>/<name>.db``
+    is created using the requested operating mode.
+    """
+    root = Path(root)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if not root.exists():
+        logger.error("Recordings root directory does not exist: %s", root)
+        return False
+
+    # Discover candidate recording directories.
+    recording_dirs: List[Path] = [entry for entry in root.iterdir() if entry.is_dir()]
+
+    if not recording_dirs:
+        logger.warning("No recording subdirectories found under %s", root)
+        return False
+
+    jobs: List[Tuple[Path, Path, OperatingMode, bool, Optional[int], Optional[int], Optional[int]]] = []
+
+    for recording_dir in recording_dirs:
+        # Simple pre-filtering based on expected files for each mode.
+        if op_mode == OperatingMode.gmr:
+            if not (recording_dir / "game_states.bin").exists():
+                logger.info(
+                    "Skipping %s: game_states.bin not found (required for gmr mode)",
+                    recording_dir,
+                )
+                continue
+        elif op_mode == OperatingMode.rur:
+            has_response_file = any(
+                child.is_file() and child.name.startswith("responses")
+                for child in recording_dir.iterdir()
+            )
+            if not has_response_file:
+                logger.info(
+                    "Skipping %s: no responses*.jsonl.zst files found (required for rur mode)",
+                    recording_dir,
+                )
+                continue
+
+        output_file = output_dir / f"{recording_dir.name}.bin"
+        jobs.append(
+            (
+                recording_dir,
+                output_file,
+                op_mode,
+                overwrite,
+                limit,
+                game_id,
+                player_id,
+            )
+        )
+
+    if not jobs:
+        logger.warning(
+            "No suitable recording directories found under %s for mode %s",
+            root,
+            op_mode,
+        )
+        return False
+
+    # Normalize process count.
+    if processes is None or processes < 1:
+        processes = 1
+
+    overall_success = True
+
+    if processes == 1 or len(jobs) == 1:
+        iterator = (_convert_single_recording_worker(job) for job in jobs)
+        if use_tqdm:
+            iterator = tqdm(
+                iterator,
+                total=len(jobs),
+                desc="Recordings",
+                unit="rec",
+            )
+        for recording_dir, success in iterator:
+            if not success:
+                overall_success = False
+                logger.error("Conversion failed for recording %s", recording_dir)
+    else:
+        logger.info("Converting recordings using %d worker processes", processes)
+        with Pool(processes=processes) as pool:
+            iterator = pool.imap_unordered(_convert_single_recording_worker, jobs)
+            if use_tqdm:
+                iterator = tqdm(
+                    iterator,
+                    total=len(jobs),
+                    desc="Recordings",
+                    unit="rec",
+                )
+            for recording_dir, success in iterator:
+                if not success:
+                    overall_success = False
+                    logger.error("Conversion failed for recording %s", recording_dir)
+
+    if overall_success:
+        logger.info(
+            "Finished converting %d recording(s) under %s into %s",
+            len(jobs),
+            root,
+            output_dir,
+        )
+    else:
+        logger.error(
+            "Completed conversion of recordings under %s with failures; see log for details",
+            root,
+        )
+
+    return overall_success

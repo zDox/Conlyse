@@ -1,5 +1,5 @@
 
-from conflict_interface.replay.replaysegment import ReplaySegment
+from conflict_interface.replay.replay_segment import ReplaySegment
 from conflict_interface.replay.replay_patch import ReplayPatch
 import time
 

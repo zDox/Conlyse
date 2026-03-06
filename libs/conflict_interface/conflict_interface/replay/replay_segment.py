@@ -6,7 +6,6 @@ from datetime import datetime
 from logging import getLogger
 from typing import TYPE_CHECKING
 
-
 from conflict_interface.replay.apply_replay_helper import apply_operation
 from conflict_interface.replay.patch_graph_node import PatchGraphNode
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
@@ -15,7 +14,6 @@ from conflict_interface.replay.replay_storage import ReplayStorage
 if TYPE_CHECKING:
     from conflict_interface.interface.replay_interface import ReplayInterface
     from conflict_interface.data_types.newest.game_state.game_state import GameState
-    from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 logger = getLogger()
 
@@ -27,12 +25,18 @@ class ReplaySegment:
         self.game_id = game_id
         self.player_id = player_id
 
+        # Store version on the segment so timeline logic can reason about it
+        self.version: int = version
+
         self.storage = ReplayStorage(data, version)
 
         self._op_counter = 0
         self._game: ReplayInterface | None = None
         self._max_patches = max_patches
         self._append_que = deque([])
+        self.game_state = None
+        self.current_time = None
+
 
     def get_binary(self):
         return self.storage.get_data()
@@ -58,12 +62,12 @@ class ReplaySegment:
     def load_everything(self):
         self.storage.read_all()
         self.storage.load_metadata()
-        self.storage.load_initial_game_state(self._game)
-        self.storage.load_static_map_data(self._game)
+        self.game_state = self.storage.load_initial_game_state(self._game)
         self.storage.load_path_tree()
         self.storage.load_patches(self._game)
         self.storage.path_tree.precompute()
         self.storage.patch_graph.finalize()
+        self.current_time = self.get_start_time()
 
     def load_append_mode(self):
         self.storage.read_append_mode_from_disk()
@@ -99,11 +103,6 @@ class ReplaySegment:
 
         # copy the game state to avoid mutations
         self.storage.unload_initial_game_state(game_state)
-
-    def record_static_map_data(self, static_map_data: StaticMapData,game_id: int, player_id: int):
-        self.validate_game(game_id, player_id)
-
-        self.storage.unload_static_map_data(static_map_data)
 
     def _create_nodes_from_bireplay_patch(self, replay_patch: BidirectionalReplayPatch, from_timestamp: int, to_timestamp: int) -> tuple[PatchGraphNode, PatchGraphNode]:
         forward = replay_patch.forward_patch

@@ -2,7 +2,7 @@
 
 import numpy as np
 from abc import ABC, abstractmethod
-from conflict_interface.data_types.newest.map_state.province import Province
+from conflict_interface.data_types.newest.map_state.land_province import LandProvince
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.interface.replay_interface import ReplayInterface
 

@@ -15,6 +15,7 @@
   "storage": {
     "hot_storage_dir": "./data/hot_storage",
     "cold_storage_enabled": false,
+    "always_update_cold_storage": true,
     "s3": {
       "endpoint_url": "http://localhost:9000",
       "access_key": "minioadmin",

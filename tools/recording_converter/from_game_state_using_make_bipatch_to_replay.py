@@ -4,16 +4,17 @@ from pathlib import Path
 from tqdm import tqdm
 
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
-from conflict_interface.replay.replaysegment import ReplaySegment
+from conflict_interface.replay.replay_segment import ReplaySegment
 from conflict_interface.utils.helper import unix_ms_to_datetime
 from tools.recording_converter.recorder_logger import get_logger
 from tools.recording_converter.recording_reader import RecordingReader
 
 logger = get_logger()
 class FromGameStateUsingMakeBiPatchToReplay:
-    def __init__(self, recording_reader: RecordingReader):
+    def __init__(self, recording_reader: RecordingReader, use_tqdm: bool = True):
         self.reader = recording_reader
         self.game_states_file = self.reader.game_states_file
+        self._use_tqdm = use_tqdm
 
     def convert(self,
                 output_file: Path,
@@ -70,25 +71,21 @@ class FromGameStateUsingMakeBiPatchToReplay:
                 game_state=first_state
             )
 
-            # Record static map data if available
-            static_map_data = self.reader.read_static_map_data()
-            if not static_map_data:
-                logger.error("No static map data found in recording")
-                return False
-
-            logger.info("Recording static map data")
-            replay.record_static_map_data(
-                static_map_data=static_map_data,
-                game_id=game_id,
-                player_id=player_id
-            )
-
             # Create patches between consecutive states
             prev_state = first_state
 
             number_of_states_to_process = len_game_states if limit is None else min(limit, len_game_states)
 
-            for i in tqdm(range(1, number_of_states_to_process), desc="Processing: ", unit="States", unit_scale=True):
+            iterator = range(1, number_of_states_to_process)
+            if self._use_tqdm:
+                iterator = tqdm(
+                    iterator,
+                    desc="Processing: ",
+                    unit="States",
+                    unit_scale=True,
+                )
+
+            for i in iterator:
                 _, current_state = self.reader.read_game_state(i)
                 current_datetime = unix_ms_to_datetime(int(current_state.time_stamp))
 

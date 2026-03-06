@@ -260,28 +260,76 @@ The comparison handles:
 
 ## Storage Format
 
-Replay files use a chunked binary format with LZ4 compression:
+Replay segment payloads managed by `ReplayStorage` use a chunked binary format with LZ4 compression:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Chunk 1: Metadata (pickled)                        │
+│  Chunk 1: Metadata (fixed-size header)              │
+│  [4 bytes: length][raw bytes]                       │
+├─────────────────────────────────────────────────────┤
+│  Chunk 2: Initial Game State (pickled / binary)     │
 │  [4 bytes: length][compressed data]                 │
 ├─────────────────────────────────────────────────────┤
-│  Chunk 2: Initial Game State (pickled bytes)        │
+│  Chunk 3: PathTree                                  │
 │  [4 bytes: length][compressed data]                 │
 ├─────────────────────────────────────────────────────┤
-│  Chunk 3: Static Map Data (pickled bytes)           │
+│  Chunk 4: Patch Graph (compressed)                  │
 │  [4 bytes: length][compressed data]                 │
 ├─────────────────────────────────────────────────────┤
-│  Chunk 4: PathTree (pickled)                        │
-│  [4 bytes: length][compressed data]                 │
+│  Chunk 5: Patch index (uncompressed)                │
+│  [4 bytes: length][raw bytes]                       │
 ├─────────────────────────────────────────────────────┤
-│  Chunk 5: PatchGraph (pickled)                      │
+│  Chunk 6: Data pool (patch data, uncompressed)      │
+│  [4 bytes: length][raw bytes]                       │
+├─────────────────────────────────────────────────────┤
+│  Chunk 7: Last Game State (pickled / binary)        │
 │  [4 bytes: length][compressed data]                 │
 └─────────────────────────────────────────────────────┘
 ```
 
-Each chunk is independently compressed, allowing partial reads (e.g., reading only metadata without loading the entire file).
+Static map data is no longer embedded inside replay segments. Instead, each segment's metadata stores a `map_id: str` that can be used to look up `StaticMapData` externally.
+
+### ReplayTimeline file header
+
+Replay files written by `ReplayTimeline` (version 2) are zstd-compressed and have the following header before the per-segment records:
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│ Magic            8 bytes   ASCII "RPLYZSTD"                   │
+├───────────────────────────────────────────────────────────────┤
+│ Version          4 bytes   little-endian uint32 (currently 2)│
+├───────────────────────────────────────────────────────────────┤
+│ TimelineMetadata N bytes   fixed-size struct, see below      │
+├───────────────────────────────────────────────────────────────┤
+│ Segments         ...       repeated segment records          │
+└───────────────────────────────────────────────────────────────┘
+```
+
+The `TimelineMetadata` struct is a fixed-size little-endian layout:
+
+```text
+bool   game_ended
+int32  start_of_game   # Unix seconds, 0 if unknown
+int32  end_of_game     # Unix seconds, 0 if unknown
+int32  game_id
+int32  player_id
+int32  scenario_id
+int32  day_of_game
+int32  speed           # integer speed multiplier (e.g. 1, 2, 4)
+int32  segment_count   # number of segments in this file
+```
+
+After the header, each segment is stored as:
+
+```text
+int64 start_ns    # nanoseconds since epoch
+int64 end_ns      # nanoseconds since epoch (can be equal to start_ns)
+int32 version     # datatype version for this segment
+uint64 size       # number of bytes in the following payload
+bytes payload     # raw segment data managed by ReplayStorage
+```
+
+Note that there is **no separate segment-count field in the header** anymore; the total number of segments is stored inside `TimelineMetadata.segment_count`.
 
 ### Patch Serialization
 
@@ -304,7 +352,7 @@ data = {
 ```python
 from pathlib import Path
 from datetime import datetime, UTC
-from conflict_interface.replay.replaysegment import ReplaySegment
+from conflict_interface.replay.replay_segment import ReplaySegment
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 
 # Create a new replay file
@@ -317,13 +365,6 @@ with ReplaySegment(replay_path, mode='w', game_id=game_id, player_id=player_id) 
     replay.record_initial_game_state(
         game_state=initial_state,
         time_stamp=datetime.now(UTC),
-        game_id=game_id,
-        player_id=player_id
-    )
-
-    # Record static map data
-    replay.record_static_map_data(
-        static_map_data=map_data,
         game_id=game_id,
         player_id=player_id
     )
@@ -403,14 +444,11 @@ class Replay:
     # Recording methods (mode='w' or 'a')
     def record_initial_game_state(self, game_state: GameState, time_stamp: datetime,
                                    game_id: int, player_id: int) -> None
-    def record_static_map_data(self, static_map_data: StaticMapData,
-                                game_id: int, player_id: int) -> None
     def record_bipatch(self, time_stamp: datetime, game_id: int, player_id: int,
                        replay_patch: BidirectionalReplayPatch) -> None
     
     # Playback methods (mode='r')
     def load_initial_game_state(self) -> GameState
-    def load_static_map_data(self) -> StaticMapData
     def apply_patch(self, patch: PatchGraphNode, game_state: GameState,
                     game_interface: ReplayInterface) -> None
     
@@ -425,9 +463,9 @@ The ReplayInterface provides a higher-level API for replay playback:
 
 ```python
 class ReplayInterface:
-    def __init__(self, replay_path: Path)
+    def __init__(self, replay_path: Path, static_map_data: dict[str, Path] | None = None)
     
-    def open(self) -> None
+    def open(self, mode: Literal["r", "read metadata"] = "r") -> None
     def close(self) -> None
     
     def jump_to(self, target_time: datetime) -> list[PatchGraphNode]
@@ -435,6 +473,12 @@ class ReplayInterface:
     
     def get_timestamps(self) -> list[datetime]
     def get_armies(self) -> list[Army]
+
+    # Metadata helpers (usable in both full and metadata-only modes)
+    def get_segments_metadata(self) -> dict[tuple[datetime, datetime | None], Metadata]
+    def get_required_map_ids(self) -> set[str]
+    def get_required_versions(self) -> set[int]
+    def get_total_patches(self) -> int
     
     @property
     def game_state(self) -> GameState

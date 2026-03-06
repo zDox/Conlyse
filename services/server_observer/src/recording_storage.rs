@@ -107,6 +107,18 @@ impl RecordingStorage {
         })
     }
 
+    /// Append a single zstd-compressed response frame to the on-disk log.
+    ///
+    /// The caller is responsible for the contents of `compressed_data`. For
+    /// game server recordings, each frame currently has the inner layout:
+    ///
+    ///   [4 bytes BE metadata_len][metadata JSON bytes]
+    ///   [4 bytes BE response_len][raw response JSON bytes]
+    ///
+    /// This entire blob is then zstd-compressed and stored here together with
+    /// an outer timestamp/length envelope:
+    ///
+    ///   [8 bytes BE timestamp][4 bytes BE compressed_len][compressed_data...]
     pub fn save_response(&self, compressed_data: Vec<u8>) -> Result<(), RecordingStorageError> {
         let mut state = self.state.lock().expect("recording storage mutex poisoned");
 

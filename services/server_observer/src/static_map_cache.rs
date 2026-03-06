@@ -2,11 +2,9 @@ use crate::db::DbClient;
 use crate::s3_client::S3Client;
 use serde_json::Value as JsonValue;
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
-use tokio::fs;
-use tokio::io::AsyncWriteExt;
 use zstd::stream::encode_all;
 
 #[derive(Debug, Error)]
@@ -21,7 +19,6 @@ pub enum StaticMapError {
 
 #[derive(Clone)]
 pub struct StaticMapCache {
-    cache_dir: PathBuf,
     saved_ids: Arc<Mutex<HashSet<String>>>,
     s3: Option<S3Client>,
     db: Option<DbClient>,
@@ -33,25 +30,15 @@ impl StaticMapCache {
         s3: Option<S3Client>,
         db: Option<DbClient>,
     ) -> Result<Self, StaticMapError> {
-        let cache_dir = cache_dir.as_ref().to_path_buf();
-        fs::create_dir_all(&cache_dir).await?;
-
         let mut ids = HashSet::new();
-        let mut entries = fs::read_dir(&cache_dir).await?;
-        while let Some(entry) = entries.next_entry().await? {
-            if let Ok(file_type) = entry.file_type().await {
-                if file_type.is_file() {
-                    if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
-                        if let Some(rest) = stem.strip_prefix("map_") {
-                            ids.insert(rest.to_string());
-                        }
-                    }
-                }
+        if let Some(ref db_client) = db {
+            // Pre-populate the in-memory cache from existing DB entries so
+            // we don't re-upload or re-insert maps that are already known.
+            for map_id in db_client.get_all_map_ids().await? {
+                ids.insert(map_id);
             }
         }
-
         Ok(Self {
-            cache_dir,
             saved_ids: Arc::new(Mutex::new(ids)),
             s3,
             db,
@@ -67,27 +54,17 @@ impl StaticMapCache {
         &self,
         map_id: &str,
         static_map_data: &JsonValue,
-    ) -> Result<PathBuf, StaticMapError> {
+    ) -> Result<(), StaticMapError> {
         {
             let ids = self.saved_ids.lock().unwrap();
             if ids.contains(map_id) {
-                let path = self.cache_dir.join(format!("map_{}.bin", map_id));
-                if path.exists() {
-                    return Ok(path);
-                }
+                return Ok(());
             }
         }
-
-        let filename = format!("map_{}.bin", map_id);
-        let path = self.cache_dir.join(&filename);
 
         let json_str = static_map_data.to_string();
         let compressed = encode_all(json_str.as_bytes(), 3)
             .map_err(|e| StaticMapError::Compression(e.to_string()))?;
-
-        let mut file = fs::File::create(&path).await?;
-        file.write_all(&compressed).await?;
-        file.flush().await?;
 
         {
             let mut ids = self.saved_ids.lock().unwrap();
@@ -97,23 +74,22 @@ impl StaticMapCache {
         // Upload to S3 if configured
         let mut s3_key = String::new();
         if let Some(s3) = &self.s3 {
-            s3_key = format!("static_maps/{}", filename);
-            if let Err(err) = s3.upload_file(&path, &s3_key).await {
-                // Best-effort: log error, keep local cache.
+            s3_key = format!("static_maps/map_{}.bin", map_id);
+            if let Err(err) = s3.upload_bytes(compressed, &s3_key).await {
+                // Best-effort: log error.
                 tracing::error!(?err, "failed to upload static map to S3");
             }
         }
 
         // Record in DB if configured
         if let Some(db) = &self.db {
-            let map_id_int: i64 = map_id.parse().unwrap_or(0);
-            if !db.map_exists(map_id_int).await? {
+            if !db.map_exists(map_id).await? {
                 let version = static_map_data
                     .get("version")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string());
                 db.insert_map(
-                    map_id_int,
+                    map_id,
                     &s3_key,
                     version.as_deref(),
                 )
@@ -121,7 +97,7 @@ impl StaticMapCache {
             }
         }
 
-        Ok(path)
+        Ok(())
     }
 }
 

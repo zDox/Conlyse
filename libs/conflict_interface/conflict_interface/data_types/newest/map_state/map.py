@@ -5,7 +5,7 @@ from typing import Union
 import numpy as np
 from shapely import Point as ShapelyPoint
 
-from .province import Province
+from .land_province import LandProvince
 from .sea_province import SeaProvince
 from ..common.enums.region_type import RegionType
 from ..custom_types import HashMap
@@ -57,10 +57,10 @@ class Map(GameObject):
     regions: Optional[HashMap[RegionType, Region]]
     overlap_x: int
     population_factor: int
-    locations: HashSet[Union[Province, SeaProvince]]
+    locations: HashSet[Union[LandProvince, SeaProvince]]
 
     _province_id_to_index: dict[int, int] = None
-    _provinces: dict[int, Union[Province, SeaProvince]] = None
+    _provinces: dict[int, Union[LandProvince, SeaProvince]] = None
     static_map_data: StaticMapData = None
 
     MAPPING = {
@@ -80,7 +80,7 @@ class Map(GameObject):
     }
 
     @property
-    def provinces(self) -> dict[int, Province | SeaProvince]:
+    def provinces(self) -> dict[int, LandProvince | SeaProvince]:
         if not self._provinces:
             self._provinces = {
                 province.id: province

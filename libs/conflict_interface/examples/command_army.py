@@ -22,6 +22,6 @@ if __name__ == "__main__":
     unit_type = game.get_unit_type_by_name_and_tier("Motorized Infantry", 1)
 
     split_units = [(unit_type.id, 1)]
-    target = city.static_data.center_coordinate
+    target = city.center_coordinate
     army.split_army(target, split_units)
     game.update()

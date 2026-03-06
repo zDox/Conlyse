@@ -46,6 +46,11 @@ class StorageConfig:
     hot_storage_dir: Path
     cold_storage_enabled: bool = False
     s3_config: Optional[S3Config] = None
+    # When True, the converter will mirror the replay to cold storage after
+    # each create/append operation (and also on completion). When False, cold
+    # storage uploads only happen when a replay is explicitly marked as
+    # completed.
+    always_update_cold_storage: bool = True
 
 
 @dataclass
@@ -93,7 +98,8 @@ class ServerConverterConfig:
         storage_config = StorageConfig(
             hot_storage_dir=Path(storage_data['hot_storage_dir']),
             cold_storage_enabled=storage_data.get('cold_storage_enabled', False),
-            s3_config=s3_config
+            s3_config=s3_config,
+            always_update_cold_storage=storage_data.get('always_update_cold_storage', True),
         )
         
         # Parse database config (PostgreSQL only)

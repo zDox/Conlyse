@@ -180,8 +180,18 @@ class Map(QOpenGLWidget):
         return self.province_picker.get_province_id_at_world_position(world_x, world_y)
 
     def apply_hook_events(self, events: dict[ReplayHookTag, list[ReplayHookEvent]]):
+        if ReplayHookTag.SegmentSwitch in events:
+            segment_switch_event = events[ReplayHookTag.SegmentSwitch][0]
+            self.perform_segment_switch("map_id" in segment_switch_event.attributes)
+            return
         if ReplayHookTag.ProvinceChanged in events:
             self.province_fill_renderer.handle_province_change_events(events[ReplayHookTag.ProvinceChanged])
+
+    def perform_segment_switch(self, map_id_changed: bool):
+        logger.debug(f"Performing segment switch: map_id_changed={map_id_changed}")
+        if map_id_changed:
+            self.province_fill_renderer.reset_mesh()
+        self.province_fill_renderer.reset_map_views()
 
     def cleanup(self):
         """Clean up OpenGL resources."""

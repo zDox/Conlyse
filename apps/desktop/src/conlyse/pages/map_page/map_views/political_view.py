@@ -1,6 +1,6 @@
 # political_view.py
 
-from conflict_interface.data_types.newest.map_state.province import Province
+from conflict_interface.data_types.newest.map_state.land_province import LandProvince
 from conflict_interface.data_types.newest.map_state.sea_province import SeaProvince
 from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 
@@ -64,7 +64,7 @@ class PoliticalView(MapView):
 
     def update_provinces(self, events: list[ReplayHookEvent]):
         for event in events:
-            province: Province = event.reference
+            province: LandProvince = event.reference
             changed_attributes: dict = event.attributes
             if 'owner_id' not in changed_attributes:
                 continue

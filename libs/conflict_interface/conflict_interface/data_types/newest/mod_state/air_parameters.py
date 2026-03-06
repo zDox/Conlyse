@@ -45,4 +45,4 @@ class AirParameters(GameObject):
             return self.air_field.air_field_position
         else:
             province_id = self.air_field.removeprefix("p")
-            return self.game.get_province(int(province_id)).static_data.center_coordinate
+            return self.game.get_province(int(province_id)).center_coordinate

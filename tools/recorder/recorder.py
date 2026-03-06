@@ -548,7 +548,7 @@ class Recorder:
             logger.error(f"Province '{province_name}' not found")
             return False
         
-        target = province.static_data.center_coordinate
+        target = province.center_coordinate
         logger.info(f"Army {army.army_number} patrolling to {province_name}")
         
         army.patrol(target)
@@ -568,7 +568,7 @@ class Recorder:
             logger.error(f"Province '{province_name}' not found")
             return False
         
-        target = province.static_data.center_coordinate
+        target = province.center_coordinate
         logger.info(f"Army {army.army_number} moving to {province_name}")
         
         army.set_waypoint(target)
@@ -588,7 +588,7 @@ class Recorder:
             logger.error(f"Province '{province_name}' not found")
             return False
         
-        target = province.static_data.center_coordinate
+        target = province.center_coordinate
         logger.info(f"Army {army.army_number} attacking {province_name}")
         
         army.attack_point(target)

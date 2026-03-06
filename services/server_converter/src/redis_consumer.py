@@ -17,7 +17,19 @@ logger = logging.getLogger(__name__)
 
 
 class RedisStreamConsumer:
-    """Consumes messages from a Redis stream."""
+    """Consumes messages from a Redis stream.
+
+    Wire format (produced by server_observer):
+        - ``metadata``: JSON string of ResponseMetadata
+            {
+                \"timestamp\": <int>,
+                \"game_id\": <int>,
+                \"player_id\": <int>,
+                \"client_version\": <int>,
+                \"map_id\": <str>
+            }
+        - ``response``: zstd-compressed JSON response body
+    """
     
     def __init__(self, redis_config):
         """
@@ -42,9 +54,13 @@ class RedisStreamConsumer:
             password=redis_config.password,
             decode_responses=False  # We'll handle decoding manually
         )
-        
+
         # Create decompressor for reuse across messages (responses are always compressed)
         self.decompressor = zstd.ZstdDecompressor()
+        # Upper bound for a single decompressed response payload (bytes).
+        # Needed because some zstd frames produced by the publisher do not
+        # include a content size in the frame header.
+        self.max_response_size = 100 * 1024 * 1024
         
         # Create consumer group if it doesn't exist
         self._ensure_consumer_group()
@@ -75,9 +91,8 @@ class RedisStreamConsumer:
             
         Returns:
             List of (message_id, message_data) tuples where message_data contains:
-                - timestamp: Unix timestamp in milliseconds
-                - game_id: Game ID
-                - player_id: Player ID
+                - metadata: dict with keys ``timestamp``, ``game_id``, ``player_id``,
+                  ``client_version``, and ``map_id`` (string)
                 - response: JSON response dict
         """
         if count is None:
@@ -106,26 +121,47 @@ class RedisStreamConsumer:
                             if key_str == 'response':
                                 # Response is always compressed binary data
                                 if not isinstance(value, bytes):
-                                    raise ValueError(f"Expected compressed bytes for response field, got {type(value)}")
-                                
-                                # Decompress the response
-                                decompressed = self.decompressor.decompress(value)
+                                    raise ValueError(
+                                        f"Expected compressed bytes for response field, got {type(value)}"
+                                    )
+
+                                # Decompress the response. Some frames produced by the
+                                # publisher may not include a content size in the frame
+                                # header, so we must provide an explicit upper bound.
+                                decompressed = self.decompressor.decompress(
+                                    value,
+                                    max_output_size=self.max_response_size,
+                                )
                                 value_str = decompressed.decode('utf-8')
                                 decoded_data[key_str] = json.loads(value_str)
-                            else:
-                                # Other fields (timestamp, game_id, player_id) are simple values
+                            elif key_str == 'metadata':
+                                # Metadata is a JSON string containing primitive fields.
                                 value_str = value.decode('utf-8') if isinstance(value, bytes) else value
-                                # Try to convert to int if it's a numeric field
-                                if key_str in ('timestamp', 'game_id', 'player_id'):
-                                    decoded_data[key_str] = int(value_str)
-                                else:
-                                    decoded_data[key_str] = value_str
+                                meta = json.loads(value_str)
+                                if not isinstance(meta, dict):
+                                    raise ValueError("metadata field must decode to a JSON object")
+
+                                # Normalize and coerce expected integer fields.
+                                normalized = {}
+                                for field in ('timestamp', 'game_id', 'player_id', 'client_version'):
+                                    if field not in meta:
+                                        raise KeyError(f"Missing '{field}' in metadata")
+                                    normalized[field] = int(meta[field])
+
+                                # string field for static map identifier.
+                                normalized['map_id'] = str(meta['map_id'])
+
+                                decoded_data['metadata'] = normalized
+                            else:
+                                # Any future auxiliary fields are passed through as UTF-8 strings.
+                                value_str = value.decode('utf-8') if isinstance(value, bytes) else value
+                                decoded_data[key_str] = value_str
                         
                         message_id_str = message_id.decode('utf-8') if isinstance(message_id, bytes) else message_id
                         result.append((message_id_str, decoded_data))
                         
             return result
-            
+
         except Exception as e:
             logger.error(f"Error reading from Redis stream: {e}")
             return []

@@ -9,7 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from app.api.routes import admin, auth, downloads, subscription
+from app.api.routes import admin, auth, downloads, games, recording_list, replay_library, subscription
 from app.core.config import settings
 from app.core.database import get_engine, get_session_factory
 
@@ -58,6 +58,9 @@ app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(downloads.router, prefix=settings.API_V1_PREFIX)
 app.include_router(admin.router, prefix=settings.API_V1_PREFIX)
 app.include_router(subscription.router, prefix=settings.API_V1_PREFIX)
+app.include_router(recording_list.router, prefix=settings.API_V1_PREFIX)
+app.include_router(replay_library.router, prefix=settings.API_V1_PREFIX)
+app.include_router(games.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/health", tags=["health"])

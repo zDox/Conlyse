@@ -8,13 +8,14 @@ from pathlib import Path
 from typing import Optional, List, Tuple, Dict, Any
 
 from conflict_interface.replay.replay_builder import ReplayBuilder
-from tools.server_converter.src.config import ServerConverterConfig
-from tools.server_converter.src.database import ReplayDatabase, ReplayStatus
-from tools.server_converter.src.redis_consumer import RedisStreamConsumer
-from tools.server_converter.src.cold_storage import ColdStorageManager
-from tools.server_converter.src.hot_storage import HotStorageManager
-from tools.server_converter.src.response_cache import ResponseCache
-from tools.server_converter.src import metrics
+from conflict_interface.replay.response_metadata import ResponseMetadata
+from server_converter.config import ServerConverterConfig
+from server_converter.database import ReplayDatabase, ReplayStatus
+from server_converter.redis_consumer import RedisStreamConsumer
+from server_converter.cold_storage import ColdStorageManager
+from server_converter.hot_storage import HotStorageManager
+from server_converter.response_cache import ResponseCache
+from server_converter import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +95,14 @@ class ServerConverter:
             cached_message_ids = []
             for message_id, message_data in messages:
                 try:
-                    game_id = message_data['game_id']
-                    player_id = message_data['player_id']
-                    timestamp = message_data['timestamp']
-                    response = message_data['response']
-                    
+                    # Extract core metadata from the ResponseMetadata payload.
+                    meta_dict = message_data["metadata"]
+                    response = message_data["response"]
+
+                    metadata = ResponseMetadata.from_dict(meta_dict)
+
                     # Cache to disk
-                    self.response_cache.add_response(game_id, player_id, timestamp, response)
+                    self.response_cache.add_response(metadata, response)
                     cached_message_ids.append(message_id)
                     
                 except Exception as e:
@@ -173,7 +175,7 @@ class ServerConverter:
                 metrics.errors_total.labels(error_type='processing').inc()
         
     def _process_game_responses(self, game_id: int, player_id: int,
-                                json_responses: List[Tuple[int, dict]]) -> bool:
+                                json_responses: List[Tuple[ResponseMetadata, dict]]) -> bool:
         """
         Process responses for a specific game and player.
         
@@ -206,7 +208,7 @@ class ServerConverter:
             return False
             
     def _create_new_replay(self, game_id: int, player_id: int,
-                          json_responses: List[Tuple[int, dict]]) -> bool:
+                          json_responses: List[Tuple[ResponseMetadata, dict]]) -> bool:
         """
         Create a new replay file.
         
@@ -228,15 +230,17 @@ class ServerConverter:
 
             # Create replay builder
             builder = ReplayBuilder(replay_path, game_id, player_id)
-            
-            # Static map data is intentionally never included in server converter replays
-            static_map_data = None
+            builder.setup_parsers()
 
-            # Create the replay
-            initial_index = builder.create_replay(json_responses, static_map_data)
-            
+
+            initial_index = builder.create_replay(json_responses)
+            remaining_responses = json_responses[initial_index + 1:] if initial_index + 1 < len(json_responses) else []
+            builder.append_json_responses(remaining_responses)
+
             # Create database entry
-            recording_start_time = datetime.fromtimestamp(json_responses[0][0] / 1000.0)
+            # recording_start_time is based on the first response metadata timestamp (ms)
+            first_meta = json_responses[0][0]
+            recording_start_time = datetime.fromtimestamp(first_meta.timestamp / 1000.0)
             replay_name = f"game_{game_id}_player_{player_id}"
             
             self.db.create_replay_entry(
@@ -250,6 +254,35 @@ class ServerConverter:
             # Update response count
             replay_entry = self.db.get_replay_by_game_and_player(game_id, player_id)
             self.db.increment_response_count(replay_entry['id'], len(json_responses))
+
+            # Optionally mirror the replay to cold storage after creating it.
+            if self.cold_storage and self.config.storage.always_update_cold_storage:
+                logger.info(
+                    "Uploading new replay snapshot to cold storage: "
+                    f"game {game_id}, player {player_id}"
+                )
+                try:
+                    s3_key = self.cold_storage.upload_replay(
+                        replay_path, game_id, player_id
+                    )
+                    if s3_key:
+                        # Keep status as RECORDING but store/update S3 key.
+                        self.db.update_replay_status(
+                            replay_entry["id"],
+                            ReplayStatus.RECORDING,
+                            s3_key=s3_key,
+                        )
+                        metrics.cold_storage_uploads_total.labels(status='success').inc()
+                    else:
+                        metrics.cold_storage_uploads_total.labels(status='error').inc()
+                        metrics.errors_total.labels(error_type='storage').inc()
+                except Exception as e:
+                    logger.error(
+                        f"Failed to upload new replay snapshot to cold storage: {e}",
+                        exc_info=True,
+                    )
+                    metrics.cold_storage_uploads_total.labels(status='error').inc()
+                    metrics.errors_total.labels(error_type='storage').inc()
             
             # Update metrics
             metrics.responses_per_replay_summary.observe(len(json_responses))
@@ -270,7 +303,7 @@ class ServerConverter:
             metrics.replay_creation_duration_seconds.observe(duration)
             
     def _append_to_replay(self, game_id: int, player_id: int,
-                         json_responses: List[Tuple[int, dict]],
+                         json_responses: List[Tuple[ResponseMetadata, dict]],
                          replay_entry: Dict[str, Any]) -> bool:
         """
         Append responses to an existing replay.
@@ -293,6 +326,7 @@ class ServerConverter:
             replay_path = self.hot_storage.get_replay_path(game_id, player_id)
             # Create replay builder in append mode
             builder = ReplayBuilder(replay_path, game_id, player_id)
+            builder.setup_parsers()
             
             # Append responses
             builder.append_json_responses(json_responses)
@@ -300,6 +334,35 @@ class ServerConverter:
             # Update response count
             self.db.increment_response_count(replay_entry['id'], len(json_responses))
             
+            # Optionally mirror the updated replay to cold storage after appending.
+            if self.cold_storage and self.config.storage.always_update_cold_storage:
+                logger.info(
+                    "Uploading updated replay snapshot to cold storage: "
+                    f"game {game_id}, player {player_id}"
+                )
+                try:
+                    s3_key = self.cold_storage.upload_replay(
+                        replay_path, game_id, player_id
+                    )
+                    if s3_key:
+                        # Keep status as RECORDING but store/update S3 key.
+                        self.db.update_replay_status(
+                            replay_entry["id"],
+                            ReplayStatus.RECORDING,
+                            s3_key=s3_key,
+                        )
+                        metrics.cold_storage_uploads_total.labels(status='success').inc()
+                    else:
+                        metrics.cold_storage_uploads_total.labels(status='error').inc()
+                        metrics.errors_total.labels(error_type='storage').inc()
+                except Exception as e:
+                    logger.error(
+                        f"Failed to upload updated replay snapshot to cold storage: {e}",
+                        exc_info=True,
+                    )
+                    metrics.cold_storage_uploads_total.labels(status='error').inc()
+                    metrics.errors_total.labels(error_type='storage').inc()
+
             # Update metrics
             metrics.responses_per_replay_summary.observe(len(json_responses))
             metrics.replay_operations_total.labels(operation='append', status='success').inc()
@@ -342,37 +405,47 @@ class ServerConverter:
             
         # Update recording end time
         recording_end_time = datetime.now()
-        
+
         # Move to cold storage if enabled
-        cold_storage_path = None
+        s3_key = None
         if self.cold_storage:
             logger.info(f"Moving replay to cold storage: game {game_id}, player {player_id}")
             try:
-                cold_storage_path = self.cold_storage.upload_replay(replay_path, game_id, player_id)
-                
-                if cold_storage_path:
+                s3_key = self.cold_storage.upload_replay(
+                    replay_path, game_id, player_id
+                )
+
+                if s3_key:
                     # Delete from hot storage after successful upload
                     self.hot_storage.delete_replay(game_id, player_id)
                     metrics.hot_storage_replays.dec()
-                    metrics.cold_storage_uploads_total.labels(status='success').inc()
+                    metrics.cold_storage_uploads_total.labels(status="success").inc()
                 else:
-                    metrics.cold_storage_uploads_total.labels(status='error').inc()
-                    metrics.errors_total.labels(error_type='storage').inc()
-                    
+                    metrics.cold_storage_uploads_total.labels(status="error").inc()
+                    metrics.errors_total.labels(error_type="storage").inc()
+
             except Exception as e:
                 logger.error(f"Failed to upload to cold storage: {e}", exc_info=True)
                 metrics.cold_storage_uploads_total.labels(status='error').inc()
                 metrics.errors_total.labels(error_type='storage').inc()
-                
+
         # Update database
-        status = ReplayStatus.ARCHIVED if cold_storage_path else ReplayStatus.COMPLETED
+        status = ReplayStatus.ARCHIVED if s3_key else ReplayStatus.COMPLETED
         self.db.update_replay_status(
-            replay_entry['id'],
+            replay_entry["id"],
             status,
             recording_end_time=recording_end_time,
-            cold_storage_path=cold_storage_path
+            s3_key=s3_key,
         )
-        
+
+        try:
+            self.db.remove_game_from_recording_lists(game_id)
+        except Exception as e:
+            logger.warning(
+                f"Failed to remove game {game_id} from recording lists: {e}",
+                exc_info=True,
+            )
+
         metrics.replay_operations_total.labels(operation='complete', status='success').inc()
         logger.info(f"Marked replay as {status.value}: game {game_id}, player {player_id}")
         return True
