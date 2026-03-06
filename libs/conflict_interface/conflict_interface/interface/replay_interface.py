@@ -290,12 +290,9 @@ class ReplayInterface(GameInterface):
             self._current_hook_system.add_segment_switch_event()
             self.current_time = self._current_segment.get_start_time()
 
-            patches = self._current_segment.storage.patch_graph.find_patch_path(self._current_segment.get_start_time(),
-                                                                                time_stamp)
-        else:
-            patches = self._current_segment.storage.patch_graph.find_patch_path(self.current_time,
-                                                                                time_stamp)
         gc.disable()
+        patches = self._current_segment.storage.patch_graph.find_patch_path(self.current_time,
+                                                                            time_stamp)
         if PatchGraph.cost(patches) > LONG_PATCH_THRESHOLD and len(patches) > 1 and create_long_patches:
             patches = [self.create_and_save_long_patch(self.current_time, time_stamp)]
 
