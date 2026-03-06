@@ -10,8 +10,8 @@ from tqdm import tqdm
 
 from conflict_interface.replay.replay_builder import ReplayBuilder
 from conflict_interface.replay.response_metadata import ResponseMetadata
-from .recorder_logger import get_logger
-from .recording_reader import RecordingReader
+from recorder_logger import get_logger
+from recording_reader import RecordingReader
 
 if TYPE_CHECKING:
     from conflict_interface.data_types.newest.static_map_data import StaticMapData

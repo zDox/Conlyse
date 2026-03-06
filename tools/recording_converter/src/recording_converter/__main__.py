@@ -7,9 +7,9 @@ import os
 import sys
 from pathlib import Path
 
-from .converter import RecordingConverter, convert_recordings_root
-from .enums import OperatingMode
-from .recorder_logger import setup_converter_logger
+from converter import RecordingConverter, convert_recordings_root
+from enums import OperatingMode
+from recorder_logger import setup_converter_logger
 
 
 def main():
@@ -91,6 +91,14 @@ Patch creation modes:
         action='store_true',
         help='Bulk mode: treat --recording-dir as a root containing many recording subdirectories and '
              'convert each to a replay file in --output-dir'
+    )
+
+    parser.add_argument(
+        '--recording-name',
+        dest='recording_names',
+        action='append',
+        help='In bulk mode: only process recordings whose directory name matches this value. '
+             'Can be specified multiple times.'
     )
 
     parser.add_argument(
@@ -188,6 +196,7 @@ Patch creation modes:
                 game_id=args.game_id,
                 player_id=args.player_id,
                 use_tqdm=not args.no_progress,
+                recording_name_filters=args.recording_names,
             )
         except Exception:
             sys.exit(1)

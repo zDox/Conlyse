@@ -8,11 +8,11 @@ from typing import List, Optional, Sequence, Tuple
 from tqdm import tqdm
 
 from conflict_interface.logger_config import get_logger
-from .enums import OperatingMode
-from .from_game_state_using_make_bipatch_to_replay import FromGameStateUsingMakeBiPatchToReplay
-from .from_json_responses_using_update_to_replay import FromJsonResponsesUsingUpdateToReplay
-from .from_recording_to_json import FromRecordingToJson
-from .recording_reader import RecordingReader
+from enums import OperatingMode
+from from_game_state_using_make_bipatch_to_replay import FromGameStateUsingMakeBiPatchToReplay
+from from_json_responses_using_update_to_replay import FromJsonResponsesUsingUpdateToReplay
+from from_recording_to_json import FromRecordingToJson
+from recording_reader import RecordingReader
 
 logger = get_logger()
 
@@ -149,6 +149,7 @@ def convert_recordings_root(
     game_id: Optional[int] = None,
     player_id: Optional[int] = None,
     use_tqdm: bool = True,
+    recording_name_filters: Optional[Sequence[str]] = None,
 ) -> bool:
     """
     Convert all recording subdirectories under a root directory into replay files.
@@ -167,6 +168,11 @@ def convert_recordings_root(
 
     # Discover candidate recording directories.
     recording_dirs: List[Path] = [entry for entry in root.iterdir() if entry.is_dir()]
+
+    # Optional filtering by recording directory names (e.g. specific games).
+    if recording_name_filters:
+        allowed_names = set(recording_name_filters)
+        recording_dirs = [d for d in recording_dirs if d.name in allowed_names]
 
     if not recording_dirs:
         logger.warning("No recording subdirectories found under %s", root)
