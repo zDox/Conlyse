@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=recording_conversion
-#SBATCH --time=00:10:00
+#SBATCH --time=00:5:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=3G
