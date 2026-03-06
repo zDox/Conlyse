@@ -285,10 +285,15 @@ class ReplayInterface(GameInterface):
 
         if correct_segment.get_last_time() != self._current_segment.get_last_time(): # TODO bettter comparison should be some sort of !=
             self.game_state = correct_segment.storage.initial_game_state
+            old_segment = self._current_segment
             self._current_segment = correct_segment
-            self._current_hook_system = self._hook_systems[self._current_segment]
-            self._current_hook_system.add_segment_switch_event()
             self.current_time = self._current_segment.get_start_time()
+            self._current_hook_system = self._hook_systems[self._current_segment]
+            self._current_hook_system.add_segment_switch_event(old_segment.version,
+                                                               self._current_segment.version,
+                                                               old_segment.storage.metadata.map_id,
+                                                               self._current_segment.storage.metadata.map_id)
+
 
         gc.disable()
         patches = self._current_segment.storage.patch_graph.find_patch_path(self.current_time,

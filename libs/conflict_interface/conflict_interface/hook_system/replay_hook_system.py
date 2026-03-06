@@ -158,8 +158,13 @@ class ReplayHookSystem:
         self._hook_events = []
         return events
 
-    def add_segment_switch_event(self):
+    def add_segment_switch_event(self, old_version, new_version, old_map, new_map):
+        changed_attributes = {}
+        if old_version != new_version:
+            changed_attributes.update({"version": (old_version, new_version)})
+        if old_map != new_map:
+            changed_attributes.update({"map": (old_map, new_map)})
         self._hook_events.append(ReplayHookEvent(
-            None, {}, ReplayHookTag.SegmentSwitch
+            None, changed_attributes, ReplayHookTag.SegmentSwitch
         ))
 
