@@ -319,7 +319,7 @@ class ReplayInterface(GameInterface):
         self.current_time = target_time
         #self._update_player_id()
 
-        if hasattr(self, '_hook_system'):
+        if self._current_hook_system:
             self._current_hook_system.execute_queue()
 
     def jump_to_next_patch(self) -> bool:

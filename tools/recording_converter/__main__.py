@@ -3,10 +3,11 @@ CLI entry point for the record-to-replay converter tool.
 """
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
-from tools.recording_converter.converter import RecordingConverter
+from tools.recording_converter.converter import RecordingConverter, convert_recordings_root
 from tools.recording_converter.enums import OperatingMode
 from tools.recording_converter.recorder_logger import setup_converter_logger
 
@@ -84,6 +85,20 @@ Patch creation modes:
         action='store_true',
         help='Overwrite existing output files'
     )
+
+    parser.add_argument(
+        '--bulk',
+        action='store_true',
+        help='Bulk mode: treat --recording-dir as a root containing many recording subdirectories and '
+             'convert each to a replay file in --output-dir'
+    )
+
+    parser.add_argument(
+        '-p', '--processes',
+        type=int,
+        default=os.cpu_count() or 1,
+        help='Number of worker processes to use for bulk conversion'
+    )
     
     parser.add_argument(
         '--game-id',
@@ -129,7 +144,7 @@ Patch creation modes:
     
     setup_converter_logger(log_level)
 
-    # Create converter
+    # Determine operating mode
     try:
         op_mode = OperatingMode.gmr
         match args.mode:
@@ -139,13 +154,47 @@ Patch creation modes:
                 op_mode = OperatingMode.rur
             case 'rtj' :
                 op_mode = OperatingMode.rtj
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
+    # Bulk folder conversion path
+    if args.bulk:
+        if op_mode == OperatingMode.rtj:
+            print("Error: Bulk mode is only supported for gmr and rur modes")
+            sys.exit(1)
+
+        if not args.recording_dir:
+            print("Error: Recording root directory is required in bulk mode")
+            sys.exit(1)
+        if not args.output_dir:
+            print("Error: Output directory is required in bulk mode")
+            sys.exit(1)
+
+        try:
+            success = convert_recordings_root(
+                root=Path(args.recording_dir),
+                output_dir=Path(args.output_dir),
+                op_mode=op_mode,
+                processes=args.processes,
+                overwrite=args.overwrite,
+                limit=args.limit,
+                game_id=args.game_id,
+                player_id=args.player_id,
+            )
+        except Exception:
+            sys.exit(1)
+
+        sys.exit(0 if success else 1)
+
+    # Single-recording conversion path
+    try:
         converter = RecordingConverter(Path(args.recording_dir), op_mode)
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}")
         sys.exit(1)
 
-    # Convert
+    # Convert single recording
     try:
         success = False
         match op_mode:
