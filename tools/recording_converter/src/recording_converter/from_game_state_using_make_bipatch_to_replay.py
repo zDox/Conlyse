@@ -6,8 +6,8 @@ from tqdm import tqdm
 from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
 from conflict_interface.replay.replay_segment import ReplaySegment
 from conflict_interface.utils.helper import unix_ms_to_datetime
-from recorder_logger import get_logger
-from recording_reader import RecordingReader
+from .recorder_logger import get_logger
+from .recording_reader import RecordingReader
 
 logger = get_logger()
 class FromGameStateUsingMakeBiPatchToReplay:

@@ -7,9 +7,9 @@ import os
 import sys
 from pathlib import Path
 
-from converter import RecordingConverter, convert_recordings_root
-from enums import OperatingMode
-from recorder_logger import setup_converter_logger
+from .converter import RecordingConverter, convert_recordings_root
+from .enums import OperatingMode
+from .recorder_logger import setup_converter_logger
 
 
 def main():
