@@ -163,7 +163,7 @@ class ReplayHookSystem:
         if old_version != new_version:
             changed_attributes.update({"version": (old_version, new_version)})
         if old_map != new_map:
-            changed_attributes.update({"map": (old_map, new_map)})
+            changed_attributes.update({"map_id": (old_map, new_map)})
         self._hook_events.append(ReplayHookEvent(
             None, changed_attributes, ReplayHookTag.SegmentSwitch
         ))
