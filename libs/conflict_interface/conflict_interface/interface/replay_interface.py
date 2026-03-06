@@ -136,7 +136,7 @@ class ReplayInterface(GameInterface):
         self._is_open = True
 
         self.register_hook_systems()
-        self._current_hook_system = self._hook_systems[self._current_segment.version]
+        self._current_hook_system = self._hook_systems[self._current_segment]
         logger.debug("Initialization Completed Successfully")
         return True
 
@@ -263,7 +263,7 @@ class ReplayInterface(GameInterface):
 
     def register_hook_systems(self):
         for segment in self._replay.segments.values():
-            self._hook_systems[segment.version] = ReplayHookSystem(segment)
+            self._hook_systems[segment] = ReplayHookSystem(segment)
 
     def jump_to(self, time_stamp: datetime, create_long_patches = True) -> None:
         """
@@ -286,8 +286,9 @@ class ReplayInterface(GameInterface):
         if correct_segment.get_last_time() != self._current_segment.get_last_time(): # TODO bettter comparison should be some sort of !=
             self.game_state = correct_segment.storage.initial_game_state
             self._current_segment = correct_segment
-            self._current_hook_system = self._hook_systems[self._current_segment.version]
+            self._current_hook_system = self._hook_systems[self._current_segment]
             self._current_hook_system.add_segment_switch_event()
+            self.current_time = self._current_segment.get_start_time()
 
             patches = self._current_segment.storage.patch_graph.find_patch_path(self._current_segment.get_start_time(),
                                                                                 time_stamp)
@@ -500,7 +501,7 @@ class ReplayInterface(GameInterface):
             attributes: The name of the attributes to watch (e.g., ["owner_id", "resource_production"]).
         """
         path = ["states", "map_state", "map", "locations"]
-        path_idx = self._current_segment.storage.path_tree.path_list_to_idx(path)
+        path_idx = self._current_segment.storage.path_tree.path_list_to_idx(path) # TODO Fix
 
         hook = ReplayHook(
             tag=ReplayHookTag.ProvinceChanged,
@@ -517,7 +518,7 @@ class ReplayInterface(GameInterface):
         """Remove a previously registered province attribute change hook."""
 
         path = ["states", "map_state", "map", "locations"]
-        path_idx = self._current_segment.storage.path_tree.path_list_to_idx(path)
+        path_idx = self._current_segment.storage.path_tree.path_list_to_idx(path) # TODO Fix
         for hs in self._hook_systems.values():
             hs.unregister_hook(path_idx, callback)
 
