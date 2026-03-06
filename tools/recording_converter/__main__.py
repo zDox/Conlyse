@@ -99,6 +99,12 @@ Patch creation modes:
         default=os.cpu_count() or 1,
         help='Number of worker processes to use for bulk conversion'
     )
+
+    parser.add_argument(
+        '--no-progress',
+        action='store_true',
+        help='Disable tqdm progress bars (useful for non-interactive or log-only runs)'
+    )
     
     parser.add_argument(
         '--game-id',
@@ -181,6 +187,7 @@ Patch creation modes:
                 limit=args.limit,
                 game_id=args.game_id,
                 player_id=args.player_id,
+                use_tqdm=not args.no_progress,
             )
         except Exception:
             sys.exit(1)

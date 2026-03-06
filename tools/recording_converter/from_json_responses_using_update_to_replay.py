@@ -30,7 +30,7 @@ class FromJsonResponsesUsingUpdateToReplay:
     # Constants
     PATCH_BUFFER_MULTIPLIER = 2
 
-    def __init__(self, recording_reader: RecordingReader):
+    def __init__(self, recording_reader: RecordingReader, use_tqdm: bool = True):
         """
         Initialize the converter with a recording reader.
 
@@ -38,6 +38,7 @@ class FromJsonResponsesUsingUpdateToReplay:
             recording_reader: Reader instance for accessing recording data
         """
         self.reader = recording_reader
+        self._use_tqdm = use_tqdm
 
     def convert(
             self,
@@ -103,18 +104,29 @@ class FromJsonResponsesUsingUpdateToReplay:
         logger.info("Appending JSON responses...")
         remaining_responses = json_responses[initial_index + 1:] if initial_index + 1 < len(json_responses) else []
 
-        # Use tqdm for progress reporting
-        with tqdm(total=len(remaining_responses), desc="Writing Replay", unit="patch", unit_scale=True) as pbar:
-            def wrapped_callback(current: int, total: int):
-                pbar.n = current
-                pbar.refresh()
+        # Use tqdm for progress reporting (optional)
+        if self._use_tqdm:
+            with tqdm(
+                total=len(remaining_responses),
+                desc="Writing Replay",
+                unit="patch",
+                unit_scale=True,
+            ) as pbar:
+                def wrapped_callback(current: int, total: int):
+                    pbar.n = current
+                    pbar.refresh()
 
+                builder.append_json_responses(
+                    json_responses=remaining_responses,
+                    progress_callback=wrapped_callback,
+                )
+                pbar.n = len(remaining_responses)
+                pbar.refresh()
+        else:
             builder.append_json_responses(
                 json_responses=remaining_responses,
-                progress_callback=wrapped_callback,
+                progress_callback=None,
             )
-            pbar.n = len(remaining_responses)
-            pbar.refresh()
 
         logger.info(f"Successfully converted recording to replay: {output_file}")
         return True

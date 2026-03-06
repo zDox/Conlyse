@@ -441,7 +441,6 @@ class ReplayStorage:
         data_pool = memoryview(self._d_pool_b)
 
         if len(data_pool) == 0:
-            logger.warning("No patches found in replay.")
             return self.patch_graph
 
         # Deserialize each patch and add to graph

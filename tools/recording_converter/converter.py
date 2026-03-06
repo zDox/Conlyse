@@ -33,7 +33,12 @@ class RecordingConverter:
         Converts the recording to multiple json files
     """
     
-    def __init__(self, recording_dir: str | Path, operating_mode: OperatingMode):
+    def __init__(
+        self,
+        recording_dir: str | Path,
+        operating_mode: OperatingMode,
+        use_tqdm: bool = True,
+    ):
         """
         Initialize converter with recording directory.
         
@@ -42,7 +47,10 @@ class RecordingConverter:
             operating_mode: One of the three operating modes
         """
         self.path = Path(recording_dir)
-        self.reader = RecordingReader(self.path)
+        # Controls whether tqdm-based progress bars are enabled for this converter.
+        # In multiprocessing worker processes we usually disable tqdm to avoid garbled output.
+        self._use_tqdm = use_tqdm
+        self.reader = RecordingReader(self.path, use_tqdm=self._use_tqdm)
         self.op_mode = operating_mode
 
         self.check_op_mode_requirements()
@@ -75,21 +83,21 @@ class RecordingConverter:
             logger.error(f"Output file already exists: {output}")
             return False
         if self.op_mode == OperatingMode.gmr:
-            gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader)
+            gmr = FromGameStateUsingMakeBiPatchToReplay(self.reader, use_tqdm=self._use_tqdm)
             return gmr.convert(output_file=output,
                                overwrite=overwrite,
                                limit=limit,
                                game_id=game_id,
                                player_id=player_id)
         elif self.op_mode == OperatingMode.rur:
-            rur = FromJsonResponsesUsingUpdateToReplay(self.reader)
+            rur = FromJsonResponsesUsingUpdateToReplay(self.reader, use_tqdm=self._use_tqdm)
             return rur.convert(output_file=output,
                                overwrite=overwrite,
                                limit=limit,
                                game_id=game_id,
                                player_id=player_id)
         elif self.op_mode == OperatingMode.rtj:
-            rtj = FromRecordingToJson(self.reader)
+            rtj = FromRecordingToJson(self.reader, use_tqdm=self._use_tqdm)
             return rtj.convert(output_dir=output,
                                overwrite=overwrite,
                                limit=limit)
@@ -115,7 +123,9 @@ def _convert_single_recording_worker(
     ) = args
 
     try:
-        converter = RecordingConverter(recording_dir, op_mode)
+        # Disable tqdm inside worker processes to avoid clashing with the
+        # main-process progress bar in bulk mode.
+        converter = RecordingConverter(recording_dir, op_mode, use_tqdm=False)
         success = converter.convert(
             output=output_file,
             overwrite=overwrite,
@@ -138,6 +148,7 @@ def convert_recordings_root(
     limit: Optional[int] = None,
     game_id: Optional[int] = None,
     player_id: Optional[int] = None,
+    use_tqdm: bool = True,
 ) -> bool:
     """
     Convert all recording subdirectories under a root directory into replay files.
@@ -212,24 +223,30 @@ def convert_recordings_root(
     overall_success = True
 
     if processes == 1 or len(jobs) == 1:
-        for recording_dir, success in tqdm(
-            (_convert_single_recording_worker(job) for job in jobs),
-            total=len(jobs),
-            desc="Recordings",
-            unit="rec",
-        ):
+        iterator = (_convert_single_recording_worker(job) for job in jobs)
+        if use_tqdm:
+            iterator = tqdm(
+                iterator,
+                total=len(jobs),
+                desc="Recordings",
+                unit="rec",
+            )
+        for recording_dir, success in iterator:
             if not success:
                 overall_success = False
                 logger.error("Conversion failed for recording %s", recording_dir)
     else:
         logger.info("Converting recordings using %d worker processes", processes)
         with Pool(processes=processes) as pool:
-            for recording_dir, success in tqdm(
-                pool.imap_unordered(_convert_single_recording_worker, jobs),
-                total=len(jobs),
-                desc="Recordings",
-                unit="rec",
-            ):
+            iterator = pool.imap_unordered(_convert_single_recording_worker, jobs)
+            if use_tqdm:
+                iterator = tqdm(
+                    iterator,
+                    total=len(jobs),
+                    desc="Recordings",
+                    unit="rec",
+                )
+            for recording_dir, success in iterator:
                 if not success:
                     overall_success = False
                     logger.error("Conversion failed for recording %s", recording_dir)

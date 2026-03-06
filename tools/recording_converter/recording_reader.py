@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 logger = get_logger()
 
 class RecordingReader:
-    def __init__(self, recording_dir: Path, static_map_data_deprecated = None):
+    def __init__(self, recording_dir: Path, static_map_data_deprecated = None, use_tqdm: bool = True):
         self.recording_dir = Path(recording_dir)
         self.game_states_file = self.recording_dir / "game_states.bin"
         self.requests_file = self.recording_dir / "requests.jsonl.zst"
@@ -32,6 +32,9 @@ class RecordingReader:
 
         self.metadata = None
         self._decompressor = zstd.ZstdDecompressor()
+        # Controls whether tqdm progress bars are shown from this reader.
+        # In multiprocessing workers we typically disable tqdm to avoid garbled output.
+        self._use_tqdm = use_tqdm
 
     def read_metadata(self) -> Optional[dict]:
         """
@@ -269,7 +272,15 @@ class RecordingReader:
         len_updates =  self.len_updates()
         number_of_requests_to_process = len_updates if limit is None else min(limit, len_updates)
         with open(self.requests_file, 'rb') as f:
-            for _ in tqdm(range(number_of_requests_to_process), desc="Reading JSON requests: ", unit="Request", unit_scale=True):
+            iterator = range(number_of_requests_to_process)
+            if self._use_tqdm:
+                iterator = tqdm(
+                    iterator,
+                    desc="Reading JSON requests: ",
+                    unit="Request",
+                    unit_scale=True,
+                )
+            for _ in iterator:
                 # Read timestamp (8 bytes)
                 timestamp_bytes = f.read(8)
                 if not timestamp_bytes:

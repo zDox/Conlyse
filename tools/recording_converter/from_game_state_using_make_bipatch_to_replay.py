@@ -11,9 +11,10 @@ from tools.recording_converter.recording_reader import RecordingReader
 
 logger = get_logger()
 class FromGameStateUsingMakeBiPatchToReplay:
-    def __init__(self, recording_reader: RecordingReader):
+    def __init__(self, recording_reader: RecordingReader, use_tqdm: bool = True):
         self.reader = recording_reader
         self.game_states_file = self.reader.game_states_file
+        self._use_tqdm = use_tqdm
 
     def convert(self,
                 output_file: Path,
@@ -75,7 +76,16 @@ class FromGameStateUsingMakeBiPatchToReplay:
 
             number_of_states_to_process = len_game_states if limit is None else min(limit, len_game_states)
 
-            for i in tqdm(range(1, number_of_states_to_process), desc="Processing: ", unit="States", unit_scale=True):
+            iterator = range(1, number_of_states_to_process)
+            if self._use_tqdm:
+                iterator = tqdm(
+                    iterator,
+                    desc="Processing: ",
+                    unit="States",
+                    unit_scale=True,
+                )
+
+            for i in iterator:
                 _, current_state = self.reader.read_game_state(i)
                 current_datetime = unix_ms_to_datetime(int(current_state.time_stamp))
 
