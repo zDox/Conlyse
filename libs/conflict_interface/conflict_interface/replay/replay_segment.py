@@ -212,7 +212,6 @@ class ReplaySegment:
         """ Note this code has an issue: When in a list a object is removed the references of all trailing elements is not made invalid"""
 
         # Resolve unknown references using Steiner tree + BFS
-        print(len(unknown_paths))
         steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_paths)
         self.storage.path_tree.bfs_set_references(
             steiner_tree_adj,
