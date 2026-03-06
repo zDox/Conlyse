@@ -34,6 +34,9 @@ class ReplaySegment:
         self._game: ReplayInterface | None = None
         self._max_patches = max_patches
         self._append_que = deque([])
+        self.game_state = None
+        self.current_time = None
+
 
     def get_binary(self):
         return self.storage.get_data()
@@ -59,11 +62,12 @@ class ReplaySegment:
     def load_everything(self):
         self.storage.read_all()
         self.storage.load_metadata()
-        self.storage.load_initial_game_state(self._game)
+        self.game_state = self.storage.load_initial_game_state(self._game)
         self.storage.load_path_tree()
         self.storage.load_patches(self._game)
         self.storage.path_tree.precompute()
         self.storage.patch_graph.finalize()
+        self.current_time = self.get_start_time()
 
     def load_append_mode(self):
         self.storage.read_append_mode_from_disk()
@@ -208,6 +212,7 @@ class ReplaySegment:
         """ Note this code has an issue: When in a list a object is removed the references of all trailing elements is not made invalid"""
 
         # Resolve unknown references using Steiner tree + BFS
+        print(len(unknown_paths))
         steiner_tree_adj = self.storage.path_tree.build_steiner_tree(unknown_paths)
         self.storage.path_tree.bfs_set_references(
             steiner_tree_adj,

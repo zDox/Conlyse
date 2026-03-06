@@ -127,11 +127,11 @@ class ReplayInterface(GameInterface):
 
         first_segment = self._replay.find_first_segment()
         self._current_segment = first_segment
-        self.game_state = first_segment.storage.initial_game_state
+        self.game_state = first_segment.game_state
 
         # Step 5: final metadata
         self._update_player_id()
-        self.current_time = first_segment.get_start_time()
+        self.current_time = first_segment.current_time
 
         self._is_open = True
 
@@ -276,18 +276,20 @@ class ReplayInterface(GameInterface):
             return
 
         if time_stamp < self._replay.get_start_time():
-            self.game_state = self._replay.find_first_segment().initial_game_state
+            self.jump_to(self._replay.get_start_time())
             return
+
         correct_segment = self._replay.find_segment(time_stamp)
         if not correct_segment:
             logger.warning(f"That time {time_stamp} is in no Segment, unable to jump!")
             return
 
-        if correct_segment.get_last_time() != self._current_segment.get_last_time(): # TODO bettter comparison should be some sort of !=
-            self.game_state = correct_segment.storage.initial_game_state
+
+        if correct_segment != self._current_segment:
+            self.game_state = correct_segment.game_state
             old_segment = self._current_segment
             self._current_segment = correct_segment
-            self.current_time = self._current_segment.get_start_time()
+            self.current_time = self._current_segment.current_time
             self._current_hook_system = self._hook_systems[self._current_segment]
             self._current_hook_system.add_segment_switch_event(old_segment.version,
                                                                self._current_segment.version,
@@ -308,7 +310,7 @@ class ReplayInterface(GameInterface):
         gc.collect(0)
         gc.enable()
         # DEBUG ----------------
-        #return patches
+        return patches
         # ----------------------
 
     def _apply_patches_and_update_state(self, patches, target_time: datetime) -> None:
@@ -320,6 +322,7 @@ class ReplayInterface(GameInterface):
             self._current_segment.apply_patch(patch, self.game_state, self)
 
         self.current_time = target_time
+        self._current_segment.current_time = target_time
         #self._update_player_id()
 
         if self._current_hook_system:
@@ -339,7 +342,7 @@ class ReplayInterface(GameInterface):
 
         correct_segment = self._replay.find_segment(next_timestamp)
         if correct_segment != self._current_segment:
-            self.jump_to(next_timestamp, False)
+            #self.jump_to(next_timestamp, False)
             return True
 
         patches = [self._current_segment.storage.patch_graph.patches[(int(self.current_time.timestamp()), int(next_timestamp.timestamp()))]]
