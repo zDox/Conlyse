@@ -196,7 +196,8 @@ class ReplayBuilder:
             if json_response["full"]:
                 current_state = new_state
 
-            latest_game_info = new_state.states.game_info_state
+            if new_state.states.game_info_state is not None:
+                latest_game_info = new_state.states.game_info_state
 
             # Record patch to replay
             self.replay_timeline.que_append_patch(
@@ -214,6 +215,9 @@ class ReplayBuilder:
         if latest_game_info is not None:
             self.replay_timeline.set_day_of_game(
                 latest_game_info.day_of_game
+            )
+            self.replay_timeline.set_game_ended(
+                latest_game_info.game_ended
             )
 
         self.replay_timeline.close()
