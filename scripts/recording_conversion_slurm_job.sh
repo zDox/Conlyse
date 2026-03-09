@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=recording_conversion
-#SBATCH --time=00:5:00
+#SBATCH --time=01:30:00
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=24
 #SBATCH --mem-per-cpu=3G
-#SBATCH --output=first_job_%j.out
-#SBATCH --error=first_job_%j.err
+#SBATCH --output=recording_conversion_%j.out
+#SBATCH --error=recording_conversion_%j.err
 #SBATCH --tmp=100g
 
 set -e
@@ -38,12 +38,23 @@ recording-converter \
   --output-dir replays_out \
   --mode rur \
   --bulk \
-  --processes 1 \
-  --recording-name game_10637077 \
+  --processes $SLURM_CPUS_PER_TASK \
+  --overwrite \
   -q
+
+
+echo "[$(date)] Loading modules for compression..."
+module load stack/2025-06
+module load pigz/2.8
+
+echo "[$(date)] Compressing replays_out directory..."
+tar cf - replays_out | pigz -p $SLURM_CPUS_PER_TASK > replays_out.tar.gz
+
 
 # Copy results back
 echo "[$(date)] Copying results back to SCRATCH..."
-rsync -auq ${TMPDIR}/replays_out/ ${SCRATCH}/replays_out/
+
+rsync -aq --delete ${TMPDIR}/replays_out/ ${SCRATCH}/replays_out/
+rsync -aq ${TMPDIR}/replays_out.tar.gz ${SCRATCH}/replays_out.tar.gz
 
 echo "[$(date)] Job finished!"

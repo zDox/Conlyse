@@ -219,6 +219,9 @@ class ReplayBuilder:
             self.replay_timeline.set_game_ended(
                 latest_game_info.game_ended
             )
+            self.replay_timeline.set_game_end(
+                latest_game_info.end_of_game
+            )
 
         self.replay_timeline.close()
 

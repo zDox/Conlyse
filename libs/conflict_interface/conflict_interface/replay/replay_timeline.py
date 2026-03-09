@@ -272,6 +272,10 @@ class ReplayTimeline:
         if self.timeline_metadata is not None:
             self.timeline_metadata.game_ended = bool(game_ended)
 
+    def set_game_end(self, game_end: datetime | None) -> None:
+        if self.timeline_metadata is not None:
+            self.timeline_metadata.end_of_game = int(game_end.timestamp()) if game_end is not None else 0
+
     def que_append_patch(self, version :int, to_time_stamp: datetime, replay_patch: BidirectionalReplayPatch | None, current_game_state: GameState | None = None, map_id: str | None = None):
         assert self._mode == "a"
         segment = self._find_open_segment(version)
