@@ -42,10 +42,10 @@ The complete stack (Server Observer, Redis, PostgreSQL, MinIO S3, Server Convert
 ```bash
 # Quick start
 cp .env.example .env
-docker-compose up -d
+docker compose -f infra/docker-compose.yml up -d
 
 # Check status
-docker-compose ps
+docker compose -f infra/docker-compose.yml ps
 
 # Access MinIO console
 open http://localhost:9001
@@ -162,7 +162,7 @@ FastAPI service providing authentication, 2FA, device management, RBAC, and pre-
 
 ```bash
 # Run with Docker Compose (recommended)
-docker-compose up -d api
+docker compose -f infra/docker-compose.yml up -d api
 
 # Interactive API docs
 open http://localhost:8000/docs
@@ -192,7 +192,7 @@ ConflictInterface/
 │   ├── recorder/             # Game session recorder
 │   ├── recording_converter/  # Recording format converter
 │   └── replay_debug/         # Replay debugging tool
-├── docker/                   # Docker and Compose files
+├── infra/                    # Docker, Compose, and infra config
 ├── docs/                     # Documentation
 └── ...                       # Config, CI, and support files
 ```

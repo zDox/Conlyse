@@ -1,305 +1,315 @@
-# Recording Converter CLI Tool
+## Recording Converter CLI
 
-A command-line tool for converting recorder data to a different format in Conflict Interface.
+CLI tool to convert local **recorder** output into replay databases or structured JSON dumps using the `conflict-interface` replay system.
 
-## Overview
+This tool operates entirely on on-disk recordings and is the **offline** counterpart to the `server_converter` service, which converts live responses from Redis streams.
 
-The Recording Converter transforms recording data (created by the `recorder` tool) into replay files or JSON dumps. This allows you to:
-- Convert compressed game state recordings into replay databases
-- Use the replay debug tools on converted recordings
-- Export recordings to JSON format for external analysis
+---
 
-## Installation
+### Overview
 
-The converter is installed automatically when you install the conflict-interface package:
+`recording-converter` understands three operating modes, controlled by `--mode`:
+
+- **`gmr`** (**G**ame-state **M**ake-bipatch **R**eplay)
+  - Uses binary `game_states.bin` and `make_bireplay_patch` between consecutive states to build a replay.
+  - Fast and deterministic when you have full game-state snapshots.
+- **`rur`** (**R**esponse **U**pdate **R**eplay)
+  - Uses JSON responses (and their `ResponseMetadata`) to build a replay via `ReplayBuilder`.
+  - Good when your pipeline primarily records responses rather than full states.
+- **`rtj`** (**R**ecording **T**o **J**SON)
+  - Dumps the contents of a recording (game states, requests, responses) into human-readable JSON files on disk.
+  - Ideal for debugging, external analysis, or building custom pipelines.
+
+Depending on the mode, the converter writes either:
+
+- A single **replay file** (e.g. `my_recording.bin`) usable with `ReplayInterface` and downstream tools, or
+- A **directory tree of JSON files** (one per state/request/response).
+
+For live, server-side conversion from Redis streams into replay files and metadata, see the separate [`server_converter` service](../../services/server_converter/README.md).
+
+---
+
+### Requirements
+
+- **Python**: `3.12+`
+- **Python packages** (installed automatically when you install this tool):
+  - `conflict-interface>=0.1.2`
+  - `tqdm`
+
+No external services (PostgreSQL, Redis, MinIO, etc.) are required for `recording-converter` itself. You only need access to **recording directories** produced by the recorder pipeline.
+
+---
+
+### Installation
+
+From the repository root:
 
 ```bash
-pip install -e .
+cd /path/to/ConflictInterface
+
+# (Recommended) Create and activate a virtualenv
+python -m venv .venv
+source .venv/bin/activate
+
+# Install the recording converter CLI
+pip install -e tools/recording_converter
 ```
 
-This will create a `recording-converter` command-line tool.
+This installs the `recording-converter` console script into your environment.
 
-## Usage
+Verify installation:
+
+```bash
+recording-converter --help
+```
+
+---
+
+### Recording Directory Layout
+
+`recording-converter` operates on a **recording directory** produced by the `recorder` tool or a compatible capture pipeline. A typical layout looks like:
+
+- `game_states.bin`
+  - Binary file with compressed, pickled game states.
+  - Required for **`gmr`** mode.
+- `static_map_data.bin` *(optional)*
+  - Compressed static map data, used indirectly by replay tooling.
+- `requests.jsonl.zst` *(optional)*
+  - Zstandard-compressed stream of JSON **requests**, each framed with a timestamp and length.
+  - Used by JSON dump mode (`rtj`).
+- `responses*.jsonl.zst` *(optional, one or more files)*
+  - Zstandard-compressed stream(s) of JSON **responses**, with embedded `ResponseMetadata`.
+  - Required for **`rur`** mode and used by JSON dump mode (`rtj`).
+- `metadata.json` *(optional but recommended)*
+  - Metadata about the recording (e.g. update counts) used to size loops and provide logging.
+
+You pass the path to this directory via `--recording-dir`.
+
+---
 
 ### Basic Usage
 
-Convert to replay database using the make bireplay patch method (default):
-```bash
-recording-converter --recording-dir <recording_dir> --output-replay <output_file>
-```
-Convert to replay database using JSON requests and update method:
-```bash
-recording-converter --recording-dir <recording_dir> --mode rur --output-replay <output_file>
-```
+General pattern:
 
-Dump to JSON files:
-**Important Note**: The timestamps in the output filenames are in real time and not in game time.
-```bash
-recording-converter --recording-dir <recording_dir> --mode rtj --output-dir <output_dir>
-```
-
-### Bulk folder conversion
-
-Convert an entire root folder of recordings into replay files using multiple processes. Each
-immediate subdirectory of `<recordings_root>` is treated as a single recording, and a replay
-file named `<subdir>.db` is written to `<output_dir>`:
+- **Replay from game states (`gmr`)**
 
 ```bash
 recording-converter \
-  --recording-dir <recordings_root> \
-  --output-dir <output_dir> \
+  --recording-dir recordings/my_recording \
+  --output-replay my_recording.bin \
   --mode gmr \
-  --bulk \
-  --processes 8
+  --game-id 12345 \
+  --player-id 67890
 ```
 
-or, using the JSON-responses-based mode:
+- **Replay from JSON responses (`rur`)**
 
 ```bash
 recording-converter \
-  --recording-dir <recordings_root> \
-  --output-dir <output_dir> \
-  --mode rur \
-  --bulk \
-  --processes 8
+  --recording-dir recordings/my_recording \
+  --output-replay my_recording.bin \
+  --mode rur
+```
+
+- **Dump recording to JSON (`rtj`)**
+
+```bash
+recording-converter \
+  --recording-dir recordings/my_recording \
+  --mode rtj \
+  --output-dir recordings/my_recording_json
+```
+
+Key arguments:
+
+- `--recording-dir`  
+  Path to the recording directory. Required for all modes.
+- `--mode {gmr,rur,rtj}`  
+  Operating mode. Defaults to `gmr` if omitted.
+- `--output-replay`  
+  Output replay file path. Required for `gmr` and `rur` (non-bulk).
+- `--output-dir`  
+  Output directory for JSON dumps in `rtj` mode, or output root in bulk mode.
+- `--overwrite`  
+  Allow overwriting existing output (file or directory).
+- `--limit`  
+  Limit the number of game states / responses / requests processed (for quicker tests).
+
+---
+
+### Mode-specific Examples
+
+#### Game-state to replay (`gmr`)
+
+Use this when you have complete `game_states.bin` snapshots and want a replay built from state-to-state patches.
+
+```bash
+recording-converter \
+  --recording-dir recordings/my_recording \
+  --output-replay my_recording.bin \
+  --mode gmr \
+  --game-id 12345 \
+  --player-id 67890 \
+  --overwrite
 ```
 
 Notes:
 
-- Bulk mode currently supports only `gmr` and `rur` modes (not `rtj`).
-- The `--processes` option controls the number of worker processes; by default it uses all
-  available CPU cores.
-~- Overall progress is shown as a `Recordings` progress bar, while per-recording progress bars
-  may appear from individual workers.~
+- `--game-id` and `--player-id` are **required** in this mode; they are not inferred from the recording.
+- If `my_recording.bin` already exists and `--overwrite` is not set, the converter will abort with an error.
 
-### Arguments
+#### JSON responses to replay (`rur`)
 
-- `--recording-dir`: Path to the recording directory containing recording files
-- `--output-replay`: Path to the output replay database file
-- `--output-dir`: Path to the output directory for JSON files (used with `--mode rtj`)
+Use this when you primarily capture JSON responses (with `ResponseMetadata`) and want the replay built via `ReplayBuilder`.
 
-### Options
-
-- `--mode MODE`: Operating mode - `gmr` (default), `rur`, or `rtj`
-  - `gmr`: from_game_state_using_make_bipatch_to_replay (default)
-  - `rur`: from_json_responses_using_update_to_replay
-  - `rtj`: from_recording_to_json (dumps to JSON files)
-- `--game-id ID`: Specify game ID explicitly
-- `--player-id ID`: Specify player ID explicitly
-- `-v, --verbose`: Enable verbose logging (DEBUG level)
-- `-q, --quiet`: Quiet mode (only ERROR level)
-
-
-## Input Format
-
-The converter expects a recording directory with the following structure:
-
-```
-recording_dir/
-├── game_states.bin      # Binary file with compressed game states (required for gmr/rur modes)
-├── requests.jsonl.zst   # Compressed JSON request parameters (required for rur mode)
-├── responses.jsonl.zst  # Compressed JSON responses (optional)
-├── static_map_data.bin  # Compressed static map data (optional)
-├── recording.log        # Session logs (optional)
-└── metadata.json        # Recording metadata (optional)
-```
-
-### File Formats
-
-**game_states.bin**:
-- 8 bytes: timestamp in milliseconds (big-endian)
-- 4 bytes: compressed data length (big-endian)
-- N bytes: compressed game state (zstandard compressed pickle)
-
-This pattern repeats for each game state update.
-
-**requests.jsonl.zst / responses.jsonl.zst**:
-- Zstandard-compressed JSONL files
-- Each line contains a JSON object with timestamp and request/response data
-
-## Output Format
-
-The converter creates different outputs based on the operating mode:
-
-### gmr/rur modes (Replay Database)
-A replay database (`.db` file) with:
-- Initial game state snapshot
-- Bidirectional patches between consecutive states
-- Static map data (if available)
-- Metadata (game ID, player ID, timestamps)
-
-The output replay file can be used with:
-- `replay-debug` tool for inspection and debugging
-- Replay playback functionality in the interface
-- Any other tools that work with replay files
-
-### rtj mode (JSON Dumps)
-A directory containing:
-```
-output_dir/
-├── game_states/
-│   ├── game_state_0000_<timestamp>.json
-│   ├── game_state_0001_<timestamp>.json
-│   └── ...
-├── json_requests/
-│   ├── request_0000_<timestamp>.json
-│   ├── request_0001_<timestamp>.json
-│   └── ...
-└── json_responses/
-    ├── response_0000_<timestamp>.json
-    ├── response_0001_<timestamp>.json
-    └── ...
-```
-## Integration with Other Tools
-
-### Recording Workflow
 ```bash
-# Step 1: Record game session
-recorder config.json
-
-# Step 2: Convert to replay
-recording-converter --recording-dir recordings/recording_20231215_120000 --output-replay replay.db
-
-# Step 3: Inspect or debug
-replay-debug replay.db
+recording-converter \
+  --recording-dir recordings/my_recording \
+  --output-replay my_recording.bin \
+  --mode rur \
+  --overwrite
 ```
 
-### Benefits of Conversion
+Notes:
 
-- **Efficient Storage**: Patches are more space-efficient than storing complete states
-- **Debug Tools**: Use all replay debug commands on converted recordings
-- **Analysis**: Easier to analyze specific game events and state changes
+- If `--game-id` / `--player-id` are **not** provided, the converter infers them from the response metadata stream.
+- If IDs cannot be inferred consistently, the converter logs an error and aborts.
 
-## Limitations
+#### Recording to JSON (`rtj`)
 
-- The `gmr` mode only processes `game_states.bin`
-- The `rur` mode requires both `game_states.bin` and `requests.jsonl.zst`
-- The `rtj` mode converts all available data (game states, requests, responses)
-- Conversion time is proportional to the number of game states in the recording
-- Large recordings may take several minutes to convert
-- The converter requires sufficient memory to hold game states during patch generation
+Use this for debugging or external analysis, where you want plain JSON files per state/request/response.
 
-## Troubleshooting
-
-### Recording Directory Not Found
-```
-Error: Recording directory not found: recordings/my_recording
-```
-Make sure the recording directory path is correct and the directory exists.
-
-### Missing Game States File
-```
-Error: Game states file not found: recordings/my_recording/game_states.bin
-```
-The recording directory must contain a `game_states.bin` file. This file is created by the recorder tool. Required for `gmr` and `rur` modes.
-
-### Missing Requests File
-```
-Error: Requests file not found: recordings/my_recording/requests.jsonl.zst
-```
-The `rur` mode requires a `requests.jsonl.zst` file. Use `gmr` mode instead, or ensure the recorder was configured to save requests.
-
-### Output File Required
-```
-Error: Output replay file is required in gmr and rur modes
-```
-Specify the output replay file with `--output-replay replay.db`.
-
-### Output Directory Required
-```
-Error: Output directory is required in rtj mode
-```
-Specify the output directory with `--output-dir json_output` when using `--mode rtj`.
-
-### Cannot Determine Game ID
-```
-Error: Could not determine game_id from recording
-```
-Use the `--game-id` option to specify the game ID explicitly.
-
-
-## Dumping Game States to JSON
-
-The converter can also dump game states, JSON requests, and JSON responses directly to JSON files for inspection, analysis, or external processing using the `rtj` mode.
-
-### Output Structure
-
-When using `--mode rtj`, the following structure is created:
-
-```
-output_dir/
-├── game_states/
-│   ├── game_state_0000_1699999999000.json
-│   ├── game_state_0001_1700000010000.json
-│   └── ...
-├── json_requests/
-│   ├── request_0000_1699999999000.json
-│   ├── request_0001_1700000010000.json
-│   └── ...
-└── json_responses/
-    ├── response_0000_1699999999000.json
-    ├── response_0001_1700000010000.json
-    └── ...
+```bash
+# Explicit output directory
+recording-converter \
+  --recording-dir recordings/my_recording \
+  --mode rtj \
+  --output-dir recordings/my_recording_json \
+  --overwrite
 ```
 
-Each game state file includes:
-- `timestamp_ms`: Unix timestamp in milliseconds
-- `timestamp_iso`: ISO 8601 formatted timestamp
-- `state_index`: Sequential index of the state
-- `game_state`: Full game state in JSON format
+If `--output-dir` is omitted in `rtj` mode, the converter will error at the CLI level. Internally, `FromRecordingToJson` defaults to `<recording-dir>/json_dumps`, so a common pattern is:
 
-Each JSON request file includes:
-- `timestamp_ms`: Unix timestamp in milliseconds
-- `timestamp_iso`: ISO 8601 formatted timestamp
-- `request_index`: Sequential index of the request
-- `request`: Full JSON request parameters
-
-Each JSON response file includes:
-- `timestamp_ms`: Unix timestamp in milliseconds
-- `timestamp_iso`: ISO 8601 formatted timestamp
-- `response_index`: Sequential index of the response
-- `response`: Full JSON response from the server
-
-
-## Using as a Library
-
-You can also use the converter programmatically:
-
-```python
-from tools.recording_converter.converter import RecordingConverter
-from tools.recording_converter.enums import OperatingMode
-
-# Create converter for replay conversion (gmr mode)
-converter = RecordingConverter(
-    "recordings/my_recording",
-    OperatingMode.gmr
-)
-
-# Convert to replay
-success = converter.convert(
-    output="replay.db",
-    game_id=12345,  # optional
-    player_id=67890  # optional
-)
-
-if success:
-    print("Conversion successful!")
-
-# Or dump to JSON (rtj mode)
-converter_rtj = RecordingConverter(
-    "recordings/my_recording",
-    OperatingMode.rtj
-)
-
-success = converter_rtj.convert(
-    output="my_json_output"  # optional, defaults to recording_dir/json_dumps
-)
-
-if success:
-    print("JSON dump successful!")
+```bash
+recording-converter \
+  --recording-dir recordings/my_recording \
+  --mode rtj \
+  --output-dir recordings/my_recording/json_dumps \
+  --overwrite
 ```
 
-## See Also
+The resulting directory contains:
 
-- [Recorder CLI Tool](../recorder/README.md) - For creating recordings
-- [Replay Debug CLI Tool](../replay_debug/README.md) - For inspecting replay files
+- `game_states/` – one JSON file per game state
+- `json_requests/` – one JSON file per request (if `requests.jsonl.zst` exists)
+- `json_responses/` – one JSON file per response (if `responses*.jsonl.zst` exist)
+
+---
+
+### Bulk Conversion
+
+Bulk mode lets you convert **many recordings at once**. In bulk mode, `--recording-dir` is treated as a **root directory** whose immediate subdirectories are individual recordings.
+
+Bulk conversion is available for:
+
+- `gmr`
+- `rur`
+
+Bulk is **not supported** for `rtj`.
+
+#### Example: bulk `gmr` conversion
+
+```bash
+recording-converter \
+  --recording-dir /data/recordings_root \
+  --output-dir /data/replays \
+  --mode gmr \
+  --bulk \
+  -p 8 \
+  --game-id 12345 \
+  --player-id 67890 \
+  --overwrite
+```
+
+Behavior:
+
+- Each subdirectory `/data/recordings_root/<name>` that contains `game_states.bin` becomes a job.
+- For each job, a replay file `/data/replays/<name>.bin` is created.
+- Existing output files are overwritten only if `--overwrite` is provided.
+
+#### Example: bulk `rur` conversion with filters
+
+```bash
+recording-converter \
+  --recording-dir /data/recordings_root \
+  --output-dir /data/replays \
+  --mode rur \
+  --bulk \
+  --recording-name game_12345 \
+  --recording-name game_67890 \
+  -p 4 \
+  --overwrite
+```
+
+Behavior:
+
+- Only subdirectories whose names match `--recording-name` values are processed.
+- In `rur` mode, a subdirectory is considered valid if it contains at least one `responses*.jsonl.zst` file.
+- Game and player IDs are inferred from `ResponseMetadata` unless explicitly provided.
+
+---
+
+### Logging & Progress
+
+`recording-converter` exposes basic logging and progress options:
+
+- `-v`, `--verbose`  
+  Enable verbose logging (`DEBUG` level).
+- `-q`, `--quiet`  
+  Quiet mode (only `ERROR` level).
+- `--no-progress`  
+  Disable `tqdm` progress bars (useful for non-interactive or log-only environments, especially in bulk mode).
+
+If neither `-v` nor `-q` is given, the default log level is `INFO`.
+
+---
+
+### Troubleshooting
+
+- **“Recording directory not found”**  
+  Ensure `--recording-dir` points to an existing directory containing your recording.
+
+- **“Game state file not found: game_states.bin” in `gmr` mode**  
+  The selected mode requires `game_states.bin`. Either:
+  - Switch to `--mode rur` if you only have JSON responses, or
+  - Regenerate the recording with game-state capturing enabled.
+
+- **“No JSON responses found in recording” in `rur` mode**  
+  The converter could not find any `responses*.jsonl.zst` files or they were empty. Verify that your recorder pipeline produces responses for this recording.
+
+- **Output file already exists**  
+  For `gmr` / `rur`, if the target replay file already exists and you did not pass `--overwrite`, the converter aborts. Rerun with `--overwrite` if you are sure you want to replace the file.
+
+- **Output directory already exists in `rtj` mode**  
+  JSON dump mode refuses to reuse an existing directory unless you pass `--overwrite`, in which case the directory is removed and recreated.
+
+- **Cannot determine `game_id` / `player_id`**  
+  - In `gmr` mode, you must provide both via `--game-id` and `--player-id`.  
+  - In `rur` mode, they are inferred from `ResponseMetadata`. If inference fails (e.g. inconsistent IDs in the stream), provide them explicitly.
+
+- **Bulk mode reports “No suitable recording directories found”**  
+  Check that:
+  - Your `--recording-dir` root actually contains per-recording subdirectories.
+  - Those subdirectories contain the required files for the chosen mode (`game_states.bin` for `gmr`, `responses*.jsonl.zst` for `rur`).
+  - Any `--recording-name` filters you provided actually match directory names.
+
+---
+
+### See Also
+
+- [`services/server_converter/README.md`](../../services/server_converter/README.md) – online converter service that consumes responses from Redis and writes replays + metadata.
+- [`tools/replay_debug/README.md`](../replay_debug/README.md) – interactive replay inspection and debugging tool.
+- [`README.md` at the repo root](../../README.md) – overall architecture, CLI overview, and Docker deployment.
+- `libs/conflict_interface/examples/replay_roundtrip.py` – validation tool comparing replay reconstruction vs. JSON responses.
+- `libs/conflict_interface/examples/replay_province_changed.py` – example of consuming replay files for province-change analysis.
+
