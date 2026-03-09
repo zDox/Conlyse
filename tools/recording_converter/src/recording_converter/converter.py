@@ -149,6 +149,7 @@ def convert_recordings_root(
     game_id: Optional[int] = None,
     player_id: Optional[int] = None,
     use_tqdm: bool = True,
+    recording_name_filters: Optional[Sequence[str]] = None,
 ) -> bool:
     """
     Convert all recording subdirectories under a root directory into replay files.
@@ -167,6 +168,11 @@ def convert_recordings_root(
 
     # Discover candidate recording directories.
     recording_dirs: List[Path] = [entry for entry in root.iterdir() if entry.is_dir()]
+
+    # Optional filtering by recording directory names (e.g. specific games).
+    if recording_name_filters:
+        allowed_names = set(recording_name_filters)
+        recording_dirs = [d for d in recording_dirs if d.name in allowed_names]
 
     if not recording_dirs:
         logger.warning("No recording subdirectories found under %s", root)

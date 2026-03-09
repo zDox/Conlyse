@@ -265,22 +265,16 @@ class ReplayTimeline:
         """
         Update only the day_of_game field in the timeline metadata.
         """
-        if self.timeline_metadata is None:
-            game_id = int(self.game_id) if self.game_id is not None else 0
-            player_id = int(self.player_id) if self.player_id is not None else 0
-            self.timeline_metadata = TimelineMetadata(
-                game_ended=False,
-                start_of_game=0,
-                end_of_game=0,
-                game_id=game_id,
-                player_id=player_id,
-                scenario_id=0,
-                day_of_game=int(day_of_game),
-                speed=0,
-                segment_count=len(self.segments),
-            )
-        else:
+        if self.timeline_metadata is not None:
             self.timeline_metadata.day_of_game = int(day_of_game)
+
+    def set_game_ended(self, game_ended: bool) -> None:
+        if self.timeline_metadata is not None:
+            self.timeline_metadata.game_ended = bool(game_ended)
+
+    def set_game_end(self, game_end: datetime | None) -> None:
+        if self.timeline_metadata is not None:
+            self.timeline_metadata.end_of_game = int(game_end.timestamp()) if game_end is not None else 0
 
     def que_append_patch(self, version :int, to_time_stamp: datetime, replay_patch: BidirectionalReplayPatch | None, current_game_state: GameState | None = None, map_id: str | None = None):
         assert self._mode == "a"

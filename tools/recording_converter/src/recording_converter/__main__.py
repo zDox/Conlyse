@@ -94,6 +94,14 @@ Patch creation modes:
     )
 
     parser.add_argument(
+        '--recording-name',
+        dest='recording_names',
+        action='append',
+        help='In bulk mode: only process recordings whose directory name matches this value. '
+             'Can be specified multiple times.'
+    )
+
+    parser.add_argument(
         '-p', '--processes',
         type=int,
         default=os.cpu_count() or 1,
@@ -188,6 +196,7 @@ Patch creation modes:
                 game_id=args.game_id,
                 player_id=args.player_id,
                 use_tqdm=not args.no_progress,
+                recording_name_filters=args.recording_names,
             )
         except Exception:
             sys.exit(1)
