@@ -73,10 +73,10 @@ _codeql_detected_source_root
 # Local development data directories
 data/
 activate.sh
-docker/dev/account_pool.json
-docker/dev/server-converter-config.json
-docker/dev/server-observer-config.toml
-docker/prod/account_pool.json
-docker/prod/server-converter-config.json
-docker/prod/server-observer-config.toml
-docker/prod/server-observer-config.toml
+infra/dev/account_pool.json
+infra/dev/server-converter-config.json
+infra/dev/server-observer-config.toml
+infra/prod/account_pool.json
+infra/prod/server-converter-config.json
+infra/prod/server-observer-config.toml
+infra/prod/server-observer-config.toml

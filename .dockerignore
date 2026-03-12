@@ -59,11 +59,10 @@ Makefile
 *.sqlite
 *.sqlite3
 
-# Docker
-docker-compose.yml
+# Docker / infra
+infra/
 .env
 .env.*
-docker/
 
 # Recordings and data
 recordings/

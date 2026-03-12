@@ -106,7 +106,7 @@ OpenAPI interactive docs are available at **`/docs`** (Swagger UI) and **`/redoc
 ```bash
 # From the repo root
 cp .env.example .env        # customise as needed
-docker-compose up -d api
+docker compose -f infra/docker-compose.yml up -d api
 ```
 
 The API will be available at `http://localhost:8000`.
@@ -116,7 +116,7 @@ The API will be available at `http://localhost:8000`.
 Alembic is used for schema management.  Migrations run inside the container:
 
 ```bash
-docker-compose exec api alembic upgrade head
+docker compose -f infra/docker-compose.yml exec api alembic upgrade head
 ```
 
 Or during local development (with dependencies installed):

@@ -1,363 +1,371 @@
-# Server Converter
+## Server Converter
 
-Processes game responses from Redis streams and converts them to replay files.
+Daemon service that consumes **Conflict of Nations** game responses from a Redis stream (produced by `server_observer`), converts them into replay files, and persists replay metadata to PostgreSQL with optional S3-compatible cold storage and Prometheus metrics.
 
-## Overview
+This service is typically deployed as part of the wider **Conlyse** stack together with:
 
-The Server Converter is a daemon that:
-1. Consumes game responses from a Redis stream
-2. Caches responses on disk until a game accumulates enough for processing
-3. Creates new replay files or appends to existing ones in hot storage
-4. Optionally moves completed replays to cold storage (S3-compatible)
-5. Tracks replay metadata in a PostgreSQL database
+- `server_observer` (Rust observer)
+- `services/api` (Conlyse API)
+- `apps/desktop` (Conlyse desktop client)
 
-## How It Works
+---
 
-The converter uses a **disk-based caching strategy** to efficiently handle mixed game streams:
+### Features
 
-1. **Caching Phase**: 
-   - Reads messages from Redis stream
-   - Immediately caches each response to disk (in `.response_cache/` subdirectory)
-   - Acknowledges messages to Redis after successful caching
+- **Redis stream consumer**: Reads game response events from a Redis stream (e.g. `game_responses`) using consumer groups.
+- **Replay generation**: Uses the `conflict-interface` library to create and append to replay databases stored on disk.
+- **Hot & cold storage**:
+  - Hot storage: local filesystem directory for active and completed replay `.db` files.
+  - Optional cold storage: S3-compatible object store for durable long-term storage.
+- **PostgreSQL metadata**: Writes and updates replay metadata in a dedicated `replays` database.
+- **Prometheus metrics**: Exposes operational metrics over HTTP for scraping.
+- **Docker-ready**: Multi-stage Dockerfile and a `docker-compose.yml` for local or production-like deployments.
 
-2. **Processing Phase**:
-   - Checks which games have accumulated `batch_size` or more responses
-   - Processes games that meet the threshold into replay files
-   - Clears cache for successfully processed games
+---
 
-This approach:
-- **Reduces memory usage** - responses stored on disk, not in memory
-- **Handles restarts gracefully** - cached responses persist across restarts
-- **Per-game batching** - each game accumulates independently until ready
-- **Better for mixed streams** - efficiently handles many concurrent games
+### Architecture Overview
 
-## Quick Start with Docker
+At a high level, the data and control flow look like this:
 
-The easiest way to run the server converter is using Docker Compose:
+- `server_observer` records games and publishes processed responses to a Redis stream.
+- `server_converter`:
+  - Consumes batches of messages from the Redis stream.
+  - Translates responses into replay updates using the `conflict-interface` replay system.
+  - Writes/updates replay `.db` files in hot storage.
+  - Optionally mirrors or finalizes replay files to S3-compatible storage.
+  - Updates replay metadata rows in PostgreSQL.
+- A Prometheus-compatible metrics endpoint is exposed for monitoring.
 
-```bash
-cd services/server_converter
+```mermaid
+flowchart LR
+  serverObserver[ServerObserver]
+  redis[Redis]
+  serverConverter[ServerConverter]
+  hotStorage[HotStorage]
+  postgres[Postgres]
+  s3Storage[S3Storage]
+  prometheusScraper[PrometheusScraper]
 
-# Create configuration file (use config.docker.json for Docker deployment)
-cp config.docker.json config.json
-# Edit config.json with your settings (database password, S3 credentials, etc.)
+  serverObserver -->|"game_responses stream"| redis
+  redis -->|"consume via consumer_group"| serverConverter
 
-# Start all services (PostgreSQL, Redis, Server Converter)
-docker-compose up -d
+  serverConverter -->|"replay .db files"| hotStorage
+  serverConverter -->|"metadata & indices"| postgres
+  serverConverter -->|"optional cold copies"| s3Storage
 
-# View logs
-docker-compose logs -f server-converter
-
-# Stop all services
-docker-compose down
+  prometheusScraper -->|"scrape /metrics"| serverConverter
 ```
 
-**Note:** Use `config.docker.json` as the template for Docker deployments, as it has the correct paths (`/data/hot_storage`) that match the docker-compose volume mounts. For local development, use `config.example.json` which uses localhost connections.
 
-## Configuration
 
-Create a configuration file based on the appropriate template:
+For a broader view of how this fits into the project, see the root [README](../../README.md) and the [Server Observer README](../server_observer/README.md).
+
+---
+
+### Installation
+
+In most deployments, you run `server_converter` through Docker / Docker Compose (see below). For local development or running it directly on a host, you can install it as a Python package.
+
+#### Prerequisites
+
+- Python **3.12+**
+- Access to:
+  - A PostgreSQL instance for the `replays` database.
+  - A Redis instance with streams enabled.
+  - Optionally, an S3-compatible object store (Hetzner, MinIO, etc.) if cold storage is enabled.
+
+#### Editable install from repository root
+
+From the repository root:
 
 ```bash
-# For Docker deployment:
-cp config.docker.json config.json
+cd /path/to/ConflictInterface
 
-# For local development:
-cp config.example.json config.json
+# Create and activate a virtualenv (recommended)
+python -m venv .venv
+source .venv/bin/activate
 
-# Edit config.json with your settings
+# Install packages including tools needed for server_converter
+pip install -e ".[tools-server-converter]"
 ```
 
-### Configuration Options
-
-- **redis**: Redis connection settings
-  - `host`: Redis server hostname
-  - `port`: Redis server port
-  - `db`: Redis database number
-  - `password`: Redis password (optional)
-  - `stream_name`: Name of the Redis stream to consume from
-  - `consumer_group`: Consumer group name
-  - `consumer_name`: This consumer's name
-  - `batch_size`: **Minimum responses per game before processing** (default: 10)
-
-- **storage**: Storage configuration
-  - `hot_storage_dir`: Local directory for active replays (also stores `.response_cache/` subdirectory)
-  - `cold_storage_enabled`: Enable S3 cold storage
-  - `always_update_cold_storage`: When true, the converter mirrors the replay to cold storage after each create/append operation (and again on completion). When false, uploads to cold storage only happen when a replay is explicitly marked as completed.
-  - `s3`: S3 configuration (required if cold_storage_enabled is true)
-    - `endpoint_url`: S3-compatible endpoint (e.g., Hetzner)
-    - `access_key`: S3 access key
-    - `secret_key`: S3 secret key
-    - `bucket_name`: S3 bucket name
-    - `region`: AWS region
-
-- **database**: PostgreSQL database configuration
-  - `host`: PostgreSQL server hostname
-  - `port`: PostgreSQL server port (default: 5432)
-  - `database`: Database name
-  - `user`: Database user
-  - `password`: Database password
-
-- **batch_size**: Number of messages to process per batch (default: 10)
-- **check_interval_seconds**: Seconds to wait between checks (default: 5)
-- **metrics_port**: Port for Prometheus metrics endpoint (default: 8000)
-
-## Usage
+This installs the `server-converter` console script, which you can invoke as:
 
 ```bash
-# Run the server converter
+server-converter path/to/config.json
+```
+
+---
+
+### Configuration
+
+`server_converter` is configured via a **JSON configuration file** passed as the first CLI argument:
+
+```bash
 server-converter config.json
-
-# Run with verbose logging
-server-converter config.json -v
 ```
 
-## Redis Stream Format
+Two example configurations are provided:
 
-The server converter expects messages in the Redis stream with the following fields:
+- Local / generic example: [config.example.json](./config.example.json)
+- Docker / Compose-oriented example: [config.docker.json](./config.docker.json)
 
-- `timestamp`: Unix timestamp in milliseconds
-- `game_id`: Game ID (integer)
-- `player_id`: Player ID (integer)
-- `response`: JSON response object (serialized as string)
+The top-level schema matches `ServerConverterConfig` in `src/config.py`:
 
-Example message:
-```python
+```json
 {
-    'timestamp': 1707825625000,
-    'game_id': 12345,
-    'player_id': 67890,
-    'response': '{"result": {...}, "id": 1}'
+  "redis": { ... },
+  "storage": { ... },
+  "database": { ... },
+  "batch_size": 10,
+  "check_interval_seconds": 5,
+  "metrics_port": 8000
 }
 ```
 
-## Database Schema
+#### `redis` (RedisConfig)
 
-The converter maintains a PostgreSQL database with the following schema:
+Controls how the converter connects to and consumes from Redis:
 
-```sql
-CREATE TABLE replays (
-    id SERIAL PRIMARY KEY,
-    game_id INTEGER NOT NULL,
-    player_id INTEGER NOT NULL,
-    replay_name VARCHAR(255) NOT NULL UNIQUE,
-    hot_storage_path TEXT,
-    s3_key TEXT,
-    status VARCHAR(50) NOT NULL,  -- 'recording', 'completed', 'archived'
-    recording_start_time TIMESTAMP,
-    recording_end_time TIMESTAMP,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    response_count INTEGER DEFAULT 0,
-    UNIQUE(game_id, player_id)
-);
+- `**host**` (`str`, default `"localhost"`): Redis host.
+- `**port**` (`int`, default `6379`): Redis port.
+- `**db**` (`int`, default `0`): Logical Redis database index.
+- `**password**` (`str|null`, optional): Password for Redis if authentication is enabled.
+- `**stream_name**` (`str`, default `"game_responses"`): Name of the Redis stream containing game responses.
+- `**consumer_group**` (`str`, default `"server_converter"`): Redis consumer group for coordinated consumption.
+- `**consumer_name**` (`str`, default `"converter_1"`): Consumer name within the consumer group.
+- `**batch_size**` (`int`, default `10`): Number of messages to read per batch from Redis.
+
+`consumer_group` and `consumer_name` are important for horizontal scaling: multiple instances can share a group and coordinate consumption.
+
+#### `storage` (StorageConfig)
+
+Controls where replay files are written and whether cold storage is enabled:
+
+- `**hot_storage_dir**` (`str`, required): Filesystem directory for replay `.db` files.
+- `**cold_storage_enabled**` (`bool`, default `false`):
+  - `false`: Replays remain only in hot storage.
+  - `true`: Converter uploads replays to S3-compatible storage.
+- `**always_update_cold_storage**` (`bool`, default `true`):
+  - `true`: Upload / update cold storage after each create/append and on completion.
+  - `false`: Only upload when a replay is explicitly marked as completed.
+- `**s3**` (`S3Config`, optional): Required if `cold_storage_enabled` is `true`:
+  - `endpoint_url` (`str`): S3-compatible endpoint URL.
+  - `access_key` (`str`): Access key ID.
+  - `secret_key` (`str`): Secret access key.
+  - `bucket_name` (`str`): Target bucket name.
+  - `region` (`str`, default `"us-east-1"`): Region string for S3 client.
+
+Example (Docker-style) storage section:
+
+```json
+"storage": {
+  "hot_storage_dir": "/data/hot_storage",
+  "cold_storage_enabled": false,
+  "always_update_cold_storage": true,
+  "s3": {
+    "endpoint_url": "https://your-s3-endpoint.com",
+    "access_key": "your-access-key",
+    "secret_key": "your-secret-key",
+    "bucket_name": "replays",
+    "region": "us-east-1"
+  }
+}
 ```
 
-### Querying the Database
+#### `database` (DatabaseConfig)
+
+PostgreSQL connection parameters for the replays database:
+
+- `**host**` (`str`, default `"localhost"`): Hostname of the Postgres server.
+- `**port**` (`int`, default `5432`): Port for Postgres.
+- `**database**` (`str`, default `"replays"`): Database name.
+- `**user**` (`str`, default `"postgres"`): Database user.
+- `**password**` (`str`, default `""`): Password for the user.
+
+These should align with your Postgres instance or your Docker Compose configuration.
+
+#### Global settings
+
+- `**batch_size**` (`int`, default `10`): Top-level processing batch size; can override the Redis-specific `redis.batch_size` depending on internal logic.
+- `**check_interval_seconds**` (`int`, default `5`): How long to sleep between checks for new messages when the stream is idle.
+- `**metrics_port**` (`int`, default `8000`): Port on which the Prometheus metrics HTTP server listens.
+
+---
+
+### CLI Usage
+
+The entry point for the service is defined in `src/__main__.py` and exposed via the `server-converter` console script.
+
+#### Basic usage
 
 ```bash
-psql -U converter -d replays -c "SELECT * FROM replays WHERE status='recording';"
+server-converter config.json
 ```
 
-## Workflow
+Arguments:
 
-1. **New Replay**: When responses arrive for a new game/player:
-   - Creates a new replay file in hot storage
-   - Creates a database entry with status 'recording'
-   - Records the start time
+- `**config**` (positional, required): Path to the JSON configuration file.
 
-2. **Appending**: For existing replays:
-   - Appends new responses to the replay file
-   - Increments the response count in the database
+#### Logging options
 
-3. **Completion**: When a replay is marked as completed:
-   - Updates the end time in the database
-   - If cold storage is enabled:
-     - Uploads the replay to S3
-     - Deletes from hot storage
-     - Updates status to 'archived'
-   - Otherwise, updates status to 'completed'
+- `**-v`, `--verbose**`: Enable verbose logging (`DEBUG` level).
+- `**-q`, `--quiet**`: Quiet mode (only `ERROR` level).
 
-## Integration with Server Observer
+If neither flag is provided, the log level defaults to `INFO`.
 
-The Server Observer should publish responses to Redis using:
+On startup, the service:
 
-```python
-redis_client.xadd(
-    stream_name,
-    {
-        'timestamp': timestamp_ms,
-        'game_id': game_id,
-        'player_id': player_id,
-        'response': json.dumps(response_data)
-    }
-)
-```
+1. Parses the configuration file into a `ServerConverterConfig`.
+2. Starts a Prometheus metrics HTTP server on `metrics_port`.
+3. Instantiates `ServerConverter` with the loaded configuration.
+4. Enters the main processing loop, consuming Redis messages and updating replays until interrupted.
 
-## Dependencies
+Press `Ctrl+C` to stop the service gracefully.
 
-Required Python packages:
-- `redis`: For Redis stream consumption
-- `boto3`: For S3 cold storage (optional)
+---
 
-Install with:
-```bash
-pip install redis boto3
-```
+### Docker & Docker Compose
 
-## Monitoring
+For containerized deployments, this directory includes:
 
-### Prometheus Metrics
+- [Dockerfile](./Dockerfile)
+- [docker-compose.yml](./docker-compose.yml)
 
-The server converter exposes Prometheus metrics on the configured metrics port (default: 8000). These metrics can be used to monitor performance, error rates, and resource utilization.
+#### Dockerfile
 
-#### Available Metrics
+The `Dockerfile` is a multi-stage build:
 
-**Message Processing Metrics:**
-- `server_converter_messages_processed_total{status}` (Counter): Total messages processed, labeled by status (success/error)
-- `server_converter_messages_processing_duration_seconds` (Histogram): Time spent processing message batches
-- `server_converter_batch_size` (Summary): Distribution of batch sizes processed
+- **Builder stage**:
+  - Based on `python:3.12-slim`.
+  - Installs build dependencies (`build-essential`, `gcc`, `g++`).
+  - Copies the Python packages and installs the project in editable mode with the `tools-server-converter` extras.
+- **Runtime stage**:
+  - Based on `python:3.12-slim` with `libpq5` installed for PostgreSQL.
+  - Creates a non-root `converter` user and prepares `/app` and `/data/hot_storage`.
+  - Copies installed Python packages and the relevant source tree.
+  - Sets `PATH` to include the local user binaries and `PYTHONPATH=/app`.
+  - Default `CMD`:
+    ```bash
+    server-converter /app/config.json -v
+    ```
 
-**Replay Operation Metrics:**
-- `server_converter_replay_operations_total{operation,status}` (Counter): Total replay operations, labeled by operation type (create/append/complete) and status (success/error)
-- `server_converter_replay_creation_duration_seconds` (Histogram): Time spent creating new replays
-- `server_converter_replay_append_duration_seconds` (Histogram): Time spent appending to existing replays
-- `server_converter_responses_per_replay` (Summary): Distribution of responses added per replay operation
+You typically mount your own `config.json` and hot storage volume when running the image.
 
-**Storage Metrics:**
-- `server_converter_hot_storage_replays` (Gauge): Number of replays currently in hot storage
-- `server_converter_cold_storage_uploads_total{status}` (Counter): Total uploads to cold storage, labeled by status (success/error)
+#### docker-compose.yml
 
-**Database Metrics:**
-- `server_converter_database_operations_total{operation,status}` (Counter): Total database operations, labeled by operation type and status
-- `server_converter_database_operation_duration_seconds{operation}` (Histogram): Time spent on database operations
+`docker-compose.yml` defines a minimal stack for running `server_converter` together with Postgres and Redis:
 
-**Error Metrics:**
-- `server_converter_errors_total{error_type}` (Counter): Total errors, labeled by error type (processing/database/storage/redis)
+- `**postgres**`:
+  - Image: `postgres:16-alpine`
+  - Env:
+    - `POSTGRES_DB=replays`
+    - `POSTGRES_USER=converter`
+    - `POSTGRES_PASSWORD` (defaults to `changeme` if not overridden)
+  - Port mapping: `5432:5432`
+  - Healthcheck using `pg_isready`
+- `**redis**`:
+  - Image: `redis:7-alpine`
+  - Command: `redis-server --appendonly yes`
+  - Port mapping: `6379:6379`
+  - Healthcheck using `redis-cli ping`
+- `**server-converter**`:
+  - Built from the repository (see `build.context` and `dockerfile` path in the compose file).
+  - Depends on `postgres` and `redis` being healthy.
+  - Environment (can be overridden via `.env`):
+    - `REDIS_HOST=redis`
+    - `REDIS_PORT=6379`
+    - `POSTGRES_HOST=postgres`
+    - `POSTGRES_PORT=5432`
+    - `POSTGRES_DB=replays`
+    - `POSTGRES_USER=converter`
+    - `POSTGRES_PASSWORD` (defaults to `changeme`)
+  - Volumes:
+    - `./config.json:/app/config.json:ro`
+    - `hot-storage:/data/hot_storage`
+  - Ports:
+    - `8000:8000` (Prometheus metrics endpoint)
+  - Restart policy: `unless-stopped`
 
-**Redis Metrics:**
-- `server_converter_redis_consumer_lag` (Gauge): Number of pending messages in the consumer group
-- `server_converter_redis_read_operations_total{status}` (Counter): Total Redis read operations
-
-#### Accessing Metrics
-
-```bash
-# View metrics
-curl http://localhost:8000/metrics
-
-# Scrape with Prometheus
-# Add to prometheus.yml:
-scrape_configs:
-  - job_name: 'server-converter'
-    static_configs:
-      - targets: ['localhost:8000']
-```
-
-#### Example Grafana Dashboards
-
-**Message Throughput:**
-```promql
-rate(server_converter_messages_processed_total{status="success"}[5m])
-```
-
-**Error Rate:**
-```promql
-rate(server_converter_messages_processed_total{status="error"}[5m]) / 
-rate(server_converter_messages_processed_total[5m])
-```
-
-**Average Processing Time:**
-```promql
-rate(server_converter_messages_processing_duration_seconds_sum[5m]) / 
-rate(server_converter_messages_processing_duration_seconds_count[5m])
-```
-
-**Hot Storage Usage:**
-```promql
-server_converter_hot_storage_replays
-```
-
-### Logging
-
-The converter logs:
-- Number of messages processed per batch
-- Replay creation and append operations
-- Cold storage uploads
-- Database updates
-- Errors and warnings
-
-Enable verbose logging with `-v` flag for detailed debug information.
-
-## Docker Deployment
-
-### Using Docker Compose (Recommended)
-
-The included `docker-compose.yml` sets up a complete stack with PostgreSQL, Redis, and the server converter:
+Example usage:
 
 ```bash
 cd services/server_converter
 
-# Create and edit configuration (use config.docker.json for Docker)
-cp config.docker.json config.json
-# Edit config.json - paths and service names are already configured correctly
-
-# Optional: Set PostgreSQL password
-echo "POSTGRES_PASSWORD=your-secure-password" > .env
-
-# Start services
+# Start stack in background
+cp config.docker.json config.json  # or create your own
 docker-compose up -d
+
+# Check container status
+docker-compose ps
 
 # View logs
 docker-compose logs -f server-converter
-
-# Check status
-docker-compose ps
-
-# Stop services
-docker-compose down
 ```
 
-### Building the Docker Image
+Adjust the volume mounts and environment to match your infrastructure.
 
-```bash
-# From repository root
-docker build -f services/server_converter/Dockerfile -t server-converter:latest .
+---
 
-# Run manually
-docker run -d \
-  -v $(pwd)/config.json:/app/config.json:ro \
-  -v $(pwd)/hot_storage:/data/hot_storage \
-  --network host \
-  server-converter:latest
-```
+### Metrics & Monitoring
 
-### Using Pre-built Image from GitHub Container Registry
+On startup, `server_converter` calls `prometheus_client.start_http_server(metrics_port)`, exposing a standard `/metrics` endpoint.
 
-```bash
-# Pull the latest image
-docker pull ghcr.io/zdox/server-converter:latest
+- **Default port**: `8000` (configurable via `metrics_port`).
+- **Endpoint**: `http://<host>:<metrics_port>/metrics`
 
-# Run with config
-docker run -d \
-  -v $(pwd)/config.json:/app/config.json:ro \
-  -v $(pwd)/hot_storage:/data/hot_storage \
-  --network host \
-  ghcr.io/zdox/server-converter:latest
-```
+You can configure Prometheus to scrape this endpoint and build dashboards or alerts around:
 
-### Configuration inside Docker
+- Processed message counts and throughput.
+- Error counters (e.g. failed batches, storage/DB errors).
+- Replay counts and active session gauges.
 
-The Docker image reads its settings from the `config.json` file mounted into the container (see the example above).
-At present, configuration is not overridden via environment variables; values such as Redis and PostgreSQL
-hosts, ports, credentials, and storage paths must be provided in `config.json`.
+The exact metric names may evolve over time; consult the exported `/metrics` payload when building dashboards.
 
-When running with Docker, ensure you:
+---
 
-- Mount your configuration file into the container, for example:
+### Storage Layout & Lifecycle
 
-  ```bash
-  docker run -d \
-    -v $(pwd)/config.json:/app/config.json:ro \
-    -v $(pwd)/hot_storage:/data/hot_storage \
-    --network host \
-    ghcr.io/zdox/server-converter:latest
+#### Hot storage
+
+Hot storage (configured via `storage.hot_storage_dir`) is where replay `.db` files are written and updated. Typical responsibilities:
+
+- Store in-progress replay databases for active games.
+- Retain completed replays for fast access by the API and other tools.
+
+You should ensure:
+
+- Sufficient disk space for your expected replay volume.
+- Appropriate backup or snapshot strategy if hot storage is critical.
+
+#### Cold storage (S3-compatible)
+
+If `cold_storage_enabled` is `true` and a valid `s3` configuration is provided, the converter will upload replay data to an S3-compatible bucket:
+
+- With `always_update_cold_storage=true`, uploads occur after each replay create/append and again on completion.
+- With `always_update_cold_storage=false`, uploads typically occur only when a replay is finalized.
+
+This allows:
+
+- Offloading old or infrequently accessed replays from local disks.
+- Using cheap object storage for long-term retention.
+
+#### PostgreSQL metadata
+
+The Postgres database (typically `replays`) stores:
+
+- Replay metadata and indexing information (e.g. game IDs, players, timestamps).
+- Status flags indicating whether a replay is active, completed, or failed.
+
+Downstream services such as the Conlyse API use this metadata to provide filtered replay listings and pre-signed download URLs for stored artifacts.
+
+---
+
+### See Also
+
+- Project root [README](../../README.md) – overall architecture and Docker deployment.
+- [Server Observer README](../server_observer/README.md) – how recordings and Redis events are produced.
+- [Recording Converter CLI](../../tools/recording_converter/README.md) – convert local recordings into replay files.
+- Replay Debug tool (see `tools/replay_debug/README.md`) – interactive replay inspection and debugging.
+- Conlyse Desktop [README](../../apps/desktop/README.md) – desktop replay analysis client.
+
