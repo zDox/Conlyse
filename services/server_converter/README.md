@@ -31,7 +31,7 @@ At a high level, the data and control flow look like this:
 - `server_converter`:
   - Consumes batches of messages from the Redis stream.
   - Translates responses into replay updates using the `conflict-interface` replay system.
-  - Writes/updates replay `.db` files in hot storage.
+  - Writes/updates replay `.bin` files in hot storage.
   - Optionally mirrors or finalizes replay files to S3-compatible storage.
   - Updates replay metadata rows in PostgreSQL.
 - A Prometheus-compatible metrics endpoint is exposed for monitoring.
@@ -119,7 +119,7 @@ The top-level schema matches `ServerConverterConfig` in `src/config.py`:
   "database": { ... },
   "batch_size": 10,
   "check_interval_seconds": 5,
-  "metrics_port": 8000
+  "metrics_port": 8001
 }
 ```
 
@@ -189,7 +189,7 @@ These should align with your Postgres instance or your Docker Compose configurat
 
 - `**batch_size**` (`int`, default `10`): Top-level processing batch size; can override the Redis-specific `redis.batch_size` depending on internal logic.
 - `**check_interval_seconds**` (`int`, default `5`): How long to sleep between checks for new messages when the stream is idle.
-- `**metrics_port**` (`int`, default `8000`): Port on which the Prometheus metrics HTTP server listens.
+- `**metrics_port**` (`int`, default `8001`): Port on which the Prometheus metrics HTTP server listens.
 
 ---
 
@@ -284,7 +284,7 @@ You typically mount your own `config.json` and hot storage volume when running t
     - `./config.json:/app/config.json:ro`
     - `hot-storage:/data/hot_storage`
   - Ports:
-    - `8000:8000` (Prometheus metrics endpoint)
+    - `8001:8001` (Prometheus metrics endpoint)
   - Restart policy: `unless-stopped`
 
 Example usage:
@@ -311,7 +311,7 @@ Adjust the volume mounts and environment to match your infrastructure.
 
 On startup, `server_converter` calls `prometheus_client.start_http_server(metrics_port)`, exposing a standard `/metrics` endpoint.
 
-- **Default port**: `8000` (configurable via `metrics_port`).
+- **Default port**: `8001` (configurable via `metrics_port`).
 - **Endpoint**: `http://<host>:<metrics_port>/metrics`
 
 You can configure Prometheus to scrape this endpoint and build dashboards or alerts around:

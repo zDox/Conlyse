@@ -66,5 +66,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: conlyse-${{ matrix.os }}
-          path: build/__main__.dist/
+          path: apps/desktop/build/__main__.dist/
           if-no-files-found: error

@@ -15,9 +15,10 @@ which might be totally different as they are dependent on the game mode accelera
 
 ## Installation
 
-The recorder is installed automatically when you install the conflict-interface package:
+The recorder CLI is installed when you install the full ConflictInterface project (not just the core library) from the repository root:
 
 ```bash
+cd /path/to/ConflictInterface/tools/recorder
 pip install -e .
 ```
 
@@ -440,43 +441,44 @@ See `examples/recorder_config_sample.json` for a complete example configuration 
 
 ## Converting Recordings
 
+Recorded sessions are designed to be consumed by the **Recording Converter CLI** documented in [`tools/recording_converter/README.md`](../recording_converter/README.md). The canonical interface is the `recording-converter` command, which can:
+
+- Build replay from `game_states.bin` snapshots (`gmr` mode).
+- Build replay from JSON response streams (`rur` mode).
+- Dump recordings to human-readable JSON (`rtj` mode).
+
 ### Dumping to Human-Readable JSON
 
-You can convert binary recordings to human-readable JSON files using the record-to-replay tool:
+To convert a binary recording directory to human-readable JSON files:
 
 ```bash
-record-to-replay recordings/recording_20240120_143000 --dump-json
+recording-converter \
+  --recording-dir recordings/recording_20240120_143000 \
+  --mode rtj \
+  --output-dir recordings/recording_20240120_143000/json_dumps
 ```
 
 This creates a `json_dumps` directory with three subdirectories:
 - `game_states/` - Game state snapshots as JSON
-- `json_requests/` - Request parameters sent to the server
-- `json_responses/` - Server responses
+- `json_requests/` - Request parameters sent to the server (if present)
+- `json_responses/` - Server responses (if present)
 
-Each JSON file includes metadata:
+Each JSON file includes metadata (timestamps, indices, and the underlying request/response payload).
 
-```json
-{
-  "timestamp_ms": 1705758000000,
-  "timestamp_iso": "2024-01-20T14:30:00",
-  "request_index": 0,
-  "request": {
-    "action": "updateProvinceConstruction",
-    "provinceID": 12345,
-    "upgradeID": 678
-  }
-}
-```
+### Converting to Replay
 
-### Converting to Replay Database
-
-To convert a recording to the standard replay format:
+The canonical way to convert a recording directory to the standard replay format consumable by the replay system is via **`rur`** (From Recording Using Update to Replay), which uses JSON responses and their metadata:
 
 ```bash
-record-to-replay recordings/recording_20240120_143000 output.db
+recording-converter \
+  --recording-dir recordings/recording_20240120_143000 \
+  --output-replay recordings/recording_20240120_143000.bin \
+  --mode rur
 ```
 
-This creates a replay database that can be used with the replay system for time-travel debugging.
+If you have full `game_states.bin` snapshots and explicitly want state-to-state patching, you can instead use **`gmr`** mode (see the recording-converter README for details).
+
+See [`tools/recording_converter/README.md`](../recording_converter/README.md) for mode comparisons, bulk conversion, and additional options.
 
 ## Notes
 

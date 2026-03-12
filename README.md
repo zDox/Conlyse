@@ -1,4 +1,4 @@
-# ConflictInterface / Conlyse
+# Conlyse
 
 **Conlyse** is a full-stack system for **recording, storing, and analyzing Conflict of Nations game replays**. It includes a live recording pipeline, an API and backend services, an interactive desktop client, and tooling for offline conversion and analysis.
 
