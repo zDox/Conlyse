@@ -13,7 +13,9 @@ A Python library providing programmatic access to [Conflict of Nations](https://
 
 ## Installation
 
-### From Source
+### From Source (library only)
+
+If you only need the **Python library** (for example, to use `conflict-interface` as a dependency in another project), install it directly:
 
 From the repository root:
 

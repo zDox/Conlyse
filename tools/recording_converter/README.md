@@ -10,12 +10,12 @@ This tool operates entirely on on-disk recordings and is the **offline** counter
 
 `recording-converter` understands three operating modes, controlled by `--mode`:
 
+- **`rur`** (From **R**esponse using **U**pdate to **R**eplay)
+  - Uses JSON responses (and their `ResponseMetadata`) to build a replay via `ReplayBuilder`.
+  - Recommended for typical recorder output, and matches how the online `server_converter` service constructs replays.
 - **`gmr`** (**G**ame-state **M**ake-bipatch **R**eplay)
   - Uses binary `game_states.bin` and `make_bireplay_patch` between consecutive states to build a replay.
-  - Fast and deterministic when you have full game-state snapshots.
-- **`rur`** (**R**esponse **U**pdate **R**eplay)
-  - Uses JSON responses (and their `ResponseMetadata`) to build a replay via `ReplayBuilder`.
-  - Good when your pipeline primarily records responses rather than full states.
+  - Slow when you have full game-state snapshots and want state-to-state patching.
 - **`rtj`** (**R**ecording **T**o **J**SON)
   - Dumps the contents of a recording (game states, requests, responses) into human-readable JSON files on disk.
   - Ideal for debugging, external analysis, or building custom pipelines.
