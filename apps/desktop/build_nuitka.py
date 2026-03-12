@@ -41,6 +41,7 @@ def main() -> None:
         "--follow-imports",
         f"--output-dir={output_dir}",
         "--msvc=latest",
+        "--assume-yes-for-downloads",
         str(entrypoint),
     ]
 
