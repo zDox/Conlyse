@@ -1,6 +1,6 @@
 import sys
 from codecs import open
-from os import path
+from os import environ, path
 
 import pybind11
 from setuptools import Extension, find_packages, setup
@@ -42,8 +42,15 @@ class BuildExt(build_ext):
             for ext in self.extensions:
                 ext.extra_compile_args = ["/std:c++17", "/O2", "/EHsc"]
         elif ct == "unix":
+            base_compile_args = ["-std=c++17", "-O3"]
+            enable_native_opt = environ.get("CONFLICT_INTERFACE_NATIVE_OPT", "0").lower() == "1"
+
+            # Do not use -march=native on macOS (especially universal2/cross-arch builds).
+            if enable_native_opt and sys.platform != "darwin":
+                base_compile_args.append("-march=native")
+
             for ext in self.extensions:
-                ext.extra_compile_args = ["-std=c++17", "-O3", "-march=native"]
+                ext.extra_compile_args = list(base_compile_args)
                 if sys.platform == "darwin":
                     ext.extra_compile_args += [
                         "-stdlib=libc++",

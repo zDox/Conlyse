@@ -194,6 +194,9 @@ pip install -e ".[dev]"  # Installs pybind11
 pip install -e .         # Builds C++ extensions
 ```
 
+By default, builds use portable optimization flags so wheels can be built across architectures (including macOS universal2).
+If you want host-specific CPU tuning for local non-macOS builds, set `CONFLICT_INTERFACE_NATIVE_OPT=1` before install.
+
 ### Running Tests
 
 ```bash
