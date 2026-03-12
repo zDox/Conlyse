@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'apps/desktop/**'
+      - '.github/workflows/conlyse-build.yml'
   workflow_dispatch:
 
 jobs:
