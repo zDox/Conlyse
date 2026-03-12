@@ -12,13 +12,14 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /build
 
-# Copy only requirements first for better caching
-COPY setup.py pyproject.toml README.md ./
-COPY conflict_interface ./conflict_interface
-COPY tools ./tools
+# Copy project files needed to build local packages
+COPY services/server_converter/README.md ./README.md
+COPY libs/conflict_interface ./libs/conflict_interface
+COPY services/server_converter ./services/server_converter
 
-# Install the package with server-converter dependencies
-RUN pip install --user -e ".[tools-server-converter]"
+# Install conflict-interface and server-converter in editable mode
+RUN pip install --user ./libs/conflict_interface && \
+    pip install --user ./services/server_converter
 
 # Runtime stage
 FROM python:3.12-slim
@@ -39,9 +40,9 @@ WORKDIR /app
 # Copy Python packages from builder
 COPY --from=builder /root/.local /home/converter/.local
 
-# Copy application code
-COPY --chown=converter:converter conflict_interface ./conflict_interface
-COPY --chown=converter:converter tools/server_converter ./tools/server_converter
+# Copy application code (optional, for debugging and source visibility)
+COPY --chown=converter:converter libs/conflict_interface/conflict_interface ./conflict_interface
+COPY --chown=converter:converter services/server_converter/src ./server_converter
 
 # Switch to app user
 USER converter
