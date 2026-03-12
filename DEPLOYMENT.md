@@ -423,7 +423,3 @@ docker system df -v
 docker volume inspect postgres-data
 docker volume inspect minio-data
 ```
-
-### See Also
-
-For complete development setup instructions, see [DEVELOPMENT.md](DEVELOPMENT.md).
