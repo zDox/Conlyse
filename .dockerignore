@@ -1,70 +1,66 @@
-# Git
+# VCS / CI
 .git
-.gitignore
 .github
+.gitignore
 
-# Python
-__pycache__
+# Python / packaging
+__pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-*.egg-info/
-dist/
-build/
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+build/
+dist/
+.eggs/
+*.egg-info/
+*.whl
 
-# Virtual environments
+# Virtual environments / editors
+.venv/
 venv/
 env/
 ENV/
-
-# IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Documentation
-docs/_build/
-*.md
-!README.md
-!DOCKER.md
+# Repo areas not needed by repo-root service image builds
+apps/
+docs/
+infra/
+scripts/
+tools/
+services/api/
+libs/conflict_interface/tests/
+libs/conflict_interface/performance_tests/
+libs/conflict_interface/examples/
 
-# Tests
-tests/
-performance_tests/
+# Service-local generated artifacts
+services/server_observer/target/
+services/server_converter/server_converter.egg-info/
 
-# Examples
-examples/
-
-# Build artifacts
-*.o
-*.a
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-
-# Logs and databases
+# Logs, databases, env files, and local runtime data
 *.log
 *.db
 *.sqlite
 *.sqlite3
-
-# Docker / infra
-infra/
 .env
 .env.*
-
-# Recordings and data
 recordings/
 long_term_storage/
 *.replay
+services/server_observer/config.toml
+services/server_observer/account_pool.json
+services/server_converter/config.json
+services/server_converter/config.docker.json

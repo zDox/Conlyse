@@ -1,62 +1,51 @@
-# Git files
+# VCS / editor metadata
 .git
 .github
 .gitignore
-
-# Python cache and build artifacts
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg
-*.egg-info
-dist
-build
-*.whl
-.eggs
-.pytest_cache
-.coverage
-htmlcov
-
-# Documentation
-docs/_build
-docs/build
-
-# IDE and editor files
-.vscode
-.idea
+.idea/
+.vscode/
 *.swp
 *.swo
 *~
 .DS_Store
+Thumbs.db
 
-# Test files
-tests
-performance_tests
-examples
+# Python cache / build outputs
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.Python
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+.eggs/
+*.egg
+*.egg-info/
+*.whl
 
-# CMake build artifacts (in server_observer)
-tools/server_observer/build
-tools/server_observer/cmake-build-debug
-tools/server_observer/cmake-build-release
-tools/server_observer/.cache
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
-# Other tools
-tools/recorder
-tools/replay_debug
-tools/recording_converter
+# Rust build output
+target/
 
-# Temporary files
+# Local runtime data / secrets
 *.log
-tmp
-temp
-
-# Configuration files - these MUST be mounted at runtime, not embedded in the image
-tools/server_observer/config.json
-tools/server_observer/account_pool.json
-config.json
+tmp/
+temp/
+recordings/
+long_term_storage/
+config.toml
 account_pool.json
-*.config.json
-*account_pool.json
+
+# Tests and examples
+tests/
+performance_tests/
+examples/
