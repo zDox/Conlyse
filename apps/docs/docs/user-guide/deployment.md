@@ -97,6 +97,8 @@ Add game accounts to `infra/prod/account_pool.json`:
 
 Edit `infra/prod/server-converter-config.json`:
 
+Make sure the S3 `access_key` and `secret_key` match the `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` values you configured in your `.env` file:
+
 ```json
 {
   "redis": {
@@ -115,7 +117,7 @@ Edit `infra/prod/server-converter-config.json`:
     "endpoint": "http://minio:9000",
     "bucket": "replays",
     "access_key": "minioadmin",
-    "secret_key": "minioadmin"
+    "secret_key": "<minio-root-password-from-.env>"
   }
 }
 ```

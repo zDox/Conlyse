@@ -20,7 +20,7 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--primary button--lg"
-            href="https://github.com/your-org/ConflictInterface">
+            href={`https://github.com/${siteConfig.organizationName}/${siteConfig.projectName}`}>
             View on GitHub
           </Link>
           <Link

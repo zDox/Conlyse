@@ -12,10 +12,8 @@ The ConflictInterface replay system provides efficient bidirectional recording a
 - [Key Algorithms](#key-algorithms)
 - [Storage Format](#storage-format)
 - [Usage Examples](#usage-examples)
-- [API Reference](#api-reference)
-– [Hook System](#hook-system)
+- [Hook System](#hook-system)
 - [Performance Considerations](#performance-considerations)
-- [File Requirements](#file-requirements)
 
 ## Architecture Overview
 

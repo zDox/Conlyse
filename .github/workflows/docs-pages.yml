@@ -22,10 +22,6 @@ jobs:
   build:
     name: Build Docusaurus site
     runs-on: ubuntu-latest
-    env:
-      # Keep in sync with docusaurus.config.ts `organizationName`/`projectName`
-      GITHUB_ORG: your-org
-      GITHUB_REPO: ConflictInterface
     defaults:
       run:
         working-directory: apps/docs
