@@ -13,7 +13,7 @@ At a high level, the stack looks like this:
 - **Server Observer** discovers and records live games, writing raw recordings and optionally publishing responses to a Redis stream.
 - **Server Converter** consumes responses from Redis, builds replay databases, and updates metadata in PostgreSQL while optionally mirroring data to S3-compatible storage (MinIO).
 - **Conlyse API** sits on top of PostgreSQL and MinIO to provide authentication, RBAC, device management, and download endpoints.
-- **Conlyse Desktop** and other tools consume the generated replays for interactive analysis or offline processing.
+- **Conlyse Desktop** consumes the generated replays for interactive analysis or offline processing.
 
 ```mermaid
 flowchart LR
@@ -52,7 +52,7 @@ For a more deployment-focused view of this architecture and how to run the full 
 The most important top-level directories and files are:
 
 - **apps/desktop**: Conlyse desktop client (PySide6 + OpenGL) for interactive replay analysis. See [`apps/desktop/README.md`](apps/desktop/README.md).
-- **libs/conflict_interface**: Core Python library for interacting with Conflict of Nations game state, replay files, and related data types.
+- **libs/conflict_interface**: Core Python library for interacting with Conflict of Nations game state, replay files, and related data types. See [`libs/conflict_interface/README.md`](libs/conflict_interface/README.md).
 - **services/api**: FastAPI-based Conlyse API providing authentication, 2FA, RBAC, device management, and download endpoints. See [`services/api/README.md`](services/api/README.md).
 - **services/server_observer**: Headless Rust service that discovers games, manages recording sessions, and writes recordings and optional Redis events. See [`services/server_observer/README.md`](services/server_observer/README.md).
 - **services/server_converter**: Daemon that consumes responses from Redis streams, builds replays, and updates replay metadata in PostgreSQL/S3. See [`services/server_converter/README.md`](services/server_converter/README.md).
@@ -85,14 +85,3 @@ Once the stack is healthy:
 - Redis: `localhost:6379`
 
 For full deployment details, environment variables, health checks, and operational guidance, see [`DEPLOYMENT.md`](DEPLOYMENT.md).
-
----
-
-## Key components at a glance
-
-- **Conlyse API (`services/api`)**: FastAPI service that handles user registration and login, 2FA (TOTP and email), device management, roles (`free`, `pro`, `admin`), and pre-signed download URLs for binaries, replays, analyses, and static map data.
-- **Server Observer (`services/server_observer`)**: Rust service that discovers games to record, manages concurrent observation sessions, writes recordings and metadata, and optionally publishes responses to a Redis stream while exposing Prometheus metrics.
-- **Server Converter (`services/server_converter`)**: Long-running process that reads game responses from Redis, builds and updates replay `.bin` files in hot storage, optionally syncs them to S3-compatible storage, and maintains replay metadata in PostgreSQL with Prometheus metrics.
-- **Conlyse Desktop (`apps/desktop`)**: High-performance desktop replay analytics client built with Python, PySide6, and OpenGL, offering an interactive tactical map, multiple map views, timeline controls, and rich UI for replay exploration.
-- **Recorder CLI (`tools/recorder`)**: CLI and library for scripting and recording Conflict of Nations sessions to disk, capturing game states, requests, and responses that can later be converted into replays.
-- **Recording Converter CLI (`tools/recording_converter`)**: Offline tool that converts on-disk recordings into replays or JSON dumps, complementing the live server converter service.
