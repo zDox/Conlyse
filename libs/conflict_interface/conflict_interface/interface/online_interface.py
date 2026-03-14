@@ -132,7 +132,11 @@ class OnlineInterface(GameInterface):
 
                 self.game_state = self.action_handler.create_game_state_action(use_queue=False, send_state_ids=False)
 
-        json_static_map_data = self.game_api.get_static_map_data()
+        json_static_map_data = self.game_api.get_static_map_data(
+            self.game_api.map_id,
+            session=self.game_api.session,
+            proxy=self.game_api.proxy,
+        )
         self.static_map_data = self.parser.parse_any(StaticMapData, json_static_map_data, self)
 
         if self.replay_filepath:

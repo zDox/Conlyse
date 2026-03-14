@@ -16,7 +16,6 @@ from PySide6.QtCore import Qt
 
 from conlyse.pages.page import Page
 from conlyse.pages.settings_page.settings_fields import ToggleField, SliderField, ComboField, KeybindingField, TextField
-from conlyse.utils.downloads import download_to_file
 from conlyse.widgets.mui.icon_button import CIconButton
 from conlyse.managers.keybinding_manager.key_action import KeyAction
 from conlyse.utils.enums import Theme
@@ -109,9 +108,6 @@ class SettingsPage(Page):
 
         # Account / Authentication Section
         self._add_account_section()
-
-        # Static map data Section
-        self._add_static_map_section()
 
         # Updates Section
         self._add_update_section()
@@ -252,49 +248,6 @@ class SettingsPage(Page):
         # Initialize UI state based on current auth status
         self._refresh_account_section()
 
-    def _add_static_map_section(self):
-        """Settings section for downloading static map data from the API."""
-        self.sidebar.addItem("Maps")
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-
-        container = QWidget()
-        container.setObjectName("settingsContentContainer")
-        layout = QVBoxLayout(container)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 20, 20, 20)
-
-        title = QLabel("Static Map Data")
-        title.setStyleSheet("font-size: 24px; font-weight: bold; margin-bottom: 10px;")
-        layout.addWidget(title)
-
-        description = QLabel(
-            "Download static map data files from the Conlyse API.\n"
-            "These files are stored locally under app_data/static_maps for future use."
-        )
-        description.setWordWrap(True)
-        layout.addWidget(description)
-
-        map_id_label = QLabel("Map ID")
-        self.static_map_id_input = QLineEdit()
-        self.static_map_id_input.setPlaceholderText("Enter map ID (e.g. main_world)")
-        layout.addWidget(map_id_label)
-        layout.addWidget(self.static_map_id_input)
-
-        self.static_map_status_label = QLabel()
-        layout.addWidget(self.static_map_status_label)
-
-        download_button = QPushButton("Download Static Map Data")
-        download_button.clicked.connect(self._on_download_static_map_clicked)
-        layout.addWidget(download_button)
-
-        layout.addStretch()
-        scroll.setWidget(container)
-        self.content_stack.addWidget(scroll)
-
     def _add_section(self, name: str, fields: list, config_type: str = "main"):
         self.sidebar.addItem(name)
         
@@ -434,40 +387,6 @@ class SettingsPage(Page):
         self.app.auth_manager.logout()
         self.account_status_label.setText("Logged out.")
         self._refresh_account_section()
-
-    def _on_download_static_map_clicked(self):
-        """Download static map data file from the API to app_data/static_maps."""
-        import os
-
-        map_id = self.static_map_id_input.text().strip()
-        if not map_id:
-            self.static_map_status_label.setText("Please enter a map ID.")
-            return
-
-        try:
-            response = self.app.api_client.get(
-                f"/downloads/static-map-data/{map_id}",
-                requires_auth=False,
-            )
-        except Exception as exc:
-            self.static_map_status_label.setText(f"Failed to fetch static map URL: {exc}")
-            return
-
-        url = response.get("url")
-        if not url:
-            self.static_map_status_label.setText("API response did not contain a download URL.")
-            return
-
-        dest_dir = os.path.join("app_data", "static_maps")
-        dest_path = os.path.join(dest_dir, f"{map_id}.json")
-
-        try:
-            download_to_file(url, dest_path)
-        except Exception as exc:
-            self.static_map_status_label.setText(f"Download failed: {exc}")
-            return
-
-        self.static_map_status_label.setText(f"Static map downloaded to {dest_path}")
 
     def _add_update_section(self):
         """Settings section for checking and downloading desktop updates."""
