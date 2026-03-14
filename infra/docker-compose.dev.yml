@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Development Docker Compose
 # Infrastructure services only (PostgreSQL, Redis, MinIO)
 # Use this for local development/debugging of Server Observer and Server Converter
@@ -16,7 +14,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: conflict-postgres-dev
+    container_name: conlyse-postgres-dev
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-replays}
       POSTGRES_USER: ${POSTGRES_USER:-converter}
@@ -35,7 +33,7 @@ services:
   # Redis Stream
   redis:
     image: redis:7-alpine
-    container_name: conflict-redis-dev
+    container_name: conlyse-redis-dev
     command: redis-server --appendonly yes
     volumes:
       - redis-data-dev:/data
@@ -51,7 +49,7 @@ services:
   # MinIO - S3 Compatible Storage
   minio:
     image: minio/minio:latest
-    container_name: conflict-minio-dev
+    container_name: conlyse-minio-dev
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -71,7 +69,7 @@ services:
   # MinIO Client - Create bucket on startup
   minio-init:
     image: minio/mc:latest
-    container_name: conflict-minio-init-dev
+    container_name: conlyse-minio-init-dev
     depends_on:
       minio:
         condition: service_healthy

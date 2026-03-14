@@ -15,16 +15,16 @@ router = APIRouter(prefix="/games", tags=["games"])
 async def list_games(
     db: AsyncSession = Depends(get_db),
 ) -> list[GameItem]:
-    rows: list[Game] = await games_service.list_games(db)
+    rows: list[tuple[Game, str]] = await games_service.list_games(db)
     return [
         GameItem(
             game_id=game.game_id,
             scenario_id=game.scenario_id,
-            status=game.status,
+            status=status,
             discovered_date=game.discovered_date,
             started_date=game.started_date,
             completed_date=game.completed_date,
         )
-        for game in rows
+        for game, status in rows
     ]
 

@@ -66,6 +66,8 @@ The `ReplayTimeline` stores one or more non-overlapping `ReplaySegment` interval
 
 When recording via `ReplayBuilder`, new segments are created as needed (for example when a full game state arrives, or when a datatype version changes). During playback, `ReplayInterface` locates the correct segment for a requested timestamp and applies patches only within that segment.
 
+**Supported datatype versions:** To see which game/client datatype versions this library supports, use `conflict_interface.versions.get_supported_datatype_versions()`. The latest supported version is `conflict_interface.versions.LATEST_VERSION`.
+
 
 ## Core Data Structures
 
@@ -420,7 +422,6 @@ game_id = 12345
 player_id = 67890
 
 builder = ReplayBuilder(replay_path, game_id=game_id, player_id=player_id)
-builder.setup_parsers()
 
 # Create a new replay file from the recorded responses
 initial_index = builder.create_replay(json_responses)

@@ -92,7 +92,6 @@ class FromJsonResponsesUsingUpdateToReplay:
             game_id=game_id,
             player_id=player_id,
         )
-        builder.setup_parsers()
 
         # Create initial replay with static map data
         logger.info("Creating initial replay...")

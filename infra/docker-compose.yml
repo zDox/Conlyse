@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Full Stack Docker Compose
 # Includes: PostgreSQL, Redis, MinIO (S3), Server Observer, Server Converter
 # 
@@ -12,7 +10,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: conflict-postgres
+    container_name: conlyse-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-replays}
       POSTGRES_USER: ${POSTGRES_USER:-converter}
@@ -27,13 +25,13 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - conflict-network
+      - conlyse-network
     restart: unless-stopped
 
   # Redis Stream
   redis:
     image: redis:7-alpine
-    container_name: conflict-redis
+    container_name: conlyse-redis
     command: redis-server --appendonly yes
     volumes:
       - redis-data:/data
@@ -45,13 +43,13 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - conflict-network
+      - conlyse-network
     restart: unless-stopped
 
   # MinIO - S3 Compatible Storage
   minio:
     image: minio/minio:latest
-    container_name: conflict-minio
+    container_name: conlyse-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -67,13 +65,13 @@ services:
       timeout: 20s
       retries: 3
     networks:
-      - conflict-network
+      - conlyse-network
     restart: unless-stopped
 
   # MinIO Client - Create bucket on startup
   minio-init:
     image: minio/mc:latest
-    container_name: conflict-minio-init
+    container_name: conlyse-minio-init
     depends_on:
       minio:
         condition: service_healthy
@@ -85,12 +83,12 @@ services:
       exit 0;
       "
     networks:
-      - conflict-network
+      - conlyse-network
 
   # Server Observer - Monitors games and publishes to Redis
   server-observer:
     image: ghcr.io/zdox/server-observer:latest
-    container_name: conflict-server-observer
+    container_name: conlyse-server-observer
     depends_on:
       redis:
         condition: service_healthy
@@ -100,17 +98,16 @@ services:
       - observer-long-term-storage:/app/long_term_storage
     environment:
       - PYTHONUNBUFFERED=1
-    command: ["server_observer", "/app/config/server-observer-config.example.toml", "/app/config/account_pool.example.json"]
     networks:
-      - conflict-network
+      - conlyse-network
     restart: unless-stopped
     security_opt:
       - label=disable
 
   # Conlyse API - FastAPI service for downloads & authentication
   api:
-    image: ghcr.io/zdox/conflict-api:latest
-    container_name: conflict-api
+    image: ghcr.io/zdox/conlyse-api:latest
+    container_name: conlyse-api
     depends_on:
       postgres:
         condition: service_healthy
@@ -129,13 +126,13 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     networks:
-      - conflict-network
+      - conlyse-network
     restart: unless-stopped
 
   # Server Converter - Converts Redis streams to replay files
   server-converter:
     image: ghcr.io/zdox/server-converter:latest
-    container_name: conflict-server-converter
+    container_name: conlyse-server-converter
     depends_on:
       postgres:
         condition: service_healthy
@@ -159,7 +156,7 @@ services:
       - ./prod/server-converter-config.json:/app/config.json:ro
       - converter-hot-storage:/data/hot_storage
     networks:
-      - conflict-network
+      - conlyse-network
     restart: unless-stopped
     security_opt:
       - label=disable
@@ -235,5 +232,5 @@ volumes:
     driver: local
 
 networks:
-  conflict-network:
+  conlyse-network:
     driver: bridge

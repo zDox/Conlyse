@@ -20,10 +20,8 @@ logger = get_logger()
 
 class ReplayBuilder:
     """
-    Usage:
-    1. Import everything needed for all wanted version
-    2. call .setup_parsers()
-    3. everything else as normal
+    Builds replays from JSON responses. Parsers for all supported datatype versions
+    are set up automatically in __init__; no separate setup_parsers() call is required.
     """
     # Constants
     AUTO_STATE_TYPE = "ultshared.UltAutoGameState"
@@ -31,19 +29,19 @@ class ReplayBuilder:
     PATCH_BUFFER_MULTIPLIER = 2
     MAX_PATCHES = 10000
     built = False
+
     def __init__(self, path: Path, game_id: int, player_id: int):
         self.path = path
-
         self.parsers: dict[int, JsonParser] = {}
         self.replay_timeline: Optional[ReplayTimeline] = None
         self.game_id = game_id
         self.player_id = player_id
-
         self.created = path.exists()
+        self._setup_parsers()
 
-    def setup_parsers(self):
-        versions: list[int] = list(JsonParser.GAME_STATES.keys())
-        for v in versions:
+    def _setup_parsers(self) -> None:
+        """Register a JsonParser for each supported datatype version. Called from __init__."""
+        for v in JsonParser.GAME_STATES.keys():
             self.parsers[v] = JsonParser(v)
 
     @staticmethod

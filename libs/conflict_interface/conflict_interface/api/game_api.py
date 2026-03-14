@@ -21,8 +21,7 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException
 from conflict_interface.utils.exceptions import GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
-
-VERSION = 210 # TODO how to do this
+from conflict_interface.versions import LATEST_VERSION as VERSION
 
 
 if TYPE_CHECKING:

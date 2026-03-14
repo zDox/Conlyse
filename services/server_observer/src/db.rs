@@ -102,8 +102,8 @@ impl DbClient {
     ) -> Result<(), DbClientError> {
         let conn = self.pool.get().await?;
         conn.execute(
-            "INSERT INTO games (game_id, scenario_id, status, discovered_date, started_date, completed_date, failed_reason, created_at, updated_at) \
-             VALUES ($1, $2, 'discovered', NOW(), NULL, NULL, NULL, NOW(), NOW()) \
+            "INSERT INTO games (game_id, scenario_id, discovered_date, started_date, completed_date, created_at, updated_at) \
+             VALUES ($1, $2, NOW(), NULL, NULL, NOW(), NOW()) \
              ON CONFLICT (game_id) DO UPDATE SET scenario_id = EXCLUDED.scenario_id, updated_at = NOW()",
             &[&game_id, &scenario_id],
         )
@@ -118,23 +118,34 @@ impl DbClient {
     ) -> Result<(), DbClientError> {
         let conn = self.pool.get().await?;
         conn.execute(
-            "INSERT INTO games (game_id, scenario_id, status, discovered_date, started_date, completed_date, failed_reason, created_at, updated_at) \
-             VALUES ($1, $2, 'recording', NOW(), NOW(), NULL, NULL, NOW(), NOW()) \
-             ON CONFLICT (game_id) DO UPDATE SET \
-               scenario_id = EXCLUDED.scenario_id, \
-               status = 'recording', \
-               started_date = COALESCE(games.started_date, NOW()), \
-               updated_at = NOW()",
-            &[&game_id, &scenario_id],
+            "UPDATE games SET started_date = COALESCE(started_date, NOW()), updated_at = NOW() WHERE game_id = $1",
+            &[&game_id],
         )
         .await?;
+        let replay_name = format!("game_{}_player_0", game_id);
+        conn.execute(
+            "INSERT INTO replays (game_id, player_id, replay_name, status_observer, observer_failed_at, created_at, updated_at) \
+             VALUES ($1, 0, $2, 'recording', NULL, NOW(), NOW()) \
+             ON CONFLICT (game_id, player_id) DO UPDATE SET \
+               status_observer = 'recording', \
+               observer_failed_at = NULL, \
+               updated_at = NOW()",
+            &[&game_id, &replay_name],
+        )
+        .await?;
+        let _ = scenario_id;
         Ok(())
     }
 
     pub async fn mark_game_completed(&self, game_id: i32) -> Result<(), DbClientError> {
         let conn = self.pool.get().await?;
         conn.execute(
-            "UPDATE games SET status = 'completed', completed_date = NOW(), updated_at = NOW() WHERE game_id = $1",
+            "UPDATE games SET completed_date = NOW(), updated_at = NOW() WHERE game_id = $1",
+            &[&game_id],
+        )
+        .await?;
+        conn.execute(
+            "UPDATE replays SET status_observer = 'completed', observer_failed_at = NULL, updated_at = NOW() WHERE game_id = $1",
             &[&game_id],
         )
         .await?;
@@ -151,12 +162,12 @@ impl DbClient {
     pub async fn mark_game_failed(
         &self,
         game_id: i32,
-        reason: Option<&str>,
+        _reason: Option<&str>,
     ) -> Result<(), DbClientError> {
         let conn = self.pool.get().await?;
         conn.execute(
-            "UPDATE games SET status = 'failed', failed_reason = $2, completed_date = NOW(), updated_at = NOW() WHERE game_id = $1",
-            &[&game_id, &reason],
+            "UPDATE replays SET status_observer = 'failed', observer_failed_at = NOW(), updated_at = NOW() WHERE game_id = $1",
+            &[&game_id],
         )
         .await?;
         Ok(())
@@ -166,7 +177,9 @@ impl DbClient {
         let conn = self.pool.get().await?;
         let rows = conn
             .query(
-                "SELECT game_id, scenario_id FROM games WHERE status = 'recording'",
+                "SELECT DISTINCT r.game_id, g.scenario_id FROM replays r \
+                 JOIN games g ON g.game_id = r.game_id \
+                 WHERE r.status_observer = 'recording'",
                 &[],
             )
             .await?;
@@ -197,7 +210,7 @@ impl DbClient {
                 "SELECT DISTINCT g.game_id, g.scenario_id \
                  FROM games g \
                  JOIN recording_list r ON r.game_id = g.game_id \
-                 WHERE g.status NOT IN ('recording', 'completed')",
+                 WHERE g.game_id NOT IN (SELECT game_id FROM replays WHERE status_observer IN ('recording', 'completed'))",
                 &[],
             )
             .await?;

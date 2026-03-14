@@ -84,6 +84,11 @@ errors_total = Counter(
     ['error_type']  # error_type: processing, database, storage, redis
 )
 
+poison_messages_total = Counter(
+    'server_converter_poison_messages_total',
+    'Total number of messages acked as poison (unparseable/corrupt, not retried)'
+)
+
 # Batch processing metrics
 batch_size_summary = Summary(
     'server_converter_batch_size',
