@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -32,11 +32,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -v -e .
 
+      - name: Determine latest data version
+        id: latest_version
+        run: |
+          echo "latest_version=$(python - << 'PY'
+          from conflict_interface.versions import LATEST_VERSION
+          print(LATEST_VERSION)
+          PY
+          )" >> "$GITHUB_OUTPUT"
+
 
       - name: get test data
         run: |
           mkdir -p tests/test_data
-          wget -O tests/test_data/full_test_data_1_v207.json https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_1_v207.json
+          VERSION=${{ steps.latest_version.outputs.latest_version }}
+          wget -O "tests/test_data/full_test_data_1_v${VERSION}.json" "https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_1_v${VERSION}.json"
 
 
       - name: Run tests with unittest

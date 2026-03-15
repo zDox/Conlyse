@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.game import Game, ReplayLibraryEntry
@@ -29,9 +29,20 @@ async def add_game_to_replay_library(
     if not game:
         raise LookupError(f"Game {game_id} not found")
 
-    # Only allow adding completed games unless the user is an admin.
-    if game.status != "completed" and user.role != UserRole.admin:
-        raise PermissionError("Only completed games can be added to the replay library")
+    # Only allow adding games that have at least one completed/archived replay, unless admin.
+    if user.role != UserRole.admin:
+        has_completed = await db.execute(
+            text(
+                """
+                SELECT 1 FROM replays
+                WHERE game_id = :gid AND status_converter IN ('completed', 'archived')
+                LIMIT 1
+                """
+            ),
+            {"gid": game_id},
+        )
+        if has_completed.scalar() is None:
+            raise PermissionError("Only completed games can be added to the replay library")
 
     existing_result = await db.execute(
         select(ReplayLibraryEntry).where(

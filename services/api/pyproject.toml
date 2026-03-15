@@ -3,9 +3,9 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "conflict-api"
+name = "conlyse-api"
 version = "0.1.0"
-description = "Conflict Interface HTTP API service"
+description = "Conlyse HTTP API service"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi==0.115.6",

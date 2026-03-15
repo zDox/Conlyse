@@ -41,10 +41,6 @@ flowchart LR
   recordingTools -->|"offline conversions"| minioStorage
 ```
 
-
-
-For a more deployment-focused view of this architecture and how to run the full stack via Docker Compose, see [`DEPLOYMENT.md`](DEPLOYMENT.md).
-
 ---
 
 ## Repository layout
@@ -52,6 +48,7 @@ For a more deployment-focused view of this architecture and how to run the full 
 The most important top-level directories and files are:
 
 - **apps/desktop**: Conlyse desktop client (PySide6 + OpenGL) for interactive replay analysis. See [`apps/desktop/README.md`](apps/desktop/README.md).
+- **apps/docs**: Documentation for the entire stack. See [`apps/docs/README.md`](apps/docs/README.md).
 - **libs/conflict_interface**: Core Python library for interacting with Conflict of Nations game state, replay files, and related data types. See [`libs/conflict_interface/README.md`](libs/conflict_interface/README.md).
 - **services/api**: FastAPI-based Conlyse API providing authentication, 2FA, RBAC, device management, and download endpoints. See [`services/api/README.md`](services/api/README.md).
 - **services/server_observer**: Headless Rust service that discovers games, manages recording sessions, and writes recordings and optional Redis events. See [`services/server_observer/README.md`](services/server_observer/README.md).
@@ -60,7 +57,6 @@ The most important top-level directories and files are:
 - **tools/recording_converter**: CLI for converting local recorder output into replays or structured JSON dumps. See [`tools/recording_converter/README.md`](tools/recording_converter/README.md).
 - **infra**: Docker Compose files and environment-specific configuration for running the full stack in development and production. See [`infra/docker-compose.yml`](infra/docker-compose.yml) and `infra/dev` / `infra/prod`.
 - **scripts**: Utility scripts, including helpers for batch conversion and automation.
-- **DEPLOYMENT.md**: Detailed guide for deploying the complete stack with Docker Compose.
 
 Other directories (such as `.github`, tests, and example scripts) provide CI workflows, testing, and usage examples for the underlying libraries and services.
 
@@ -84,4 +80,4 @@ Once the stack is healthy:
 - PostgreSQL: `localhost:5432` (`replays` database)
 - Redis: `localhost:6379`
 
-For full deployment details, environment variables, health checks, and operational guidance, see [`DEPLOYMENT.md`](DEPLOYMENT.md).
+For full deployment details and environment variables, see [`Deployment.md`](apps/docs/docs/user-guide/deployment.md).

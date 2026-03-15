@@ -8,7 +8,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from conflict_interface.api.game_api import GameApi
 from conflict_interface.interface.replay_interface import ReplayInterface
+from conflict_interface.replay.replay_timeline import ReplayTimeline
 
 from conlyse.logger import get_logger
 from conlyse.managers.events.replay_load_complete_event import ReplayOpenCompleteEvent
@@ -185,17 +187,27 @@ class ReplayManager:
                         f"/downloads/static-map-data/{map_id}",
                         requires_auth=False,
                     )
-                except Exception as exc:
-                    raise RuntimeError(f"Failed to request static map URL for '{map_id}': {exc}") from exc
-
-                url = response.get("url")
-                if not url:
-                    raise RuntimeError(f"API response for static map '{map_id}' did not contain a 'url' field.")
-
-                try:
+                    url = response.get("url")
+                    if not url:
+                        raise RuntimeError(
+                            f"API response for static map '{map_id}' did not contain a 'url' field."
+                        )
                     download_to_file(url, str(target_path))
                 except Exception as exc:
-                    raise RuntimeError(f"Failed to download static map data for '{map_id}': {exc}") from exc
+                    logger.warning(
+                        "Could not get static map '%s' via Conlyse API (%s), falling back to ConflictInterface Game API",
+                        map_id,
+                        exc,
+                    )
+                    try:
+                        json_data = GameApi.get_static_map_data(map_id)
+                        ReplayTimeline.write_static_map_data_compressed(
+                            target_path, json_data
+                        )
+                    except Exception as fallback_exc:
+                        raise RuntimeError(
+                            f"Failed to obtain static map '{map_id}' via API and fallback: {fallback_exc}"
+                        ) from fallback_exc
 
             static_map_paths[map_id] = target_path
 

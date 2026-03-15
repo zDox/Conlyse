@@ -77,9 +77,10 @@ class ServerConverter:
         start_time = time.time()
         
         try:
-            # Read messages from Redis using batch_size from redis config
+            # Read messages from Redis; block up to check_interval_seconds when idle
             messages = self.redis_consumer.read_messages(
-                count=self.config.redis.batch_size
+                count=self.config.redis.batch_size,
+                block=self.config.check_interval_seconds * 1000,
             )
             
             
@@ -93,6 +94,7 @@ class ServerConverter:
             
             # Cache all messages to disk
             cached_message_ids = []
+            poison_message_ids = []
             for message_id, message_data in messages:
                 try:
                     # Extract core metadata from the ResponseMetadata payload.
@@ -106,15 +108,21 @@ class ServerConverter:
                     cached_message_ids.append(message_id)
                     
                 except Exception as e:
-                    logger.error(f"Error caching message {message_id} (game {message_data.get('game_id')}, "
-                               f"player {message_data.get('player_id')}): {e}", exc_info=True)
+                    logger.warning(
+                        f"Poison message {message_id} (game {message_data.get('game_id')}, "
+                        f"player {message_data.get('player_id')}): {e}; acking to avoid retry"
+                    )
                     metrics.errors_total.labels(error_type='caching').inc()
-                    # Message not added to cached_message_ids, will remain in Redis for retry
+                    metrics.poison_messages_total.inc()
+                    poison_message_ids.append(message_id)
                     
-            # Acknowledge cached messages
+            # Acknowledge both successfully cached and poison messages so they leave the stream
             if cached_message_ids:
                 self.redis_consumer.acknowledge_messages(cached_message_ids)
                 logger.info(f"Cached and acknowledged {len(cached_message_ids)} messages")
+            if poison_message_ids:
+                self.redis_consumer.acknowledge_messages(poison_message_ids)
+                logger.info(f"Acked {len(poison_message_ids)} poison message(s) to avoid retry")
                 
             # Process any games that now have enough responses
             self._process_ready_games()
@@ -142,6 +150,13 @@ class ServerConverter:
         
         for game_id, player_id in ready_games:
             try:
+                # Skip games we have permanently given up converting (persistent across restarts)
+                if self.db.is_conversion_failed(game_id, player_id):
+                    logger.debug(
+                        f"Skipping game {game_id}, player {player_id}: marked as conversion-failed"
+                    )
+                    continue
+
                 # Get all cached responses for this game
                 cached_responses = self.response_cache.get_cached_responses(game_id, player_id)
                 
@@ -167,12 +182,23 @@ class ServerConverter:
                     logger.info(f"Successfully processed and cleared cache for game {game_id}, player {player_id}")
                 else:
                     metrics.messages_processed_total.labels(status='error').inc(len(cached_responses))
-                    # Keep cache on failure for retry
-                    logger.warning(f"Failed to process game {game_id}, player {player_id}, keeping cache for retry")
+                    # Record failure so we skip this game across restarts; clear cache to stop retry storm
+                    reason = "conversion failed (inconsistent or unrecoverable state)"
+                    self.db.record_conversion_failure(game_id, player_id, reason=reason)
+                    self.response_cache.clear_cache(game_id, player_id)
+                    logger.warning(
+                        f"Failed to process game {game_id}, player {player_id}; "
+                        f"recorded as conversion-failed and cleared cache"
+                    )
                     
             except Exception as e:
                 logger.error(f"Error processing ready game {game_id}, player {player_id}: {e}", exc_info=True)
                 metrics.errors_total.labels(error_type='processing').inc()
+                # Record so we do not retry this game indefinitely
+                self.db.record_conversion_failure(
+                    game_id, player_id, reason=str(e)[:500]
+                )
+                self.response_cache.clear_cache(game_id, player_id)
         
     def _process_game_responses(self, game_id: int, player_id: int,
                                 json_responses: List[Tuple[ResponseMetadata, dict]]) -> bool:
@@ -194,17 +220,21 @@ class ServerConverter:
 
         # Get or create database entry
         replay_entry = self.db.get_replay_by_game_and_player(game_id, player_id)
-        
-        if not replay_exists and not replay_entry:
-            # Create new replay
+
+        # If status_converter is NULL, the observer may have created the row; conversion hasn't started yet, so no file exists.
+        converter_started = replay_entry and replay_entry.get("status_converter") is not None
+
+        if not replay_exists and not converter_started:
             return self._create_new_replay(game_id, player_id, json_responses)
         elif replay_exists and replay_entry:
             # Append to existing replay
             return self._append_to_replay(game_id, player_id, json_responses, replay_entry)
         else:
-            # Inconsistent state - log error
-            logger.error(f"Inconsistent state for game {game_id}, player {player_id}: "
-                        f"replay_exists={replay_exists}, replay_entry={replay_entry is not None}")
+            # Inconsistent state: DB says converter has started (status_converter set) but no file on disk
+            logger.error(
+                f"Inconsistent state for game {game_id}, player {player_id}: "
+                f"replay_exists={replay_exists}, replay_entry={replay_entry is not None}"
+            )
             return False
             
     def _create_new_replay(self, game_id: int, player_id: int,
@@ -230,9 +260,6 @@ class ServerConverter:
 
             # Create replay builder
             builder = ReplayBuilder(replay_path, game_id, player_id)
-            builder.setup_parsers()
-
-
             initial_index = builder.create_replay(json_responses)
             remaining_responses = json_responses[initial_index + 1:] if initial_index + 1 < len(json_responses) else []
             builder.append_json_responses(remaining_responses)
@@ -326,8 +353,6 @@ class ServerConverter:
             replay_path = self.hot_storage.get_replay_path(game_id, player_id)
             # Create replay builder in append mode
             builder = ReplayBuilder(replay_path, game_id, player_id)
-            builder.setup_parsers()
-            
             # Append responses
             builder.append_json_responses(json_responses)
             

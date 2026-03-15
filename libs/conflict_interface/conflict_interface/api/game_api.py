@@ -21,8 +21,7 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import CountryUnselectedException
 from conflict_interface.utils.exceptions import GameJoinException
 from conflict_interface.utils.helper import unix_to_datetime
-
-VERSION = 210 # TODO how to do this
+from conflict_interface.versions import LATEST_VERSION as VERSION
 
 
 if TYPE_CHECKING:
@@ -221,7 +220,6 @@ class GameApi:
         return response_json
 
     def reset(self):
-        print("Resetting session")
         new_scraper = CloudScraper.create_scraper(disableCloudflareV2=True, stealth_options={
             'min_delay': 0.01,
             'max_delay': 1,
@@ -262,42 +260,41 @@ class GameApi:
         t_stamp_now = unix_to_datetime(t_stamp_now)
         self.server_time_offset = t_stamp_now - self.last_update_time
 
-
-    def get_static_map_data(self):
-        headers = {
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-        }
-
-        params = {
-            # 'bust': '1700054640135',
-        }
-
+    @staticmethod
+    def get_static_map_data(map_id: str, session: Session | None = None, proxy: dict | None = None):
         domain = "static1.bytro.com"
-        url = f"https://{domain}/fileadmin/mapjson/live/{self.map_id}.json"
-        response = self.session.get(
-            url,
-            params=params,
-            headers=headers,
-            proxies=self.proxy
-        )
+        url = f"https://{domain}/fileadmin/mapjson/live/{map_id}.json"
 
+        if session is None:
+            with Session() as session:
+                response = session.get(url, proxies=proxy)
+                response.raise_for_status()
+                return response.json()
+
+        response = session.get(url, proxies=proxy)
         response.raise_for_status()
         return response.json()
 
-    def get_image(self, path: str) -> bytes:
-        response = self.session.get(
-            "https://www.conflictnations.com/clients/con-client/con-client_live/images/warfare/" + path,
-            proxies=self.proxy
-        )
-
+    @staticmethod
+    def get_image(path: str, session: Session | None = None, proxy: dict | None = None) -> bytes:
+        url = "https://www.conflictnations.com/clients/con-client/con-client_live/images/warfare/" + path
+        if session is None:
+            with Session() as session:
+                response = session.get(url, proxies=proxy)
+                response.raise_for_status()
+                return response.content
+        response = session.get(url, proxies=proxy)
         response.raise_for_status()
         return response.content
 
-    def get_sprite(self, path: str) -> str:
-        response = self.session.get(
-            "https://www.conflictnations.com/clients/con-client/con-client_live/images/sprites/" + path,
-            proxies=self.proxy
-        )
-
+    @staticmethod
+    def get_sprite(path: str, session: Session | None = None, proxy: dict | None = None) -> str:
+        url = "https://www.conflictnations.com/clients/con-client/con-client_live/images/sprites/" + path
+        if session is None:
+            with Session() as session:
+                response = session.get(url, proxies=proxy)
+                response.raise_for_status()
+                return response.content
+        response = session.get(url, proxies=proxy)
         response.raise_for_status()
         return response.content

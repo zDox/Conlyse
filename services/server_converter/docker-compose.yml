@@ -37,7 +37,7 @@ services:
   server-converter:
     build:
       context: ../..
-      dockerfile: tools/server_converter/Dockerfile
+      dockerfile: services/server_converter/Dockerfile
     container_name: server-converter
     depends_on:
       postgres:

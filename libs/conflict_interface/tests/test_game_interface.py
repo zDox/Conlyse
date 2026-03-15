@@ -12,7 +12,7 @@ class GameInterfaceTests(unittest.TestCase):
         cls.random_prefix = "test_"
 
     def setUp(self):
-        self.hub_interface = HubInterface(VERSION)
+        self.hub_interface = HubInterface()
         self.hub_interface.login(self.username, self.password)
         self.game_id = get_test_game_id(self.hub_interface)
         self.game = self.hub_interface.join_game(self.game_id)

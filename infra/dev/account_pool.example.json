@@ -4,8 +4,10 @@
   "accounts": [
     {
       "username": "guest_dev_account",
-      "type": "guest",
-      "enabled": true
+      "password": "change-me-in-production",
+      "email": "test@test.com",
+      "proxy_id": "",
+      "proxy_url": "socks5://username:password@ip_address:port"
     }
   ]
 }

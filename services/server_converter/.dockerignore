@@ -1,70 +1,51 @@
-# Ignore Python cache and build artifacts
+# VCS / editor metadata
+.git/
+.github/
+.gitignore
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Python cache / packaging outputs
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Ignore virtual environments
-venv/
-ENV/
-env/
-
-# Ignore IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Ignore test and coverage files
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+*.whl
 
-# Ignore logs and databases
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local runtime data / config
 *.log
 *.db
 *.sqlite
 *.sqlite3
-
-# Ignore local config files
 config.json
+config.docker.json
 *.local.*
 
-# Ignore git
-.git/
-.gitignore
-
-# Ignore documentation builds
-docs/_build/
-
-# Ignore CI/CD
-.github/
-
-# Ignore example and test files
-examples/
+# Tests and examples
 tests/
 performance_tests/
-
-# Ignore other tools (we only need server_converter)
-tools/recorder/
-tools/recording_converter/
-tools/replay_debug/
-tools/server_observer/
+examples/

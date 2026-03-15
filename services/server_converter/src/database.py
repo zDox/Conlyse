@@ -77,7 +77,7 @@ class ReplayDatabase:
         cursor = self.conn.cursor()
 
         # PostgreSQL schema
-        # Replays table stores per-game replay tracking metadata.
+        # Replays table: status_observer (observer), status_converter (converter), failed timestamps.
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS replays (
@@ -87,7 +87,10 @@ class ReplayDatabase:
                 replay_name VARCHAR(255) NOT NULL UNIQUE,
                 hot_storage_path TEXT,
                 s3_key TEXT,
-                status VARCHAR(50) NOT NULL,
+                status_observer VARCHAR(32),
+                status_converter VARCHAR(32),
+                observer_failed_at TIMESTAMP,
+                converter_failed_at TIMESTAMP,
                 recording_start_time TIMESTAMP,
                 recording_end_time TIMESTAMP,
                 created_at TIMESTAMP NOT NULL,
@@ -123,11 +126,9 @@ class ReplayDatabase:
                 id SERIAL PRIMARY KEY,
                 game_id INTEGER NOT NULL UNIQUE,
                 scenario_id INTEGER NOT NULL,
-                status VARCHAR(32) NOT NULL,
                 discovered_date TIMESTAMP NOT NULL,
                 started_date TIMESTAMP,
                 completed_date TIMESTAMP,
-                failed_reason TEXT,
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL
             )
@@ -181,12 +182,18 @@ class ReplayDatabase:
         cursor = self.conn.cursor()
         now = datetime.now()
         
-        # PostgreSQL uses %s placeholders and RETURNING for getting the ID
+        # Upsert: observer may have already inserted (game_id, player_id) with status_converter NULL.
         cursor.execute("""
-            INSERT INTO replays 
-            (game_id, player_id, replay_name, hot_storage_path, status, 
+            INSERT INTO replays
+            (game_id, player_id, replay_name, hot_storage_path, status_converter,
              recording_start_time, created_at, updated_at)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (game_id, player_id) DO UPDATE SET
+                replay_name = EXCLUDED.replay_name,
+                hot_storage_path = EXCLUDED.hot_storage_path,
+                status_converter = EXCLUDED.status_converter,
+                recording_start_time = EXCLUDED.recording_start_time,
+                updated_at = EXCLUDED.updated_at
             RETURNING id
         """, (
             game_id, player_id, replay_name, hot_storage_path,
@@ -195,7 +202,7 @@ class ReplayDatabase:
             now, now
         ))
         replay_id = cursor.fetchone()['id']
-        
+
         self.conn.commit()
         return replay_id
         
@@ -229,61 +236,56 @@ class ReplayDatabase:
         s3_key: Optional[str] = None,
     ):
         """
-        Update the status of a replay.
-        
-        Args:
-            replay_id: Database ID of the replay
-            status: New status
-            recording_end_time: When recording ended (optional)
-            s3_key: S3 object key in cold storage (optional)
+        Update the converter status of a replay (status_converter and converter_failed_at).
         """
         cursor = self.conn.cursor()
         now = datetime.now()
-        
+        converter_failed_at = now if status.value == "failed" else None
+
         if recording_end_time and s3_key:
             query = self._format_query(
                 """
-                UPDATE replays 
-                SET status = {}, recording_end_time = {}, 
-                    s3_key = {}, updated_at = {}
+                UPDATE replays
+                SET status_converter = {}, recording_end_time = {},
+                    s3_key = {}, converter_failed_at = {}, updated_at = {}
                 WHERE id = {}
-            """,
-                5,
+                """,
+                6,
             )
             cursor.execute(
-                query, (status.value, recording_end_time, s3_key, now, replay_id)
+                query, (status.value, recording_end_time, s3_key, converter_failed_at, now, replay_id)
             )
         elif recording_end_time:
             query = self._format_query(
                 """
-                UPDATE replays 
-                SET status = {}, recording_end_time = {}, updated_at = {}
+                UPDATE replays
+                SET status_converter = {}, recording_end_time = {}, converter_failed_at = {}, updated_at = {}
                 WHERE id = {}
-            """,
-                4,
+                """,
+                5,
             )
-            cursor.execute(query, (status.value, recording_end_time, now, replay_id))
+            cursor.execute(query, (status.value, recording_end_time, converter_failed_at, now, replay_id))
         elif s3_key:
             query = self._format_query(
                 """
-                UPDATE replays 
-                SET status = {}, s3_key = {}, updated_at = {}
+                UPDATE replays
+                SET status_converter = {}, s3_key = {}, converter_failed_at = {}, updated_at = {}
                 WHERE id = {}
-            """,
-                4,
+                """,
+                5,
             )
-            cursor.execute(query, (status.value, s3_key, now, replay_id))
+            cursor.execute(query, (status.value, s3_key, converter_failed_at, now, replay_id))
         else:
             query = self._format_query(
                 """
-                UPDATE replays 
-                SET status = {}, updated_at = {}
+                UPDATE replays
+                SET status_converter = {}, converter_failed_at = {}, updated_at = {}
                 WHERE id = {}
-            """,
-                3,
+                """,
+                4,
             )
-            cursor.execute(query, (status.value, now, replay_id))
-        
+            cursor.execute(query, (status.value, converter_failed_at, now, replay_id))
+
         self.conn.commit()
         
     def increment_response_count(self, replay_id: int, count: int = 1):
@@ -316,8 +318,8 @@ class ReplayDatabase:
         cursor = self.conn.cursor()
         
         query = self._format_query("""
-            SELECT * FROM replays 
-            WHERE status = {}
+            SELECT * FROM replays
+            WHERE status_converter = {}
         """, 1)
         cursor.execute(query, (ReplayStatus.RECORDING.value,))
         
@@ -328,6 +330,38 @@ class ReplayDatabase:
         cursor = self.conn.cursor()
         query = self._format_query("DELETE FROM recording_list WHERE game_id = {}", 1)
         cursor.execute(query, (game_id,))
+        self.conn.commit()
+
+    def is_conversion_failed(self, game_id: int, player_id: int) -> bool:
+        """
+        Check if this game/player is marked as conversion-failed (status_converter = 'failed').
+        """
+        cursor = self.conn.cursor()
+        query = self._format_query(
+            "SELECT 1 FROM replays WHERE game_id = {} AND player_id = {} AND status_converter = 'failed'",
+            2,
+        )
+        cursor.execute(query, (game_id, player_id))
+        return cursor.fetchone() is not None
+
+    def record_conversion_failure(
+        self, game_id: int, player_id: int, reason: Optional[str] = None
+    ) -> None:
+        """
+        Record that we have given up converting this game/player (set status_converter = 'failed' on replays).
+        """
+        cursor = self.conn.cursor()
+        now = datetime.now()
+        replay_name = f"game_{game_id}_player_{player_id}"
+        cursor.execute(
+            """
+            INSERT INTO replays (game_id, player_id, replay_name, status_converter, converter_failed_at, created_at, updated_at)
+            VALUES (%s, %s, %s, 'failed', %s, %s, %s)
+            ON CONFLICT (game_id, player_id)
+            DO UPDATE SET status_converter = 'failed', converter_failed_at = EXCLUDED.converter_failed_at, updated_at = EXCLUDED.updated_at
+            """,
+            (game_id, player_id, replay_name, now, now, now),
+        )
         self.conn.commit()
 
     # --- Static maps helpers -------------------------------------------------

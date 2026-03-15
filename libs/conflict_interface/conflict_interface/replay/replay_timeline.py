@@ -506,3 +506,17 @@ class ReplayTimeline:
         json_data = json.loads(decompressed)
 
         return parser.parse_static_map_data(json_data)
+
+    @staticmethod
+    def write_static_map_data_compressed(path: Path, json_data: dict) -> None:
+        """
+        Write static map JSON to disk as zstd-compressed data for efficient storage.
+        The resulting file can be read by read_static_map_data (use a non-.json suffix, e.g. .bin).
+        """
+        compressor = zstd.ZstdCompressor(level=11)
+        payload = json.dumps(json_data).encode("utf-8")
+        compressed = compressor.compress(payload)
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(compressed)

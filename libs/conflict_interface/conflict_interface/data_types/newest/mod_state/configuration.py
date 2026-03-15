@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Optional
 from typing import Union
 
@@ -659,6 +660,22 @@ class ConflictCondition(GameObject):
 
     MAPPING = {
         "expression": "expression",
+    }
+
+@conflict_serializable(SerializationCategory.ENUM, version=VERSION)
+class PossiblePosition(StrEnum):
+    ProvinceCenter = "PROVINCE_CENTRE"
+    SeaConnections = "SEA_CONNECTIONS"
+    LandConnections = "LAND_CONNECTIONS"
+
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
+@dataclass
+class PositionConfig(GameObject):
+    C = "ultshared.modding.configuration.UltPositionConfig"
+    possible_positions: HashSet[PossiblePosition]
+
+    MAPPING = {
+        "possible_positions": "possiblePositions",
     }
 
 @conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)

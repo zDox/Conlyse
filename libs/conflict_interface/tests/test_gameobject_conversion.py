@@ -36,7 +36,7 @@ class ParseDumpTests(unittest.TestCase):
                    ArmyState,
                    ForeignAffairsState,
                    ResearchState, GameInfoState, GameEventState]
-    test_files = [TEST_DATA/"full_test_data_1_v207.json"]
+    test_files = [TEST_DATA/f"full_test_data_1_v{VERSION}.json"]
 
     def test_load_json(self):
         for file in ParseDumpTests.test_files:
