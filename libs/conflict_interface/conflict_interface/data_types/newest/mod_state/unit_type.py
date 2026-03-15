@@ -8,6 +8,7 @@ from ..custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
+from ..mod_state.configuration import PositionConfig
 from ..mod_state.configuration import AirMobileConfig
 from ..mod_state.configuration import AirplaneConfig
 from ..mod_state.configuration import AntiAirConfig
@@ -119,6 +120,7 @@ class UnitType(GameObject):
     launch_target_config: LaunchTargetConfig
     token_sensitivity_config: TokenSensitivityConfig
     production_requirements_config: ConflictCondition
+    position_config: PositionConfig
     frontend_config: UnitTypeFrontEndConfig
     terrain_restriction_config: TerrainRestrictedConfig
     render_config: RenderConfig
@@ -198,6 +200,7 @@ class UnitType(GameObject):
         "launch_target_config": "launchTargetConfig",
         "token_sensitivity_config": "tokenSensitivityConfig",
         "production_requirements_config": "productionRequirementConfig",
+        "position_config": "positionConfig",
         "frontend_config": "frontendConfig",
         "render_config": "renderConfig",
         "terrain_restriction_config": "terrainRestrictionConfig",

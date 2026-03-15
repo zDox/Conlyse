@@ -515,10 +515,6 @@ class ReplayTimeline:
         """
         compressor = zstd.ZstdCompressor(level=11)
         payload = json.dumps(json_data).encode("utf-8")
-        if len(payload) > MAX_STATIC_MAP_DATA_SIZE:
-            raise ValueError(
-                f"Static map JSON size {len(payload)} exceeds max {MAX_STATIC_MAP_DATA_SIZE}"
-            )
         compressed = compressor.compress(payload)
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
