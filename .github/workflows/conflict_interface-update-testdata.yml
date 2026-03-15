@@ -52,21 +52,9 @@ jobs:
           last_line=$(tail -n 1 script_output.txt)
           echo "RAW_OUTPUT=$last_line" >> "$GITHUB_ENV"
 
-          version=$(python - << 'PY'
-import json, os
-raw = os.environ["RAW_OUTPUT"]
-data = json.loads(raw)
-print(data["version"])
-PY
-)
+          version=$(python -c 'import json, os; d=json.loads(os.environ["RAW_OUTPUT"]); print(d["version"])')
 
-          file=$(python - << 'PY'
-import json, os
-raw = os.environ["RAW_OUTPUT"]
-data = json.loads(raw)
-print(data["file"])
-PY
-)
+          file=$(python -c 'import json, os; d=json.loads(os.environ["RAW_OUTPUT"]); print(d["file"])')
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "file=$file" >> "$GITHUB_OUTPUT"
