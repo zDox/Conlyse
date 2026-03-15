@@ -49,12 +49,11 @@ jobs:
             exit 0
           fi
 
-          last_line=$(tail -n 1 script_output.txt)
-          echo "RAW_OUTPUT=$last_line" >> "$GITHUB_ENV"
+          RAW_OUTPUT=$(tail -n 1 script_output.txt)
 
-          version=$(python -c 'import json, os; d=json.loads(os.environ["RAW_OUTPUT"]); print(d["version"])')
+          version=$(python -c 'import json, sys; d=json.loads(sys.argv[1]); print(d["version"])' "$RAW_OUTPUT")
 
-          file=$(python -c 'import json, os; d=json.loads(os.environ["RAW_OUTPUT"]); print(d["file"])')
+          file=$(python -c 'import json, sys; d=json.loads(sys.argv[1]); print(d["file"])' "$RAW_OUTPUT")
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "file=$file" >> "$GITHUB_OUTPUT"

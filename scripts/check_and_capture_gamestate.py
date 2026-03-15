@@ -102,7 +102,6 @@ def write_response_to_temp(version: int, response_json: Dict[str, Any]) -> Path:
 
 
 def main() -> int:
-    setup_library_logger(logging.DEBUG)
     github_token = os.getenv("CONFLICT_DATA_TOKEN")
 
     username, password, _email, proxy_url = _load_credentials()
