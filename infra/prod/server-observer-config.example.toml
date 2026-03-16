@@ -1,0 +1,21 @@
+"_comment" = "Server Observer configuration for Docker deployment (example)"
+
+max_parallel_recordings = 5
+max_parallel_normal_recordings = 5
+update_interval = 60
+max_parallel_updates = 3
+max_parallel_first_updates = 2
+update_worker_threads = 4
+output_dir = "/app/recordings"
+output_metadata_dir = "/app/recordings/metadata"
+
+[redis]
+host = "redis"
+port = 6379
+stream_name = "game_responses"
+
+[game_finder]
+enabled = true
+scan_interval_seconds = 300
+max_games_per_scan = 10
+

@@ -1,0 +1,120 @@
+MapPage {
+    background-color: $bg_dark;
+}
+
+/* --- TimeLineControls Section --- */
+
+TimelineControls {
+    background-color: $bg;
+}
+
+/* --- Bottom Dock Styles --- */
+
+#bottom_dock {
+    background-color: $bg_light;
+    border: 1px solid $border_muted;
+}
+
+/* Bottom dock buttons are now in the left sidebar */
+#bottom_dock_button {
+    background-color: transparent;
+    color: $text_muted;
+    border: none;
+    border-top: 1px solid $border_muted;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 8px 4px;
+}
+
+#bottom_dock_button:hover {
+    background-color: $bg_light;
+    color: $text;
+}
+
+#bottom_dock_button:checked {
+    background-color: $primary;
+    color: $on_primary;
+    border-left: 3px solid $primary;
+}
+
+/* --- Sidebar Styles --- */
+
+#sidebar {
+    background-color: transparent;
+}
+
+#sidebar_button_strip {
+    background-color: $bg;
+    border-right: 1px solid $border_muted;
+}
+
+#sidebar_dock_container {
+    background-color: $bg_light;
+    border: 1px solid $border_muted;
+}
+
+#sidebar_dock_button {
+    background-color: transparent;
+    color: $text_muted;
+    border: none;
+    border-bottom: 1px solid $border_muted;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 8px 4px;
+}
+
+#sidebar_dock_button:hover {
+    background-color: $bg_light;
+    color: $text;
+}
+
+#sidebar_dock_button:checked {
+    background-color: $primary;
+    color: $on_primary;
+    border-left: 3px solid $primary;
+}
+
+/* --- Dock Styles --- */
+
+#game_info_dock,
+#province_info_dock,
+#army_info_dock,
+#events_dock,
+#city_list_dock,
+#army_list_dock {
+    background-color: $bg_light;
+}
+
+#dock_title {
+    color: $text;
+    font-size: $H3;
+    font-weight: bold;
+}
+
+#dock_separator {
+    background-color: $border_muted;
+    border: none;
+}
+
+#dock_label {
+    color: $text_muted;
+    font-size: $H6;
+}
+
+#dock_value {
+    color: $text;
+    font-size: $H6;
+    font-weight: 500;
+}
+
+/* ScrollArea styling for docks */
+QScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+QScrollArea > QWidget > QWidget {
+    background-color: transparent;
+}

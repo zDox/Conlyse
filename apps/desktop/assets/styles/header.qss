@@ -1,0 +1,13 @@
+QPushButton#drawer_entry_button {
+    background-color: $bg;
+    border: 1px solid $border_muted;
+    border-radius: 0px;
+    text-align: left;
+    color: $text
+}
+
+Drawer {
+    background-color: $bg;
+    border: 1px solid $border_muted;
+    border-radius: 0px;
+}

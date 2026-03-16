@@ -1,0 +1,51 @@
+/* ============================================================================
+   Auth Page Styles
+   Initial authentication / startup screen
+   ============================================================================ */
+
+AuthPage {
+    background-color: $bg_dark;
+}
+
+AuthPage > QLabel {
+    color: $text;
+}
+
+QLabel {
+    color: $text;
+}
+
+QLabel#status_label {
+    color: $text_muted;
+    font-size: $body;
+}
+
+QLineEdit {
+    background-color: $bg;
+    color: $text;
+    border: 1px solid $border_muted;
+    border-radius: 4px;
+    padding: 6px 8px;
+}
+
+QLineEdit:focus {
+    border-color: $primary;
+}
+
+QPushButton {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid $border_muted;
+    background-color: $bg;
+    color: $text;
+}
+
+QPushButton:hover {
+    border-color: $primary;
+}
+
+QPushButton:disabled {
+    color: $text_muted;
+    border-color: $border_muted;
+}
+

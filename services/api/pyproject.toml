@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "conlyse-api"
+version = "0.1.0"
+description = "Conlyse HTTP API service"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.32.1",
+    "sqlalchemy[asyncio]==2.0.36",
+    "asyncpg==0.30.0",
+    "psycopg2-binary==2.9.10",
+    "alembic==1.14.0",
+    "pydantic[email]==2.10.3",
+    "pydantic-settings==2.6.1",
+    "PyJWT[crypto]==2.10.1",
+    "passlib[bcrypt]==1.7.4",
+    "bcrypt>=3.2.0,<4.0",
+    "boto3==1.35.86",
+    "python-multipart==0.0.22",
+    "httpx==0.28.1",
+    "pyotp==2.9.0",
+    "slowapi==0.1.9",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.3",
+    "pytest-asyncio>=1.0",
+    "httpx>=0.28",
+    "aiosqlite>=0.20",
+    "ruff>=0.8",
+    "black>=24.10",
+]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

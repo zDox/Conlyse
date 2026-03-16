@@ -1,0 +1,51 @@
+# VCS / editor metadata
+.git
+.github
+.gitignore
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Python cache / build outputs
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.Python
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+.eggs/
+*.egg
+*.egg-info/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Rust build output
+target/
+
+# Local runtime data / secrets
+*.log
+tmp/
+temp/
+recordings/
+long_term_storage/
+config.toml
+account_pool.json
+
+# Tests and examples
+tests/
+performance_tests/
+examples/

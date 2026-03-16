@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "server-converter"
+version = "0.1.0"
+description = "Daemon that converts Redis game responses into replay files"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "conflict-interface>=0.1.2",
+    "redis",
+    "zstandard",
+    "psycopg2-binary",
+    "boto3",
+    "prometheus-client",
+]
+
+[project.scripts]
+server-converter = "server_converter.__main__:main"
+
+[tool.setuptools]
+packages = ["server_converter"]
+
+[tool.setuptools.package-dir]
+server_converter = "src"

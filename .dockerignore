@@ -1,0 +1,66 @@
+# VCS / CI
+.git
+.github
+.gitignore
+
+# Python / packaging
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+build/
+dist/
+.eggs/
+*.egg-info/
+*.whl
+
+# Virtual environments / editors
+.venv/
+venv/
+env/
+ENV/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Repo areas not needed by repo-root service image builds
+apps/
+docs/
+infra/
+scripts/
+tools/
+services/api/
+libs/conflict_interface/tests/
+libs/conflict_interface/performance_tests/
+libs/conflict_interface/examples/
+
+# Service-local generated artifacts
+services/server_observer/target/
+services/server_converter/server_converter.egg-info/
+
+# Logs, databases, env files, and local runtime data
+*.log
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+recordings/
+long_term_storage/
+*.replay
+services/server_observer/config.toml
+services/server_observer/account_pool.json
+services/server_converter/config.json
+services/server_converter/config.docker.json
