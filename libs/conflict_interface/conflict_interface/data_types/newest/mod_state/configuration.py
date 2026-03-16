@@ -57,7 +57,7 @@ from ..version import VERSION
 class AirplaneConfig(GameObject):
     C = "ultshared.modding.configuration.UltAirplaneConfig"
     spy: bool
-    patrol_radius: int
+    patrol_radius: float
     patrol_target_damage_types: UnmodifiableCollection[int]
     embarkation_time: int
     disembarkation_time: int
@@ -107,7 +107,7 @@ from ..version import VERSION
 @dataclass
 class AntiAirConfig(GameObject):
     C = "ultshared.modding.configuration.UltAntiAirConfig"
-    range: int
+    range: float
     attackPainter: Optional[str]
     MAPPING = {"range": "range",
                "attackPainter": "attackPainter"}
@@ -145,7 +145,7 @@ class TokenProducerConfigProduction(GameObject):
     C = "ultshared.modding.configuration.UltTokenProducerConfig$TokenProduction"
     type_id: int
     amount: int
-    range: int
+    range: float
     duration: TimeDeltaMillisecondsInt = TimeDeltaMillisecondsInt(0)
     MAPPING = {
         "type_id": "typeID",
@@ -362,7 +362,7 @@ class ArmyStackingPenaltyConfig(GameObject):
 class AStarConfig(GameObject):
     C = "ultshared.modding.configuration.UltAStarConfig"
 
-    war_declearation_cost: int
+    war_declearation_cost: float
     enemy_harbour_cost_factor: float
     friendly_harbour_cost_factor: float
 
@@ -581,7 +581,7 @@ class DisbandConfig(GameObject):
     C = "ultshared.modding.configuration.UltDisbandConfig"
 
     resources_returned: float
-    duration: int
+    duration: float
 
     MAPPING = {
         "resources_returned": "resourcesReturned",
@@ -685,7 +685,7 @@ class PurchaseStrategyConfig(GameObject):
 
     purchasable: bool
     requirements: ConflictCondition
-    costs: Union[LinkedHashMap[int, int], HashMap[int, int]]
+    costs: Union[LinkedHashMap[int, float], HashMap[int, float]]
     enable_all_priority: bool = False
     initial_count: int = 0
     MAPPING = {

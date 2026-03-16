@@ -37,9 +37,9 @@ class ProvinceProperty(GameObject):
     possible_productions: Union[EmptyList[SpecialUnit], LinkedList[SpecialUnit], ArrayList[SpecialUnit]]
     queueable_productions: Union[EmptyList[SpecialUnit], LinkedList[SpecialUnit], ArrayList[SpecialUnit]]
 
-    revolt_chance: int
-    uprising_chance: int
-    target_morale: int
+    revolt_chance: float
+    uprising_chance: float
+    target_morale: float
 
     base_uprising_chance: float
     morale_factors: MoraleFactors

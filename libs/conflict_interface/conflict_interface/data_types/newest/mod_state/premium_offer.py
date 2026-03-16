@@ -20,13 +20,13 @@ class PremiumOffer(GameObject):
     start_date: Optional[DateTimeSecondsInt] # !TODO Check Type
     end_date: Optional[DateTimeSecondsInt] # !TODO Check Type
     country: Optional[str]
-    price_function: HashMap[int, int]
+    price_function: HashMap[int, float]
     price_items: Optional[list[int]] # !TODO Check Type
 
     featured: int = 0
     duration: TimeDeltaMillisecondsInt = 0
     offer_category: int = 2
-    price: int = 1000
+    price: float = 1000.0
     price_step: int = 0
     min_price: int = 0
     amount: int = 1
