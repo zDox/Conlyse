@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os.path
 from copy import deepcopy
 from datetime import datetime
 from time import time
@@ -10,17 +9,15 @@ from typing import override
 
 from cloudscraper25 import CloudScraper
 
-from conflict_interface.data_types.newest.action_handler import ActionHandler
-
 from conflict_interface.api.game_api import GameApi
-from conflict_interface.game_object.game_object import GameObject
+# Online Interface must use newest datatypes (trivially)
+from conflict_interface.data_types.newest.static_map_data import StaticMapData
 from conflict_interface.game_object.game_object_parse_json import JsonParser
+from conflict_interface.interface.action_handler import ActionHandler
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
 from conflict_interface.utils.exceptions import GameActivationException
-# Online Interface must use newest datatypes (trivially)
-from conflict_interface.data_types.newest.static_map_data import StaticMapData
 
 if TYPE_CHECKING:
     from conflict_interface.data_types.newest.action import Action
