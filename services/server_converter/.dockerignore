@@ -1,0 +1,51 @@
+# VCS / editor metadata
+.git/
+.github/
+.gitignore
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Python cache / packaging outputs
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local runtime data / config
+*.log
+*.db
+*.sqlite
+*.sqlite3
+config.json
+config.docker.json
+*.local.*
+
+# Tests and examples
+tests/
+performance_tests/
+examples/

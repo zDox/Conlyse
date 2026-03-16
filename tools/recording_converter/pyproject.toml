@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "conflict-recording-converter"
+version = "0.1.0"
+description = "CLI tool to convert recorder output to replay databases or JSON"
+requires-python = ">=3.12"
+dependencies = [
+    "conflict-interface>=0.1.2",
+    "tqdm",
+]
+
+[project.scripts]
+recording-converter = "recording_converter.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

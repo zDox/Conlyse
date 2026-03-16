@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.swp
+*.egg
+conflict_interface.egg-info
+
+
+tests/test_data/

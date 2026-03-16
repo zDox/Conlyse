@@ -1,0 +1,202 @@
+from dataclasses import dataclass
+from typing import Optional
+
+from ..admin_state.admin_state import AdminState
+from ..ai_state.ai_state import AIState
+from ..army_state.army_state import ArmyState
+from ..build_queue_state.build_queue_state import BuildQueueState
+from ..custom_types import HashMap
+from ..exploration_state import ExplorationState
+from ..game_event_state.game_event_state import GameEventState
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import conflict_serializable
+from ..in_game_alliance_state.in_game_alliance_state import InGameAllianceState
+from ..location_state.location_state import LocationState
+from ..map_info_state.map_info_state import MapInfoState
+from ..mission_state.mission_state import MissionState
+from ..player_state.player_state import PlayerState
+from ..newspaper_state.newspaper_state import NewspaperState
+from ..map_state.map_state import MapState
+from ..premium_state.premium_state import PremiumState
+from ..quest_state.quest_state import QuestState
+from ..resource_state.resource_state import ResourceState
+from ..foreign_affairs_state.foreign_affairs_state import ForeignAffairsState
+from ..spy_state.spy_state import SpyState
+from ..mod_state.mod_state import ModState
+from ..game_info_state.game_info_state import GameInfoState
+from ..research_state.research_state import ResearchState
+from ..configuration_state.configuration_state import ConfigurationState
+from ..state import State
+from ..update_helpers import state_update
+from ..statistic_state.statistic_state import StatisticState
+from ..triggered_tutorial_state.triggered_tutorial_state import TriggeredTutorialState
+from ..tutorial_state.tutorial_state import TutorialState
+from ..user_inventory_state.user_inventory_state import UserInventoryState
+from ..user_options_state.user_options_state import UserOptionsState
+from ..user_sms_state.user_sms_state import UserSMSState
+from ..wheel_of_fortune_state.wheel_of_fortune_state import WheelOfFortuneState
+from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
+from conflict_interface.replay.constants import PathNode
+
+"""
+The following are all states but not every state
+is implemented
+
+STATE_TYPE_GAME_STATE: 0,
+STATE_TYPE_PLAYER_STATE: 1,
+STATE_TYPE_NEWSPAPER_STATE: 2,
+STATE_TYPE_MAP_STATE: 3,
+STATE_TYPE_RESOURCE_STATE: 4,
+STATE_TYPE_FOREIGN_AFFAIRS_STATE: 5,
+STATE_TYPE_ARMY_STATE: 6,
+STATE_TYPE_SPY_STATE: 7,
+STATE_TYPE_MAP_INFO_STATE: 8,
+STATE_TYPE_ADMIN_STATE: 9,
+STATE_TYPE_STATISTIC_STATE: 10,
+STATE_TYPE_MOD_STATE: 11,
+STATE_TYPE_GAME_INFO_STATE: 12,
+STATE_TYPE_AI_STATE: 13,
+STATE_TYPE_PREMIUM_STATE: 14,
+STATE_TYPE_USER_OPTIONS_STATE: 15,
+STATE_TYPE_USER_INVENTORY_STATE: 16,
+STATE_TYPE_USER_SMS_OPTION_STATE: 17,
+STATE_TYPE_TUTORIAL_STATE: 18,
+STATE_TYPE_BUILD_QUEUE_STATE: 19,
+STATE_TYPE_LOCATION_STATE: 20,
+STATE_TYPE_TRIGGERED_TUTORIAL: 21,
+STATE_TYPE_WHEEL_OF_FORTUNE_STATE: 22,
+STATE_TYPE_RESEARCH_STATE: 23,
+STATE_TYPE_GAME_EVENT_STATE: 24,
+STATE_TYPE_IN_GAME_ALLIANCE: 25,
+STATE_TYPE_EXPLORATION_STATE: 26,
+STATE_TYPE_QUEST_STATE: 27,
+STATE_TYPE_CONFIGURATION_STATE: 28
+STATE_TYPE_MISSION_STATE: 29
+"""
+
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@dataclass
+class States(GameObject):
+    C = "java.util.HashMap"
+    player_state: Optional[PlayerState]
+    newspaper_state: Optional[NewspaperState]
+    map_state: Optional[MapState]
+    resource_state: Optional[ResourceState]
+    foreign_affairs_state: Optional[ForeignAffairsState]
+    army_state: Optional[ArmyState]
+    spy_state: Optional[SpyState]
+    map_info_state: Optional[MapInfoState]
+    admin_state: Optional[AdminState]
+    statistic_state: Optional[StatisticState]
+    mod_state: Optional[ModState]
+    game_info_state: Optional[GameInfoState]
+    ai_state: Optional[AIState]
+    premium_state: Optional[PremiumState]
+    user_options_state: Optional[UserOptionsState]
+    user_inventory_state: Optional[UserInventoryState]
+    user_sms_state: Optional[UserSMSState]
+    tutorial_state: Optional[TutorialState]
+    build_queue_state: Optional[BuildQueueState]
+    location_state: Optional[LocationState]
+    triggered_tutorial_state: Optional[TriggeredTutorialState]
+    wheel_of_fortune_state: Optional[WheelOfFortuneState]
+    research_state: Optional[ResearchState]
+    game_event_state: Optional[GameEventState]
+    in_game_alliance_state: Optional[InGameAllianceState]
+    exploration_state: Optional[ExplorationState]
+    quest_state: Optional[QuestState]
+    configuration_state: Optional[ConfigurationState]
+    mission_state: Optional[MissionState]
+
+    MAPPING = {
+        "player_state": "1",
+        "newspaper_state": "2",
+        "map_state": "3",
+        "resource_state": "4",
+        "foreign_affairs_state": "5",
+        "army_state": "6",
+        "spy_state": "7",
+        "map_info_state": "8",
+        "admin_state": "9",
+        "statistic_state": "10",
+        "mod_state": "11",
+        "game_info_state": "12",
+        "ai_state": "13",
+        "premium_state": "14",
+        "user_options_state": "15",
+        "user_inventory_state": "16",
+        "user_sms_state": "17",
+        "tutorial_state": "18",
+        "build_queue_state": "19",
+        "location_state": "20",
+        "triggered_tutorial_state": "21",
+        "wheel_of_fortune_state": "22",
+        "research_state": "23",
+        "game_event_state": "24",
+        "in_game_alliance_state": "25",
+        "exploration_state": "26",
+        "quest_state": "27",
+        "configuration_state": "28",
+        "mission_state": "29",
+    }
+
+    def update(self, new_fields: "States"):
+        """
+        Call the update method of each state that has a update and hand of the state as dict
+
+        :param new_fields: The new fields to update with (dict)
+        :return: None
+        """
+
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.GAME_STATE, version = VERSION)
+@dataclass
+class GameState(State):
+    C = "ultshared.UltGameState"
+    state_type: int
+    state_id: str
+    time_stamp: str
+    states: States
+    action_results: Optional[HashMap[str, int]]
+
+    MAPPING = {
+        "states": "states",
+        "action_results": "actionResults"
+    }
+
+    def get_state_ids_and_time_stamps(self):
+        state_ids = HashMap()
+        time_stamps = HashMap()
+        for state in self.states.__annotations__.keys():
+            state = getattr(self.states, state)
+            if state is None:
+                continue
+            state_ids[state.state_type] = state.state_id
+            time_stamps[state.state_type] = state.time_stamp
+        if len(time_stamps) == 0 or len(state_ids) == 0:
+            return None, None
+        return state_ids, time_stamps
+
+    def update(self, other: "GameState", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None) -> None:
+        state_update(self, other, path=path, rp=rp)
+
+        if rp and self.action_results != other.action_results:
+            rp.replace(path + ["action_results"], self.action_results, other.action_results)
+
+        self.action_results = other.action_results
+        for state in self.states.get_mapping().keys():
+            old_state = getattr(self.states, state)
+            new_state = getattr(other.states, state)
+            if new_state is None:
+                continue
+            if old_state is None:
+                if rp:
+                    rp.replace(path + ["states", state], old_state, new_state)
+                setattr(self.states, state, new_state)
+            elif hasattr(new_state, "update"):
+                getattr(self.states, state).update(new_state, path + ["states", state], rp)
+            else:
+                raise Exception(f"{type(new_state)} has no update function")
+

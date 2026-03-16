@@ -1,0 +1,32 @@
+{
+    "ui": {
+        "theme": "DARK"
+    },
+    "simulation": {
+        "ups": 60
+    },
+    "graphics": {
+        "resolution": {
+            "width": 1280,
+            "height": 720
+        },
+        "frame_rate_limit": 120,
+        "vsync": false,
+        "fullscreen": false,
+        "anti_aliasing": true,
+        "msaa_samples": 4
+    },
+    "api": {
+        "base_url": "http://localhost:8000/api/v1",
+        "timeout_seconds": 10
+    },
+    "file": {
+        "default_open_path": "",
+        "replay_file_extension": ".bin"
+    },
+    "debug": {
+        "time": false,
+        "verbose": false,
+        "style_sheet_hot_loading": false
+    }
+}

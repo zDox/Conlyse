@@ -1,0 +1,34 @@
+{
+  "_comment": "Docker deployment configuration - uses service names from docker-compose.yml",
+  "redis": {
+    "host": "redis",
+    "port": 6379,
+    "db": 0,
+    "password": null,
+    "stream_name": "game_responses",
+    "consumer_group": "server_converter",
+    "consumer_name": "converter_1",
+    "batch_size": 10
+  },
+  "storage": {
+    "hot_storage_dir": "/data/hot_storage",
+    "cold_storage_enabled": false,
+    "s3": {
+      "endpoint_url": "https://your-s3-endpoint.com",
+      "access_key": "your-access-key",
+      "secret_key": "your-secret-key",
+      "bucket_name": "replays",
+      "region": "us-east-1"
+    }
+  },
+  "database": {
+    "host": "postgres",
+    "port": 5432,
+    "database": "replays",
+    "user": "converter",
+    "password": "changeme"
+  },
+  "batch_size": 10,
+  "check_interval_seconds": 5,
+  "metrics_port": 8001
+}

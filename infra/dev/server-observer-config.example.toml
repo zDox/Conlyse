@@ -1,0 +1,22 @@
+# Server Observer configuration for LOCAL DEVELOPMENT (example)
+# Use this when running server-observer-rust locally with docker-compose.dev.yml
+
+max_parallel_recordings = 5
+max_parallel_normal_recordings = 5
+update_interval = 60
+max_parallel_updates = 3
+max_parallel_first_updates = 2
+update_worker_threads = 4
+output_dir = "./data/recordings"
+output_metadata_dir = "./data/recordings/metadata"
+
+[redis]
+host = "localhost"
+port = 6379
+stream_name = "game_responses"
+
+[game_finder]
+enabled = true
+scan_interval_seconds = 300
+max_games_per_scan = 10
+

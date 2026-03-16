@@ -1,0 +1,416 @@
+/* ============================================================================
+   Global Application Styles
+   Default styles for all Qt widgets across the entire application
+   Author: NikNam3
+   Date: 2025-11-19
+   ============================================================================ */
+
+/* --- Base Styles --- */
+
+* {
+    font-family: "Roboto";
+    font-size: 14px;
+}
+
+QWidget {
+    background-color: transparent;
+}
+
+QMainWindow {
+    background-color: $bg_dark;
+}
+
+/* --- QLabel --- */
+
+QLabel {
+    background-color: transparent;
+    color: $text;
+    padding: 2px;
+}
+
+QLabel:disabled {
+    color: $text_muted;
+}
+
+/* --- QPushButton --- */
+QPushButton {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+QPushButton:disabled  {
+    opacity: 0.6;
+}
+
+/* Primary Button (Blue) */
+QPushButton[variant="contained"] {
+    background-color: $primary;
+    color: $highlight;
+    border: none;
+}
+
+QPushButton[variant="contained"]:hover {
+    background-color: $primary_dark;
+}
+
+QPushButton[variant="contained"]:pressed {
+    background-color: $primary_darker;
+}
+
+/* Secondary Button */
+QPushButton[variant="contained"][color="secondary"] {
+    background-color: $secondary;
+    color: $highlight;
+}
+
+QPushButton[variant="contained"][color="secondary"]:hover {
+    background-color: $secondary_dark;
+}
+
+QPushButton[variant="contained"][color="secondary"]:pressed {
+    background-color: $secondary_darker;
+}
+
+
+/* Error Button */
+QPushButton[variant="contained"][color="error"] {
+    background-color: $error;
+    color: $highlight;
+}
+
+QPushButton[variant="contained"][color="error"]:hover {
+    background-color: $error_darker;
+}
+
+/* Outlined Button (border only) */
+QPushButton[variant="outlined"] {
+    background-color: transparent;
+    color: $primary;
+    border: 1px solid $primary;
+}
+
+QPushButton[variant="outlined"]:hover {
+    background-color: $secondary_darker;
+}
+
+QPushButton[variant="outlined"]:pressed {
+    background-color: $primary;
+}
+
+QPushButton[variant="outlined"]:disabled {
+    border-color: $border_muted;
+    color: $text_muted;
+}
+
+/* Outlined Secondary */
+QPushButton[variant="outlined"][color="secondary"] {
+    color: $secondary;
+    border-color: $secondary;
+}
+
+QPushButton[variant="outlined"][color="secondary"]:hover {
+    background-color: $secondary_darker;
+}
+
+/* Outlined Error */
+QPushButton[variant="outlined"][color="error"] {
+    color: $error;
+    border-color: $error;
+}
+
+QPushButton[variant="outlined"][color="error"]:hover {
+    background-color: $error_darker;
+}
+
+/* --- CIconButton --- */
+CIconButton {
+    background-color: transparent;
+    border: none;
+}
+CIconButton:hover {
+    background-color: $text_muted;
+}
+CIconButton:pressed {
+    background-color: $text_muted;
+}
+
+CIconButton[color="primary"] {
+    qproperty-iconColor: $primary;
+}
+
+CIconButton[color="secondary"] {
+    qproperty-iconColor: $secondary;
+}
+
+CIconButton[color="error"] {
+    qproperty-iconColor: $error;
+}
+
+CIconButton[color="warning"] {
+    qproperty-iconColor: $warning;
+}
+
+CIconButton[color="success"] {
+    qproperty-iconColor: $success;
+}
+
+CIconButton[color="info"] {
+    qproperty-iconColor: $info;
+}
+
+
+
+
+
+/* --- QCheckBox --- */
+
+QCheckBox {
+    color: $text;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 20px;
+    height: 20px;
+    border: 2px solid $border;
+    border-radius: 4px;
+    background-color: $bg;
+}
+
+QCheckBox::indicator:hover {
+}
+
+QCheckBox::indicator:checked {
+    background-color: $primary;
+}
+
+QCheckBox::indicator:checked:hover {
+
+}
+
+QCheckBox::indicator:disabled {
+    background-color: $text_muted;
+    border-color: $border_disabled;
+}
+
+QCheckBox:disabled {
+    color: $text_muted;
+}
+
+
+/* --- QLineEdit --- */
+
+QLineEdit {
+    padding: 12px;
+    color: $text;
+    background-color: transparent;
+}
+
+/* TextField */
+QLineEdit {
+    border: 2px solid $border_muted;
+    border-radius: 4px;
+    background-color: transparent;
+    padding: 11px;
+}
+
+
+QLineEdit:hover {
+    border-color: $border;
+}
+
+QLineEdit:focus {
+    border-color: $primary;
+
+}
+
+QLineEdit:disabled {
+    border-color: $border_muted;
+    background-color: $bg_dark;
+}
+
+/* --- QComboBox --- */
+
+QComboBox {
+    padding: 8px 12px;
+    padding-right: 32px;
+    border: 1px solid $border;
+    border-radius: 4px;
+    background-color: $bg;
+    color: $primary;
+    font-size: 14px;
+    min-height: 40px;
+}
+
+QComboBox:hover {
+    border-color: $primary;
+}
+
+QComboBox:focus {
+    border-color: $primary;
+    border-width: 2px;
+    padding: 7px 11px;
+    padding-right: 31px;
+}
+
+QComboBox:disabled {
+    background-color: $border_muted;
+    color: $text_muted;
+    border-color: $border_muted;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 32px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: $bg;
+    border: 1px solid $border;
+    border-radius: 4px;
+    padding: 4px 0;
+    selection-background-color: $primary;
+    selection-color: $primary;
+}
+
+QComboBox QAbstractItemView::item {
+    padding: 8px 12px;
+    min-height: 36px;
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background-color: $secondary;
+}
+
+/* --- QMessageBox --- */
+QMessageBox {
+    background-color: $bg_light;
+    color: $text;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+/* --- CChip --- */
+CChip[variant="outlined"] {
+    background-color: transparent;
+    border-radius: 10px;
+    padding: 4px 8px;
+}
+
+CChip[variant="outlined"][color="primary"] {
+    border: 2px solid $primary;
+    color: $primary;
+}
+
+CChip[variant="outlined"][color="success"] {
+    border: 2px solid $success;
+    color: $success;
+}
+
+CChip[variant="outlined"][color="info"] {
+    border: 2px solid $info;
+    color: $info;
+}
+
+CChip[variant="outlined"][color="error"] {
+    border: 2px solid $error;
+    color: $error;
+}
+
+CChip[variant="contained"][color="secondary"] {
+    background-color: $secondary;
+    color: $highlight;
+    border-radius: 10px;
+    padding: 4px 8px;
+}
+
+CLabel[iconColorType="primary"] {
+    qproperty-iconColor: $primary;
+}
+
+CLabel[iconColorType="secondary"] {
+    qproperty-iconColor: $secondary;
+}
+
+CLabel[iconColorType="success"] {
+    qproperty-iconColor: $success;
+}
+
+CLabel[iconColorType="error"] {
+    qproperty-iconColor: $error;
+}
+
+/* Optional: text color */
+CLabel QLabel {
+    color: $text;
+}
+
+/* --- Separator --- */
+
+QFrame#separator {
+    background-color: $border_muted;
+    max-height: 1px;
+    border: none;
+}
+
+
+/* --- QScrollBar --- */
+
+/* Vertical ScrollBar */
+QScrollBar:vertical {
+    background-color: transparent;
+    width: 14px;
+    margin: 0;
+    border: none;
+}
+
+QScrollBar::handle:vertical {
+    background-color: $border;
+    min-height: 30px;
+    border-radius: 7px;
+    margin: 2px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: $border;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+    background: none;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+/* Horizontal ScrollBar */
+QScrollBar:horizontal {
+    background-color: transparent;
+    height: 14px;
+    margin: 0;
+    border: none;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: $border;
+    min-width: 30px;
+    border-radius: 7px;
+    margin: 2px;
+}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    width: 0;
+    background: none;
+}
+
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
+    background: none;
+}
