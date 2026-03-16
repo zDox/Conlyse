@@ -53,7 +53,6 @@ The most important top-level directories and files are:
 - **services/api**: FastAPI-based Conlyse API providing authentication, 2FA, RBAC, device management, and download endpoints. See [`services/api/README.md`](services/api/README.md).
 - **services/server_observer**: Headless Rust service that discovers games, manages recording sessions, and writes recordings and optional Redis events. See [`services/server_observer/README.md`](services/server_observer/README.md).
 - **services/server_converter**: Daemon that consumes responses from Redis streams, builds replays, and updates replay metadata in PostgreSQL/S3. See [`services/server_converter/README.md`](services/server_converter/README.md).
-- **tools/recorder**: CLI tool for scripting and recording game sessions to disk, producing on-disk recordings. See [`tools/recorder/README.md`](tools/recorder/README.md).
 - **tools/recording_converter**: CLI for converting local recorder output into replays or structured JSON dumps. See [`tools/recording_converter/README.md`](tools/recording_converter/README.md).
 - **infra**: Docker Compose files and environment-specific configuration for running the full stack in development and production. See [`infra/docker-compose.yml`](infra/docker-compose.yml) and `infra/dev` / `infra/prod`.
 - **scripts**: Utility scripts, including helpers for batch conversion and automation.
