@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'ConflictInterface',
+  title: 'Conlyse',
   tagline: 'Tools for recording, replaying, and analysing game state',
   favicon: 'img/favicon.ico',
 
@@ -16,16 +16,16 @@ const config: Config = {
 
   // Set the production url of your site here
   // Adjust this to match where you host the docs (e.g. GitHub Pages).
-  url: 'https://your-org.github.io',
+  url: 'https://zdox.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/ConflictInterface/',
+  baseUrl: '/Conlyse/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
   // Update these to match your GitHub organization/user and repo.
-  organizationName: 'your-org',
-  projectName: 'ConflictInterface',
+  organizationName: 'zdox',
+  projectName: 'Conlyse',
 
   onBrokenLinks: 'throw',
 
@@ -44,7 +44,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           // Update this to point to your GitHub repository if you want \"Edit this page\" links.
-          editUrl: 'https://github.com/your-org/ConflictInterface/tree/main/apps/docs',
+          editUrl: 'https://github.com/zdox/Conlyse/tree/main/apps/docs',
         },
         // Disable the blog for now to keep the site focused on documentation.
         blog: false,
@@ -62,9 +62,9 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'ConflictInterface',
+      title: 'Conlyse',
       logo: {
-        alt: 'ConflictInterface logo',
+        alt: 'Conlyse logo',
         src: 'img/logo.svg',
       },
       items: [
@@ -75,7 +75,7 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://github.com/your-org/ConflictInterface',
+          href: 'https://github.com/zdox/Conlyse',
           label: 'GitHub',
           position: 'right',
         },
@@ -102,12 +102,12 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/your-org/ConflictInterface',
+              href: 'https://github.com/zdox/Conlyse',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} ConflictInterface. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Conlyse. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,
