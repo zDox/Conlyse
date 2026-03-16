@@ -29,7 +29,7 @@ class PlayerProfile(GameObject):
     title: str
     nation_name: str
     nation_adjective: str
-    average_national_morale: int
+    average_national_morale: float
     computer_player: bool
     native_computer: bool
     site_user_id: int

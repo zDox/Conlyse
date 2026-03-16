@@ -69,13 +69,13 @@ class UnitType(GameObject):
     defense: HashMap[int, float]
     ranges: HashMap[int, float]
     view_widths: HashMap[int, float]
-    required_upgrades: HashMap[int, int]
-    required_researches: HashMap[int, int]
+    required_upgrades: HashMap[int, float]
+    required_researches: HashMap[int, float]
     unit_cap_research_items: HashMap[int, int]
     friendly_speed_factor: float
     foreign_speed_factor: float
     identifier: str
-    minimum_tech_level: int
+    minimum_tech_level: float
     unit_features: Optional[HashMap[UnitFeature, float]]
     size_factors: Optional[HashMap[int, float]]
     attack_painter: str
