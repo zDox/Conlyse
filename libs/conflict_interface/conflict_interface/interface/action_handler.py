@@ -4,19 +4,18 @@ import logging
 from typing import TYPE_CHECKING
 
 from conflict_interface.api.game_api import GameApi
-from .custom_types import LinkedList
-from .game_api_types.game_activation_action import GameActivationAction
-from .game_api_types.game_state_action import GameStateAction
-from .to_json import dump_any
-from .version import VERSION
+from conflict_interface.data_types.newest.custom_types import LinkedList
+from conflict_interface.data_types.newest.game_api_types.game_activation_action import GameActivationAction
+from conflict_interface.data_types.newest.game_api_types.game_state_action import GameStateAction
+from conflict_interface.data_types.newest.to_json import dump_any
+from conflict_interface.data_types.newest.version import VERSION
 from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.bidict import Bidict
 from conflict_interface.utils.exceptions import GameActivationException
 
-from .game_state.game_state import GameState
-from .action import Action
+from conflict_interface.data_types.newest.game_state.game_state import GameState
+from conflict_interface.data_types.newest.action import Action
 if TYPE_CHECKING:
     from conflict_interface.interface.online_interface import OnlineInterface
 
@@ -190,11 +189,6 @@ class ActionHandler:
         if self.game_state is None:
             # Initialize the game state
             self.game_state = game_state
-        elif self.game.is_recording():
-            # Create and record a replay patch
-            rp = BidirectionalReplayPatch()
-            self.game_state.update(game_state, path=[], rp=rp)
-            self.game.record_patch(rp)
         else:
             # Update the current game state
             self.game_state.update(game_state, path=[])

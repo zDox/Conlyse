@@ -21,12 +21,9 @@ if __name__ == "__main__":
                                        state=HubGameState.READY_TO_JOIN)
     selected_game = next(iter(games))
     pprint(f"Joining new game:  {selected_game.game_id}")
-    game = interface.join_game(selected_game.game_id, guest=True, replay_filename="replay.db")
+    game = interface.join_game(selected_game.game_id, guest=True)
     print("Country is selected: ", game.is_country_selected())
 
     print("Selected country:", game.get_player(game.player_id).nation_name)
-    print(game.get_player(-1))
-    game.update()
-    sleep(10)
     game.update()
 

@@ -165,7 +165,6 @@ class Recorder:
         self.game_itf = self.hub_itf.join_game(
             game_id,
             guest=self.join_as_guest,
-            replay_filename=self.replay_filepath if self.record_as_replay else None
         )
         # store resume info
         try:
@@ -194,7 +193,7 @@ class Recorder:
     def _create_patched_join_game(self):
         """Create a patched version of join_game that captures API responses."""
 
-        def patched_join_game(game_id: int, guest=False, replay_filename: str = None):
+        def patched_join_game(game_id: int, guest: bool = False, replay_filename: str | None = None):
             # Request first join if needed
             if not self.hub_itf.is_in_game(game_id) and not guest:
                 logger.info(f"User is not in game {game_id}. Requesting first join...")
@@ -209,7 +208,8 @@ class Recorder:
                 auth_details=deepcopy(self.hub_itf.api.auth),
                 proxy=self.hub_itf.api.proxy,
                 guest=guest,
-                replay_filepath=replay_filename or self.replay_filepath
+                version=VERSION,
+                login_action=DEFAULT_LOGIN_ACTION,
             )
 
             # Patch the game API to capture responses

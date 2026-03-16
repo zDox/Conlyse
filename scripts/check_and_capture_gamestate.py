@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+"""
+This script is used to check if the client version is up to date and capture the gamestate if needed.
+It is used to update the full test data in the ConflictData repository.
+"""
+
 from __future__ import annotations
 
 import json

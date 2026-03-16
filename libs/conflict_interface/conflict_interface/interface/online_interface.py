@@ -3,7 +3,6 @@ from __future__ import annotations
 import os.path
 from copy import deepcopy
 from datetime import datetime
-from pathlib import Path
 from time import time
 from typing import Callable
 from typing import TYPE_CHECKING
@@ -18,9 +17,6 @@ from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.interface.game_interface import GameInterface
 from conflict_interface.logger_config import get_logger
-from conflict_interface.replay.make_bipatch_between_gamestates import make_bireplay_patch
-from conflict_interface.replay.replay_segment import ReplaySegment
-from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.utils.exceptions import GameActivationErrorCodes
 from conflict_interface.utils.exceptions import GameActivationException
 # Online Interface must use newest datatypes (trivially)
@@ -40,10 +36,8 @@ class OnlineInterface(GameInterface):
                  auth_details: AuthDetails,
                  login_action: LoginAction,
                  guest: bool = False,
-                 proxy: dict = None,
-                 replay_filepath: str = None):
+                 proxy: dict = None):
         super().__init__()
-        self.replay: ReplaySegment | None = None
         self.game_id = game_id
         self.game_api: GameApi = GameApi(session, auth_details, self.game_id, proxy=proxy)
         self.game_event_handler: Callable = self.default_event_handler
@@ -54,34 +48,6 @@ class OnlineInterface(GameInterface):
         self.parser = JsonParser(version)
         self.parser.type_graph.build_graph()
         self.loging_action = login_action
-
-        self.replay_filepath = replay_filepath
-
-    def _handle_replay_init(self, static_map_data: StaticMapData):
-        if not os.path.exists(self.replay_filepath):
-            self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="w", game_id=self.game_id, player_id=self.player_id, max_patches=400)
-            self.replay.open()
-            self.replay.record_initial_game_state(
-                                time_stamp = self.client_time(),
-                                game_id = self.game_id,
-                                player_id = self.player_id,
-                                game_state = self.game_state)
-        else:
-            self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
-            self.replay.open()
-            last_game_state = self.replay.get_last_game_state()
-            replay_patch = make_bireplay_patch(last_game_state, self.game_state)
-            self.replay.append_patches(
-                time_stamp=self.client_time(),
-                game_id=self.game_id,
-                player_id=self.player_id,
-                replay_patches=[replay_patch],
-                game=self
-            )
-        GameObject.set_game_recursive(self.game_state, None)
-        self.replay.set_last_game_state(self.game_state)
-        self.replay.close()
-        GameObject.set_game_recursive(self.game_state, self)
 
 
     @override
@@ -139,9 +105,6 @@ class OnlineInterface(GameInterface):
         )
         self.static_map_data = self.parser.parse_any(StaticMapData, json_static_map_data, self)
 
-        if self.replay_filepath:
-            self._handle_replay_init(self.static_map_data)
-
         self.game_state.states.map_state.map.set_static_map_data(self.static_map_data)
 
     def select_country(self, country_id=-1, team_id=-1,
@@ -188,27 +151,6 @@ class OnlineInterface(GameInterface):
         t1 = time()
         self.action_handler.create_game_state_action()
         logger.debug(f"Update took: {time() - t1}")
-
-    """
-    Everything regarding replay capabilities
-    """
-    def is_recording(self) -> bool:
-        return self.replay is not None
-
-    def record_patch(self, rp: BidirectionalReplayPatch):
-        if self.is_recording():
-            self.replay = ReplaySegment(file_path=Path(self.replay_filepath), mode="a", game_id=self.game_id, player_id=self.player_id)
-            self.replay.open()
-            self.replay.append_patches(
-                time_stamp=self.client_time(),
-                game_id=self.game_id,
-                player_id=self.player_id,
-                replay_patches=[rp],
-                game=self)
-            GameObject.set_game_recursive(self.game_state, None)
-            self.replay.set_last_game_state(self.game_state)
-            self.replay.close()
-            GameObject.set_game_recursive(self.game_state, self)
 
     """
     Utility functions
