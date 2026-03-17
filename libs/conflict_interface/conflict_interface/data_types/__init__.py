@@ -10,10 +10,9 @@ def _load_all_versions():
         version_pkg_name = f"{__name__}.{name}"
         version_pkg = importlib.import_module(version_pkg_name)
 
-        # now import every module inside that version package
-        for _, modname, _ in pkgutil.iter_modules(version_pkg.__path__):
-            full_module_name = f"{version_pkg_name}.{modname}"
-            importlib.import_module(full_module_name)
+        # Import every module/package inside that version package recursively.
+        for module_info in pkgutil.walk_packages(version_pkg.__path__, prefix=f"{version_pkg_name}."):
+            importlib.import_module(module_info.name)
 
 _load_all_versions()
 del _load_all_versions

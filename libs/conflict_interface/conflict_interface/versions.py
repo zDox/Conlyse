@@ -7,7 +7,8 @@ version (e.g. for new games or API clients).
 """
 from __future__ import annotations
 
-# Import so that JsonParser.GAME_STATES is populated (via data_types registration)
+# Import so that JsonParser.* registries are populated (via data_types registration)
+import conflict_interface.data_types  # noqa: F401
 from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.data_types.newest.version import VERSION as _LATEST_VERSION
 
