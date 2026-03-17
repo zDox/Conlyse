@@ -89,8 +89,6 @@ pub struct Account {
 
 #[derive(Debug, Deserialize)]
 struct AccountFile {
-    #[serde(default, rename = "WEBSHARE_API_TOKEN")]
-    webshare_api_token: String,
     #[serde(default)]
     accounts: Vec<AccountEntry>,
 }
@@ -114,8 +112,6 @@ pub enum AccountPoolError {
     Json(#[from] serde_json::Error),
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
-    #[error("WebShare token not set")]
-    MissingToken,
 }
 
 pub type ProxyResetCallback = Arc<dyn Fn(String) + Send + Sync>;
@@ -133,21 +129,12 @@ pub struct AccountPool {
 impl AccountPool {
     pub async fn load_from_file<P: AsRef<Path>>(
         path: P,
-        explicit_token: Option<String>,
+        webshare_token: String,
     ) -> Result<Self, AccountPoolError> {
         let file = File::open(&path)?;
         let reader = BufReader::new(file);
         let parsed: AccountFile = serde_json::from_reader(reader)?;
 
-        let webshare_token = explicit_token
-            .or_else(|| {
-                if parsed.webshare_api_token.is_empty() {
-                    None
-                } else {
-                    Some(parsed.webshare_api_token.clone())
-                }
-            })
-            .ok_or(AccountPoolError::MissingToken)?;
 
         let proxies = Self::fetch_proxies(&webshare_token).await?;
 

@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 class HotStorageManager:
     """Manages replay files in hot (local) storage with efficient caching."""
 
+    REPLAY_EXTENSION = ".conrp"
+
     def __init__(self, hot_storage_dir: Path):
         """
         Initialize hot storage manager with file cache.
@@ -41,10 +43,13 @@ class HotStorageManager:
         try:
             with os.scandir(self.hot_storage_dir) as entries:
                 for entry in entries:
-                    if entry.is_file() and entry.name.startswith('game_') and entry.name.endswith('.bin'):
-                        # Parse filename: game_{game_id}_player_{player_id}.bin
+                    if entry.is_file() and entry.name.startswith("game_") and entry.name.endswith(
+                        self.REPLAY_EXTENSION
+                    ):
+                        # Parse filename: game_{game_id}_player_{player_id}.conrp
                         try:
-                            parts = entry.name[5:-4].split('_player_')  # Remove 'game_' prefix and '.bin' suffix
+                            ext_len = len(self.REPLAY_EXTENSION)
+                            parts = entry.name[5:-ext_len].split("_player_")  # Remove prefix + suffix
                             if len(parts) == 2:
                                 game_id = int(parts[0])
                                 player_id = int(parts[1])
@@ -71,7 +76,7 @@ class HotStorageManager:
         Returns:
             Path to the replay file
         """
-        return self.hot_storage_dir / f"game_{game_id}_player_{player_id}.bin"
+        return self.hot_storage_dir / f"game_{game_id}_player_{player_id}{self.REPLAY_EXTENSION}"
 
     def replay_exists(self, game_id: int, player_id: int) -> bool:
         """
@@ -131,7 +136,7 @@ class HotStorageManager:
         Returns:
             Iterator of Path objects for each replay file
         """
-        return self.hot_storage_dir.glob("game_*_player_*.bin")
+        return self.hot_storage_dir.glob(f"game_*_player_*{self.REPLAY_EXTENSION}")
 
     def count_replays(self) -> int:
         """

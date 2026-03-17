@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 class ColdStorageManager:
     """Manages replay files in cold (S3) storage."""
+
+    REPLAY_EXTENSION = ".conrp"
     
     def __init__(self, s3_config):
         """
@@ -58,7 +60,7 @@ class ColdStorageManager:
             logger.error(f"Local file not found: {local_path}")
             return None
             
-        s3_key = f"replays/game_{game_id}_player_{player_id}.bin"
+        s3_key = f"replays/game_{game_id}_player_{player_id}{self.REPLAY_EXTENSION}"
         
         try:
             self.s3_client.upload_file(
@@ -107,7 +109,7 @@ class ColdStorageManager:
         Returns:
             True if replay exists in S3
         """
-        s3_key = f"replays/game_{game_id}_player_{player_id}.db"
+        s3_key = f"replays/game_{game_id}_player_{player_id}{self.REPLAY_EXTENSION}"
         
         try:
             self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)

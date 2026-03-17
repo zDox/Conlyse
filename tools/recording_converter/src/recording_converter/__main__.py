@@ -20,22 +20,22 @@ def main():
         epilog="""
 Examples:
   # Convert a recording to a replay file (default: state-based mode)
-  recording-converter recordings/my_recording replay.db
+  recording-converter recordings/my_recording replay.conrp
   
   # Convert using JSON-based mode
-  recording-converter recordings/my_recording replay.db --mode json
+  recording-converter recordings/my_recording replay.conrp --mode json
   
   # Dump game states and JSON requests/responses to separate files
   recording-converter recordings/my_recording --dump-json
   
   # Convert with verbose output
-  recording-converter recordings/my_recording replay.db -v
+  recording-converter recordings/my_recording replay.conrp -v
   
   # Specify game and player IDs explicitly
-  recording-converter recordings/my_recording replay.db --game-id 12345 --player-id 67890
+  recording-converter recordings/my_recording replay.conrp --game-id 12345 --player-id 67890
   
   # Use a custom static map data file
-  recording-converter recordings/my_recording replay.db --static-map-data /path/to/custom_static_map.bin
+  recording-converter recordings/my_recording replay.conrp --static-map-data /path/to/custom_static_map.bin
 
 The recording directory should contain:
   - game_states.bin: Binary file with compressed game states

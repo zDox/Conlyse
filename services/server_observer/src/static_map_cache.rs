@@ -2,7 +2,6 @@ use crate::db::DbClient;
 use crate::s3_client::S3Client;
 use serde_json::Value as JsonValue;
 use std::collections::HashSet;
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use zstd::stream::encode_all;
@@ -13,6 +12,8 @@ pub enum StaticMapError {
     Io(#[from] std::io::Error),
     #[error("DB error: {0}")]
     Db(#[from] crate::db::DbClientError),
+    #[error("S3 error: {0}")]
+    S3(#[from] crate::s3_client::S3Error),
     #[error("Compression error: {0}")]
     Compression(String),
 }
@@ -20,23 +21,17 @@ pub enum StaticMapError {
 #[derive(Clone)]
 pub struct StaticMapCache {
     saved_ids: Arc<Mutex<HashSet<String>>>,
-    s3: Option<S3Client>,
-    db: Option<DbClient>,
+    s3: S3Client,
+    db: DbClient,
 }
 
 impl StaticMapCache {
-    pub async fn new<P: AsRef<Path>>(
-        cache_dir: P,
-        s3: Option<S3Client>,
-        db: Option<DbClient>,
-    ) -> Result<Self, StaticMapError> {
+    pub async fn new(s3: S3Client, db: DbClient) -> Result<Self, StaticMapError> {
         let mut ids = HashSet::new();
-        if let Some(ref db_client) = db {
-            // Pre-populate the in-memory cache from existing DB entries so
-            // we don't re-upload or re-insert maps that are already known.
-            for map_id in db_client.get_all_map_ids().await? {
-                ids.insert(map_id);
-            }
+        // Pre-populate the in-memory cache from existing DB entries so
+        // we don't re-upload or re-insert maps that are already known.
+        for map_id in db.get_all_map_ids().await? {
+            ids.insert(map_id);
         }
         Ok(Self {
             saved_ids: Arc::new(Mutex::new(ids)),
@@ -66,36 +61,21 @@ impl StaticMapCache {
         let compressed = encode_all(json_str.as_bytes(), 3)
             .map_err(|e| StaticMapError::Compression(e.to_string()))?;
 
-        {
-            let mut ids = self.saved_ids.lock().unwrap();
-            ids.insert(map_id.to_string());
-        }
+        let s3_key = format!("static_maps/map_{}.bin", map_id);
+        self.s3.upload_bytes(compressed, &s3_key).await?;
 
-        // Upload to S3 if configured
-        let mut s3_key = String::new();
-        if let Some(s3) = &self.s3 {
-            s3_key = format!("static_maps/map_{}.bin", map_id);
-            if let Err(err) = s3.upload_bytes(compressed, &s3_key).await {
-                // Best-effort: log error.
-                tracing::error!(?err, "failed to upload static map to S3");
-            }
-        }
-
-        // Record in DB if configured
-        if let Some(db) = &self.db {
-            if !db.map_exists(map_id).await? {
-                let version = static_map_data
-                    .get("version")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                db.insert_map(
-                    map_id,
-                    &s3_key,
-                    version.as_deref(),
-                )
+        if !self.db.map_exists(map_id).await? {
+            let version = static_map_data
+                .get("version")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            self.db
+                .insert_map(map_id, &s3_key, version.as_deref())
                 .await?;
-            }
         }
+
+        let mut ids = self.saved_ids.lock().unwrap();
+        ids.insert(map_id.to_string());
 
         Ok(())
     }

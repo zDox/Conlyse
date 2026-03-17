@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let webshare_token = settings.get::<String>("WEBSHARE_API_TOKEN").ok();
+    let webshare_token = settings.get::<String>("WEBSHARE_API_TOKEN")?;
 
     let account_pool =
         account_pool::AccountPool::load_from_file(&account_pool_file, webshare_token).await?;

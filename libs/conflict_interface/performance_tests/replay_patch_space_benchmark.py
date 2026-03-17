@@ -125,7 +125,7 @@ class ReplaySpaceBenchmark:
 
 
 if __name__ == "__main__":
-    benchmark = ReplaySpaceBenchmark("../examples/replay.db")
+    benchmark = ReplaySpaceBenchmark("../examples/replay.conrp")
     benchmark.run_space_test()
     benchmark.run_time_benchmark()
 

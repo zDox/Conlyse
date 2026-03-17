@@ -42,7 +42,7 @@ ENV/
 *.sqlite
 *.sqlite3
 config.json
-config.docker.json
+config.example.json
 *.local.*
 
 # Tests and examples

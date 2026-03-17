@@ -415,7 +415,7 @@ from conflict_interface.replay.response_metadata import ResponseMetadata
 # Assume you have captured a list of (ResponseMetadata, json_response) tuples
 json_responses: list[tuple[ResponseMetadata, dict]] = load_recorded_responses()
 
-replay_path = Path("my_replay.bin")
+replay_path = Path("my_replay.conrp")
 game_id = 12345
 player_id = 67890
 
@@ -437,7 +437,7 @@ from datetime import datetime, UTC
 
 # Open an existing replay
 replay_interface = ReplayInterface(
-    file_path=Path("my_replay.bin"),
+    file_path=Path("my_replay.conrp"),
     static_map_data={"my_map_id": Path("static_map_my_map_id.json")},
 )
 replay_interface.open(mode="r")
@@ -469,7 +469,7 @@ You can inspect metadata without loading the full game state by opening in `read
 from conflict_interface.interface.replay_interface import ReplayInterface
 from pathlib import Path
 
-replay_interface = ReplayInterface(file_path=Path("my_replay.bin"))
+replay_interface = ReplayInterface(file_path=Path("my_replay.conrp"))
 replay_interface.open(mode="read_metadata")
 
 segments_metadata = replay_interface.get_segments_metadata()

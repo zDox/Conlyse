@@ -1,7 +1,7 @@
 """Quick test to see if patches are loading correctly."""
 from conflict_interface.replay.replay_segment import ReplaySegment
 
-replay_file = r"..\examples\replay.db"
+replay_file = r"..\examples\replay.conrp"
 
 print("Opening replay...")
 replay = ReplaySegment(replay_file, mode='r')

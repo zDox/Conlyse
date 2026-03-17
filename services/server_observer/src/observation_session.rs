@@ -114,12 +114,10 @@ pub struct ObservationSession {
     api: Option<ObservationApi>,
     storage_path: String,
     metadata_path: String,
-    long_term_storage_path: String,
-    file_size_threshold: i64,
     package: ObservationPackage,
     storage: Option<RecordingStorage>,
     attempt: i32,
-    redis_publisher: Option<RedisPublisher>,
+    redis_publisher: RedisPublisher,
     hub_interface: Option<HubInterfaceWrapper>,
 }
 
@@ -131,9 +129,7 @@ impl ObservationSession {
         map_cache: Option<StaticMapCache>,
         storage_path: String,
         metadata_path: String,
-        long_term_storage_path: String,
-        file_size_threshold: i64,
-        redis_publisher: Option<RedisPublisher>,
+        redis_publisher: RedisPublisher,
     ) -> Self {
         Self {
             game_id,
@@ -144,8 +140,6 @@ impl ObservationSession {
             api: None,
             storage_path,
             metadata_path,
-            long_term_storage_path,
-            file_size_threshold,
             package: ObservationPackage::default(),
             storage: None,
             attempt: 1,
@@ -183,16 +177,9 @@ impl ObservationSession {
             } else {
                 Some(self.metadata_path.as_str())
             };
-            let long_term = if self.long_term_storage_path.is_empty() {
-                None
-            } else {
-                Some(self.long_term_storage_path.as_str())
-            };
             self.storage = Some(RecordingStorage::new(
                 self.storage_path.as_str(),
                 metadata,
-                long_term,
-                self.file_size_threshold,
             )?);
         }
         Ok(self.storage.as_mut().expect("storage must be initialized"))
@@ -397,39 +384,16 @@ impl ObservationSession {
             map_id: result.map_id.clone(),
         };
 
-        if let Some(redis) = &self.redis_publisher {
-            if let Err(err) = redis.publish_compressed_response(
-                &metadata,
-                &compressed_response,
-            ) {
-                tracing::warn!(?err, game_id = self.game_id, "failed redis publish");
-            }
+        if let Err(err) = self
+            .redis_publisher
+            .publish_compressed_response(&metadata, &compressed_response)
+        {
+            tracing::warn!(?err, game_id = self.game_id, "failed redis publish");
         }
-
-        // For on-disk recording, store metadata and raw JSON response together in a
-        // single zstd-compressed frame with the following layout:
-        //   [4 bytes BE metadata_len][metadata JSON bytes]
-        //   [4 bytes BE response_len][raw response JSON bytes]
-        let metadata_json = serde_json::to_vec(&metadata)?;
-        let response_bytes = result.raw_response.as_bytes();
-
-        let meta_len = metadata_json.len() as u32;
-        let resp_len = response_bytes.len() as u32;
-
-        let mut combined = Vec::with_capacity(
-            4 + metadata_json.len() + 4 + response_bytes.len(),
-        );
-        combined.extend_from_slice(&meta_len.to_be_bytes());
-        combined.extend_from_slice(&metadata_json);
-        combined.extend_from_slice(&resp_len.to_be_bytes());
-        combined.extend_from_slice(response_bytes);
-
-        let compressed_recording = encode_all(&combined[..], 3)?;
 
         let pkg_json = self.package.to_json();
         let storage = self.ensure_storage()?;
         storage.update_resume_metadata(pkg_json);
-        storage.save_response(compressed_recording)?;
         Ok(())
     }
 

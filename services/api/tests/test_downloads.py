@@ -134,7 +134,7 @@ async def test_get_replay_url_success(db_session: AsyncSession) -> None:
             "INSERT INTO replays (game_id, player_id, s3_key) "
             "VALUES (:gid, :pid, :path)"
         ),
-        {"gid": 1, "pid": 1, "path": "replays/game1/player1/replay.bin"},
+        {"gid": 1, "pid": 1, "path": "replays/game1/player1/replay.conrp"},
     )
     await db_session.commit()
 

@@ -2,7 +2,7 @@
 Database interface for tracking replay metadata in PostgreSQL.
 """
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple, Iterable
 from enum import Enum
 import logging
 
@@ -227,6 +227,36 @@ class ReplayDatabase:
         
         row = cursor.fetchone()
         return dict(row) if row else None
+
+    def get_observer_completed_pairs(
+        self,
+        game_player_pairs: Iterable[Tuple[int, int]],
+    ) -> List[Tuple[int, int]]:
+        """
+        Given a set of (game_id, player_id) pairs, return those which the observer
+        has marked as completed (status_observer = 'completed').
+        """
+        pairs = list(game_player_pairs)
+        if not pairs:
+            return []
+
+        cursor = self.conn.cursor()
+
+        # Build a safe IN clause for composite keys.
+        # Example: WHERE (game_id, player_id) IN ((%s, %s), (%s, %s), ...)
+        placeholders = ", ".join(["(%s, %s)"] * len(pairs))
+        params: List[Any] = []
+        for game_id, player_id in pairs:
+            params.extend([int(game_id), int(player_id)])
+
+        query = (
+            "SELECT game_id, player_id FROM replays "
+            f"WHERE (game_id, player_id) IN ({placeholders}) "
+            "AND status_observer = %s"
+        )
+        params.append(ReplayStatus.COMPLETED.value)
+        cursor.execute(query, params)
+        return [(int(r["game_id"]), int(r["player_id"])) for r in cursor.fetchall()]
         
     def update_replay_status(
         self,

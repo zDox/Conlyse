@@ -1,7 +1,6 @@
 {
   "_comment": "Example account pool for server_observer_rust",
   "_comment_usage": "Copy to account_pool.json and replace with real credentials",
-  "WEBSHARE_API_TOKEN": "your-webshare-api-token-if-not-set-in-config",
   "accounts": [
     {
       "username": "observer_account_1",

@@ -22,7 +22,7 @@
     },
     "file": {
         "default_open_path": "",
-        "replay_file_extension": ".bin"
+        "replay_file_extension": ".conrp"
     },
     "debug": {
         "time": false,

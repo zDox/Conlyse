@@ -43,8 +43,6 @@ pub struct ServerObserver {
     update_interval: Mutex<f64>,
     output_dir: String,
     output_metadata_dir: String,
-    long_term_storage_path: String,
-    file_size_threshold: i64,
     observer_sessions: Mutex<HashMap<i32, Arc<tokio::sync::Mutex<ObservationSession>>>>,
     priority_sessions: Mutex<std::collections::HashSet<i32>>,
     db_client: DbClient,
@@ -52,7 +50,7 @@ pub struct ServerObserver {
     game_finder: Mutex<Option<GameFinder>>,
     stop_flag: AtomicBool,
     map_cache: StaticMapCache,
-    redis_publisher: Option<RedisPublisher>,
+    redis_publisher: RedisPublisher,
 }
 
 impl ServerObserver {
@@ -82,12 +80,6 @@ impl ServerObserver {
         let output_metadata_dir = settings
             .get::<String>("output_metadata_dir")
             .unwrap_or_default();
-        let long_term_storage_path = settings
-            .get::<String>("long_term_storage_path")
-            .unwrap_or_default();
-        let file_size_threshold = settings
-            .get::<i64>("file_size_threshold")
-            .unwrap_or(0);
 
         let db_cfg = settings
             .get::<DbConfig>("database")
@@ -101,36 +93,21 @@ impl ServerObserver {
 
         let registry = RecordingRegistry::new(db_client.clone()).await?;
 
-        let static_maps_dir = settings
-            .get::<String>("storage.static_maps_dir")
-            .unwrap_or_else(|_| format!("{output_dir}/static_maps"));
+        let s3_cfg = settings
+            .get::<S3Config>("storage.s3")
+            .map_err(|_| ServerObserverError::Config("missing required [storage.s3] config".into()))?;
+        let s3_client = S3Client::new(s3_cfg).await?;
+        let s3_enabled = true;
 
-        let s3_client = match settings.get::<S3Config>("storage.s3") {
-            Ok(parsed) => Some(S3Client::new(parsed).await?),
-            Err(_) => None,
-        };
+        let map_cache = StaticMapCache::new(s3_client, db_client.clone()).await?;
 
-        let s3_enabled = s3_client.is_some();
-
-        let map_cache =
-            StaticMapCache::new(static_maps_dir, s3_client, Some(db_client.clone())).await?;
-
-        let redis_publisher = match settings.get::<RedisConfig>("redis") {
-            Ok(cfg) => match RedisPublisher::new(cfg) {
-                Ok(redis) => Some(redis),
-                Err(err) => {
-                    tracing::warn!(
-                        ?err,
-                        "failed to initialize redis publisher; disabling redis"
-                    );
-                    None
-                }
-            },
-            Err(_) => None,
-        };
+        let redis_cfg = settings
+            .get::<RedisConfig>("redis")
+            .map_err(|_| ServerObserverError::Config("missing required [redis] config".into()))?;
+        let redis_publisher = RedisPublisher::new(redis_cfg)?;
 
         let db_enabled = true;
-        let redis_enabled = redis_publisher.is_some();
+        let redis_enabled = true;
 
         let scheduler = Arc::new(Scheduler::new(
             max_parallel_updates.max(1),
@@ -187,8 +164,6 @@ impl ServerObserver {
             update_interval: Mutex::new(update_interval),
             output_dir,
             output_metadata_dir,
-            long_term_storage_path,
-            file_size_threshold,
             observer_sessions: Mutex::new(HashMap::new()),
             priority_sessions: Mutex::new(std::collections::HashSet::new()),
             db_client,
@@ -210,8 +185,6 @@ impl ServerObserver {
             redis_enabled,
             output_dir = %observer.output_dir,
             output_metadata_dir = %observer.output_metadata_dir,
-            long_term_storage_path = %observer.long_term_storage_path,
-            file_size_threshold = observer.file_size_threshold,
             "initialized ServerObserver configuration"
         );
 
@@ -341,8 +314,6 @@ impl ServerObserver {
             Some(self.map_cache.clone()),
             format!("{}/game_{}", self.output_dir, game_id),
             metadata_path,
-            self.long_term_storage_path.clone(),
-            self.file_size_threshold,
             self.redis_publisher.clone(),
         );
 

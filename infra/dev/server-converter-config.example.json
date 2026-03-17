@@ -9,8 +9,7 @@
     "password": null,
     "stream_name": "game_responses",
     "consumer_group": "server_converter",
-    "consumer_name": "converter_1",
-    "batch_size": 10
+    "consumer_name": "converter_1"
   },
   "storage": {
     "hot_storage_dir": "./data/hot_storage",
