@@ -63,4 +63,4 @@ long_term_storage/
 services/server_observer/config.toml
 services/server_observer/account_pool.json
 services/server_converter/config.json
-services/server_converter/config.docker.json
+services/server_converter/config.example.json

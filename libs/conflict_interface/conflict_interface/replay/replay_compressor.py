@@ -74,12 +74,3 @@ class ReplayCompressor:
             self.uncompressed_path = self.compressed_path
 
         decompress_file(self.compressed_path, self.uncompressed_path)
-
-
-if __name__ == "__main__":
-    setup_library_logger(logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG)
-
-    rc = ReplayCompressor(uncompressed_path=TEST_DATA / "test_replay_game_10631784.bin", compressed_path=TEST_DATA / "test_replay_compressed.bin")
-    rc.compress()
-    rc.decompress()

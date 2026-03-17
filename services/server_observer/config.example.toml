@@ -12,17 +12,21 @@ output_dir = "./recordings"
 output_metadata_dir = "./recordings/metadata"
 long_term_storage_path = "./long_term_storage"
 file_size_threshold = 104857600
-scenario_ids = [3328, 3332]
-scan_interval = 300.0
-enabled_scanning = true
+
+[game_finder]
+# Optional: enable automatic scanning for new games
+enabled = true
+scan_interval_seconds = 300.0
+max_games_per_scan = 5
+scenario_ids = [5796]
 max_guest_games_per_account = -1
 
 [database]
 host = "localhost"
 port = 5432
-database = "conflict_replays"
-user = "postgres"
-password = "postgres"
+database = "replays"
+user = "converter"
+password = "changeme"
 
 [redis]
 host = "localhost"

@@ -480,7 +480,7 @@ def main():
     # Run verification test
     roundtrip = ReplayRoundtrip(
         recording_file_path=TEST_DATA / "test_recording",
-        replay_file_path=TEST_DATA / "test_replay_roundtrip.bin",
+        replay_file_path=TEST_DATA / "test_replay_roundtrip.conrp",
         player_id=85,
         limit=100,
         compare_start_index=0,

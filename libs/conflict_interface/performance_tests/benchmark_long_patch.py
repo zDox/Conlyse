@@ -42,7 +42,7 @@ def benchmark_across_indices(start_idx=2000, end_idx=7000, step=100, runs=10):
     print("BENCHMARKING ACROSS INDICES")
     print("=" * 80)
 
-    ritf = ReplayInterface(TEST_DATA / "test_replay_game_10631784.bin", player_id=0, game_id=12345)
+    ritf = ReplayInterface(TEST_DATA / "test_replay_game_10631784.conrp", player_id=0, game_id=12345)
     ritf.open('r')
     #ritf.register_province_trigger(["owner_id", "resource_production", "morale"])
     #trigger_attributes = [

@@ -10,7 +10,10 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
-    ritf = ReplayInterface(TEST_DATA / "game_10626204.bin", {"5652_28": TEST_DATA/Path("5652_28.bin")})
+    ritf = ReplayInterface(
+        TEST_DATA / "game_10626204.conrp",
+        {"5652_28": TEST_DATA / Path("5652_28.bin")},
+    )
 
     for i in range(10000000):
         pass

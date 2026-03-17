@@ -74,7 +74,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 # Load a replay file
-replay = ReplayInterface(Path("my_game.db"))
+replay = ReplayInterface(Path("my_game.conrp"))
 replay.open()
 
 # Navigate through time
@@ -142,7 +142,7 @@ Efficient bidirectional replay system with patch-based storage:
 from conflict_interface.interface.replay_interface import ReplayInterface
 from pathlib import Path
 
-replay = ReplayInterface(Path("replay.db"))
+replay = ReplayInterface(Path("replay.conrp"))
 replay.open()
 
 # Navigate through time

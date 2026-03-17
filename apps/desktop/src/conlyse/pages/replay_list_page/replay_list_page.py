@@ -192,7 +192,9 @@ class ReplayListPage(Page):
     def on_open_replay(self):
         """Handle opening a new replay file"""
         default_path = self.app.config_manager.get("file.default_open_path", "")
-        replay_file_extension = self.app.config_manager.get("file.replay_file_extension", ".db")
+        replay_file_extension = self.app.config_manager.get(
+            "file.replay_file_extension", ".conrp"
+        )
 
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -280,7 +282,7 @@ class ReplayListPage(Page):
             return None
 
         directory = self._default_replay_directory()
-        extension = self.app.config_manager.get("file.replay_file_extension", ".bin")
+        extension = self.app.config_manager.get("file.replay_file_extension", ".conrp")
         filename = f"replay_{game_id}_{player_id}{extension}"
 
         dest_path = os.path.join(directory, filename)

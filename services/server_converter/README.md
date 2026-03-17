@@ -15,7 +15,7 @@ This service is typically deployed as part of the wider **Conlyse** stack togeth
 - **Redis stream consumer**: Reads game response events from a Redis stream (e.g. `game_responses`) using consumer groups.
 - **Replay generation**: Uses the `conflict-interface` library to create and append to replay databases stored on disk.
 - **Hot & cold storage**:
-  - Hot storage: local filesystem directory for active and completed replay `.db` files.
+  - Hot storage: local filesystem directory for active and completed replay `.conrp` files.
   - Optional cold storage: S3-compatible object store for durable long-term storage.
 - **PostgreSQL metadata**: Writes and updates replay metadata in a dedicated `replays` database.
 - **Prometheus metrics**: Exposes operational metrics over HTTP for scraping.
@@ -31,7 +31,7 @@ At a high level, the data and control flow look like this:
 - `server_converter`:
   - Consumes batches of messages from the Redis stream.
   - Translates responses into replay updates using the `conflict-interface` replay system.
-  - Writes/updates replay `.bin` files in hot storage.
+  - Writes/updates replay `.conrp` files in hot storage.
   - Optionally mirrors or finalizes replay files to S3-compatible storage.
   - Updates replay metadata rows in PostgreSQL.
 - A Prometheus-compatible metrics endpoint is exposed for monitoring.
@@ -49,7 +49,7 @@ flowchart LR
   serverObserver -->|"game_responses stream"| redis
   redis -->|"consume via consumer_group"| serverConverter
 
-  serverConverter -->|"replay .db files"| hotStorage
+  serverConverter -->|"replay .conrp files"| hotStorage
   serverConverter -->|"metadata & indices"| postgres
   serverConverter -->|"optional cold copies"| s3Storage
 
@@ -105,10 +105,10 @@ server-converter path/to/config.json
 server-converter config.json
 ```
 
-Two example configurations are provided:
+Example configurations:
 
 - Local / generic example: [config.example.json](./config.example.json)
-- Docker / Compose-oriented example: [config.docker.json](./config.docker.json)
+- Docker / Compose-oriented example: see `infra/dev/server-converter-config.example.json` and `infra/prod/server-converter-config.example.json`
 
 The top-level schema matches `ServerConverterConfig` in `src/config.py`:
 
@@ -142,7 +142,7 @@ Controls how the converter connects to and consumes from Redis:
 
 Controls where replay files are written and whether cold storage is enabled:
 
-- `**hot_storage_dir**` (`str`, required): Filesystem directory for replay `.db` files.
+- `**hot_storage_dir**` (`str`, required): Filesystem directory for replay `.conrp` files.
 - `**cold_storage_enabled**` (`bool`, default `false`):
   - `false`: Replays remain only in hot storage.
   - `true`: Converter uploads replays to S3-compatible storage.
@@ -293,7 +293,7 @@ Example usage:
 cd services/server_converter
 
 # Start stack in background
-cp config.docker.json config.json  # or create your own
+cp config.example.json config.json  # or create your own
 docker-compose up -d
 
 # Check container status
@@ -328,7 +328,7 @@ The exact metric names may evolve over time; consult the exported `/metrics` pay
 
 #### Hot storage
 
-Hot storage (configured via `storage.hot_storage_dir`) is where replay `.db` files are written and updated. Typical responsibilities:
+Hot storage (configured via `storage.hot_storage_dir`) is where replay `.conrp` files are written and updated. Typical responsibilities:
 
 - Store in-progress replay databases for active games.
 - Retain completed replays for fast access by the API and other tools.
