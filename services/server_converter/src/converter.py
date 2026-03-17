@@ -56,7 +56,7 @@ class ServerConverter:
         
         # Initialize response cache in a subdirectory of hot storage
         cache_dir = config.storage.hot_storage_dir / ".response_cache"
-        self.response_cache = ResponseCache(cache_dir, config.redis.batch_size)
+        self.response_cache = ResponseCache(cache_dir, config.batch_size)
         
         self.cold_storage: Optional[ColdStorageManager] = None
         if config.storage.cold_storage_enabled and config.storage.s3_config:
@@ -77,57 +77,75 @@ class ServerConverter:
         start_time = time.time()
         
         try:
-            # Read messages from Redis; block up to check_interval_seconds when idle
-            messages = self.redis_consumer.read_messages(
-                count=self.config.redis.batch_size,
-                block=self.config.check_interval_seconds * 1000,
-            )
-            
-            
-            if not messages:
+            # Drain Redis: one blocking read (idle wait), then keep reading until empty.
+            total_cached = 0
+            first_read = True
+            next_ready_check_at = start_time + self.config.check_interval_seconds
+            processed_ready_during_drain = False
+            while True:
+
+                messages = self.redis_consumer.read_messages(
+                    count=None,
+                    block=(self.config.check_interval_seconds * 1000) if first_read else 0,
+                )
+                first_read = False
+
+                if not messages:
+                    break
+
+                logger.info(f"Caching {len(messages)} messages to disk")
+
+                cached_message_ids = []
+                poison_message_ids = []
+                for message_id, message_data in messages:
+                    try:
+                        # Extract core metadata from the ResponseMetadata payload.
+                        meta_dict = message_data["metadata"]
+                        response = message_data["response"]
+
+                        metadata = ResponseMetadata.from_dict(meta_dict)
+
+                        # Cache to disk
+                        self.response_cache.add_response(metadata, response)
+                        cached_message_ids.append(message_id)
+                        total_cached += 1
+
+                    except Exception as e:
+                        logger.warning(
+                            f"Poison message {message_id} (game {message_data.get('game_id')}, "
+                            f"player {message_data.get('player_id')}): {e}; acking to avoid retry"
+                        )
+                        metrics.errors_total.labels(error_type='caching').inc()
+                        metrics.poison_messages_total.inc()
+                        poison_message_ids.append(message_id)
+
+                # Acknowledge both successfully cached and poison messages so they leave the stream
+                if cached_message_ids:
+                    self.redis_consumer.acknowledge_messages(cached_message_ids)
+                    logger.info(f"Cached and acknowledged {len(cached_message_ids)} messages")
+                if poison_message_ids:
+                    self.redis_consumer.acknowledge_messages(poison_message_ids)
+                    logger.info(f"Acked {len(poison_message_ids)} poison message(s) to avoid retry")
+
+                # If we're in a high-throughput scenario, don't wait for Redis to go empty
+                # before attempting conversions.
+                now = time.time()
+                if now >= next_ready_check_at:
+                    self._process_ready_games()
+                    processed_ready_during_drain = True
+                    next_ready_check_at = now + self.config.check_interval_seconds
+
+            if total_cached == 0:
                 # No new messages, check if any cached games are ready to process
                 self._process_ready_games()
                 logger.debug("No new messages to cache")
                 return 0
-                
-            logger.info(f"Caching {len(messages)} messages to disk")
-            
-            # Cache all messages to disk
-            cached_message_ids = []
-            poison_message_ids = []
-            for message_id, message_data in messages:
-                try:
-                    # Extract core metadata from the ResponseMetadata payload.
-                    meta_dict = message_data["metadata"]
-                    response = message_data["response"]
 
-                    metadata = ResponseMetadata.from_dict(meta_dict)
+            # If we didn't already process during a continuous drain, do it once now.
+            if not processed_ready_during_drain:
+                self._process_ready_games()
 
-                    # Cache to disk
-                    self.response_cache.add_response(metadata, response)
-                    cached_message_ids.append(message_id)
-                    
-                except Exception as e:
-                    logger.warning(
-                        f"Poison message {message_id} (game {message_data.get('game_id')}, "
-                        f"player {message_data.get('player_id')}): {e}; acking to avoid retry"
-                    )
-                    metrics.errors_total.labels(error_type='caching').inc()
-                    metrics.poison_messages_total.inc()
-                    poison_message_ids.append(message_id)
-                    
-            # Acknowledge both successfully cached and poison messages so they leave the stream
-            if cached_message_ids:
-                self.redis_consumer.acknowledge_messages(cached_message_ids)
-                logger.info(f"Cached and acknowledged {len(cached_message_ids)} messages")
-            if poison_message_ids:
-                self.redis_consumer.acknowledge_messages(poison_message_ids)
-                logger.info(f"Acked {len(poison_message_ids)} poison message(s) to avoid retry")
-                
-            # Process any games that now have enough responses
-            self._process_ready_games()
-            
-            return len(cached_message_ids)
+            return total_cached
             
         finally:
             # Record processing duration
@@ -141,14 +159,28 @@ class ServerConverter:
         Checks the cache for games with at least batch_size responses and
         processes them into replay files.
         """
-        ready_games = self.response_cache.list_games_ready_to_process()
-        
+        # A game is eligible for processing if:
+        # - it has at least batch_size cached responses, OR
+        # - the observer has marked the recording as completed (flush whatever remains).
+        games_with_responses = self.response_cache.list_games_with_responses()
+        if not games_with_responses:
+            logger.debug("No games with responses found in cache")
+            return
+
+        batch_ready_games = self.response_cache.list_games_ready_to_process()
+        observer_completed = set(self.db.get_observer_completed_pairs(games_with_responses))
+
+        ready_games = set(batch_ready_games) | observer_completed
+        logger.debug(f"Ready games: {ready_games} ({len(batch_ready_games)} by batch, {len(observer_completed)} observer-completed)")
         if not ready_games:
             return
             
-        logger.info(f"Found {len(ready_games)} games ready to process")
+        logger.info(
+            f"Found {len(ready_games)} games ready to process "
+            f"({len(batch_ready_games)} by batch, {len(observer_completed)} observer-completed)"
+        )
         
-        for game_id, player_id in ready_games:
+        for game_id, player_id in sorted(ready_games):
             try:
                 # Skip games we have permanently given up converting (persistent across restarts)
                 if self.db.is_conversion_failed(game_id, player_id):
@@ -164,11 +196,22 @@ class ServerConverter:
                 # and this check. In distributed deployments with multiple converter instances,
                 # another instance might process and clear the cache. This is expected behavior
                 # and handled gracefully by skipping if responses are insufficient.
-                if len(cached_responses) < self.config.redis.batch_size:
-                    # Race condition - responses were removed by another process
-                    logger.debug(f"Skipping game {game_id}, player {player_id}: "
-                               f"only {len(cached_responses)} responses available")
-                    continue
+                is_observer_completed = (game_id, player_id) in observer_completed
+                if is_observer_completed:
+                    if len(cached_responses) == 0:
+                        continue
+                    logger.info(
+                        f"Observer marked completed; flushing {len(cached_responses)} cached responses "
+                        f"for game {game_id}, player {player_id}"
+                    )
+                else:
+                    if len(cached_responses) < self.config.batch_size:
+                        # Race condition - responses were removed by another process
+                        logger.debug(
+                            f"Skipping game {game_id}, player {player_id}: "
+                            f"only {len(cached_responses)} responses available"
+                        )
+                        continue
                     
                 logger.info(f"Processing {len(cached_responses)} cached responses for game {game_id}, player {player_id}")
                 
@@ -180,6 +223,18 @@ class ServerConverter:
                     self.response_cache.clear_cache(game_id, player_id)
                     metrics.messages_processed_total.labels(status='success').inc(len(cached_responses))
                     logger.info(f"Successfully processed and cleared cache for game {game_id}, player {player_id}")
+
+                    # If the observer says the recording is completed, finalize the replay now
+                    # that we've flushed the remaining cached responses.
+                    if is_observer_completed:
+                        try:
+                            self.mark_replay_completed(game_id, player_id)
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to mark replay completed for game {game_id}, player {player_id}: {e}",
+                                exc_info=True,
+                            )
+                            metrics.errors_total.labels(error_type='processing').inc()
                 else:
                     metrics.messages_processed_total.labels(status='error').inc(len(cached_responses))
                     # Record failure so we skip this game across restarts; clear cache to stop retry storm
@@ -421,6 +476,15 @@ class ServerConverter:
             logger.error(f"No replay entry found for game {game_id}, player {player_id}")
             metrics.replay_operations_total.labels(operation='complete', status='error').inc()
             return False
+
+        # Idempotency: if we've already completed/archived on the converter side, don't redo work.
+        status_converter = replay_entry.get("status_converter")
+        if status_converter in (ReplayStatus.COMPLETED.value, ReplayStatus.ARCHIVED.value):
+            logger.debug(
+                f"Replay already finalized (status_converter={status_converter}) "
+                f"for game {game_id}, player {player_id}"
+            )
+            return True
             
         replay_path = self.hot_storage.get_replay_path(game_id, player_id)
         if not replay_path.exists():

@@ -17,7 +17,6 @@ class RedisConfig:
     stream_name: str = "game_responses"
     consumer_group: str = "server_converter"
     consumer_name: str = "converter_1"
-    batch_size: int = 10
 
 
 @dataclass
@@ -79,7 +78,6 @@ class ServerConverterConfig:
             stream_name=redis_data.get('stream_name', 'game_responses'),
             consumer_group=redis_data.get('consumer_group', 'server_converter'),
             consumer_name=redis_data.get('consumer_name', 'converter_1'),
-            batch_size=redis_data.get('batch_size', 10)
         )
         
         # Parse storage config

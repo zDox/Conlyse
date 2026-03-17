@@ -38,7 +38,7 @@ Configuration file should contain:
   - redis: Redis connection and stream settings
   - storage: Hot storage directory and optional S3 cold storage settings
   - database: PostgreSQL database connection parameters
-  - batch_size: Number of messages to process per batch (default: 10)
+  - batch_size: Minimum cached responses before processing (default: 10)
   - check_interval_seconds: Seconds to wait between checks (default: 5)
         """
     )

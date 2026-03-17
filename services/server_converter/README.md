@@ -111,7 +111,6 @@ Controls how the converter connects to and consumes from Redis:
 - `**stream_name**` (`str`, default `"game_responses"`): Name of the Redis stream containing game responses.
 - `**consumer_group**` (`str`, default `"server_converter"`): Redis consumer group for coordinated consumption.
 - `**consumer_name**` (`str`, default `"converter_1"`): Consumer name within the consumer group.
-- `**batch_size**` (`int`, default `10`): Number of messages to read per batch from Redis.
 
 `consumer_group` and `consumer_name` are important for horizontal scaling: multiple instances can share a group and coordinate consumption.
 
@@ -164,7 +163,7 @@ These should align with your Postgres instance or your Docker Compose configurat
 
 #### Global settings
 
-- `**batch_size**` (`int`, default `10`): Top-level processing batch size; can override the Redis-specific `redis.batch_size` depending on internal logic.
+- `**batch_size**` (`int`, default `10`): Minimum cached responses required before processing a game into a replay update.
 - `**check_interval_seconds**` (`int`, default `5`): How long to sleep between checks for new messages when the stream is idle.
 - `**metrics_port**` (`int`, default `8001`): Port on which the Prometheus metrics HTTP server listens.
 

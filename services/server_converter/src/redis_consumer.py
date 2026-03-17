@@ -80,13 +80,16 @@ class RedisStreamConsumer:
             if "BUSYGROUP" not in str(e):
                 logger.debug(f"Consumer group creation: {e}")
                 
-    def read_messages(self, count: Optional[int] = None, 
-                     block: Optional[int] = None) -> List[Tuple[str, Dict[str, Any]]]:
+    def read_messages(
+        self,
+        count: Optional[int] = None,
+        block: Optional[int] = None,
+    ) -> List[Tuple[str, Dict[str, Any]]]:
         """
         Read messages from the Redis stream.
         
         Args:
-            count: Maximum number of messages to read (uses config.batch_size if None)
+            count: Maximum number of messages to read (None = let Redis decide / read as much as possible)
             block: Time to block in milliseconds (None = don't block)
             
         Returns:
@@ -95,18 +98,18 @@ class RedisStreamConsumer:
                   ``client_version``, and ``map_id`` (string)
                 - response: JSON response dict
         """
-        if count is None:
-            count = self.config.batch_size
-            
         try:
             # Read from consumer group
-            messages = self.redis_client.xreadgroup(
-                groupname=self.config.consumer_group,
-                consumername=self.config.consumer_name,
-                streams={self.config.stream_name: '>'},
-                count=count,
-                block=block
-            )
+            kwargs = {
+                "groupname": self.config.consumer_group,
+                "consumername": self.config.consumer_name,
+                "streams": {self.config.stream_name: ">"},
+                "block": block,
+            }
+            if count is not None:
+                kwargs["count"] = count
+
+            messages = self.redis_client.xreadgroup(**kwargs)
             
             result = []
             if messages:
