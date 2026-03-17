@@ -12,6 +12,8 @@ pub enum StaticMapError {
     Io(#[from] std::io::Error),
     #[error("DB error: {0}")]
     Db(#[from] crate::db::DbClientError),
+    #[error("S3 error: {0}")]
+    S3(#[from] crate::s3_client::S3Error),
     #[error("Compression error: {0}")]
     Compression(String),
 }

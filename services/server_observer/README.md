@@ -70,7 +70,7 @@ supplied in `infra/docker/server_observer/config.toml`.
 
 #### Top‑level keys
 
-- **`WEBSHARE_API_TOKEN`**: API token used for Webshare proxies (can also be supplied via `account_pool.json`).
+- **`WEBSHARE_API_TOKEN`**: API token used for Webshare proxies.
 - **`metrics_port`**: Port for the Prometheus metrics HTTP server (e.g. `9090`). If omitted, the metrics server is disabled.
 - **`max_parallel_recordings`**: Maximum number of concurrent recording sessions.
 - **`max_parallel_normal_recordings`**: Maximum number of non‑priority sessions. These are games that no user requested to be recorded.
@@ -141,7 +141,6 @@ If `RUST_LOG` is not set, a default log level of `info` is used.
 
 The observer consumes an account pool JSON file which describes the accounts it can use to join and observe games. An example file is provided as `account_pool.example.json`:
 
-- **`WEBSHARE_API_TOKEN`** (optional): Webshare token if not already set in `config.toml`.
 - **`accounts`**: Array of account objects, each with:
   - `username`
   - `password`
@@ -185,33 +184,6 @@ CLI arguments:
 
 The process listens for `Ctrl+C` and performs a graceful shutdown when signalled.
 
-#### Docker
-
-A multi‑stage `Dockerfile` is provided in this directory. It:
-
-- Builds the Rust binary using a Python base image that also installs the `conflict_interface` Python library.
-- Copies the resulting `server_observer` binary and Python virtual environment into a slim runtime image.
-- Sets the entrypoint to run `server_observer`.
-
-To build and run a local Docker image:
-
-```bash
-cd /path/to/ConflictInterface
-
-docker build -t server-observer -f services/server_observer/Dockerfile .
-
-docker run --rm \
-  -v "$(pwd)/services/server_observer/config.toml:/app/config.toml:ro" \
-  -v "$(pwd)/services/server_observer/account_pool.json:/app/account_pool.json:ro" \
-  -v "$(pwd)/recordings:/app/recordings" \
-  -p 9090:9090 \
-  server-observer
-```
-
-Adjust the volume mounts and port (`9090`) to match your configuration. The GitHub Actions workflow `.github/workflows/server-observer-docker.yml` shows how images are built and pushed to GitHub Container Registry in CI.
-
----
-
 ### Metrics & Monitoring
 
 If `metrics_port` is set in `config.toml`, `ServerObserver` starts a Prometheus metrics HTTP server on that port. Metrics include (but are not limited to):
@@ -250,18 +222,3 @@ If a session exhausts its retries:
 This behavior helps keep the system healthy by not indefinitely retrying permanently broken sessions while still allowing transient failures to recover.
 
 ---
-
-### Development Notes
-
-- The crate is defined in `Cargo.toml` as `server_observer` and currently targets Rust edition `2024`.
-- Dependencies include:
-  - Async runtime and networking: `tokio`, `reqwest`, `axum`.
-  - Database and pooling: `tokio-postgres`, `bb8`, `bb8-postgres`.
-  - Object storage: `minio` (S3‑compatible).
-  - Serialization: `serde`, `serde_json`.
-  - Messaging: `redis`.
-  - Metrics: `prometheus`.
-  - Error handling and utilities: `thiserror`, `tracing`, `tracing-subscriber`, `once_cell`, `zstd`, `sha1`, `regex`.
-  - Python interop: `pyo3` with `auto-initialize`, used by the internal `HubInterfaceWrapper`.
-- On shutdown, the service ensures associated Python components are stopped cleanly; when running locally, prefer sending `Ctrl+C` and letting the process terminate gracefully rather than killing it abruptly.
-

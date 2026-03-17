@@ -1,5 +1,6 @@
 "_comment" = "Server Observer configuration for Docker deployment (example)"
 
+WEBSHARE_API_TOKEN = "your-webshare-api-token"
 max_parallel_recordings = 5
 max_parallel_normal_recordings = 5
 update_interval = 60
