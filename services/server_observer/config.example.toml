@@ -10,8 +10,6 @@ max_parallel_first_updates = 2
 update_interval = 60.0
 output_dir = "./recordings"
 output_metadata_dir = "./recordings/metadata"
-long_term_storage_path = "./long_term_storage"
-file_size_threshold = 104857600
 
 [game_finder]
 # Optional: enable automatic scanning for new games
@@ -35,8 +33,6 @@ stream_name = "game_responses"
 # password = "optional-redis-password"
 
 [storage]
-static_maps_dir = "./recordings/static_maps"
-
 [storage.s3]
 endpoint_url = "https://your-s3-endpoint.example.com"
 access_key = "your-access-key"

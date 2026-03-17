@@ -26,8 +26,6 @@ user = "converter"
 password = "changeme"
 
 [storage]
-static_maps_dir = "/app/recordings/static_maps"
-
 [storage.s3]
 endpoint_url = "http://minio:9000"
 access_key = "minioadmin"
