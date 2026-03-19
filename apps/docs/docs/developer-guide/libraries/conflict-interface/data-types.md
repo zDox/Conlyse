@@ -6,7 +6,7 @@ title: Data Types
 The data types in ConflictInterface model the GameObjects that Conflict of Nations uses.
 They are the bridge between Python objects and the JSON payloads we get from the game/client.
 
-## Versioning (and why it exists)
+## Versioning
 
 The game changes its JSON schema over time. To keep replays, parsing, and tooling working across client updates, ConflictInterface supports **multiple datatype versions**.
 
@@ -17,7 +17,7 @@ The game changes its JSON schema over time. To keep replays, parsing, and toolin
   - The canonical latest version number is `conflict_interface.versions.LATEST_VERSION`, which is re-exported from `conflict_interface/data_types/newest/version.py`.
   - Supported versions are the ones that are registered with the `JsonParser` (see `libs/conflict_interface/conflict_interface/versions.py`).
 
-## Retention policy: keep `newest/` + 4 legacy versions
+## Retention policy
 
 ConflictInterface intentionally keeps only a rolling window of datatype snapshots:
 

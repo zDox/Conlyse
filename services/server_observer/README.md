@@ -70,7 +70,7 @@ supplied in `infra/docker/server_observer/config.toml`.
 
 #### Top‑level keys
 
-- **`WEBSHARE_API_TOKEN`**: API token used for Webshare proxies.
+- **`webshare_api_token`**: API token used for Webshare proxies.
 - **`metrics_port`**: Port for the Prometheus metrics HTTP server (e.g. `9090`). If omitted, the metrics server is disabled.
 - **`max_parallel_recordings`**: Maximum number of concurrent recording sessions.
 - **`max_parallel_normal_recordings`**: Maximum number of non‑priority sessions. These are games that no user requested to be recorded.
