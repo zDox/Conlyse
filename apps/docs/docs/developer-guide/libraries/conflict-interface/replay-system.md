@@ -11,9 +11,9 @@ The ConflictInterface replay system provides efficient bidirectional recording a
 - [Core Data Structures](#core-data-structures)
 - [Key Algorithms](#key-algorithms)
 - [Storage Format](#storage-format)
-- [Usage Examples](#usage-examples)
 - [Hook System](#hook-system)
 - [Performance Considerations](#performance-considerations)
+    - [Long Patches](#long-patches)
 
 ## Architecture Overview
 
@@ -187,24 +187,24 @@ This metadata is stored inside the segment payload and is loaded lazily as neede
 
 ### 1. Euler Tour for Tree Preprocessing
 
-The PathTree uses an Euler tour to enable efficient Lowest Common Ancestor (LCA) queries. The Euler tour flattens the tree into an array by recording each node when entering and leaving it during a DFS traversal.
+`PathTree.precompute()` builds an Euler tour over the deduplicated PathTree so later LCA queries can be answered via RMQ.
 
-```
-Tree Structure:          Euler Tour:
-      root(0)            [0, 1, 0, 2, 4, 2, 5, 6, 5, 2, 0, 3, 0]
-     /  |  \
-    1   2   3            Entry times (tin): [0, 1, 3, 11, 4, 5, 8]
-       / \               Exit times (tout): [12, 2, 10, 12, 4, 7, 9]
-      4   5
-          |
-          6
-```
+During preprocessing, the tree is traversed once and the following arrays are produced:
+- `tin[node_idx]`: entry time (first time the node is visited)
+- `tout[node_idx]`: exit time
+- `euler`: the flattened traversal sequence of node indices (including re-visits when the traversal backtracks)
+- `first[node_idx]`: index of the first occurrence of `node_idx` inside `euler`
+- `depth[node_idx]`: depth (distance from `root`)
+
+These arrays (especially `euler`, `first`, `depth`, plus the Range Minimum Query(RMQ) sparse table built from them) are later passed into `steiner_tree_cpp.build_steiner_tree(...)`, where Least Commen Ancestor(LCA) is computed to construct the expanded Steiner subtree.
 
 **Time Complexity:** O(n) preprocessing, where n is the number of nodes.
 
 ### 2. LCA using Range Minimum Query (RMQ)
 
-Finding the LCA of two nodes is reduced to a Range Minimum Query on the Euler tour. The system uses a Sparse Table for O(1) RMQ queries after O(n log n) preprocessing.
+Finding the LCA of two nodes is reduced to a Range Minimum Query (RMQ) on the Euler tour.
+
+`PathTree.precompute_rmq()` builds a sparse table (`st`) where each entry stores the Euler-tour position with the minimum depth in an interval. `steiner_tree_cpp` then uses that RMQ to compute LCA(u, v).
 
 ```python
 def lca(u_idx: int, v_idx: int) -> int:
@@ -228,93 +228,114 @@ def lca(u_idx: int, v_idx: int) -> int:
 
 ### 3. Steiner Tree Construction
 
-When applying a patch, the system needs to resolve object references for paths that haven't been accessed yet. It constructs a Steiner tree - the minimal subtree connecting all required nodes - to efficiently traverse only the necessary paths.
+When applying a patch, we may need to resolve `PathTreeNode.reference` values for paths that were never accessed earlier. To do that efficiently, the replay builds an *expanded Steiner subtree* connecting all required path nodes (and the root), but expanded so every edge corresponds to a real edge in the underlying PathTree.
+
+In practice:
+- `ReplaySegment.apply_patch()` collects `unknown_paths` for patch operations whose `PathTreeNode.reference` is missing.
+- `PathTree.build_steiner_tree()` delegates to the C++ routine `steiner_tree_cpp.build_steiner_tree(...)`, using the PathTree’s `parent`, `tin`, `tout`, and RMQ/LCA helpers.
 
 **Algorithm Steps:**
-1. Sort nodes by entry time (tin)
-2. For each consecutive pair, add their LCA
-3. Build a virtual tree using a stack-based approach
-4. Expand compressed edges to full tree paths
+1. Ensure `root_idx` is included; deduplicate input nodes.
+2. Sort nodes by `tin`.
+3. For each consecutive pair in this sorted order, compute `LCA(u, v)` via RMQ over the Euler tour and add those LCAs to the working set.
+4. Sort+deduplicate the full set again (original nodes + LCAs).
+5. Build a compressed virtual tree using a stack:
+   - pop until the current stack top is an ancestor of `v` (checked via `tin/tout`)
+   - record the compressed parent of `v`
+6. Expand each compressed edge into real PathTree edges by walking `parent[]` pointers from child up to compressed parent, emitting directed edges `p -> child`.
+7. Return an adjacency list `adj[node_idx] = [child_idx, ...]` (children are ordered by `tin` for deterministic output).
 
 ```python
 def build_steiner_tree(nodes: list[int]) -> dict[int, list[int]]:
-    # Include root and sort by tin
-    nodes_sorted = sorted(set(nodes + [root.index]), key=lambda x: tin[x])
-    
-    # Insert LCAs between consecutive nodes
-    full = nodes_sorted[:]
-    for i in range(len(nodes_sorted) - 1):
-        full.append(lca(nodes_sorted[i], nodes_sorted[i + 1]))
-    
-    # Build virtual tree and expand to full edges
-    ...
+    nodes = deduplicate(nodes + [root])
+    nodes.sort(key=tin)
+
+    # Insert LCAs between consecutive nodes (sorted by tin)
+    full = nodes.copy()
+    for i in range(len(nodes) - 1):
+        full.append(LCA(nodes[i], nodes[i+1]))  # via RMQ over euler/st/log
+
+    # Build compressed virtual tree (stack) and then expand edges to real edges
+    compressed_parent = build_virtual_tree_stack(full, tin, tout)
+    adj = expand_edges_to_real_path(compressed_parent, parent)
+    return adj
 ```
 
 **Time Complexity:** O(k log k) where k is the number of nodes to connect.
 
 ### 4. BFS Reference Resolution
 
-After building the Steiner tree, BFS traversal resolves object references from root to leaves:
+Given the expanded Steiner subtree adjacency list, reference resolution is done with a BFS over the subtree:
+
+- Direct children of `PathTree.root` are seeded with `reference = game_state`.
+- Each subsequent node’s `reference` is derived from its direct parent via `get_reference_from_direct_parent(node)` (i.e., look up the attribute/index/key described by the parent path element).
 
 ```python
 def bfs_set_references(sub_tree: dict[int, list[int]], game_state: GameState):
-    q = deque([(root.index, game_state)])
-    visited = {root.index}
-    
+    q = deque([])
+
+    # Seed: first-level nodes point at the game_state root.
+    for child in root.children.values():
+        child.set_reference(game_state)
+        q.append(child.index)
+
     while q:
-        u, ref = q.popleft()
+        u = q.popleft()
         for v in sub_tree.get(u, []):
-            if v not in visited:
-                visited.add(v)
-                node = idx_to_node[v]
-                node.set_reference(ref)
-                child_ref = get_child_reference(ref, node.path_element)
-                q.append((v, child_ref))
+            node = idx_to_node[v]
+            node.set_reference(get_reference_from_direct_parent(node))
+            q.append(v)
 ```
 
 ### 5. Dijkstra's Algorithm for Patch Path Finding
 
-When jumping to a target timestamp, the PatchGraph finds the shortest path of patches to apply using Dijkstra's algorithm:
+When jumping to a target timestamp, the `ReplayInterface` asks the segment’s `PatchGraph` for the shortest patch sequence.
+
+`PatchGraph.find_patch_path()`:
+- snaps both endpoints to the closest cached patch timestamps less than or equal to the requested times (`find_prev_timestamp`)
+- runs SciPy’s `scipy.sparse.csgraph.dijkstra` over the CSR graph with directed edges weighted by `PatchGraphNode.cost`
+- reconstructs the patch sequence by following SciPy’s predecessor array (`return_predecessors=True`)
 
 ```python
 def find_patch_path(from_time: datetime, to_time: datetime) -> list[PatchGraphNode]:
-    heap = [(0, from_time, [])]  # (cost, current_time, path)
-    visited = set()
-    
-    while heap:
-        cost, current, path = heappop(heap)
-        if current == to_time:
-            return path
-        if current in visited:
-            continue
-        visited.add(current)
-        
-        for neighbor in adj[current]:
-            if neighbor not in visited:
-                patch = patches[(current, neighbor)]
-                heappush(heap, (cost + patch.cost, neighbor, path + [patch]))
+    from_exact = find_prev_timestamp(int(from_time.timestamp()))
+    to_exact = find_prev_timestamp(int(to_time.timestamp()))
+    if from_exact is None or to_exact is None:
+        raise ValueError("No exact patch timestamps found for the given time range.")
+
+    if from_exact == to_exact:
+        return []
+
+    src = time_to_dense_idx[from_exact]
+    dst = time_to_dense_idx[to_exact]
+    _, pred = scipy_dijkstra(graph_csr, directed=True, indices=src, return_predecessors=True)
+
+    if pred[dst] == -9999:
+        raise ValueError("No path")
+
+    path = []
+    cur = dst
+    while cur != src:
+        prev = pred[cur]
+        path.append(patches[(dense_idx_to_time[prev], dense_idx_to_time[cur])])
+        cur = prev
+    return path[::-1]
 ```
 
 **Time Complexity:** O((E + V) log V) where E is the number of patches and V is the number of unique timestamps.
 
 ### 6. Diff Generation
 
-The `make_bireplay_patch` function recursively compares two game states to generate bidirectional patches:
+Diff generation happens during recording in `ReplayBuilder`, while it mutates the “current” game state toward the “new” game state while simultaneously recording the operations into a `BidirectionalReplayPatch`.
 
-```python
-def make_bireplay_patch(self: Any, other: Any) -> BidirectionalReplayPatch:
-    forward = make_replay_patch(self, other)   # Changes from self to other
-    backward = make_replay_patch(other, self)  # Changes from other to self
-    return BidirectionalReplayPatch.from_existing_patches(forward, backward)
-```
+Concretely:
+- For each JSON response, `ReplayBuilder._create_patch_from_json(...)` decides whether it is an incremental update (`full == False`) or a full replacement (`full == True`).
+- Incremental updates generate patches by calling `current_state.update(new_state, path=[], rp=bipatch)`.
+- The `update(...)` call mutates `current_state` by iterating over its nested state attributes and invoking their `update(...)` methods; when those nested updates detect changes and `rp` is provided, they emit the corresponding `rp.add(...)`, `rp.replace(...)`, and `rp.remove(...)` operations at the computed JSON paths.
+- For full replacements, the patch returned is an empty `BidirectionalReplayPatch()`. In this case the new state becomes the segment base (the replay starts applying patches from the new baseline in the next segment).
 
-The comparison handles:
-- **GameObjects**: Compares all mapped attributes recursively
-- **Lists**: Handles additions, removals, and modifications element-by-element
-- **Dicts**: Detects added, removed, and modified keys
-- **Simple types**: Direct equality comparison
 
-These algorithms are used under the hood when `ReplaySegment.apply_patch` is called by `ReplayInterface.jump_to` and related navigation methods.
+During playback, `ReplaySegment.apply_patch(...)` applies the recorded `BidirectionalReplayPatch` operations, using the `PathTree` (reference resolution) and `PatchGraph` (timestamp navigation) described above.
 
 ## Storage Format
 
@@ -403,83 +424,6 @@ data = {
 }
 ```
 
-## Usage Examples
-
-### Recording a Replay
-
-```python
-from pathlib import Path
-from conflict_interface.replay.replay_builder import ReplayBuilder
-from conflict_interface.replay.response_metadata import ResponseMetadata
-
-# Assume you have captured a list of (ResponseMetadata, json_response) tuples
-json_responses: list[tuple[ResponseMetadata, dict]] = load_recorded_responses()
-
-replay_path = Path("my_replay.conrp")
-game_id = 12345
-player_id = 67890
-
-builder = ReplayBuilder(replay_path, game_id=game_id, player_id=player_id)
-
-# Create a new replay file from the recorded responses
-initial_index = builder.create_replay(json_responses)
-
-# Later, you can append additional responses (for example, from a live game)
-more_responses: list[tuple[ResponseMetadata, dict]] = fetch_more_responses()
-builder.append_json_responses(more_responses)
-```
-
-### Playing Back a Replay
-
-```python
-from conflict_interface.interface.replay_interface import ReplayInterface
-from datetime import datetime, UTC
-
-# Open an existing replay
-replay_interface = ReplayInterface(
-    file_path=Path("my_replay.conrp"),
-    static_map_data={"my_map_id": Path("static_map_my_map_id.json")},
-)
-replay_interface.open(mode="r")
-
-# Get available timestamps
-timestamps = replay_interface.get_timestamps()
-print(f"Replay has {len(timestamps)} states")
-
-# Jump to a specific time
-target_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
-replay_interface.jump_to(target_time)
-
-# Or navigate sequentially
-replay_interface.jump_to_next_patch()
-
-# Access the current game state
-current_state = replay_interface.game_state
-armies = replay_interface.get_armies()
-
-# Clean up
-replay_interface.close()
-```
-
-### Metadata-Only Inspection
-
-You can inspect metadata without loading the full game state by opening in `read_metadata` mode:
-
-```python
-from conflict_interface.interface.replay_interface import ReplayInterface
-from pathlib import Path
-
-replay_interface = ReplayInterface(file_path=Path("my_replay.conrp"))
-replay_interface.open(mode="read_metadata")
-
-segments_metadata = replay_interface.get_segments_metadata()
-timeline_metadata = replay_interface.get_timeline_metadata()
-required_map_ids = replay_interface.get_required_map_ids()
-required_versions = replay_interface.get_required_versions()
-total_patches = replay_interface.get_total_patches()
-
-replay_interface.close()
-```
 
 
 ## Hook System
@@ -524,3 +468,25 @@ A typical pattern is:
 4. **Columnar Storage**: Patches use a columnar format for better compression and faster access.
 5. **Bidirectional Patches**: Forward and backward patches allow efficient backward navigation without recomputing diffs.
 6. **Segmented Timeline**: Multiple segments in a `ReplayTimeline` allow large games and version transitions to be handled without loading everything at once.
+
+### Long Patches
+
+For large jumps, applying the patch path step-by-step can become expensive because you may need to apply many intermediate patches. As an optimization, `ReplayInterface.jump_to()` can create an on-demand "long patch" that collapses the net effect of a whole interval into a single patch`.
+
+#### When long patches are created
+
+A long patch is created automatically inside `ReplayInterface.jump_to(...)` when the 
+`PatchGraph.cost(patches)` is greater than `LONG_PATCH_THRESHOLD` and the patch path
+contains at least 1 patch.
+
+
+#### What a long patch contains
+
+Long patches are created via `conflict_interface.replay.long_patch.create_long_patch(...)` and represent the consolidated effect of changes from `from_time` to `to_time`:
+
+- find the shortest patch path between the timestamps (`PatchGraph.find_patch_path`)
+- build the required sub-structure over that path (adjacency + op-tree)
+- collapse operations to preserve the same end-state semantics
+- create a single `PatchGraphNode(from_timestamp, to_timestamp, *operations)`
+
+The new edge is added to the loaded segment's in-memory `PatchGraph`, so subsequent jumps can reuse it while the replay is open.

@@ -2,6 +2,7 @@ import type {ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
@@ -10,6 +11,8 @@ import styles from './index.module.css';
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
+  const desktopScreenshotUrl = useBaseUrl('/img/desktop.png');
+
   return (
     <header className={clsx('hero hero--primary', styles.heroBanner)}>
       <div className="container">
@@ -28,6 +31,15 @@ function HomepageHeader() {
             to="/docs/intro">
             Read the docs
           </Link>
+        </div>
+        <div className={styles.screenshotWrap}>
+          <img
+            className={styles.screenshot}
+            src={desktopScreenshotUrl}
+            alt="Conlyse desktop client screenshot"
+            loading="lazy"
+            decoding="async"
+          />
         </div>
       </div>
     </header>

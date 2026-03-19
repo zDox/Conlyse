@@ -10,14 +10,34 @@
   overflow: hidden;
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
-}
-
 .buttons {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.screenshotWrap {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.screenshot {
+  width: 100%;
+  max-width: 960px;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 2rem;
+  }
+
+  .screenshotWrap {
+    margin-top: 1.5rem;
+  }
 }

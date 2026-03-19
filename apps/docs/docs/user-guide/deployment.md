@@ -53,6 +53,11 @@ JWT_SECRET_KEY=<strong-random-secret-here>
 
 ### 2. Configure Services
 
+For full per-service configuration details, see:
+
+- [Server Observer (detailed configuration reference)](./services/server-observer)
+- [Server Converter (detailed configuration reference)](./services/server-converter)
+
 #### Server Observer Configuration
 
 Edit `infra/prod/server-observer-config.toml`:
@@ -63,7 +68,6 @@ max_parallel_normal_recordings = 1
 update_interval = 300
 max_parallel_updates = 10
 max_parallel_first_updates = 10
-update_worker_threads = 4
 output_dir = "/app/recordings"
 output_metadata_dir = "/app/recordings/metadata"
 

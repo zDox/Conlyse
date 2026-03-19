@@ -62,10 +62,9 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'Conlyse',
       logo: {
         alt: 'Conlyse logo',
-        src: 'img/logo.svg',
+        src: 'img/logo.png',
       },
       items: [
         {

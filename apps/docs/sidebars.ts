@@ -18,20 +18,23 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'User Guide',
-      items: ['user-guide/deployment'],
+      items: [
+        'user-guide/deployment',
+        {
+          type: 'category',
+          label: 'Services',
+          items: [
+            'user-guide/services/server-observer',
+            'user-guide/services/server-converter',
+          ],
+        },
+      ],
     },
     {
       type: 'category',
       label: 'Developer Guide',
       items: [
-        {
-          type: 'category',
-          label: 'Services',
-          items: [
-            'developer-guide/services/server-observer',
-            'developer-guide/services/server-converter',
-          ],
-        },
+
         {
           type: 'category',
           label: 'Libraries',
@@ -40,7 +43,8 @@ const sidebars: SidebarsConfig = {
               type: 'category',
               label: 'ConflictInterface',
               items: [
-                'developer-guide/libraries/conflict-interface/replay-system',
+                  'developer-guide/libraries/conflict-interface/data-types',
+                  'developer-guide/libraries/conflict-interface/replay-system',
               ],
             },
           ],
