@@ -6,7 +6,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Conlyse',
-  tagline: 'Tools for recording, replaying, and analysing game state',
+  tagline: ' Unofficial Full-stack system for recording, storing, and analyzing Conflict of Nations games',
   favicon: 'img/favicon.ico',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future

@@ -4,9 +4,20 @@ sidebar_position: 0
 
 # Conlyse Documentation
 
-Welcome to the Conlyse documentation site. This site covers how to record, inspect, and replay games using the Conlyse library and tools.
+Conlyse is an unofficial full-stack system for recording, storing, and analyzing Conflict of Nations games.
+It consists of an end-to-end replay pipeline (Observer -> Converter -> storage -> API) plus the `ConflictInterface` library that powers time-travel replay playback.
 
-- **User guide**: High-level walkthroughs for running the stack and configuring environments.
-- **Developer guide**: Deep dives into core libraries such as the replay system, hook system, and server-side services.
 
-You can access the source code on GitHub from the **View on GitHub** button on the landing page of the docs.
+If you're deploying the full stack, follow the **Deployment** guide first:
+
+- [User Guide: Deployment](./user-guide/deployment)
+
+If you want the operational details for the services that make up the pipeline, see:
+
+- [User Guide: Server Observer](./user-guide/services/server-observer)
+- [User Guide: Server Converter](./user-guide/services/server-converter)
+
+If you're working on the replay and parsing internals, start with:
+
+- [Developer Guide: Replay System](./developer-guide/libraries/conflict-interface/replay-system)
+- [Developer Guide: Data Types](./developer-guide/libraries/conflict-interface/data-types)

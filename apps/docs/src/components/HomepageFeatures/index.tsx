@@ -12,7 +12,7 @@ type FeatureItem = {
 const FeatureList: FeatureItem[] = [
   {
     title: 'Powerful Replay System',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    Svg: require('@site/static/img/undraw_time-change.svg').default,
     description: (
       <>
         Record, compress, and replay full game timelines efficiently. ConflictInterface
@@ -23,7 +23,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'End-to-End Replay Pipeline',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    Svg: require('@site/static/img/undraw_server-status.svg').default,
     description: (
       <>
         From Server Observer and Server Converter to storage backends, the project ships
@@ -34,7 +34,7 @@ const FeatureList: FeatureItem[] = [
   },
   {
     title: 'Developer-Friendly Libraries',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    Svg: require('@site/static/img/undraw_open-source-code.svg').default,
     description: (
       <>
         Use the ConflictInterface Python library and replay interfaces directly in your
