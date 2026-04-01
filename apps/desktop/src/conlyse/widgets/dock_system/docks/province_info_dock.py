@@ -164,7 +164,7 @@ class ProvinceInfoDock(Dock):
             self._show_no_province()
             return
 
-        if isinstance(province, SeaProvince):
+        if province.C == "ultshared.UltSeaProvince":
             self._show_sea_province(province)
         else:
             self._show_land_province(province)

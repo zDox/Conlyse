@@ -46,11 +46,11 @@ class ResourceView(MapView):
         self.provinces_by_resource.clear()
 
         for province in self.ritf.get_provinces().values():
-            if isinstance(province, SeaProvince):
+            if province.C == "ultshared.UltSeaProvince":
                 continue
 
             rt = province.resource_production_type
-            if rt == ResourceProductionType.NONE:
+            if rt.value == ResourceProductionType.NONE.value:
                 continue
 
             prod = province.resource_production
@@ -68,7 +68,7 @@ class ResourceView(MapView):
 
     def _build_color_data(self):
         for province in self.ritf.get_provinces().values():
-            if isinstance(province, SeaProvince):
+            if province.C == "ultshared.UltSeaProvince":
                 self.color_data[province.id] = (70, 130, 180, 255)
                 continue
 

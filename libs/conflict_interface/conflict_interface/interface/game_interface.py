@@ -147,7 +147,7 @@ class GameInterface:
     def get_land_provinces(self, **filters) -> dict[int, LandProvince]:
         res = {}
         for province in self.game_state.states.map_state.map.provinces.values():
-            if isinstance(province, SeaProvince):
+            if province.C == "ultshared.UltSeaProvince":
                 continue
             if all([hasattr(province, key) and getattr(province, key) == val
                     for key, val in filters.items()]):

@@ -225,6 +225,7 @@ recording-converter \
   --output-dir /data/replays \
   --mode gmr \
   --bulk \
+  --bulk-game-limit 100 \
   -p 8 \
   --game-id 12345 \
   --player-id 67890 \
@@ -235,6 +236,7 @@ Behavior:
 
 - Each subdirectory `/data/recordings_root/<name>` that contains `game_states.bin` becomes a job.
 - For each job, a replay file `/data/replays/<name>.bin` is created.
+- You can cap how many jobs run via `--bulk-game-limit N` (applied after optional name filtering).
 - Existing output files are overwritten only if `--overwrite` is provided.
 
 #### Example: bulk `rur` conversion with filters

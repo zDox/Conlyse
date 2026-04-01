@@ -50,7 +50,7 @@ class PoliticalView(MapView):
         owner_color_data = {}
 
         for province in self.ritf.get_provinces().values():
-            if isinstance(province, SeaProvince):
+            if province.C == "ultshared.UltSeaProvince":
                 self.color_data[province.id] = (70, 130, 180, 255)
                 continue
 

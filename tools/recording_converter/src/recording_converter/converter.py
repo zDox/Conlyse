@@ -150,6 +150,7 @@ def convert_recordings_root(
     player_id: Optional[int] = None,
     use_tqdm: bool = True,
     recording_name_filters: Optional[Sequence[str]] = None,
+    max_games: Optional[int] = None,
 ) -> bool:
     """
     Convert all recording subdirectories under a root directory into replay files.
@@ -173,6 +174,13 @@ def convert_recordings_root(
     if recording_name_filters:
         allowed_names = set(recording_name_filters)
         recording_dirs = [d for d in recording_dirs if d.name in allowed_names]
+
+    # Optionally cap total number of recordings/games processed in bulk mode.
+    if max_games is not None:
+        if max_games < 1:
+            logger.error("Invalid bulk game limit %s; expected a positive integer", max_games)
+            return False
+        recording_dirs = recording_dirs[:max_games]
 
     if not recording_dirs:
         logger.warning("No recording subdirectories found under %s", root)

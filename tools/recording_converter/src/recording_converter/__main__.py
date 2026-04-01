@@ -102,6 +102,13 @@ Patch creation modes:
     )
 
     parser.add_argument(
+        '--bulk-game-limit',
+        type=int,
+        default=None,
+        help='In bulk mode: limit number of recordings/games to convert after filtering'
+    )
+
+    parser.add_argument(
         '-p', '--processes',
         type=int,
         default=os.cpu_count() or 1,
@@ -197,6 +204,7 @@ Patch creation modes:
                 player_id=args.player_id,
                 use_tqdm=not args.no_progress,
                 recording_name_filters=args.recording_names,
+                max_games=args.bulk_game_limit,
             )
         except Exception:
             sys.exit(1)
