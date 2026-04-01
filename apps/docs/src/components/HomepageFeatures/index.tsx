@@ -2,6 +2,10 @@ import type {ReactNode} from 'react';
 import clsx from 'clsx';
 import Heading from '@theme/Heading';
 import styles from './styles.module.css';
+import OpenSourceCodeSvg from '@site/static/img/undraw_open-source-code.svg';
+import TimeChangeSvg from '@site/static/img/undraw_time-change.svg';
+import ServerStatusSvg from '@site/static/img/undraw_server-status.svg';
+
 
 type FeatureItem = {
   title: string;
@@ -12,18 +16,18 @@ type FeatureItem = {
 const FeatureList: FeatureItem[] = [
   {
     title: 'Powerful Replay System',
-    Svg: require('@site/static/img/undraw_time-change.svg').default,
+    Svg: TimeChangeSvg,
     description: (
       <>
-        Record, compress, and replay full game timelines efficiently. ConflictInterface
-        provides a bidirectional replay engine with fast time travel, support for multiple
-        data type versions in a single replay, and a high-level API for navigating game state.
+        ConflictInterface delivers bidirectional time travel across game history with
+        compact patch-based storage. Jump, rewind, and fast-forward through state changes
+        efficiently while preserving accurate replay semantics.
       </>
     ),
   },
   {
     title: 'End-to-End Replay Pipeline',
-    Svg: require('@site/static/img/undraw_server-status.svg').default,
+    Svg: ServerStatusSvg,
     description: (
       <>
         From Server Observer and Server Converter to storage backends, the project ships
@@ -33,13 +37,13 @@ const FeatureList: FeatureItem[] = [
     ),
   },
   {
-    title: 'Developer-Friendly Libraries',
-    Svg: require('@site/static/img/undraw_open-source-code.svg').default,
+    title: 'Desktop Client',
+    Svg: OpenSourceCodeSvg,
     description: (
       <>
-        Use the ConflictInterface Python library and replay interfaces directly in your
-        own analysis tools. Clear APIs, strong abstractions, and detailed docs make it
-        easy to build custom workflows around Conflict of Nations replays.
+        Conlyse provides a high-performance desktop experience with OpenGL-powered map
+        rendering, precision playback controls and dockable panels. Analyze
+        replays with multiple map views and a modern themed interface.
       </>
     ),
   },
