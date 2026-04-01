@@ -211,7 +211,7 @@ class Map(QOpenGLWidget):
 
     def _initialize_world_labels(self):
         for province in self.ritf.get_provinces().values():
-            if isinstance(province, SeaProvince):
+            if province.C == "ultshared.UltSeaProvince":
                 continue
             if province.province_state_id not in (
                 ProvinceStateID.MAINLAND_CITY,
