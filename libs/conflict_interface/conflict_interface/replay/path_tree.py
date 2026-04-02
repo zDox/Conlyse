@@ -238,11 +238,13 @@ class PathTree:
             old_path.append(self.idx_to_node[current].path_element)
         return old_path
 
-    def path_list_to_idx(self, path: list[str]) -> int:
+    def path_list_to_idx(self, path: list[str]) -> int | None:
         # Traverse the tree according to the path and return the index of the final node
         current = self.root
         for path_element in path:
-            current = current.children[path_element]
+            current = current.children.get(path_element)
+            if current is None:
+                return None
         return current.index
 
     def exists(self, path: list[str | int]) -> bool:

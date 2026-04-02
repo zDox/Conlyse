@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QEvent
-from PySide6.QtWidgets import QMainWindow, QStackedWidget, QVBoxLayout, QWidget
-from PySide6.QtCore import QPoint
+from PySide6.QtWidgets import QMainWindow
 from PySide6.QtWidgets import QSizePolicy
+from PySide6.QtWidgets import QStackedWidget
+from PySide6.QtWidgets import QVBoxLayout
+from PySide6.QtWidgets import QWidget
 
 from conlyse.constants import APPLICATION_NAME
 from conlyse.widgets.drawer import Drawer
@@ -17,6 +20,7 @@ class MainWindow(QMainWindow):
     def __init__(self, app: App):
         super().__init__()
         # central container - parent for layout and drawer
+        self.setWindowTitle(APPLICATION_NAME)
         self.container = QWidget(self)
         self.main_layout = QVBoxLayout(self.container)
         self.main_layout.setContentsMargins(0, 0, 0, 0)

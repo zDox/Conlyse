@@ -123,10 +123,18 @@ class ReplayHookSystem:
         Raises:
             ValueError: If an event trigger with the same tag has already been registered.
         """
+        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
+        if path_idx is None:
+            # Path isn't found in the replay storage
+            # -> ReplaySegment contains no change to the path
+            # -> No need to register an event trigger
+            return
+
         if tag in self._tags:
             raise ValueError(f"Event trigger with tag '{tag}' is already registered.")
         self._tags.add(tag)
-        path_idx = self.replay.storage.path_tree.path_list_to_idx(path)
+
+
         hook = ReplayHook(
             tag=tag,
             change_types=[ADD_OPERATION, REPLACE_OPERATION, REMOVE_OPERATION],
