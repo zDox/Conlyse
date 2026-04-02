@@ -53,7 +53,8 @@ The following secrets are used by the workflows:
 - `TEST_ACCOUNT_USERNAME` - Test account username (tests.yml)
 - `TEST_ACCOUNT_PASSWORD` - Test account password (tests.yml)
 - `TEST_ACCOUNT_EMAIL` - Test account email (tests.yml)
-- `TEST_PROXY_URL` - Test proxy URL (tests.yml)
+- `TEST_PROXY_URL` - Test proxy URL (conflict_interface-tests.yml)
+- `TEST_WEBSHARE_API_TOKEN` - Webshare API token used by full test data updater to resolve proxy dynamically (conflict_interface-update-testdata.yml)
 - `GITHUB_TOKEN` - Automatically provided by GitHub (docker-build.yml, documentation.yml)
 
 ## Permissions

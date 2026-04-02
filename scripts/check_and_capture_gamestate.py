@@ -7,7 +7,6 @@ It is used to update the full test data in the ConflictData repository.
 from __future__ import annotations
 
 import json
-import logging
 import os
 import sys
 import tempfile
@@ -17,13 +16,11 @@ from typing import Any, Dict
 import requests
 
 from conflict_interface.data_types.newest.game_api_types.login_action import DEFAULT_LOGIN_ACTION
-from conflict_interface.data_types.newest.game_api_types.login_action import LoginAction
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.api.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.data_types.newest.game_api_types.game_state_action import GameStateAction
-from conflict_interface.data_types.newest.custom_types import HashMap, LinkedList, DateTimeMillisecondsInt
+from conflict_interface.data_types.newest.custom_types import LinkedList
 from conflict_interface.data_types.newest.to_json import dump_any
-from conflict_interface.logger_config import setup_library_logger
 
 CONFLICT_DATA_REPO = "zDox/ConflictData"
 FULL_TESTDATA_DIR = "FullTestData"
@@ -33,13 +30,39 @@ def _load_credentials() -> tuple[str, str, str, str]:
     """
     Mirror test credential loading: prefer env vars, otherwise raise.
     """
-    keys = ["TEST_ACCOUNT_USERNAME", "TEST_ACCOUNT_PASSWORD", "TEST_ACCOUNT_EMAIL", "TEST_PROXY_URL"]
+    keys = ["TEST_ACCOUNT_USERNAME", "TEST_ACCOUNT_PASSWORD", "TEST_ACCOUNT_EMAIL", "TEST_WEBSHARE_API_TOKEN"]
     values = [os.getenv(k) for k in keys]
     if all(v is not None for v in values):
         # type: ignore[return-value]
-        return tuple(values)  # (username, password, email, proxy_url)
+        return tuple(values)  # (username, password, email, webshare_token)
     missing = [k for k, v in zip(keys, values) if v is None]
     raise RuntimeError(f"Missing required environment variables for test credentials: {', '.join(missing)}")
+
+
+def _fetch_webshare_proxy_url(token: str) -> str:
+    """
+    Resolve one proxy from Webshare and return a SOCKS5 URL.
+    """
+    url = "https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=25"
+    headers = {"Authorization": f"Token {token}"}
+    resp = requests.get(url, headers=headers, timeout=30)
+    resp.raise_for_status()
+
+    payload = resp.json()
+    proxies = payload.get("results")
+    if not isinstance(proxies, list) or not proxies:
+        raise RuntimeError("Webshare returned no proxies.")
+
+    chosen = next((proxy for proxy in proxies if proxy.get("valid") is True), proxies[0])
+
+    username = chosen.get("username")
+    password = chosen.get("password")
+    address = chosen.get("proxy_address")
+    port = chosen.get("port")
+    if not all([username, password, address, port]):
+        raise RuntimeError("Webshare returned an invalid proxy record.")
+
+    return f"socks5://{username}:{password}@{address}:{port}"
 
 
 def _pick_game_id(hub: HubInterface) -> int:
@@ -109,7 +132,8 @@ def write_response_to_temp(version: int, response_json: Dict[str, Any]) -> Path:
 def main() -> int:
     github_token = os.getenv("CONFLICT_DATA_TOKEN")
 
-    username, password, _email, proxy_url = _load_credentials()
+    username, password, _email, webshare_token = _load_credentials()
+    proxy_url = _fetch_webshare_proxy_url(webshare_token)
     proxy = {"https": proxy_url} if proxy_url else None
 
     hub = HubInterface(proxy=proxy)
