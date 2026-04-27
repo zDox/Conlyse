@@ -2,7 +2,7 @@ import unittest
 
 from conflict_interface.data_types.newest.version import VERSION
 from conflict_interface.interface.hub_interface import HubInterface
-from tests.helper_functions import load_credentials, get_test_game_id
+from helper_functions import load_credentials, get_test_game_id
 
 
 class GameInterfaceTests(unittest.TestCase):
