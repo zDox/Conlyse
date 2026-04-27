@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
@@ -97,6 +98,8 @@ class UpdateManager:
             return None
 
         tag_name: str = str(data.get("tag_name", "")).strip()
+        # Release tags are expected to follow the "vX.Y.Z" convention; strip the
+        # leading "v" so the version string is plain semver (e.g. "1.2.3").
         latest_version = tag_name.lstrip("v")
         if not latest_version:
             message = "GitHub release response missing tag_name."
@@ -109,7 +112,10 @@ class UpdateManager:
         url = ""
         for asset in assets:
             asset_name: str = str(asset.get("name", "")).lower()
-            if platform_slug in asset_name:
+            # Match the platform slug only at word boundaries (delimited by -, _, . or
+            # start/end of the filename stem) to avoid false positives such as
+            # "non-windows-build" matching "windows".
+            if re.search(r"(?<![a-z])" + re.escape(platform_slug) + r"(?![a-z])", asset_name):
                 url = str(asset.get("browser_download_url", "")).strip()
                 break
 
