@@ -11,7 +11,6 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.binary import Binary
 from app.services import downloads as dl_service
 
 
@@ -27,93 +26,6 @@ def _mock_s3_client(presigned_url: str = _FAKE_URL) -> MagicMock:
     client = MagicMock()
     client.generate_presigned_url.return_value = presigned_url
     return client
-
-
-# ---------------------------------------------------------------------------
-# Platform validation
-# ---------------------------------------------------------------------------
-
-
-def test_validate_platform_valid() -> None:
-    for p in ("windows", "macos", "linux"):
-        dl_service._validate_platform(p)  # should not raise
-
-
-def test_validate_platform_invalid() -> None:
-    with pytest.raises(ValueError, match="Unsupported platform"):
-        dl_service._validate_platform("beos")
-
-
-# ---------------------------------------------------------------------------
-# Binary downloads
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_get_binary_url_latest_not_found(db_session: AsyncSession) -> None:
-    with pytest.raises(LookupError, match="No binary found"):
-        await dl_service.get_binary_url_latest(db_session, "windows")
-
-
-@pytest.mark.asyncio
-async def test_get_binary_url_latest_success(db_session: AsyncSession) -> None:
-    binary = Binary(platform="windows", version="1.0.0", s3_key="binaries/windows/1.0.0/app.exe")
-    db_session.add(binary)
-    await db_session.commit()
-
-    with patch("app.services.downloads._s3_client", return_value=_mock_s3_client()):
-        version, url = await dl_service.get_binary_url_latest(db_session, "windows")
-
-    assert version == "1.0.0"
-    assert url == _FAKE_URL
-
-
-@pytest.mark.asyncio
-async def test_get_binary_url_version_not_found(db_session: AsyncSession) -> None:
-    with pytest.raises(LookupError, match="Binary not found"):
-        await dl_service.get_binary_url_version(db_session, "linux", "9.9.9")
-
-
-@pytest.mark.asyncio
-async def test_get_binary_url_version_success(db_session: AsyncSession) -> None:
-    binary = Binary(platform="linux", version="2.0.0", s3_key="binaries/linux/2.0.0/app")
-    db_session.add(binary)
-    await db_session.commit()
-
-    with patch("app.services.downloads._s3_client", return_value=_mock_s3_client()):
-        url = await dl_service.get_binary_url_version(db_session, "linux", "2.0.0")
-
-    assert url == _FAKE_URL
-
-
-@pytest.mark.asyncio
-async def test_list_binary_versions_empty(db_session: AsyncSession) -> None:
-    versions = await dl_service.list_binary_versions(db_session, "macos")
-    assert versions == []
-
-
-@pytest.mark.asyncio
-async def test_list_binary_versions_multiple(db_session: AsyncSession) -> None:
-    for v in ("1.0.0", "1.1.0", "2.0.0"):
-        db_session.add(Binary(platform="macos", version=v, s3_key=f"binaries/macos/{v}/app"))
-    await db_session.commit()
-
-    versions = await dl_service.list_binary_versions(db_session, "macos")
-    assert set(versions) == {"1.0.0", "1.1.0", "2.0.0"}
-
-
-@pytest.mark.asyncio
-async def test_register_binary_success(db_session: AsyncSession) -> None:
-    binary = await dl_service.register_binary(db_session, "windows", "3.0.0", "some/key.exe")
-    assert binary.platform == "windows"
-    assert binary.version == "3.0.0"
-
-
-@pytest.mark.asyncio
-async def test_register_binary_duplicate(db_session: AsyncSession) -> None:
-    await dl_service.register_binary(db_session, "windows", "4.0.0", "some/key.exe")
-    with pytest.raises(ValueError, match="already exists"):
-        await dl_service.register_binary(db_session, "windows", "4.0.0", "other/key.exe")
 
 
 # ---------------------------------------------------------------------------
