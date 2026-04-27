@@ -1,0 +1,21 @@
+from dataclasses import dataclass
+from typing import Optional
+
+from .custom_types import DateTimeMillisecondsInt
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import conflict_serializable
+from .version import VERSION
+
+
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@dataclass
+class State(GameObject):
+    time_stamp: Optional[DateTimeMillisecondsInt]
+    state_id: str
+    state_type: int
+    MAPPING = {
+        "state_id": "stateID",
+        "state_type": "stateType",
+        "time_stamp": "timeStamp",
+    }
