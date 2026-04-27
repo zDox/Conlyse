@@ -3,8 +3,8 @@ import unittest
 from conflict_interface.data_types.newest.version import VERSION
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.utils.exceptions import AuthenticationException
-from tests.helper_functions import get_new_game_id
-from tests.helper_functions import load_credentials
+from helper_functions import get_new_game_id
+from helper_functions import load_credentials
 
 random_prefix = "test_"
 

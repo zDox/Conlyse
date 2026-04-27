@@ -17,7 +17,7 @@ from conflict_interface.data_types.newest.version import VERSION
 from conflict_interface.game_object.game_object_parse_json import JsonParser
 from conflict_interface.interface.game_interface import GameInterface
 from paths import TEST_DATA
-from tests.helper_functions import compare_dicts
+from helper_functions import compare_dicts
 from conflict_interface.data_types import *
 from conflict_interface.data_types.newest.date_time_parsing import *
 jsonparser = JsonParser(VERSION)
