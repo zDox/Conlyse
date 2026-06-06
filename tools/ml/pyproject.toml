@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "conlyse-ml"
+version = "0.1.0"
+description = "Win-probability ML model for Conflict of Nations replays"
+requires-python = ">=3.12"
+dependencies = [
+    "lightgbm>=4.0",
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+    "scikit-learn>=1.4",
+    "tqdm",
+]
+
+[project.scripts]
+conlyse-predict = "ml.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

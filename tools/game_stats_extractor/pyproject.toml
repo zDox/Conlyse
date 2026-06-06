@@ -13,6 +13,9 @@ dependencies = [
     "tqdm",
 ]
 
+[project.optional-dependencies]
+parquet = ["pandas>=2.0", "pyarrow>=14.0"]
+
 [project.scripts]
 game-stats-extractor = "game_stats_extractor.__main__:main"
 

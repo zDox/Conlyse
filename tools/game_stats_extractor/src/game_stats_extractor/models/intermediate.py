@@ -41,6 +41,7 @@ class PlayerData:
     final_building_levels: dict[str, float] = field(default_factory=dict)
     final_building_tier_counts: dict[str, dict[int, int]] = field(default_factory=dict)
     building_pct_buckets: dict[str, dict[int, float]] = field(default_factory=dict)
+    pct_bucket_coverage: dict[int, int] = field(default_factory=dict)
     elimination_game_pct: Optional[float] = None  # 0-100 raw %, None if not eliminated
     elimination_game_day: Optional[int] = None
     avg_national_morale: float = 0.0

@@ -726,6 +726,7 @@ class ReplayExtractor(BaseExtractor):
                     uid: _finalize_float_buckets(bld_pct_sum[player_id][uid], bld_pct_n[player_id][uid])
                     for uid in bld_pct_sum.get(player_id, {})
                 },
+                pct_bucket_coverage=dict(pct_bucket_n[player_id]),
                 elimination_game_pct=player_elimination_pct.get(player_id),
                 elimination_game_day=player_elimination_day.get(player_id),
                 avg_national_morale=(

@@ -82,3 +82,4 @@ infra/prod/server-observer-config.toml
 infra/prod/server-observer-config.toml
 /tools/game_stats_extractor/src/game_stats_extractor.egg-info/
 /replays_out/
+/tools/ml/src/conlyse_ml.egg-info/
