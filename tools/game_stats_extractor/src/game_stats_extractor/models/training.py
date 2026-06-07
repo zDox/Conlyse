@@ -9,6 +9,7 @@ With 1 000 games × 64 players × ~18 observed buckets ≈ 1.15 M rows.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -127,3 +128,22 @@ def training_rows_from_game_data(
             ))
 
     return rows
+
+
+# Module-level worker function — must be importable by multiprocessing.
+#
+# Converts straight to row dicts inside the worker process so only the small
+# per-row payload is pickled back to the main process, instead of the full
+# GameData (which carries every player's per-tick bucket history).
+def training_rows_worker(args: tuple[Path, Path | None, int]) -> tuple[list[dict], bool]:
+    file_path, map_data_dir, min_coverage = args
+
+    from ..extractors.replay_extractor import ReplayExtractor
+
+    extractor = ReplayExtractor(map_data_dir=map_data_dir)
+    game = extractor.extract_safe(file_path)
+    if game is None:
+        return [], False
+
+    rows = training_rows_from_game_data(game, min_coverage=min_coverage)
+    return [row.to_dict() for row in rows], True

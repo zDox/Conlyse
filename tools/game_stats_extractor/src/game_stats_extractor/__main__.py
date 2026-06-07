@@ -62,8 +62,7 @@ def _cmd_ml_dataset(args: argparse.Namespace) -> None:
 
     from tqdm import tqdm
 
-    from .models.training import training_rows_from_game_data
-    from .pipeline import _extract_worker
+    from .models.training import training_rows_worker
 
     replay_files = sorted(args.replays_dir.glob("game_*.conrp"))
     if not replay_files:
@@ -73,33 +72,26 @@ def _cmd_ml_dataset(args: argparse.Namespace) -> None:
     logger = logging.getLogger(__name__)
     logger.info("Found %d replay files", len(replay_files))
 
-    worker_args = [(f, args.map_data_dir) for f in replay_files]
-    all_rows = []
+    worker_args = [(f, args.map_data_dir, args.min_bucket_coverage) for f in replay_files]
+    all_rows: list[dict] = []
     failed = 0
 
     if args.workers > 1:
         with ProcessPoolExecutor(max_workers=args.workers) as executor:
-            futures = {executor.submit(_extract_worker, a): a[0] for a in worker_args}
+            futures = {executor.submit(training_rows_worker, a): a[0] for a in worker_args}
             for future in tqdm(as_completed(futures), total=len(futures), desc="Extracting"):
-                game = future.result()
-                if game is None:
+                rows, ok = future.result()
+                if not ok:
                     failed += 1
                 else:
-                    all_rows.extend(
-                        training_rows_from_game_data(game, min_coverage=args.min_bucket_coverage)
-                    )
+                    all_rows.extend(rows)
     else:
-        from .extractors.replay_extractor import ReplayExtractor
-
-        extractor = ReplayExtractor(map_data_dir=args.map_data_dir)
-        for f in tqdm(replay_files, desc="Extracting"):
-            game = extractor.extract_safe(f)
-            if game is None:
+        for a in tqdm(worker_args, desc="Extracting"):
+            rows, ok = training_rows_worker(a)
+            if not ok:
                 failed += 1
             else:
-                all_rows.extend(
-                    training_rows_from_game_data(game, min_coverage=args.min_bucket_coverage)
-                )
+                all_rows.extend(rows)
 
     logger.info(
         "Collected %d training rows from %d games (%d failed)",
@@ -113,7 +105,7 @@ def _cmd_ml_dataset(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    df = pd.DataFrame([r.to_dict() for r in all_rows])
+    df = pd.DataFrame(all_rows)
     df.to_parquet(args.output, index=False)
     logger.info("Written %d rows to %s", len(df), args.output)
 
