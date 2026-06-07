@@ -30,6 +30,7 @@ rsync -aq ${SCRATCH}/datasets/evaluation.parquet ${TMPDIR}/datasets/
 
 MODEL_PATH="${TMPDIR}/model/win_probability.lgb"
 REPORT_PATH="${TMPDIR}/report/report.txt"
+HTML_REPORT_PATH="${TMPDIR}/report/report.html"
 
 # Train
 echo "[$(date)] Training model..."
@@ -54,10 +55,19 @@ echo "[$(date)] Evaluating model..."
         --min-coverage 2
 } | tee "${REPORT_PATH}"
 
+# Generate detailed HTML report (charts, calibration, feature importance, ...)
+echo "[$(date)] Generating HTML report..."
+conlyse-predict report \
+    --dataset "${TMPDIR}/datasets/evaluation.parquet" \
+    --model "${MODEL_PATH}" \
+    --output "${HTML_REPORT_PATH}" \
+    --min-coverage 2
+
 # Copy results back to scratch
-echo "[$(date)] Copying model and report back to SCRATCH..."
+echo "[$(date)] Copying model and reports back to SCRATCH..."
 mkdir -p ${SCRATCH}/models ${SCRATCH}/reports
 rsync -aq "${MODEL_PATH}" "${SCRATCH}/models/win_probability_${SLURM_JOB_ID}.lgb"
 rsync -aq "${REPORT_PATH}" "${SCRATCH}/reports/report_${SLURM_JOB_ID}.txt"
+rsync -aq "${HTML_REPORT_PATH}" "${SCRATCH}/reports/report_${SLURM_JOB_ID}.html"
 
 echo "[$(date)] Job finished!"

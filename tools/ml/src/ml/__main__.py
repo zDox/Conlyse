@@ -1,4 +1,5 @@
 """CLI entry point for conlyse-predict."""
+
 import argparse
 import logging
 import sys
@@ -31,11 +32,10 @@ def _cmd_train(args: argparse.Namespace) -> None:
 
 
 def _cmd_eval(args: argparse.Namespace) -> None:
-    import numpy as np
+    import lightgbm as lgb
     from sklearn.metrics import roc_auc_score
 
     from .features import FEATURE_COLS, load_dataset
-    import lightgbm as lgb
 
     logger = logging.getLogger(__name__)
     logger.info("Loading dataset from %s", args.dataset)
@@ -68,6 +68,17 @@ def _cmd_eval(args: argparse.Namespace) -> None:
         print(f"{pct:8d}  {mask.sum():8,}  {auc:8.4f}  {pos_rate:10.4f}")
 
 
+def _cmd_report(args: argparse.Namespace) -> None:
+    from .report import generate_report
+
+    generate_report(
+        dataset_path=args.dataset,
+        model_path=args.model,
+        output_path=args.output,
+        min_coverage=args.min_coverage,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="conlyse-predict — win-probability ML for Conflict of Nations",
@@ -77,25 +88,64 @@ def main() -> None:
 
     # ── train ──────────────────────────────────────────────────────────────
     train_p = sub.add_parser("train", help="Train LightGBM win-probability model")
-    train_p.add_argument("--dataset", required=True, type=Path,
-                         help="Parquet training dataset (from game-stats-extractor ml-dataset)")
-    train_p.add_argument("--output", required=True, type=Path,
-                         help="Output model file (e.g. model.lgb)")
-    train_p.add_argument("--folds", type=int, default=5,
-                         help="Number of GroupKFold cross-validation folds (default: 5)")
-    train_p.add_argument("--min-coverage", type=int, default=1, metavar="N",
-                         help="Minimum bucket_coverage to include a row (default: 1)")
+    train_p.add_argument(
+        "--dataset",
+        required=True,
+        type=Path,
+        help="Parquet training dataset (from game-stats-extractor ml-dataset)",
+    )
+    train_p.add_argument(
+        "--output", required=True, type=Path, help="Output model file (e.g. model.lgb)"
+    )
+    train_p.add_argument(
+        "--folds",
+        type=int,
+        default=5,
+        help="Number of GroupKFold cross-validation folds (default: 5)",
+    )
+    train_p.add_argument(
+        "--min-coverage",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Minimum bucket_coverage to include a row (default: 1)",
+    )
     _add_common_args(train_p)
 
     # ── eval ───────────────────────────────────────────────────────────────
     eval_p = sub.add_parser("eval", help="Evaluate model AUC by pct_game bucket")
-    eval_p.add_argument("--dataset", required=True, type=Path,
-                        help="Parquet dataset to evaluate on")
-    eval_p.add_argument("--model", required=True, type=Path,
-                        help="Trained model file (.lgb)")
-    eval_p.add_argument("--min-coverage", type=int, default=1, metavar="N",
-                        help="Minimum bucket_coverage to include a row (default: 1)")
+    eval_p.add_argument(
+        "--dataset", required=True, type=Path, help="Parquet dataset to evaluate on"
+    )
+    eval_p.add_argument("--model", required=True, type=Path, help="Trained model file (.lgb)")
+    eval_p.add_argument(
+        "--min-coverage",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Minimum bucket_coverage to include a row (default: 1)",
+    )
     _add_common_args(eval_p)
+
+    # ── report ─────────────────────────────────────────────────────────────
+    report_p = sub.add_parser(
+        "report", help="Generate a detailed HTML evaluation report (charts + diagnostics)"
+    )
+    report_p.add_argument(
+        "--dataset", required=True, type=Path, help="Parquet dataset to evaluate on"
+    )
+    report_p.add_argument("--model", required=True, type=Path, help="Trained model file (.lgb)")
+    report_p.add_argument(
+        "--output", required=True, type=Path, help="Output HTML report path (e.g. report.html)"
+    )
+    report_p.add_argument(
+        "--min-coverage",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Minimum bucket_coverage to include a row (default: 1)",
+    )
+    _add_common_args(report_p)
 
     args = parser.parse_args()
     _configure_logging(args)
@@ -105,6 +155,8 @@ def main() -> None:
             _cmd_train(args)
         elif args.command == "eval":
             _cmd_eval(args)
+        elif args.command == "report":
+            _cmd_report(args)
     except KeyboardInterrupt:
         sys.exit(130)
     except Exception as exc:
