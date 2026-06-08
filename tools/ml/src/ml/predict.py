@@ -12,21 +12,51 @@ Usage:
     and optionally bld_<group> / bld_<group>_t<tier> building-count columns.
 
 The caller is responsible for building these from the live game state.
-Probabilities are raw model outputs (not normalised to sum to 1).
+Probabilities are calibrated to reflect true win likelihoods (via a sidecar
+isotonic-regression calibrator bundled alongside the model — see `train.py`)
+when one is available, otherwise they fall back to raw model outputs. They are
+not normalised to sum to 1.
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import lightgbm as lgb
 import pandas as pd
 
 from .features import engineer_features
 
+if TYPE_CHECKING:
+    from sklearn.isotonic import IsotonicRegression
+
+logger = logging.getLogger(__name__)
+
+
+def calibrator_path(model_path: Path) -> Path:
+    """Sidecar path for the post-hoc probability calibrator next to a model file."""
+    return model_path.with_suffix(".calibrator.joblib")
+
+
+def load_calibrator(model_path: Path) -> "IsotonicRegression | None":
+    """Load the sidecar calibrator for `model_path`, or `None` if not bundled."""
+    path = calibrator_path(model_path)
+    if not path.exists():
+        return None
+    try:
+        import joblib
+
+        return joblib.load(path)
+    except Exception:
+        logger.exception("Failed to load win-probability calibrator from %s", path)
+        return None
+
 
 class Predictor:
     def __init__(self, model_path: Path) -> None:
         self._model = lgb.Booster(model_file=str(model_path))
+        self._calibrator = load_calibrator(model_path)
 
     def predict(self, snapshots: list[dict]) -> dict[int, float]:
         """
@@ -60,5 +90,7 @@ class Predictor:
 
         X = df[cols].values
         probs = self._model.predict(X)
+        if self._calibrator is not None:
+            probs = self._calibrator.predict(probs)
 
         return {s["player_id"]: float(probs[i]) for i, s in enumerate(snapshots)}

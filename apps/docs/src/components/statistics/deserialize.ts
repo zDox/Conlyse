@@ -32,6 +32,7 @@ export function deserializeCountries(raw: ColumnarData): CountryAggregate[] {
     avg_peace_treaties_signed: r[idx.avg_peace_treaties_signed] as number,
     avg_alliances_formed:      r[idx.avg_alliances_formed]      as number,
     avg_right_of_ways_signed:  r[idx.avg_right_of_ways_signed]  as number,
+    avg_shared_intelligence_signed: r[idx.avg_shared_intelligence_signed] as number,
     avg_total_production:         (r[idx.avg_total_production]         as Record<string, number> | undefined) ?? {},
     avg_production_rate:          (r[idx.avg_production_rate]          as Record<string, number> | undefined) ?? {},
     avg_final_building_counts:    (r[idx.avg_final_building_counts]    as Record<string, number> | undefined) ?? {},

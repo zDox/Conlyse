@@ -25,9 +25,10 @@ export default function CountryDiplomacyChart({ data, topN = 20, minGames = 3 }:
       wars: parseFloat(c.avg_wars_declared.toFixed(1)),
       rows: parseFloat(c.avg_right_of_ways_signed.toFixed(1)),
       peace: parseFloat(c.avg_peace_treaties_signed.toFixed(1)),
+      intel: parseFloat(c.avg_shared_intelligence_signed.toFixed(1)),
       games: c.games_played,
     }))
-    .sort((a, b) => (b.wars + b.rows + b.peace) - (a.wars + a.rows + a.peace))
+    .sort((a, b) => (b.wars + b.rows + b.peace + b.intel) - (a.wars + a.rows + a.peace + a.intel))
     .slice(0, topN);
 
   return (
@@ -57,9 +58,9 @@ export default function CountryDiplomacyChart({ data, topN = 20, minGames = 3 }:
             color: 'var(--ifm-font-color-base)',
           }}
           formatter={(value: number, name: string, props) => {
-            const { wars, rows, peace, games } = props.payload;
+            const { wars, rows, peace, intel, games } = props.payload;
             return [
-              `${value} avg · total ${(wars + rows + peace).toFixed(1)} diplomatic acts · ${games} games`,
+              `${value} avg · total ${(wars + rows + peace + intel).toFixed(1)} diplomatic acts · ${games} games`,
               name,
             ];
           }}
@@ -67,7 +68,8 @@ export default function CountryDiplomacyChart({ data, topN = 20, minGames = 3 }:
         <Legend wrapperStyle={{ fontSize: 11 }} />
         <Bar dataKey="wars" name="Wars Declared" stackId="a" fill="#e74c3c" />
         <Bar dataKey="rows" name="Right of Ways" stackId="a" fill="#4a90e2" />
-        <Bar dataKey="peace" name="Peace Treaties" stackId="a" fill="#50c878" radius={[0, 3, 3, 0]} />
+        <Bar dataKey="peace" name="Peace Treaties" stackId="a" fill="#50c878" />
+        <Bar dataKey="intel" name="Shared Intelligence" stackId="a" fill="#9b59b6" radius={[0, 3, 3, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

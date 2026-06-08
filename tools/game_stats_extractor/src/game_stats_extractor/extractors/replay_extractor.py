@@ -318,7 +318,8 @@ class ReplayExtractor(BaseExtractor):
         dp_alliances: dict[int, int] = defaultdict(int)
         dp_allianced: dict[int, int] = defaultdict(int)
         dp_rows: dict[int, int] = defaultdict(int)
-        game_wars = game_peace = game_alliances = game_allianced = game_rows = 0
+        dp_intel: dict[int, int] = defaultdict(int)
+        game_wars = game_peace = game_alliances = game_allianced = game_rows = game_intel = 0
 
         # Current diplomatic state — 0-indexed sender -> receiver -> ForeignAffairRelationTypes.value.
         # Replaced wholesale with the new snapshot on each ForeignAffairsRelationChanged event,
@@ -549,6 +550,9 @@ class ReplayExtractor(BaseExtractor):
                         if new_val == _row_val:
                             dp_rows[sender_id] += 1
                             game_rows += 1
+                        if new_val == _intel_val:
+                            dp_intel[sender_id] += 1
+                            game_intel += 1
 
             for player_event in events.get(ReplayHookTag.PlayerChanged, []):
                 player_profile = player_event.reference
@@ -767,6 +771,7 @@ class ReplayExtractor(BaseExtractor):
                 alliances_formed=dp_alliances.get(player_id, 0),
                 alliance_dissolutions=dp_allianced.get(player_id, 0),
                 right_of_ways_signed=dp_rows.get(player_id, 0),
+                shared_intelligence_signed=dp_intel.get(player_id, 0),
                 avg_production_by_type={
                     rtype: player_prod_sum[player_id][rtype] / n_prod
                     for rtype in player_prod_sum.get(player_id, {})
@@ -862,6 +867,7 @@ class ReplayExtractor(BaseExtractor):
             total_alliances_formed=game_alliances,
             total_alliance_dissolutions=game_allianced,
             total_right_of_ways=game_rows,
+            total_shared_intelligence=game_intel,
             pct_alive_buckets=_finalize_buckets(pct_alive_sum, pct_alive_n),
             pct_active_human_buckets=_finalize_buckets(pct_active_human_sum, pct_active_human_n),
             pct_passive_human_buckets=_finalize_buckets(pct_passive_human_sum, pct_passive_human_n),

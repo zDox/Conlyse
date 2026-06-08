@@ -30,6 +30,7 @@ from sklearn.metrics import (
 )
 
 from .features import load_dataset
+from .predict import load_calibrator
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,13 @@ def _load_predictions(
     X = df[cols].values
     y = df["is_winner"].astype(int).values
     preds = model.predict(X)
+
+    # Apply the bundled post-hoc calibrator (if any) so the report reflects the
+    # probabilities the desktop app actually shows, not raw LightGBM outputs.
+    calibrator = load_calibrator(model_path)
+    if calibrator is not None:
+        preds = calibrator.predict(preds)
+
     df = df.copy()
     df["pred"] = preds
     return df, y, preds, model

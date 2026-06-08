@@ -32,6 +32,7 @@ class PlayerData:
     alliances_formed: int = 0
     alliance_dissolutions: int = 0
     right_of_ways_signed: int = 0
+    shared_intelligence_signed: int = 0
     avg_production_by_type: dict[str, float] = field(default_factory=dict)
     total_production_by_type: dict[str, float] = field(default_factory=dict)
     peak_production_by_type: dict[str, float] = field(default_factory=dict)
@@ -91,6 +92,7 @@ class GameData:
     total_alliances_formed: int = 0
     total_alliance_dissolutions: int = 0
     total_right_of_ways: int = 0
+    total_shared_intelligence: int = 0
     pct_alive_buckets: dict[int, int] = field(default_factory=dict)
     pct_active_human_buckets: dict[int, int] = field(default_factory=dict)
     pct_passive_human_buckets: dict[int, int] = field(default_factory=dict)

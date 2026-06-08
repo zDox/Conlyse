@@ -54,6 +54,7 @@ class GlobalAggregate(BaseModel):
     avg_peace_treaties_per_game: float = 0.0
     avg_alliances_per_game: float = 0.0
     avg_right_of_ways_per_game: float = 0.0
+    avg_shared_intelligence_per_game: float = 0.0
     avg_game_total_production: dict[str, float] = {}
     coalition_size_distribution: dict[str, int] = {}
     avg_coalition_size: float = 0.0
@@ -81,6 +82,7 @@ class CountryAggregate(BaseModel):
     avg_peace_treaties_signed: float = 0.0
     avg_alliances_formed: float = 0.0
     avg_right_of_ways_signed: float = 0.0
+    avg_shared_intelligence_signed: float = 0.0
     avg_total_production: dict[str, float] = {}
     avg_production_rate: dict[str, float] = {}
     avg_final_building_counts: dict[str, float] = {}

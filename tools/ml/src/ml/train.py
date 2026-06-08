@@ -9,12 +9,15 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import joblib
 import lightgbm as lgb
 import numpy as np
-from sklearn.metrics import roc_auc_score
+from sklearn.isotonic import IsotonicRegression
+from sklearn.metrics import brier_score_loss, roc_auc_score
 from sklearn.model_selection import GroupKFold
 
 from .features import feature_cols, load_dataset
+from .predict import calibrator_path
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +90,18 @@ def train(
     oof_auc = roc_auc_score(y, oof_preds)
     logger.info("OOF AUC=%.4f  (folds: %s)", oof_auc, ", ".join(f"{a:.4f}" for a in fold_aucs))
 
+    # `is_unbalance=True` makes raw predictions reflect a rebalanced ~50/50 prior
+    # rather than the true ~3% positive rate, so they rank well (AUC) but are
+    # systematically overconfident as probabilities. Fit a monotonic post-hoc
+    # calibrator on the leak-free OOF predictions to map raw scores back to true
+    # probabilities without touching the (good) ranking behaviour.
+    calibrator = IsotonicRegression(out_of_bounds="clip").fit(oof_preds, y)
+    raw_brier = brier_score_loss(y, oof_preds)
+    calibrated_brier = brier_score_loss(y, calibrator.predict(oof_preds))
+    logger.info(
+        "OOF Brier score: raw=%.4f  calibrated=%.4f", raw_brier, calibrated_brier
+    )
+
     # AUC breakdown by pct_game bucket — shows how predictive each time window is
     logger.info("AUC by pct_game:")
     for pct in sorted(df["pct_game"].unique()):
@@ -109,3 +124,7 @@ def train(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     final_model.save_model(str(output_path))
     logger.info("Model saved to %s", output_path)
+
+    calib_path = calibrator_path(output_path)
+    joblib.dump(calibrator, calib_path)
+    logger.info("Calibrator saved to %s", calib_path)

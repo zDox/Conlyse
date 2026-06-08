@@ -60,6 +60,7 @@ def _aggregate_country(
     peace_treaties = [p.peace_treaties_signed for _, p in entries]
     alliances_formed = [p.alliances_formed for _, p in entries]
     right_of_ways = [p.right_of_ways_signed for _, p in entries]
+    shared_intelligence = [p.shared_intelligence_signed for _, p in entries]
 
     # Placement: rank by final_vp within each game (1 = best)
     placements: list[float] = []
@@ -133,6 +134,7 @@ def _aggregate_country(
         avg_peace_treaties_signed=_mean(peace_treaties),
         avg_alliances_formed=_mean(alliances_formed),
         avg_right_of_ways_signed=_mean(right_of_ways),
+        avg_shared_intelligence_signed=_mean(shared_intelligence),
         avg_total_production=avg_total_production,
         avg_production_rate=avg_production_rate,
         avg_final_building_counts=avg_final_building_counts,

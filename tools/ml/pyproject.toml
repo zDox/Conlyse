@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Win-probability ML model for Conflict of Nations replays"
 requires-python = ">=3.12"
 dependencies = [
+    "joblib",
     "lightgbm>=4.0",
     "matplotlib>=3.8",
     "pandas>=2.0",

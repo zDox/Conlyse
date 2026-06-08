@@ -49,7 +49,7 @@ export default function GlobalStatsSection({ data, timeseries }: Props) {
         <div id="chart-global-diplomacy" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Diplomacy per Game</h3>
           <p className={styles.chartSubtitle}>
-            Avg {data.avg_wars_per_game.toFixed(0)} wars · {data.avg_right_of_ways_per_game.toFixed(0)} right-of-ways · {data.avg_peace_treaties_per_game.toFixed(0)} peace treaties
+            Avg {data.avg_wars_per_game.toFixed(0)} wars · {data.avg_right_of_ways_per_game.toFixed(0)} right-of-ways · {data.avg_peace_treaties_per_game.toFixed(0)} peace treaties · {data.avg_shared_intelligence_per_game.toFixed(0)} shared intel
           </p>
           <DiplomacyGlobalChart data={data} />
         </div>
