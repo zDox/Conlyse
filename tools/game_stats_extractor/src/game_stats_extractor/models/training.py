@@ -42,8 +42,12 @@ class TrainingRow:
     # National morale (average province morale for this player, averaged over ticks)
     national_morale: float = 0.0
 
-    # Buildings (average count per building type over ticks in the bucket)
+    # Buildings (average count per building group over ticks in the bucket)
     building_counts: dict[str, float] = field(default_factory=dict)
+
+    # Buildings broken down by (Building Group, Tier) — finer-grained signal
+    # alongside the group-level building_counts above.
+    building_type_counts: dict[tuple[str, int], float] = field(default_factory=dict)
 
     # Player type
     is_ai: bool = False
@@ -72,6 +76,9 @@ class TrainingRow:
             d[f"{rtype.lower()}_production"] = self.production.get(rtype, 0.0)
         for uid, count in self.building_counts.items():
             col = "bld_" + uid.replace(" ", "_").replace("-", "_")
+            d[col] = count
+        for (uid, tier), count in self.building_type_counts.items():
+            col = "bld_" + uid.replace(" ", "_").replace("-", "_") + f"_t{tier}"
             d[col] = count
         return d
 
@@ -111,6 +118,11 @@ def training_rows_from_game_data(
                 if pct in bucket_map:
                     bld[uid] = bucket_map[pct]
 
+            bld_type: dict[tuple[str, int], float] = {}
+            for type_key, bucket_map in player.building_type_pct_buckets.items():
+                if pct in bucket_map:
+                    bld_type[type_key] = bucket_map[pct]
+
             rows.append(TrainingRow(
                 game_id=game.game_id,
                 player_id=player.player_id,
@@ -122,6 +134,7 @@ def training_rows_from_game_data(
                 production=prod,
                 national_morale=player.morale_pct_buckets.get(pct, 0.0),
                 building_counts=bld,
+                building_type_counts=bld_type,
                 is_ai=player.is_ai,
                 total_players=total_players,
                 is_winner=player.player_id in winner_ids,

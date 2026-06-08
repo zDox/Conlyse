@@ -9,7 +9,7 @@ Usage:
     province_count, vp, money_production, supply_production, fuel_production,
     component_production, electronic_production, rare_material_production,
     national_morale, is_ai, total_players, pct_game, bucket_coverage,
-    and optionally bld_* columns.
+    and optionally bld_<group> / bld_<group>_t<tier> building-count columns.
 
 The caller is responsible for building these from the live game state.
 Probabilities are raw model outputs (not normalised to sum to 1).
@@ -21,7 +21,7 @@ from pathlib import Path
 import lightgbm as lgb
 import pandas as pd
 
-from .features import FEATURE_COLS, engineer_features
+from .features import engineer_features
 
 
 class Predictor:
@@ -51,12 +51,14 @@ class Predictor:
 
         df = engineer_features(df)
 
-        # Zero-fill any missing feature columns
-        for col in FEATURE_COLS:
+        # Use the exact feature-column list the model was trained with
+        # (persisted in the model file via lgb.Dataset(feature_name=...)).
+        cols = self._model.feature_name()
+        for col in cols:
             if col not in df.columns:
                 df[col] = 0.0
 
-        X = df[FEATURE_COLS].values
+        X = df[cols].values
         probs = self._model.predict(X)
 
         return {s["player_id"]: float(probs[i]) for i, s in enumerate(snapshots)}

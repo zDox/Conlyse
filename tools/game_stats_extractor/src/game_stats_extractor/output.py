@@ -117,6 +117,16 @@ def _timeseries_compact(ts: TimeSeriesOutput) -> dict:
                 "n":   [by_b[b].games_sampled if b in by_b else None for b in ts.pct_buckets],
             }
 
+        bld_type_pct: dict = {}
+        for uid, tiers in c.building_type_pct_game.items():
+            bld_type_pct[uid] = {}
+            for tier, points in tiers.items():
+                by_b = {p.bucket: p for p in points}
+                bld_type_pct[uid][tier] = {
+                    "avg": [_r(by_b[b].avg_count) if b in by_b else None for b in ts.pct_buckets],
+                    "n":   [by_b[b].games_sampled if b in by_b else None for b in ts.pct_buckets],
+                }
+
         morale_pct_by_b = {p.bucket: p for p in c.morale_pct_game}
         morale_day_by_b = {p.bucket: p for p in c.morale_game_days}
         morale_pct_avg = [_r(morale_pct_by_b[b].avg_morale) if b in morale_pct_by_b else None for b in ts.pct_buckets]
@@ -136,6 +146,7 @@ def _timeseries_compact(ts: TimeSeriesOutput) -> dict:
             "prod_pct": prod_pct,
             "prod_day": prod_day,
             "bld_pct": bld_pct,
+            "bld_type_pct": bld_type_pct,
             "morale_pct_avg": morale_pct_avg,
             "morale_pct_n":   morale_pct_n,
             "morale_day_avg": morale_day_avg,

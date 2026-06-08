@@ -126,6 +126,7 @@ export interface CountryTimeSeries {
   production_pct_game?: Record<string, ProductionTimeSeriesPoint[]>;
   production_game_days?: Record<string, ProductionTimeSeriesPoint[]>;
   building_pct_game?: Record<string, BuildingTimeSeriesPoint[]>;
+  building_type_pct_game?: Record<string, Record<string, BuildingTimeSeriesPoint[]>>;
   morale_pct_game?: MoraleTimeSeriesPoint[];
   morale_game_days?: MoraleTimeSeriesPoint[];
 }

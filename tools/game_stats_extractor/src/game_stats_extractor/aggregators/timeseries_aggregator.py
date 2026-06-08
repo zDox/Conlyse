@@ -73,6 +73,14 @@ class TimeSeriesAggregator(BaseAggregator[TimeSeriesOutput]):
                 for uid in sorted(all_bld_types)
             }
 
+            all_bld_type_keys = {key for _, p in entries for key in p.building_type_pct_buckets}
+            building_type_pct_game: dict[str, dict[int, list[BuildingTimeSeriesPoint]]] = defaultdict(dict)
+            for uid, tier in sorted(all_bld_type_keys):
+                building_type_pct_game[uid][tier] = _aggregate_building_buckets(
+                    [p.building_type_pct_buckets.get((uid, tier), {}) for _, p in entries], _PCT_BUCKETS
+                )
+            building_type_pct_game = dict(building_type_pct_game)
+
             morale_pct_game = _aggregate_morale_buckets(
                 [p.morale_pct_buckets for _, p in entries], _PCT_BUCKETS
             )
@@ -91,6 +99,7 @@ class TimeSeriesAggregator(BaseAggregator[TimeSeriesOutput]):
                 production_pct_game=production_pct_game,
                 production_game_days=production_game_days,
                 building_pct_game=building_pct_game,
+                building_type_pct_game=building_type_pct_game,
                 morale_pct_game=morale_pct_game,
                 morale_game_days=morale_game_days,
             ))

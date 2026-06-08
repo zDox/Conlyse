@@ -132,6 +132,7 @@ class CountryTimeSeries(BaseModel):
     production_pct_game: dict[str, list[ProductionTimeSeriesPoint]] = {}
     production_game_days: dict[str, list[ProductionTimeSeriesPoint]] = {}
     building_pct_game: dict[str, list[BuildingTimeSeriesPoint]] = {}
+    building_type_pct_game: dict[str, dict[int, list[BuildingTimeSeriesPoint]]] = {}
     morale_pct_game: list[MoraleTimeSeriesPoint] = []
     morale_game_days: list[MoraleTimeSeriesPoint] = []
 

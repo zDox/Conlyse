@@ -41,6 +41,14 @@ def _upgrade_identifier(upgrade_id: int, ut_map: dict) -> str:
     return ut.upgrade_identifier or ut.upgrade_name or str(upgrade_id)
 
 
+def _upgrade_type_key(upgrade_id: int, ut_map: dict) -> tuple[str, int]:
+    """Building type key — (Building Group identifier, Tier within that group)."""
+    ut = ut_map.get(upgrade_id)
+    if ut is None:
+        return (str(upgrade_id), 0)
+    return (ut.upgrade_identifier or ut.upgrade_name or str(upgrade_id), ut.tier)
+
+
 def _is_player_building(upgrade_id: int, ut_map: dict) -> bool:
     """True only for player-constructable persistent buildings (have resource costs, not one-time actions)."""
     ut = ut_map.get(upgrade_id)
@@ -62,13 +70,13 @@ def _is_built(upgrade, ut_map: dict) -> bool:
     return cond >= ut.build_condition
 
 
-def _province_built_buildings(province, ut_map: dict) -> dict[str, int]:
-    counts: dict[str, int] = {}
+def _province_built_buildings(province, ut_map: dict) -> dict[tuple[str, int], int]:
+    counts: dict[tuple[str, int], int] = {}
     upgrades = getattr(province, "upgrades", None) or {}
     for upgrade in upgrades.values():
         if _is_player_building(upgrade.id, ut_map) and _is_built(upgrade, ut_map):
-            uid = _upgrade_identifier(upgrade.id, ut_map)
-            counts[uid] = counts.get(uid, 0) + 1
+            key = _upgrade_type_key(upgrade.id, ut_map)
+            counts[key] = counts.get(key, 0) + 1
     return counts
 
 
@@ -90,6 +98,14 @@ def _finalize_buckets(sums: dict[int, float], ns: dict[int, int]) -> dict[int, i
 
 def _finalize_float_buckets(sums: dict[int, float], ns: dict[int, int]) -> dict[int, float]:
     return {b: sums[b] / ns[b] for b in sums if ns[b] > 0}
+
+
+def _group_building_counts(type_counts: dict[tuple[str, int], int]) -> dict[str, int]:
+    """Sum (uid, tier)-keyed Building Type counts into uid-keyed Building Group counts."""
+    totals: dict[str, int] = defaultdict(int)
+    for (uid, _tier), cnt in type_counts.items():
+        totals[uid] += cnt
+    return dict(totals)
 
 
 class ReplayExtractor(BaseExtractor):
@@ -276,18 +292,23 @@ class ReplayExtractor(BaseExtractor):
         prod_day_n:   dict[int, dict[str, dict[int, int]]]   = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         prev_time = start_time
 
-        # Building accumulators — seeded from initial state (one-time scan of ~3400 provinces)
-        current_province_buildings: dict[int, dict[str, int]] = {
+        # Building accumulators — keyed by (Building Group identifier, Tier), i.e. "Building Type".
+        # Seeded from initial state (one-time scan of ~3400 provinces)
+        current_province_buildings: dict[int, dict[tuple[str, int], int]] = {
             pid: _province_built_buildings(p, ut_map) for pid, p in initial_land.items()
         }
-        current_player_buildings: dict[int, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        current_player_buildings: dict[int, dict[tuple[str, int], int]] = defaultdict(lambda: defaultdict(int))
         for pid, bld in current_province_buildings.items():
             owner = initial_owners.get(pid, _UNOWNED)
             if owner > _UNOWNED:
-                for uid, cnt in bld.items():
-                    current_player_buildings[owner][uid] += cnt
+                for type_key, cnt in bld.items():
+                    current_player_buildings[owner][type_key] += cnt
+        # Building Group (uid) time series — derived by summing counts across tiers at snapshot time
         bld_pct_sum: dict[int, dict[str, dict[int, float]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
         bld_pct_n:   dict[int, dict[str, dict[int, int]]]   = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        # Building Type ((uid, tier)) time series
+        bldtype_pct_sum: dict[int, dict[tuple[str, int], dict[int, float]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+        bldtype_pct_n:   dict[int, dict[tuple[str, int], dict[int, int]]]   = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         bld_level_sum: dict[int, dict[str, float]] = defaultdict(lambda: defaultdict(float))
         bld_level_n:   dict[int, dict[str, int]]   = defaultdict(lambda: defaultdict(int))
 
@@ -384,13 +405,13 @@ class ReplayExtractor(BaseExtractor):
                     prov_bld = current_province_buildings.get(pid, {})
                     if prov_bld:
                         if old_owner is not None and old_owner > _UNOWNED:
-                            for uid, cnt in prov_bld.items():
-                                current_player_buildings[old_owner][uid] = max(
-                                    0, current_player_buildings[old_owner].get(uid, 0) - cnt
+                            for type_key, cnt in prov_bld.items():
+                                current_player_buildings[old_owner][type_key] = max(
+                                    0, current_player_buildings[old_owner].get(type_key, 0) - cnt
                                 )
                         if new_owner is not None and new_owner > _UNOWNED:
-                            for uid, cnt in prov_bld.items():
-                                current_player_buildings[new_owner][uid] += cnt
+                            for type_key, cnt in prov_bld.items():
+                                current_player_buildings[new_owner][type_key] += cnt
 
                 if "money_production" in attrs:
                     _, new_mprod = attrs["money_production"]
@@ -443,27 +464,27 @@ class ReplayExtractor(BaseExtractor):
                         was_built = _is_built(old_u, ut_map) if old_u is not None else False
                         now_built = _is_built(new_u, ut_map)
                         if not was_built and now_built:
-                            uid = _upgrade_identifier(upgrade_id, ut_map)
+                            type_key = _upgrade_type_key(upgrade_id, ut_map)
                             prov_bld = current_province_buildings.setdefault(pid, {})
-                            prov_bld[uid] = prov_bld.get(uid, 0) + 1
+                            prov_bld[type_key] = prov_bld.get(type_key, 0) + 1
                             if owner > _UNOWNED:
-                                current_player_buildings[owner][uid] += 1
+                                current_player_buildings[owner][type_key] += 1
                         elif was_built and not now_built:
-                            uid = _upgrade_identifier(upgrade_id, ut_map)
+                            type_key = _upgrade_type_key(upgrade_id, ut_map)
                             prov_bld = current_province_buildings.setdefault(pid, {})
-                            prov_bld[uid] = max(0, prov_bld.get(uid, 0) - 1)
+                            prov_bld[type_key] = max(0, prov_bld.get(type_key, 0) - 1)
                             if owner > _UNOWNED:
-                                current_player_buildings[owner][uid] = max(
-                                    0, current_player_buildings[owner].get(uid, 0) - 1
+                                current_player_buildings[owner][type_key] = max(
+                                    0, current_player_buildings[owner].get(type_key, 0) - 1
                                 )
                     for upgrade_id, old_u in old_by_id.items():
                         if upgrade_id not in new_by_id and _is_player_building(upgrade_id, ut_map) and _is_built(old_u, ut_map):
-                            uid = _upgrade_identifier(upgrade_id, ut_map)
+                            type_key = _upgrade_type_key(upgrade_id, ut_map)
                             prov_bld = current_province_buildings.setdefault(pid, {})
-                            prov_bld[uid] = max(0, prov_bld.get(uid, 0) - 1)
+                            prov_bld[type_key] = max(0, prov_bld.get(type_key, 0) - 1)
                             if owner > _UNOWNED:
-                                current_player_buildings[owner][uid] = max(
-                                    0, current_player_buildings[owner].get(uid, 0) - 1
+                                current_player_buildings[owner][type_key] = max(
+                                    0, current_player_buildings[owner].get(type_key, 0) - 1
                                 )
 
             # Diplomacy — one event per tick when neighbor_relations changed;
@@ -610,12 +631,19 @@ class ReplayExtractor(BaseExtractor):
             day_ai_sum[db] += n_ai
             day_ai_n[db] += 1
 
-            # Building time-series snapshot (O(players × building_types) — no province scan)
-            for player_id, uid_counts in current_player_buildings.items():
-                for uid, cnt in uid_counts.items():
+            # Building time-series snapshot (O(players × building_types) — no province scan).
+            # Snapshot per Building Type ((uid, tier)) directly, and derive the Building Group
+            # (uid) snapshot by summing tier counts so its avg/n semantics stay unchanged.
+            for player_id, type_counts in current_player_buildings.items():
+                uid_totals: dict[str, int] = defaultdict(int)
+                for (uid, tier), cnt in type_counts.items():
                     if cnt > 0:
-                        bld_pct_sum[player_id][uid][pb] += cnt
-                        bld_pct_n[player_id][uid][pb] += 1
+                        uid_totals[uid] += cnt
+                        bldtype_pct_sum[player_id][(uid, tier)][pb] += cnt
+                        bldtype_pct_n[player_id][(uid, tier)][pb] += 1
+                for uid, total in uid_totals.items():
+                    bld_pct_sum[player_id][uid][pb] += total
+                    bld_pct_n[player_id][uid][pb] += 1
 
             # National morale snapshot — average province morale per player
             for player_id, total_morale in player_morale_total.items():
@@ -712,7 +740,7 @@ class ReplayExtractor(BaseExtractor):
                     rtype: _finalize_float_buckets(prod_day_sum[player_id][rtype], prod_day_n[player_id][rtype])
                     for rtype in prod_day_sum.get(player_id, {})
                 },
-                final_building_counts=dict(current_player_buildings.get(player_id, {})),
+                final_building_counts=_group_building_counts(current_player_buildings.get(player_id, {})),
                 final_building_levels={
                     uid: bld_level_sum[player_id][uid] / bld_level_n[player_id][uid]
                     for uid in bld_level_sum.get(player_id, {})
@@ -725,6 +753,10 @@ class ReplayExtractor(BaseExtractor):
                 building_pct_buckets={
                     uid: _finalize_float_buckets(bld_pct_sum[player_id][uid], bld_pct_n[player_id][uid])
                     for uid in bld_pct_sum.get(player_id, {})
+                },
+                building_type_pct_buckets={
+                    type_key: _finalize_float_buckets(bldtype_pct_sum[player_id][type_key], bldtype_pct_n[player_id][type_key])
+                    for type_key in bldtype_pct_sum.get(player_id, {})
                 },
                 pct_bucket_coverage=dict(pct_bucket_n[player_id]),
                 elimination_game_pct=player_elimination_pct.get(player_id),

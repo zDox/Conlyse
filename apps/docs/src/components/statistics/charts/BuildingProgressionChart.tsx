@@ -23,41 +23,66 @@ const COLORS = [
   '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac',
 ];
 
-export default function BuildingProgressionChart({ timeseries, buildings, pct_buckets, topNCountries = 8 }: Props) {
-  const topBuildings = useMemo(
-    () => [...buildings].sort((a, b) => b.avg_per_game - a.avg_per_game).slice(0, 12).map((b) => b.upgrade_identifier),
-    [buildings],
-  );
+interface BuildingTypeOption {
+  key: string;
+  uid: string;
+  tier: number;
+  label: string;
+}
 
-  const [selectedBuilding, setSelectedBuilding] = useState<string>(topBuildings[0] ?? '');
+export default function BuildingProgressionChart({ timeseries, buildings, pct_buckets, topNCountries = 8 }: Props) {
+  const topBuildingTypes = useMemo(() => {
+    const options: Array<BuildingTypeOption & { score: number }> = [];
+    for (const b of buildings) {
+      for (const [tierStr, avg] of Object.entries(b.avg_per_tier)) {
+        if (!avg) continue;
+        const tier = Number(tierStr);
+        options.push({
+          key: `${b.upgrade_identifier}::${tier}`,
+          uid: b.upgrade_identifier,
+          tier,
+          label: `${b.upgrade_identifier} — Tier ${tier}`,
+          score: avg,
+        });
+      }
+    }
+    return options.sort((a, b) => b.score - a.score).slice(0, 12);
+  }, [buildings]);
+
+  const [selectedKey, setSelectedKey] = useState<string>(topBuildingTypes[0]?.key ?? '');
+
+  const selected = useMemo(
+    () => topBuildingTypes.find((o) => o.key === selectedKey),
+    [topBuildingTypes, selectedKey],
+  );
 
   const topCountries = useMemo(
     () => [...timeseries]
-      .filter((c) => c.building_pct_game?.[selectedBuilding]?.length)
+      .filter((c) => selected && c.building_type_pct_game?.[selected.uid]?.[String(selected.tier)]?.length)
       .sort((a, b) => b.games_played - a.games_played)
       .slice(0, topNCountries),
-    [timeseries, selectedBuilding, topNCountries],
+    [timeseries, selected, topNCountries],
   );
 
   const chartData = useMemo(() => {
     return pct_buckets.map((b) => {
       const row: Record<string, number | null> = { pct: b };
       for (const c of topCountries) {
-        const pts = c.building_pct_game?.[selectedBuilding] ?? [];
+        const pts = (selected && c.building_type_pct_game?.[selected.uid]?.[String(selected.tier)]) ?? [];
         const pt = pts.find((p) => p.bucket === b);
         row[c.nation_name] = pt ? pt.avg_count : null;
       }
       return row;
     });
-  }, [pct_buckets, topCountries, selectedBuilding]);
+  }, [pct_buckets, topCountries, selected]);
 
   return (
     <div>
       <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13, color: 'var(--ifm-font-color-base)' }}>Building:</span>
+        <span style={{ fontSize: 13, color: 'var(--ifm-font-color-base)' }}>Building type:</span>
         <select
-          value={selectedBuilding}
-          onChange={(e) => setSelectedBuilding(e.target.value)}
+          value={selectedKey}
+          onChange={(e) => setSelectedKey(e.target.value)}
           style={{
             background: 'var(--ifm-background-surface-color)',
             border: '1px solid var(--ifm-color-emphasis-300)',
@@ -67,8 +92,8 @@ export default function BuildingProgressionChart({ timeseries, buildings, pct_bu
             fontSize: 13,
           }}
         >
-          {topBuildings.map((uid) => (
-            <option key={uid} value={uid}>{uid}</option>
+          {topBuildingTypes.map((o) => (
+            <option key={o.key} value={o.key}>{o.label}</option>
           ))}
         </select>
       </div>

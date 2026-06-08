@@ -35,7 +35,7 @@ def _cmd_eval(args: argparse.Namespace) -> None:
     import lightgbm as lgb
     from sklearn.metrics import roc_auc_score
 
-    from .features import FEATURE_COLS, load_dataset
+    from .features import load_dataset
 
     logger = logging.getLogger(__name__)
     logger.info("Loading dataset from %s", args.dataset)
@@ -45,12 +45,13 @@ def _cmd_eval(args: argparse.Namespace) -> None:
         df = df[df["bucket_coverage"] >= args.min_coverage].reset_index(drop=True)
 
     model = lgb.Booster(model_file=str(args.model))
+    cols = model.feature_name()
 
-    for col in FEATURE_COLS:
+    for col in cols:
         if col not in df.columns:
             df[col] = 0.0
 
-    X = df[FEATURE_COLS].values
+    X = df[cols].values
     y = df["is_winner"].astype(int).values
     preds = model.predict(X)
 

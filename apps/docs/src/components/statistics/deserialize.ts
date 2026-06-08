@@ -79,6 +79,7 @@ export function deserializeBuildings(raw: ColumnarData): BuildingAggregate[] {
 
 type BucketSeries = Record<string, { avg: (number | null)[]; n: (number | null)[] }>;
 type ProdSeries = BucketSeries;
+type BuildingTypeSeries = Record<string, BucketSeries>;
 
 function _deserializeProdBuckets(
   series: ProdSeries,
@@ -124,6 +125,17 @@ function _deserializeBldBuckets(
   return result;
 }
 
+function _deserializeBldTypeBuckets(
+  series: BuildingTypeSeries,
+  pct_buckets: number[],
+): Record<string, Record<string, BuildingTimeSeriesPoint[]>> {
+  const result: Record<string, Record<string, BuildingTimeSeriesPoint[]>> = {};
+  for (const [uid, tiers] of Object.entries(series)) {
+    result[uid] = _deserializeBldBuckets(tiers, pct_buckets);
+  }
+  return result;
+}
+
 export function deserializeTimeSeries(raw: {
   pct_buckets: number[];
   max_game_days: number;
@@ -150,6 +162,7 @@ export function deserializeTimeSeries(raw: {
     prod_pct?: ProdSeries;
     prod_day?: ProdSeries;
     bld_pct?: BucketSeries;
+    bld_type_pct?: BuildingTypeSeries;
     morale_pct_avg?: (number | null)[];
     morale_pct_n?:   (number | null)[];
     morale_day_avg?: (number | null)[];
@@ -209,6 +222,9 @@ export function deserializeTimeSeries(raw: {
         : undefined,
       building_pct_game: c.bld_pct
         ? _deserializeBldBuckets(c.bld_pct, raw.pct_buckets)
+        : undefined,
+      building_type_pct_game: c.bld_type_pct
+        ? _deserializeBldTypeBuckets(c.bld_type_pct, raw.pct_buckets)
         : undefined,
       morale_pct_game: c.morale_pct_avg
         ? raw.pct_buckets

@@ -2,7 +2,12 @@
 Feature engineering for win-probability model.
 
 Adds relative-rank and momentum features on top of the raw TrainingRow columns.
-`FEATURE_COLS` is the single source of truth used by both train.py and predict.py.
+
+Building columns (`bld_*` / `bld_*_t<tier>`) are sparse and vary per dataset, so
+there is no static feature-column constant. `feature_cols(df)` derives the
+ordered list for a given dataset at train time; LightGBM persists that list
+inside the saved model (`feature_name=`), and `Booster.feature_name()` retrieves
+the exact same list at inference/eval time.
 """
 from __future__ import annotations
 
@@ -40,7 +45,14 @@ _ENGINEERED_COLS = [
     "is_alive",
 ]
 
-FEATURE_COLS: list[str] = _RAW_COLS + _ENGINEERED_COLS
+def building_cols(df: pd.DataFrame) -> list[str]:
+    """All bld_* columns present in this dataset, sorted for determinism."""
+    return sorted(c for c in df.columns if c.startswith("bld_"))
+
+
+def feature_cols(df: pd.DataFrame) -> list[str]:
+    """Full ordered feature-column list for this dataset: base + buildings + engineered."""
+    return _RAW_COLS + building_cols(df) + _ENGINEERED_COLS
 
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -80,10 +92,11 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # ── Derived ───────────────────────────────────────────────────────────
     df["is_alive"] = (df["province_count"] > 0).astype(int)
 
-    # Ensure all feature columns are present (building columns are variable)
-    for col in FEATURE_COLS:
-        if col not in df.columns:
-            df[col] = 0.0
+    # Building columns are sparse — pd.DataFrame(list_of_dicts) fills missing
+    # entries with NaN per row; treat "doesn't have this building" as zero.
+    for col in df.columns:
+        if col.startswith("bld_"):
+            df[col] = df[col].fillna(0.0)
 
     return df
 

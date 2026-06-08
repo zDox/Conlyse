@@ -14,7 +14,7 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GroupKFold
 
-from .features import FEATURE_COLS, load_dataset
+from .features import feature_cols, load_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -46,20 +46,14 @@ def train(
         df = df[df["bucket_coverage"] >= min_coverage].reset_index(drop=True)
         logger.info("Filtered to coverage >= %d: %d → %d rows", min_coverage, before, len(df))
 
-    # Ensure all FEATURE_COLS are present
-    missing = [c for c in FEATURE_COLS if c not in df.columns]
-    if missing:
-        logger.warning("Missing feature columns (will be zero-filled): %s", missing)
-        for c in missing:
-            df[c] = 0.0
-
-    X = df[FEATURE_COLS].values
+    cols = feature_cols(df)
+    X = df[cols].values
     y = df["is_winner"].astype(int).values
     groups = df["game_id"].values
 
     logger.info(
         "Dataset: %d rows, %d features, %.4f positive rate",
-        len(df), len(FEATURE_COLS), y.mean(),
+        len(df), len(cols), y.mean(),
     )
 
     gkf = GroupKFold(n_splits=n_folds)
@@ -70,8 +64,8 @@ def train(
         X_tr, X_val = X[train_idx], X[val_idx]
         y_tr, y_val = y[train_idx], y[val_idx]
 
-        train_ds = lgb.Dataset(X_tr, label=y_tr, feature_name=FEATURE_COLS)
-        val_ds = lgb.Dataset(X_val, label=y_val, feature_name=FEATURE_COLS, reference=train_ds)
+        train_ds = lgb.Dataset(X_tr, label=y_tr, feature_name=cols)
+        val_ds = lgb.Dataset(X_val, label=y_val, feature_name=cols, reference=train_ds)
 
         model = lgb.train(
             _LGB_PARAMS,
@@ -104,7 +98,7 @@ def train(
 
     # Retrain on full dataset
     logger.info("Retraining final model on all %d rows", len(df))
-    full_ds = lgb.Dataset(X, label=y, feature_name=FEATURE_COLS)
+    full_ds = lgb.Dataset(X, label=y, feature_name=cols)
     best_trees = int(np.median([m for m in [model.num_trees()]]))  # use last fold's count
     final_model = lgb.train(
         {**_LGB_PARAMS, "verbose": -1},
