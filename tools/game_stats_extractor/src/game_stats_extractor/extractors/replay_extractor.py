@@ -320,6 +320,21 @@ class ReplayExtractor(BaseExtractor):
         dp_rows: dict[int, int] = defaultdict(int)
         game_wars = game_peace = game_alliances = game_allianced = game_rows = 0
 
+        # Current diplomatic state — 0-indexed sender -> receiver -> ForeignAffairRelationTypes.value.
+        # Replaced wholesale with the new snapshot on each ForeignAffairsRelationChanged event,
+        # then sampled per-tick (alongside province/VP/morale) into pct buckets below.
+        #
+        # Note: only WAR, RIGHT_OF_WAY and SHARED_INTELLIGENCE were ever observed in real
+        # games (sampled ~18 replays) — MUTUAL_PROTECTION/NON_AGGRESSION_PACT/CEASEFIRE/
+        # TRADE_EMBARGO never occur, so only the three meaningful types are tracked.
+        current_relations: dict[int, dict[int, int]] = {}
+        dp_war_pct_sum: dict[int, dict[int, float]] = defaultdict(lambda: defaultdict(float))
+        dp_war_pct_n: dict[int, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+        dp_row_pct_sum: dict[int, dict[int, float]] = defaultdict(lambda: defaultdict(float))
+        dp_row_pct_n: dict[int, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+        dp_intel_pct_sum: dict[int, dict[int, float]] = defaultdict(lambda: defaultdict(float))
+        dp_intel_pct_n: dict[int, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+
         # Seed initial VP from player profiles at start_time; also record AI flag
         initial_players_map = gs.states.player_state.players
         current_player_vp: dict[int, int] = {
@@ -496,10 +511,18 @@ class ReplayExtractor(BaseExtractor):
             _peace_val = ForeignAffairRelationTypes.PEACE.value
             _mutual_val = ForeignAffairRelationTypes.MUTUAL_PROTECTION.value
             _row_val = ForeignAffairRelationTypes.RIGHT_OF_WAY.value
+            _intel_val = ForeignAffairRelationTypes.SHARED_INTELLIGENCE.value
             for fa_event in events.get(ReplayHookTag.ForeignAffairsRelationChanged, []):
                 old_rel, new_rel = fa_event.attributes["neighbor_relations"]
                 if old_rel is None or new_rel is None:
                     continue
+                # `new_rel` is the full post-change relation matrix — keep a running
+                # snapshot (as plain .value ints) so per-tick bucket sampling below
+                # can read each player's *current* outgoing relation counts in O(1).
+                current_relations = {
+                    s: {r: v.value for r, v in row.items()}
+                    for s, row in new_rel.items()
+                }
                 for s in set(old_rel) | set(new_rel):
                     prev_row = old_rel.get(s, {})
                     curr_row = new_rel.get(s, {})
@@ -601,6 +624,24 @@ class ReplayExtractor(BaseExtractor):
                 pct_vp_bucket_n[player_id][pb] += 1
                 day_vp_bucket_sum[player_id][db] += vp
                 day_vp_bucket_n[player_id][db] += 1
+
+                # Diplomatic-state snapshot — counts of this player's *current*
+                # outgoing relations by type (sender perspective, mirrors dp_wars/etc.)
+                relation_row = current_relations.get(player_id - 1, {})
+                war_n = row_n = intel_n = 0
+                for rel_val in relation_row.values():
+                    if rel_val == _war_val:
+                        war_n += 1
+                    elif rel_val == _row_val:
+                        row_n += 1
+                    elif rel_val == _intel_val:
+                        intel_n += 1
+                dp_war_pct_sum[player_id][pb] += war_n
+                dp_war_pct_n[player_id][pb] += 1
+                dp_row_pct_sum[player_id][pb] += row_n
+                dp_row_pct_n[player_id][pb] += 1
+                dp_intel_pct_sum[player_id][pb] += intel_n
+                dp_intel_pct_n[player_id][pb] += 1
             n_alive = n_active_human = n_passive_human = n_ai = 0
             for pid, defeated in current_player_defeated.items():
                 if defeated:
@@ -767,6 +808,9 @@ class ReplayExtractor(BaseExtractor):
                 ),
                 morale_pct_buckets=_finalize_float_buckets(morale_pct_sum[player_id], morale_pct_n[player_id]),
                 morale_day_buckets=_finalize_float_buckets(morale_day_sum[player_id], morale_day_n[player_id]),
+                at_war_pct_buckets=_finalize_float_buckets(dp_war_pct_sum[player_id], dp_war_pct_n[player_id]),
+                right_of_way_pct_buckets=_finalize_float_buckets(dp_row_pct_sum[player_id], dp_row_pct_n[player_id]),
+                shared_intelligence_pct_buckets=_finalize_float_buckets(dp_intel_pct_sum[player_id], dp_intel_pct_n[player_id]),
             ))
 
         # ---- Victory detection ----

@@ -48,6 +48,9 @@ class PlayerData:
     avg_national_morale: float = 0.0
     morale_pct_buckets: dict[int, float] = field(default_factory=dict)
     morale_day_buckets: dict[int, float] = field(default_factory=dict)
+    at_war_pct_buckets: dict[int, float] = field(default_factory=dict)
+    right_of_way_pct_buckets: dict[int, float] = field(default_factory=dict)
+    shared_intelligence_pct_buckets: dict[int, float] = field(default_factory=dict)
 
 
 @dataclass

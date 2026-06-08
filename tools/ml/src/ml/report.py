@@ -257,6 +257,59 @@ def _plot_calibration(
     return fig, table
 
 
+def _calibration_by_pct(df: pd.DataFrame, y: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
+    """
+    Per-pct_game calibration summary — does the model's confidence hold up
+    equally well at every stage of the game, or is it over/under-confident
+    early vs. late?  `bias` = mean predicted probability - observed win rate
+    (positive => overconfident at that stage, negative => underconfident).
+    """
+    rows = []
+    for pct in sorted(df["pct_game"].unique()):
+        mask = df["pct_game"].values == pct
+        if mask.sum() < _MIN_BUCKET_N:
+            continue
+        mean_pred = float(preds[mask].mean())
+        observed_rate = float(y[mask].mean())
+        rows.append(
+            {
+                "pct_game": int(pct),
+                "n": int(mask.sum()),
+                "brier": float(brier_score_loss(y[mask], preds[mask])),
+                "mean_pred": mean_pred,
+                "observed_rate": observed_rate,
+                "bias": mean_pred - observed_rate,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _plot_calibration_by_pct(table: pd.DataFrame) -> plt.Figure:
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 7.5), sharex=True)
+
+    ax1.plot(table["pct_game"], table["brier"], marker="o", color="#dc2626", label="Brier score")
+    ax1.set_ylabel("Brier score (lower is better)", color="#dc2626")
+    ax1.tick_params(axis="y", labelcolor="#dc2626")
+    ax1.grid(alpha=0.3)
+    ax1.set_title("Calibration over game progress")
+
+    ax1b = ax1.twinx()
+    ax1b.bar(table["pct_game"], table["n"], width=3.0, alpha=0.15, color="#9333ea")
+    ax1b.set_ylabel("Snapshot rows (n)", color="#9333ea")
+    ax1b.tick_params(axis="y", labelcolor="#9333ea")
+
+    ax2.axhline(0.0, color="#9ca3af", linestyle="--", label="Perfectly calibrated")
+    ax2.plot(table["pct_game"], table["bias"], marker="o", color="#2563eb", label="Bias")
+    ax2.set_xlabel("Game progress (%)")
+    ax2.set_ylabel("Bias\n(mean predicted − observed)")
+    ax2.set_title("Over- / under-confidence by game stage (positive = overconfident)")
+    ax2.legend()
+    ax2.grid(alpha=0.3)
+
+    fig.tight_layout()
+    return fig
+
+
 # ── Feature importance ───────────────────────────────────────────────────────
 
 
@@ -309,6 +362,8 @@ def _render_html(
     topk_chart: str,
     calib_table: pd.DataFrame,
     calib_chart: str,
+    calib_by_pct_table: pd.DataFrame,
+    calib_by_pct_chart: str,
     fi_table: pd.DataFrame,
     fi_chart: str,
 ) -> str:
@@ -373,6 +428,18 @@ def _render_html(
 {calib_chart}
 {_df_to_html_table(calib_table)}
 
+<h3>Calibration by game progress</h3>
+<p class="note">
+  Does the model's confidence hold up equally well at every stage of the game?
+  <code>brier</code> is the same Brier-score metric as the overall calibration
+  card (lower is better, 0 is perfect) computed within each <code>pct_game</code>
+  bucket. <code>bias</code> is the mean predicted probability minus the observed
+  win rate in that bucket &mdash; positive means the model is overconfident at
+  that stage, negative means it is underconfident.
+</p>
+{calib_by_pct_chart}
+{_df_to_html_table(calib_by_pct_table)}
+
 <h2>Feature importance</h2>
 <p class="note">
   LightGBM gain/split importance &mdash; sanity-checks that the model relies on
@@ -413,6 +480,9 @@ def generate_report(
     calib_fig, calib_table = _plot_calibration(y, preds)
     calib_chart = _img(calib_fig, "Reliability diagram")
 
+    calib_by_pct_table = _calibration_by_pct(df, y, preds)
+    calib_by_pct_chart = _img(_plot_calibration_by_pct(calib_by_pct_table), "Calibration by game progress")
+
     fi_table = _feature_importance_table(model)
     fi_chart = _img(_plot_feature_importance(fi_table), "Feature importance")
 
@@ -433,6 +503,8 @@ def generate_report(
         topk_chart=topk_chart,
         calib_table=calib_table,
         calib_chart=calib_chart,
+        calib_by_pct_table=calib_by_pct_table,
+        calib_by_pct_chart=calib_by_pct_chart,
         fi_table=fi_table,
         fi_chart=fi_chart,
     )

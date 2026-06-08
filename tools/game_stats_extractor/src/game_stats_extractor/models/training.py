@@ -42,6 +42,14 @@ class TrainingRow:
     # National morale (average province morale for this player, averaged over ticks)
     national_morale: float = 0.0
 
+    # Diplomatic state — counts of this player's *current* outgoing relations by
+    # type at this bucket (sender perspective; averaged over ticks in the window).
+    # Only WAR / RIGHT_OF_WAY / SHARED_INTELLIGENCE are tracked: a sample of real
+    # games showed MUTUAL_PROTECTION / NON_AGGRESSION_PACT / CEASEFIRE never occur.
+    at_war_count: float = 0.0
+    right_of_way_count: float = 0.0
+    shared_intelligence_count: float = 0.0
+
     # Buildings (average count per building group over ticks in the bucket)
     building_counts: dict[str, float] = field(default_factory=dict)
 
@@ -68,6 +76,9 @@ class TrainingRow:
             "province_count": self.province_count,
             "vp": self.vp,
             "national_morale": self.national_morale,
+            "at_war_count": self.at_war_count,
+            "right_of_way_count": self.right_of_way_count,
+            "shared_intelligence_count": self.shared_intelligence_count,
             "is_ai": int(self.is_ai),
             "total_players": self.total_players,
             "is_winner": int(self.is_winner),
@@ -133,6 +144,9 @@ def training_rows_from_game_data(
                 vp=player.pct_vp_buckets.get(pct, 0),
                 production=prod,
                 national_morale=player.morale_pct_buckets.get(pct, 0.0),
+                at_war_count=player.at_war_pct_buckets.get(pct, 0.0),
+                right_of_way_count=player.right_of_way_pct_buckets.get(pct, 0.0),
+                shared_intelligence_count=player.shared_intelligence_pct_buckets.get(pct, 0.0),
                 building_counts=bld,
                 building_type_counts=bld_type,
                 is_ai=player.is_ai,

@@ -29,6 +29,9 @@ _RAW_COLS = [
     "electronic_production",
     "rare_material_production",
     "national_morale",
+    "at_war_count",
+    "right_of_way_count",
+    "shared_intelligence_count",
     "is_ai",
     "total_players",
 ]
