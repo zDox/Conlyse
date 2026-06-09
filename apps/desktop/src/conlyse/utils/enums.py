@@ -22,6 +22,7 @@ class DockType(Enum):
     # Left sidebar panels
     GAME_INFO = auto()
     PROVINCE_INFO = auto()
+    WIN_PROBABILITY = auto()
 
     # Right sidebar panels
     CITY_LIST = auto()

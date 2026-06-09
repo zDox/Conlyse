@@ -39,6 +39,9 @@ ASSET_NAME_TO_PATH = {
     "player_list_page_style": Path("styles/pages/player_list_page.qss"),
     "map_page_style": Path("styles/pages/map_page.qss"),
     "settings_page_style": Path("styles/pages/settings_page.qss"),
+
+    # ML models
+    "win_probability_model": Path("models/win_probability.lgb"),
 }
 
 logger = get_logger()
@@ -71,6 +74,18 @@ class AssetManager:
         with open(path, 'r', encoding='utf-8') as f:
             self.assets[asset_name] = json.load(f)
             return self.assets[asset_name]
+
+    def get_asset_path(self, asset_name: str) -> Path | None:
+        """Resolve the on-disk path of a binary asset (e.g. ML model files)."""
+        rel_path = ASSET_NAME_TO_PATH.get(asset_name)
+        if rel_path is None:
+            logger.error(f"Asset name '{asset_name}' not found in ASSET_NAME_TO_PATH mapping.")
+            return None
+        path = ASSETS_PATH / rel_path
+        if not path.exists():
+            logger.error(f"Asset file not found: {path}")
+            return None
+        return path
 
     def get_asset(self, asset_name: str):
         return self.assets.get(asset_name, None)

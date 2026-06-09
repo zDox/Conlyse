@@ -23,6 +23,7 @@ from conlyse.utils.enums import DockType
 from conlyse.widgets.dock_system.docks.city_list_dock import CityListDock
 from conlyse.widgets.dock_system.docks.game_info_dock import GameInfoDock
 from conlyse.widgets.dock_system.docks.province_info_dock import ProvinceInfoDock
+from conlyse.widgets.dock_system.docks.win_probability_dock import WinProbabilityDock
 
 if TYPE_CHECKING:
     from conlyse.app import App
@@ -35,7 +36,7 @@ class MapPage(ReplayPage):
     Page for displaying and interacting with the game map.
     """
     use_dock_system = True
-    available_docks = {DockType.GAME_INFO, DockType.PROVINCE_INFO,
+    available_docks = {DockType.GAME_INFO, DockType.PROVINCE_INFO, DockType.WIN_PROBABILITY,
                        DockType.CITY_LIST,
                        DockType.TIMELINE}
 
@@ -92,6 +93,9 @@ class MapPage(ReplayPage):
                 return GameInfoDock(self.ritf)
             case DockType.PROVINCE_INFO:
                 return ProvinceInfoDock(self.ritf)
+            case DockType.WIN_PROBABILITY:
+                model_path = self.app.asset_manager.get_asset_path("win_probability_model")
+                return WinProbabilityDock(self.ritf, model_path)
             case DockType.CITY_LIST:
                 return CityListDock(self.ritf)
             case DockType.TIMELINE:
@@ -102,7 +106,10 @@ class MapPage(ReplayPage):
     def setup(self, context) -> None:
         """Initialize the UI layout and OpenGL context."""
         super().setup(context)
-        self.ritf.register_province_trigger(["owner_id", "resource_production", "morale"])
+        self.ritf.register_province_trigger(
+            ["owner_id", "resource_production", "morale", "money_production", "upgrades_set"]
+        )
+        self.ritf.register_player_trigger(["victory_points", "defeated", "computer_player"])
         self.ritf.register_game_info_trigger()
         
         # Setup map container in the content_container
@@ -204,6 +211,7 @@ class MapPage(ReplayPage):
         self.map_widget.deleteLater()
         self.app.main_window.header.set_actions([])
         self.ritf.unregister_province_trigger()
+        self.ritf.unregister_player_trigger()
         self.ritf.unregister_game_info_trigger()
 
 

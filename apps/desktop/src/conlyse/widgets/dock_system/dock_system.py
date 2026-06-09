@@ -94,7 +94,7 @@ class DockSystem:
             label = self._get_dock_label(dock_type)
 
 
-            if dock_type in [DockType.GAME_INFO, DockType.PROVINCE_INFO]:
+            if dock_type in [DockType.GAME_INFO, DockType.PROVINCE_INFO, DockType.WIN_PROBABILITY]:
                 # Left sidebar docks
                 self.left_sidebar.add_dock(dock_type, label, dock_widget)
             elif dock_type in [DockType.CITY_LIST]:
@@ -138,6 +138,7 @@ class DockSystem:
         labels = {
             DockType.GAME_INFO: "Game",
             DockType.PROVINCE_INFO: "Province",
+            DockType.WIN_PROBABILITY: "Win %",
             DockType.CITY_LIST: "Cities",
             DockType.TIMELINE: "Timeline"
         }
