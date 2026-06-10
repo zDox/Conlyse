@@ -122,6 +122,7 @@ class GlobalAggregator(BaseAggregator[GlobalAggregate]):
             avg_peace_treaties_per_game=_mean([g.total_peace_treaties for g in games]),
             avg_alliances_per_game=_mean([g.total_alliances_formed for g in games]),
             avg_right_of_ways_per_game=_mean([g.total_right_of_ways for g in games]),
+            avg_shared_intelligence_per_game=_mean([g.total_shared_intelligence for g in games]),
             avg_game_total_production=avg_game_total_production,
             coalition_size_distribution=coalition_size_dist,
             avg_coalition_size=statistics.mean(coalition_sizes) if coalition_sizes else 0.0,

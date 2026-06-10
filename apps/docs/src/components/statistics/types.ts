@@ -49,6 +49,7 @@ export interface GlobalAggregate {
   avg_peace_treaties_per_game: number;
   avg_alliances_per_game: number;
   avg_right_of_ways_per_game: number;
+  avg_shared_intelligence_per_game?: number;
   avg_game_total_production?: Record<string, number>;
   coalition_size_distribution?: Record<string, number>;
   avg_coalition_size?: number;
@@ -75,6 +76,7 @@ export interface CountryAggregate {
   avg_peace_treaties_signed: number;
   avg_alliances_formed: number;
   avg_right_of_ways_signed: number;
+  avg_shared_intelligence_signed: number;
   avg_total_production?: Record<string, number>;
   avg_production_rate?: Record<string, number>;
   avg_final_building_counts?: Record<string, number>;

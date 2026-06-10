@@ -19,12 +19,13 @@ const METRICS = [
   { key: 'avg_wars_per_game',          label: 'Wars Declared',   color: '#e74c3c' },
   { key: 'avg_right_of_ways_per_game', label: 'Right of Ways',   color: '#4a90e2' },
   { key: 'avg_peace_treaties_per_game',label: 'Peace Treaties',  color: '#50c878' },
+  { key: 'avg_shared_intelligence_per_game', label: 'Shared Intelligence', color: '#9b59b6' },
 ] as const;
 
 export default function DiplomacyGlobalChart({ data }: Props) {
   const chartData = METRICS.map((m) => ({
     name: m.label,
-    value: parseFloat((data[m.key] as number).toFixed(1)),
+    value: parseFloat(((data[m.key] as number | undefined) ?? 0).toFixed(1)),
     color: m.color,
   }));
 

@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from pprint import pprint
 from time import perf_counter
 
 from conflict_interface.interface.replay_interface import ReplayInterface
@@ -10,20 +11,15 @@ if __name__ == "__main__":
     setup_library_logger(logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
-    ritf = ReplayInterface(TEST_DATA / "game_10626204.conrp", {"5652_28": TEST_DATA / Path("5652_28.bin")})
+    ritf = ReplayInterface("/home/zdox/PycharmProjects/Conlyse/replays_out/game_10626254.conrp", {"5652_28": TEST_DATA / Path("5652_28.bin")})
 
-    for i in range(10000000):
-        pass
+
     t1 = perf_counter()
     ritf.open(mode = 'r')
-    ritf.register_game_info_trigger()
-
-
-
     t2 = perf_counter()
     # Test Operations --------------------------------
     ritf.jump_to(ritf.last_time)
-
+    pprint(ritf.get_())
     # End --------------------------------------------
     t3 = perf_counter()
     ritf.close()
