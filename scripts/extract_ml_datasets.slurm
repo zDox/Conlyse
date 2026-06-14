@@ -34,6 +34,14 @@ rsync -aq ${SCRATCH}/static_maps/ ${TMPDIR}/static_maps/
 
 mkdir -p ${TMPDIR}/datasets/training ${TMPDIR}/datasets/evaluation ${TMPDIR}/graph_cache
 
+# gnn-extract parallelizes across replays via worker *processes* (--workers); without
+# this, each worker's NumPy/Torch also spawns one OpenBLAS thread per CPU, oversubscribing
+# the node by ~workers^2 threads and hitting RLIMIT_NPROC.
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
 # Build training dataset (one game_<id>.pt per replay)
 echo "[$(date)] Extracting training dataset..."
 gnn-extract build \
