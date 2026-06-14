@@ -10,6 +10,11 @@ readme = "README.md"
 requires-python = "==3.12.*"
 
 # Core dependencies (adjust as needed)
+# NOTE: conlyse-ml pulls in torch + torch-geometric for the win predictor. On Linux,
+# `pip install torch` defaults to CUDA wheels (~2GB); install the CPU-only build first
+# (see https://pytorch.org/get-started/locally/, e.g.
+# `pip install torch --index-url https://download.pytorch.org/whl/cpu`) before
+# installing this package.
 dependencies = [
     "PySide6>=6.2.0",
     "PyOpenGL>=3.1.0",

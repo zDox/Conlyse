@@ -138,7 +138,7 @@ class DockSystem:
         labels = {
             DockType.GAME_INFO: "Game",
             DockType.PROVINCE_INFO: "Province",
-            DockType.WIN_PROBABILITY: "Win %",
+            DockType.WIN_PROBABILITY: "Win Share",
             DockType.CITY_LIST: "Cities",
             DockType.TIMELINE: "Timeline"
         }

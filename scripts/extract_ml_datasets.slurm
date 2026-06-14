@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=ml-dataset-extractor
+#SBATCH --job-name=gnn-dataset-extractor
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=96G
 #SBATCH --time=02:00:00
-#SBATCH --tmp=100g
+#SBATCH --tmp=120g
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
 
@@ -32,25 +32,25 @@ rsync -aq ${SCRATCH}/test_set/ ${TMPDIR}/test_set/
 echo "[$(date)] Copying map data to node-local storage..."
 rsync -aq ${SCRATCH}/static_maps/ ${TMPDIR}/static_maps/
 
-mkdir -p ${TMPDIR}/datasets
+mkdir -p ${TMPDIR}/datasets/training ${TMPDIR}/datasets/evaluation ${TMPDIR}/graph_cache
 
-# Build training dataset
+# Build training dataset (one game_<id>.pt per replay)
 echo "[$(date)] Extracting training dataset..."
-game-stats-extractor ml-dataset \
+gnn-extract build \
     --replays-dir "${TMPDIR}/training_set" \
-    --map-data-dir "${TMPDIR}/static_maps" \
-    --output "${TMPDIR}/datasets/training.parquet" \
-    --workers "${SLURM_CPUS_PER_TASK}" \
-    --min-bucket-coverage 2
+    --maps-dir "${TMPDIR}/static_maps" \
+    --output "${TMPDIR}/datasets/training" \
+    --graph-cache-dir "${TMPDIR}/graph_cache" \
+    --workers "${SLURM_CPUS_PER_TASK}"
 
 # Build evaluation dataset
 echo "[$(date)] Extracting evaluation dataset..."
-game-stats-extractor ml-dataset \
+gnn-extract build \
     --replays-dir "${TMPDIR}/test_set" \
-    --map-data-dir "${TMPDIR}/static_maps" \
-    --output "${TMPDIR}/datasets/evaluation.parquet" \
-    --workers "${SLURM_CPUS_PER_TASK}" \
-    --min-bucket-coverage 2
+    --maps-dir "${TMPDIR}/static_maps" \
+    --output "${TMPDIR}/datasets/evaluation" \
+    --graph-cache-dir "${TMPDIR}/graph_cache" \
+    --workers "${SLURM_CPUS_PER_TASK}"
 
 # Copy results back to scratch
 echo "[$(date)] Copying datasets back to SCRATCH..."

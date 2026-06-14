@@ -3,22 +3,20 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "conlyse-ml"
+name = "gnn-extractor"
 version = "0.1.0"
-description = "Win-probability ML model for Conflict of Nations replays"
+description = "CLI tool to extract GNN win-predictor training samples from Conflict of Nations replay files"
 requires-python = ">=3.12"
 dependencies = [
-    "matplotlib>=3.8",
+    "conflict-interface>=0.1.2",
+    "conlyse-ml",
     "numpy",
-    "pandas>=2.0",
-    "scikit-learn>=1.4",
-    "torch>=2.2",
-    "torch-geometric>=2.5",
+    "torch",
     "tqdm",
 ]
 
 [project.scripts]
-conlyse-predict = "ml.__main__:main"
+gnn-extract = "gnn_extractor.__main__:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

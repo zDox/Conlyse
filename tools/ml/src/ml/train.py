@@ -1,130 +1,185 @@
 """
-Train the LightGBM win-probability model.
+Train the GNN + Transformer win-predictor.
 
-Uses GroupKFold by game_id to prevent data leakage across games.
-Class imbalance (~1/64 positive rate) is handled via is_unbalance=True.
+Each game is one sample (no row-level leakage within a game), so a plain `KFold`
+over game files replaces the old `GroupKFold`.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 
-import joblib
-import lightgbm as lgb
-import numpy as np
-from sklearn.isotonic import IsotonicRegression
-from sklearn.metrics import brier_score_loss, roc_auc_score
-from sklearn.model_selection import GroupKFold
+import torch
+import torch.nn.functional as F
+from sklearn.model_selection import KFold
+from torch.utils.data import DataLoader, Subset
 
-from .features import feature_cols, load_dataset
-from .predict import calibrator_path
+from .data.dataset import GnnBatch, GnnWinDataset, collate_fn
+from .data.player_features import NUM_PLAYER_FEATURES
+from .data.province_features import BUILDING_VOCAB, NUM_PROVINCE_FEATURES
+from .model.win_predictor import WinPredictor, win_predictor_loss
 
 logger = logging.getLogger(__name__)
 
-_LGB_PARAMS = {
-    "objective": "binary",
-    "metric": "auc",
-    "is_unbalance": True,
-    "num_leaves": 63,
-    "learning_rate": 0.05,
-    "min_child_samples": 20,
-    "verbose": -1,
-}
-_N_ESTIMATORS = 1000
-_EARLY_STOPPING_ROUNDS = 50
-_LOG_EVAL_PERIOD = 100
+_TOPK_VALUES = (1, 3, 5)
+
+
+def building_vocab_hash() -> str:
+    """Fingerprint of `building_vocab.json` — checkpoints fail to load if it changes."""
+    return hashlib.sha256("\n".join(BUILDING_VOCAB).encode()).hexdigest()[:16]
+
+
+def model_config() -> dict:
+    return {
+        "num_node_features": NUM_PROVINCE_FEATURES,
+        "num_player_features": NUM_PLAYER_FEATURES,
+        "hidden_dim": 128,
+    }
+
+
+def to_device(batch: GnnBatch, device: str) -> GnnBatch:
+    return GnnBatch(
+        graph_batch=batch.graph_batch.to(device),
+        player_features=batch.player_features.to(device),
+        alive_mask=batch.alive_mask.to(device),
+        player_mask=batch.player_mask.to(device),
+        time_mask=batch.time_mask.to(device),
+        target=batch.target.to(device),
+        player_ids=batch.player_ids.to(device),
+        game_ids=batch.game_ids.to(device),
+        day_of_game=batch.day_of_game.to(device),
+        batch_size=batch.batch_size,
+        num_steps=batch.num_steps,
+        max_players=batch.max_players,
+    )
+
+
+@torch.no_grad()
+def evaluate(model: WinPredictor, loader: DataLoader, device: str) -> dict[str, float]:
+    model.eval()
+    total_kl = 0.0
+    total_brier_sum = 0.0
+    total_brier_n = 0
+    coalition_mass_sum = 0.0
+    topk_hits = dict.fromkeys(_TOPK_VALUES, 0)
+    n_samples = 0
+
+    for batch in loader:
+        batch = to_device(batch, device)
+        logits = model(batch)
+        probs = F.softmax(logits, dim=-1)
+
+        total_kl += win_predictor_loss(logits, batch.target).item() * batch.batch_size
+        n_samples += batch.batch_size
+
+        alive_now = batch.alive_mask[:, -1, :] & batch.player_mask
+        sq_err = (probs - batch.target) ** 2
+        total_brier_sum += sq_err[alive_now].sum().item()
+        total_brier_n += int(alive_now.sum().item())
+
+        is_winner = batch.target > 0
+        coalition_mass_sum += (probs * is_winner.float()).sum(dim=-1).sum().item()
+
+        for k in _TOPK_VALUES:
+            top_idx = torch.topk(probs, k=min(k, probs.shape[1]), dim=-1).indices
+            hit = is_winner.gather(1, top_idx).any(dim=-1)
+            topk_hits[k] += int(hit.sum().item())
+
+    metrics = {
+        "kl": total_kl / max(1, n_samples),
+        "brier": total_brier_sum / max(1, total_brier_n),
+        "coalition_mass": coalition_mass_sum / max(1, n_samples),
+    }
+    for k in _TOPK_VALUES:
+        metrics[f"top{k}_acc"] = topk_hits[k] / max(1, n_samples)
+    return metrics
+
+
+def _run_epoch(model: WinPredictor, loader: DataLoader, optimizer: torch.optim.Optimizer, device: str) -> float:
+    model.train()
+    total_loss = 0.0
+    n_batches = 0
+    for batch in loader:
+        batch = to_device(batch, device)
+        optimizer.zero_grad()
+        logits = model(batch)
+        loss = win_predictor_loss(logits, batch.target)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+        n_batches += 1
+    return total_loss / max(1, n_batches)
 
 
 def train(
-    dataset_path: Path,
-    output_path: Path,
+    dataset_dir: Path,
+    output_dir: Path,
     n_folds: int = 5,
-    min_coverage: int = 1,
+    epochs: int = 20,
+    batch_size: int = 4,
+    lr: float = 1e-4,
+    device: str = "cpu",
 ) -> None:
-    logger.info("Loading dataset from %s", dataset_path)
-    df = load_dataset(dataset_path)
+    dataset = GnnWinDataset(dataset_dir)
+    n = len(dataset)
+    if n == 0:
+        raise ValueError(f"No samples found in {dataset_dir}")
+    logger.info("Dataset: %d games", n)
 
-    if min_coverage > 1:
-        before = len(df)
-        df = df[df["bucket_coverage"] >= min_coverage].reset_index(drop=True)
-        logger.info("Filtered to coverage >= %d: %d → %d rows", min_coverage, before, len(df))
+    if n >= 2:
+        n_folds = max(2, min(n_folds, n))
+        kf = KFold(n_splits=n_folds, shuffle=True, random_state=0)
+        splits = list(kf.split(range(n)))
+    else:
+        splits = [(list(range(n)), list(range(n)))]
 
-    cols = feature_cols(df)
-    X = df[cols].values
-    y = df["is_winner"].astype(int).values
-    groups = df["game_id"].values
-
-    logger.info(
-        "Dataset: %d rows, %d features, %.4f positive rate",
-        len(df), len(cols), y.mean(),
-    )
-
-    gkf = GroupKFold(n_splits=n_folds)
-    oof_preds = np.zeros(len(df), dtype=np.float32)
-    fold_aucs: list[float] = []
-
-    for fold, (train_idx, val_idx) in enumerate(gkf.split(X, y, groups)):
-        X_tr, X_val = X[train_idx], X[val_idx]
-        y_tr, y_val = y[train_idx], y[val_idx]
-
-        train_ds = lgb.Dataset(X_tr, label=y_tr, feature_name=cols)
-        val_ds = lgb.Dataset(X_val, label=y_val, feature_name=cols, reference=train_ds)
-
-        model = lgb.train(
-            _LGB_PARAMS,
-            train_ds,
-            num_boost_round=_N_ESTIMATORS,
-            valid_sets=[val_ds],
-            callbacks=[
-                lgb.early_stopping(_EARLY_STOPPING_ROUNDS, verbose=False),
-                lgb.log_evaluation(_LOG_EVAL_PERIOD),
-            ],
+    fold_metrics = []
+    for fold, (train_idx, val_idx) in enumerate(splits):
+        logger.info("Fold %d/%d: %d train, %d val games", fold + 1, len(splits), len(train_idx), len(val_idx))
+        train_loader = DataLoader(
+            Subset(dataset, train_idx), batch_size=batch_size, shuffle=True, collate_fn=collate_fn
+        )
+        val_loader = DataLoader(
+            Subset(dataset, val_idx), batch_size=batch_size, shuffle=False, collate_fn=collate_fn
         )
 
-        preds = model.predict(X_val)
-        oof_preds[val_idx] = preds
-        fold_auc = roc_auc_score(y_val, preds)
-        fold_aucs.append(fold_auc)
-        logger.info("Fold %d/%d  AUC=%.4f  trees=%d", fold + 1, n_folds, fold_auc, model.num_trees())
+        model = WinPredictor(**model_config()).to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    oof_auc = roc_auc_score(y, oof_preds)
-    logger.info("OOF AUC=%.4f  (folds: %s)", oof_auc, ", ".join(f"{a:.4f}" for a in fold_aucs))
+        metrics: dict[str, float] = {}
+        for epoch in range(epochs):
+            train_loss = _run_epoch(model, train_loader, optimizer, device)
+            metrics = evaluate(model, val_loader, device)
+            logger.info(
+                "Fold %d epoch %d/%d: train_loss=%.4f val_kl=%.4f val_brier=%.4f "
+                "top1=%.3f top3=%.3f top5=%.3f coalition_mass=%.3f",
+                fold + 1, epoch + 1, epochs, train_loss,
+                metrics["kl"], metrics["brier"],
+                metrics["top1_acc"], metrics["top3_acc"], metrics["top5_acc"],
+                metrics["coalition_mass"],
+            )
+        fold_metrics.append(metrics)
 
-    # `is_unbalance=True` makes raw predictions reflect a rebalanced ~50/50 prior
-    # rather than the true ~3% positive rate, so they rank well (AUC) but are
-    # systematically overconfident as probabilities. Fit a monotonic post-hoc
-    # calibrator on the leak-free OOF predictions to map raw scores back to true
-    # probabilities without touching the (good) ranking behaviour.
-    calibrator = IsotonicRegression(out_of_bounds="clip").fit(oof_preds, y)
-    raw_brier = brier_score_loss(y, oof_preds)
-    calibrated_brier = brier_score_loss(y, calibrator.predict(oof_preds))
-    logger.info(
-        "OOF Brier score: raw=%.4f  calibrated=%.4f", raw_brier, calibrated_brier
+    avg_metrics = {key: sum(m[key] for m in fold_metrics) / len(fold_metrics) for key in fold_metrics[0]}
+    logger.info("Average validation metrics across folds: %s", avg_metrics)
+
+    logger.info("Retraining final model on all %d games", n)
+    full_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    model = WinPredictor(**model_config()).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    for epoch in range(epochs):
+        train_loss = _run_epoch(model, full_loader, optimizer, device)
+        logger.info("Final model epoch %d/%d: train_loss=%.4f", epoch + 1, epochs, train_loss)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = output_dir / "win_predictor.pt"
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "config": model_config(),
+            "building_vocab_hash": building_vocab_hash(),
+        },
+        checkpoint_path,
     )
-
-    # AUC breakdown by pct_game bucket — shows how predictive each time window is
-    logger.info("AUC by pct_game:")
-    for pct in sorted(df["pct_game"].unique()):
-        mask = df["pct_game"].values == pct
-        if mask.sum() < 10:
-            continue
-        auc = roc_auc_score(y[mask], oof_preds[mask])
-        logger.info("  pct=%3d  n=%6d  AUC=%.4f", pct, mask.sum(), auc)
-
-    # Retrain on full dataset
-    logger.info("Retraining final model on all %d rows", len(df))
-    full_ds = lgb.Dataset(X, label=y, feature_name=cols)
-    best_trees = int(np.median([m for m in [model.num_trees()]]))  # use last fold's count
-    final_model = lgb.train(
-        {**_LGB_PARAMS, "verbose": -1},
-        full_ds,
-        num_boost_round=best_trees,
-    )
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    final_model.save_model(str(output_path))
-    logger.info("Model saved to %s", output_path)
-
-    calib_path = calibrator_path(output_path)
-    joblib.dump(calibrator, calib_path)
-    logger.info("Calibrator saved to %s", calib_path)
+    logger.info("Checkpoint saved to %s", checkpoint_path)

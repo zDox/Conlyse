@@ -24,128 +24,80 @@ def _cmd_train(args: argparse.Namespace) -> None:
     from .train import train
 
     train(
-        dataset_path=args.dataset,
-        output_path=args.output,
+        dataset_dir=args.dataset_dir,
+        output_dir=args.output_dir,
         n_folds=args.folds,
-        min_coverage=args.min_coverage,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        lr=args.lr,
+        device=args.device,
     )
 
 
 def _cmd_eval(args: argparse.Namespace) -> None:
-    import lightgbm as lgb
-    from sklearn.metrics import roc_auc_score
+    from torch.utils.data import DataLoader
 
-    from .features import load_dataset
+    from .data.dataset import GnnWinDataset, collate_fn
+    from .predict import load_model
+    from .train import evaluate
 
-    logger = logging.getLogger(__name__)
-    logger.info("Loading dataset from %s", args.dataset)
-    df = load_dataset(args.dataset)
+    dataset = GnnWinDataset(args.dataset_dir)
+    loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, collate_fn=collate_fn)
+    model = load_model(args.checkpoint, device=args.device)
 
-    if args.min_coverage > 1:
-        df = df[df["bucket_coverage"] >= args.min_coverage].reset_index(drop=True)
-
-    model = lgb.Booster(model_file=str(args.model))
-    cols = model.feature_name()
-
-    for col in cols:
-        if col not in df.columns:
-            df[col] = 0.0
-
-    X = df[cols].values
-    y = df["is_winner"].astype(int).values
-    preds = model.predict(X)
-
-    overall_auc = roc_auc_score(y, preds)
-    print(f"Overall AUC: {overall_auc:.4f}  (n={len(df):,})")
-    print()
-    print(f"{'pct_game':>8}  {'n':>8}  {'AUC':>8}  {'pos_rate':>10}")
-    print("-" * 42)
-    for pct in sorted(df["pct_game"].unique()):
-        mask = df["pct_game"].values == pct
-        if mask.sum() < 10:
-            continue
-        auc = roc_auc_score(y[mask], preds[mask])
-        pos_rate = y[mask].mean()
-        print(f"{pct:8d}  {mask.sum():8,}  {auc:8.4f}  {pos_rate:10.4f}")
+    metrics = evaluate(model, loader, args.device)
+    print(f"Games: {len(dataset):,}")
+    for key, value in metrics.items():
+        print(f"{key:>16}: {value:.4f}")
 
 
 def _cmd_report(args: argparse.Namespace) -> None:
     from .report import generate_report
 
     generate_report(
-        dataset_path=args.dataset,
-        model_path=args.model,
+        dataset_dir=args.dataset_dir,
+        checkpoint_path=args.checkpoint,
         output_path=args.output,
-        min_coverage=args.min_coverage,
+        batch_size=args.batch_size,
+        device=args.device,
     )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="conlyse-predict — win-probability ML for Conflict of Nations",
+        description="conlyse-predict — GNN + Transformer win-predictor for Conflict of Nations",
     )
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
     sub.required = True
 
     # ── train ──────────────────────────────────────────────────────────────
-    train_p = sub.add_parser("train", help="Train LightGBM win-probability model")
+    train_p = sub.add_parser("train", help="Train the GNN + Transformer win predictor")
     train_p.add_argument(
-        "--dataset",
-        required=True,
-        type=Path,
-        help="Parquet training dataset (from game-stats-extractor ml-dataset)",
+        "--dataset-dir", required=True, type=Path, help="Directory of game_<id>.pt files (from gnn-extract)"
     )
-    train_p.add_argument(
-        "--output", required=True, type=Path, help="Output model file (e.g. model.lgb)"
-    )
-    train_p.add_argument(
-        "--folds",
-        type=int,
-        default=5,
-        help="Number of GroupKFold cross-validation folds (default: 5)",
-    )
-    train_p.add_argument(
-        "--min-coverage",
-        type=int,
-        default=1,
-        metavar="N",
-        help="Minimum bucket_coverage to include a row (default: 1)",
-    )
+    train_p.add_argument("--output-dir", required=True, type=Path, help="Output directory for win_predictor.pt")
+    train_p.add_argument("--folds", type=int, default=5, help="Number of KFold cross-validation folds (default: 5)")
+    train_p.add_argument("--epochs", type=int, default=20, help="Training epochs per fold (default: 20)")
+    train_p.add_argument("--batch-size", type=int, default=4, help="Batch size in games (default: 4)")
+    train_p.add_argument("--lr", type=float, default=1e-4, help="Learning rate (default: 1e-4)")
+    train_p.add_argument("--device", default="cpu", help="torch device (default: cpu)")
     _add_common_args(train_p)
 
     # ── eval ───────────────────────────────────────────────────────────────
-    eval_p = sub.add_parser("eval", help="Evaluate model AUC by pct_game bucket")
-    eval_p.add_argument(
-        "--dataset", required=True, type=Path, help="Parquet dataset to evaluate on"
-    )
-    eval_p.add_argument("--model", required=True, type=Path, help="Trained model file (.lgb)")
-    eval_p.add_argument(
-        "--min-coverage",
-        type=int,
-        default=1,
-        metavar="N",
-        help="Minimum bucket_coverage to include a row (default: 1)",
-    )
+    eval_p = sub.add_parser("eval", help="Evaluate a checkpoint and print metrics")
+    eval_p.add_argument("--dataset-dir", required=True, type=Path, help="Directory of game_<id>.pt files")
+    eval_p.add_argument("--checkpoint", required=True, type=Path, help="Trained checkpoint (win_predictor.pt)")
+    eval_p.add_argument("--batch-size", type=int, default=4, help="Batch size in games (default: 4)")
+    eval_p.add_argument("--device", default="cpu", help="torch device (default: cpu)")
     _add_common_args(eval_p)
 
     # ── report ─────────────────────────────────────────────────────────────
-    report_p = sub.add_parser(
-        "report", help="Generate a detailed HTML evaluation report (charts + diagnostics)"
-    )
-    report_p.add_argument(
-        "--dataset", required=True, type=Path, help="Parquet dataset to evaluate on"
-    )
-    report_p.add_argument("--model", required=True, type=Path, help="Trained model file (.lgb)")
-    report_p.add_argument(
-        "--output", required=True, type=Path, help="Output HTML report path (e.g. report.html)"
-    )
-    report_p.add_argument(
-        "--min-coverage",
-        type=int,
-        default=1,
-        metavar="N",
-        help="Minimum bucket_coverage to include a row (default: 1)",
-    )
+    report_p = sub.add_parser("report", help="Generate a detailed HTML evaluation report (charts + diagnostics)")
+    report_p.add_argument("--dataset-dir", required=True, type=Path, help="Directory of game_<id>.pt files")
+    report_p.add_argument("--checkpoint", required=True, type=Path, help="Trained checkpoint (win_predictor.pt)")
+    report_p.add_argument("--output", required=True, type=Path, help="Output HTML report path (e.g. report.html)")
+    report_p.add_argument("--batch-size", type=int, default=4, help="Batch size in games (default: 4)")
+    report_p.add_argument("--device", default="cpu", help="torch device (default: cpu)")
     _add_common_args(report_p)
 
     args = parser.parse_args()

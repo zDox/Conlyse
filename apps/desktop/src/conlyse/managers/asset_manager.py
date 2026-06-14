@@ -41,7 +41,7 @@ ASSET_NAME_TO_PATH = {
     "settings_page_style": Path("styles/pages/settings_page.qss"),
 
     # ML models
-    "win_probability_model": Path("models/win_probability.lgb"),
+    "win_predictor_model": Path("models/win_predictor.pt"),
 }
 
 logger = get_logger()

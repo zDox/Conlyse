@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
@@ -14,6 +15,7 @@ from conflict_interface.hook_system.replay_hook_event import ReplayHookEvent
 from conflict_interface.hook_system.replay_hook_tag import ReplayHookTag
 
 from conlyse.logger import get_logger
+from conlyse.managers.config_manager.config_file import CONFIG_DIR
 from conlyse.pages.map_page.constants import OPENGL_VERSION_MAJOR
 from conlyse.pages.map_page.constants import OPENGL_VERSION_MINOR
 from conlyse.pages.map_page.input_controller import InputController
@@ -94,8 +96,10 @@ class MapPage(ReplayPage):
             case DockType.PROVINCE_INFO:
                 return ProvinceInfoDock(self.ritf)
             case DockType.WIN_PROBABILITY:
-                model_path = self.app.asset_manager.get_asset_path("win_probability_model")
-                return WinProbabilityDock(self.ritf, model_path)
+                model_path = self.app.asset_manager.get_asset_path("win_predictor_model")
+                maps_dir = Path(CONFIG_DIR) / "static_maps"
+                graph_cache_dir = Path(CONFIG_DIR) / "graph_cache"
+                return WinProbabilityDock(self.ritf, model_path, maps_dir, graph_cache_dir)
             case DockType.CITY_LIST:
                 return CityListDock(self.ritf)
             case DockType.TIMELINE:
