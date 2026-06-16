@@ -16,8 +16,6 @@ export interface BuildingAggregate {
   upgrade_identifier: string;
   games_appeared: number;
   avg_per_game: number;
-  avg_per_winner: number;
-  avg_per_loser: number;
   avg_level: number;
   avg_per_tier: Record<string, number>;
 }

@@ -36,7 +36,6 @@ const SECTIONS: SidebarSection[] = [
       { id: 'chart-countries-expansion',      label: 'Territory Expansion' },
       { id: 'chart-countries-aggressiveness', label: 'Aggressiveness' },
       { id: 'chart-countries-diplomacy',      label: 'Diplomatic Activity' },
-      { id: 'chart-countries-radar',          label: 'Nation Profile' },
     ],
   },
   {
@@ -54,7 +53,6 @@ const SECTIONS: SidebarSection[] = [
     label: 'Province Analysis',
     items: [
       { id: 'chart-provinces-strategic', label: 'Strategic Map' },
-      { id: 'chart-provinces-morale',    label: 'Province Morale' },
     ],
   },
   {

@@ -52,6 +52,7 @@ def _countries_columnar(countries: list[CountryAggregate]) -> dict:
         "avg_provinces_lost", "elimination_rate", "avg_survival_days",
         "avg_wars_declared", "avg_peace_treaties_signed",
         "avg_alliances_formed", "avg_right_of_ways_signed",
+        "avg_shared_intelligence_signed",
         "avg_total_production", "avg_production_rate",
         "avg_final_building_counts", "avg_final_building_levels",
         "avg_national_morale",
@@ -67,6 +68,7 @@ def _countries_columnar(countries: list[CountryAggregate]) -> dict:
             _r(c.elimination_rate), _r(c.avg_survival_days),
             _r(c.avg_wars_declared), _r(c.avg_peace_treaties_signed),
             _r(c.avg_alliances_formed), _r(c.avg_right_of_ways_signed),
+            _r(c.avg_shared_intelligence_signed),
             {k: _r(v) for k, v in c.avg_total_production.items()},
             {k: _r(v) for k, v in c.avg_production_rate.items()},
             {k: _r(v) for k, v in c.avg_final_building_counts.items()},
@@ -173,12 +175,12 @@ def _timeseries_compact(ts: TimeSeriesOutput) -> dict:
 def _buildings_columnar(buildings: list[BuildingAggregate]) -> dict:
     cols = [
         "upgrade_identifier", "games_appeared",
-        "avg_per_game", "avg_per_winner", "avg_per_loser", "avg_level", "avg_per_tier",
+        "avg_per_game", "avg_level", "avg_per_tier",
     ]
     rows = [
         [
             b.upgrade_identifier, b.games_appeared,
-            _r(b.avg_per_game), _r(b.avg_per_winner), _r(b.avg_per_loser), _r(b.avg_level),
+            _r(b.avg_per_game), _r(b.avg_level),
             {str(tier): _r(avg) for tier, avg in sorted(b.avg_per_tier.items())},
         ]
         for b in buildings

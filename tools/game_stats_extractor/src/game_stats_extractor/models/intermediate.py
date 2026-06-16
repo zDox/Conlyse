@@ -13,6 +13,7 @@ class PlayerData:
     player_name: str
     team_id: int
     is_ai: bool
+    is_native_computer: bool
     is_defeated: bool
     is_playing: bool
     final_vp: int

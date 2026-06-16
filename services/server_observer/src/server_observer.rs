@@ -3,7 +3,7 @@ use crate::connectivity_check::{self, GameServerStatusMap};
 use crate::db::{DbClient, DbConfig};
 use crate::game_finder::{GameFinder, GameFinderConfig};
 use crate::metrics::{
-    record_game_completed, record_game_failed, record_game_started, record_game_update_retry,
+    record_game_completed, record_game_failed, record_game_started, record_game_resumed, record_game_update_retry,
     record_missed_interval, record_scheduled_update_latency, record_game_update_completed,
     record_game_update_started, set_active_games, set_down_server_count,
 };
@@ -22,7 +22,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 const MAX_NETWORK_RETRIES: i32 = 12; // connection/proxy failure
-const MAX_SERVER_RETRIES: i32 = 6;   // transient 5xx from game server or hub
+const MAX_SERVER_RETRIES: i32 = 10;  // transient 5xx from game server or hub — wider budget so brief outages don't drop the session (~42min total, final wait ~21min)
 const MAX_UPDATE_RETRIES: i32 = 3;   // auth, parse, unknown, permanent rejections
 
 #[derive(Debug, Error)]
@@ -303,7 +303,7 @@ impl ServerObserver {
                 .get_pending_new_sessions_with_limits(capacity_total, capacity_normal);
             for (game_id, scenario_id, is_priority) in pending {
                 let _ = self
-                    .start_observation_session(game_id, scenario_id, is_priority)
+                    .start_observation_session(game_id, scenario_id, is_priority, false)
                     .await;
             }
 
@@ -343,6 +343,7 @@ impl ServerObserver {
         game_id: i32,
         scenario_id: i32,
         is_priority: bool,
+        is_resume: bool,
     ) -> bool {
         let account = {
             let max_guest = self.max_guest_games_per_account.load(Ordering::SeqCst);
@@ -354,12 +355,21 @@ impl ServerObserver {
             return false;
         };
 
-        tracing::info!(
-            game_id,
-            scenario_id,
-            account = %account.username,
-            "starting new observation session"
-        );
+        if is_resume {
+            tracing::info!(
+                game_id,
+                scenario_id,
+                account = %account.username,
+                "resuming observation session"
+            );
+        } else {
+            tracing::info!(
+                game_id,
+                scenario_id,
+                account = %account.username,
+                "starting new observation session"
+            );
+        }
 
         let metadata_path = if self.output_metadata_dir.is_empty() {
             String::new()
@@ -410,8 +420,12 @@ impl ServerObserver {
             }
         }
 
-        // Record game started metric and update active games gauge
-        record_game_started(scenario_id);
+        // Record game started/resumed metric and update active games gauge
+        if is_resume {
+            record_game_resumed(scenario_id);
+        } else {
+            record_game_started(scenario_id);
+        }
         self.update_active_games_metrics().await;
         true
     }
@@ -486,7 +500,7 @@ impl ServerObserver {
                 }
             }
             let _ = self
-                .start_observation_session(game_id, scenario_id, is_priority)
+                .start_observation_session(game_id, scenario_id, is_priority, true)
                 .await;
             resumed += 1;
         }

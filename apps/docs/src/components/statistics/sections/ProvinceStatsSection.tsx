@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import ProvinceMoraleChart from '../charts/ProvinceMoraleChart';
 import ProvinceStrategicScatterChart from '../charts/ProvinceStrategicScatterChart';
 import type { ProvinceAggregate } from '../types';
 import styles from './Section.module.css';
@@ -44,11 +43,6 @@ export default function ProvinceStatsSection({ data }: Props) {
           <h3 className={styles.chartTitle}>Province Strategic Map</h3>
           <p className={styles.chartSubtitle}>All provinces · avg ownership changes per game vs winner control rate · reference lines at medians · top outliers labeled · coloured by terrain type</p>
           <ProvinceStrategicScatterChart data={filtered} />
-        </div>
-        <div id="chart-provinces-morale" className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Province Morale (Top 20)</h3>
-          <p className={styles.chartSubtitle}>Average morale across all games · coloured by terrain type</p>
-          <ProvinceMoraleChart data={filtered} topN={20} />
         </div>
       </div>
     </section>

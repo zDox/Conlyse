@@ -1,7 +1,6 @@
 import React from 'react';
 import BuildingFrequencyChart from '../charts/BuildingFrequencyChart';
 import BuildingProgressionChart from '../charts/BuildingProgressionChart';
-import BuildingWinCorrelationChart from '../charts/BuildingWinCorrelationChart';
 import CountryBuildingChart from '../charts/CountryBuildingChart';
 import type { BuildingAggregate, CountryAggregate, TimeSeriesOutput } from '../types';
 import styles from './Section.module.css';
@@ -21,7 +20,7 @@ export default function BuildingsSection({ data, countries, timeseries }: Props)
         <div>
           <h2 className={styles.heading}>Building Analysis</h2>
           <p className={styles.description}>
-            Building frequency, win correlation, per-nation loadouts, and construction timelines across {data.length} building types.
+            Building frequency, per-nation loadouts, and construction timelines across {data.length} building types.
           </p>
         </div>
       </div>
@@ -30,11 +29,6 @@ export default function BuildingsSection({ data, countries, timeseries }: Props)
           <h3 className={styles.chartTitle}>Building Frequency (Top 20)</h3>
           <p className={styles.chartSubtitle}>Average number of completed buildings per game across all players · sorted by frequency</p>
           <BuildingFrequencyChart data={data} />
-        </div>
-        <div id="chart-buildings-win" className={styles.chartCard} style={{ gridColumn: '1 / -1' }}>
-          <h3 className={styles.chartTitle}>Win Correlation (Top 15 by winner advantage)</h3>
-          <p className={styles.chartSubtitle}>Average count at game end for winners vs non-winners · only buildings appearing in ≥50% of games shown</p>
-          <BuildingWinCorrelationChart data={data} />
         </div>
         <div id="chart-buildings-country" className={styles.chartCard} style={{ gridColumn: '1 / -1' }}>
           <h3 className={styles.chartTitle}>Country Loadouts</h3>

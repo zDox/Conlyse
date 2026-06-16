@@ -33,6 +33,18 @@ static GAMES_STARTED_TOTAL: Lazy<IntCounterVec> = Lazy::new(|| {
     vec
 });
 
+static GAMES_RESUMED_TOTAL: Lazy<IntCounterVec> = Lazy::new(|| {
+    let opts = Opts::new(
+        "games_resumed_total",
+        "Total number of previously-active recording sessions resumed (e.g. after a restart)",
+    );
+    let vec = IntCounterVec::new(opts, &["scenario_id"]).expect("create games_resumed_total");
+    default_registry()
+        .register(Box::new(vec.clone()))
+        .expect("register games_resumed_total");
+    vec
+});
+
 static GAMES_COMPLETED_TOTAL: Lazy<IntCounterVec> = Lazy::new(|| {
     let opts = Opts::new(
         "games_completed_total",
@@ -186,6 +198,12 @@ static REDIS_PUBLISH_FAILURES_TOTAL: Lazy<IntCounter> = Lazy::new(|| {
 // Public helpers used by the rest of the crate
 pub fn record_game_started(scenario_id: i32) {
     GAMES_STARTED_TOTAL
+        .with_label_values(&[&scenario_id.to_string()])
+        .inc();
+}
+
+pub fn record_game_resumed(scenario_id: i32) {
+    GAMES_RESUMED_TOTAL
         .with_label_values(&[&scenario_id.to_string()])
         .inc();
 }

@@ -109,10 +109,17 @@ def _aggregate_country(
         for uid in sorted(all_bld_lvl)
     }
 
-    morale_vals = [p.avg_national_morale for _, p in entries if p.avg_national_morale > 0]
+    # Human-only entries (native_computer=False) for metrics that should exclude AI-controlled slots
+    human_entries = [(g, p) for g, p in entries if not p.is_native_computer]
+    human_n = len(human_entries)
+
+    human_eliminated = sum(1 for _, p in human_entries if p.is_defeated)
+    human_elimination_rate = human_eliminated / human_n if human_n > 0 else 0.0
+
+    morale_vals = [p.avg_national_morale for _, p in human_entries if p.avg_national_morale > 0]
     avg_national_morale = _mean(morale_vals)
 
-    elim_pcts = [p.elimination_game_pct for _, p in entries if p.elimination_game_pct is not None]
+    elim_pcts = [p.elimination_game_pct for _, p in human_entries if p.elimination_game_pct is not None]
     avg_elimination_pct: float | None = _mean(elim_pcts) if elim_pcts else None
 
     return CountryAggregate(
@@ -128,7 +135,7 @@ def _aggregate_country(
         avg_expansion=_mean(expansions),
         avg_provinces_captured=_mean(captures),
         avg_provinces_lost=_mean(losses),
-        elimination_rate=eliminated / games_played,
+        elimination_rate=human_elimination_rate,
         avg_survival_days=_mean(survival_days),
         avg_wars_declared=_mean(wars_declared),
         avg_peace_treaties_signed=_mean(peace_treaties),

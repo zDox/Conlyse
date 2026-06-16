@@ -9,10 +9,7 @@ from ..models.intermediate import GameData
 
 class BuildingAggregator(BaseAggregator[list[BuildingAggregate]]):
     def aggregate(self, games: list[GameData]) -> list[BuildingAggregate]:
-        # uid → list of (total_count_in_game, winner_count, loser_count, level_samples)
         uid_game_totals: dict[str, list[float]] = defaultdict(list)
-        uid_winner_totals: dict[str, list[float]] = defaultdict(list)
-        uid_loser_totals: dict[str, list[float]] = defaultdict(list)
         uid_levels: dict[str, list[float]] = defaultdict(list)
         uid_games_appeared: dict[str, int] = defaultdict(int)
         # uid → tier → list of per-game totals across all players
@@ -20,19 +17,11 @@ class BuildingAggregator(BaseAggregator[list[BuildingAggregate]]):
 
         for game in games:
             game_uid_total: dict[str, float] = defaultdict(float)
-            winner_uid_total: dict[str, float] = defaultdict(float)
-            loser_uid_total: dict[str, float] = defaultdict(float)
             game_uid_tier_total: dict[str, dict[int, float]] = defaultdict(lambda: defaultdict(float))
-            winner_ids = set(game.winner_ids)
 
             for player in game.players:
-                is_winner = player.player_id in winner_ids
                 for uid, cnt in player.final_building_counts.items():
                     game_uid_total[uid] += cnt
-                    if is_winner:
-                        winner_uid_total[uid] += cnt
-                    else:
-                        loser_uid_total[uid] += cnt
                 for uid, level in player.final_building_levels.items():
                     uid_levels[uid].append(level)
                 for uid, tier_counts in player.final_building_tier_counts.items():
@@ -43,9 +32,6 @@ class BuildingAggregator(BaseAggregator[list[BuildingAggregate]]):
                 if total > 0:
                     uid_game_totals[uid].append(total)
                     uid_games_appeared[uid] += 1
-            for uid in set(winner_uid_total) | set(loser_uid_total):
-                uid_winner_totals[uid].append(winner_uid_total.get(uid, 0.0))
-                uid_loser_totals[uid].append(loser_uid_total.get(uid, 0.0))
             for uid, tier_map in game_uid_tier_total.items():
                 for tier, total in tier_map.items():
                     uid_tier_totals[uid][tier].append(total)
@@ -54,8 +40,6 @@ class BuildingAggregator(BaseAggregator[list[BuildingAggregate]]):
         all_uids = set(uid_game_totals)
         for uid in sorted(all_uids):
             totals = uid_game_totals[uid]
-            winners = uid_winner_totals.get(uid, [])
-            losers = uid_loser_totals.get(uid, [])
             levels = uid_levels.get(uid, [])
             avg_per_tier = {
                 tier: round(statistics.mean(vals), 2)
@@ -65,8 +49,6 @@ class BuildingAggregator(BaseAggregator[list[BuildingAggregate]]):
                 upgrade_identifier=uid,
                 games_appeared=uid_games_appeared[uid],
                 avg_per_game=round(statistics.mean(totals), 2) if totals else 0.0,
-                avg_per_winner=round(statistics.mean(winners), 2) if winners else 0.0,
-                avg_per_loser=round(statistics.mean(losers), 2) if losers else 0.0,
                 avg_level=round(statistics.mean(levels), 2) if levels else 0.0,
                 avg_per_tier=avg_per_tier,
             ))

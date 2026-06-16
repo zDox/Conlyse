@@ -71,8 +71,6 @@ export function deserializeBuildings(raw: ColumnarData): BuildingAggregate[] {
     upgrade_identifier: r[idx.upgrade_identifier] as string,
     games_appeared:     r[idx.games_appeared]     as number,
     avg_per_game:       r[idx.avg_per_game]       as number,
-    avg_per_winner:     r[idx.avg_per_winner]     as number,
-    avg_per_loser:      r[idx.avg_per_loser]      as number,
     avg_level:          r[idx.avg_level]          as number,
     avg_per_tier:       (r[idx.avg_per_tier] ?? {}) as Record<string, number>,
   }));

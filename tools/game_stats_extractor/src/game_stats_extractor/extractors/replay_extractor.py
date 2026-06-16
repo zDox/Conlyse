@@ -752,6 +752,7 @@ class ReplayExtractor(BaseExtractor):
                 player_name=profile.name,
                 team_id=profile.team_id,
                 is_ai=bool(profile.computer_player),
+                is_native_computer=is_native_computer.get(player_id, False),
                 is_defeated=bool(profile.defeated),
                 is_playing=bool(profile.playing),
                 final_vp=int(profile.victory_points),
@@ -819,7 +820,8 @@ class ReplayExtractor(BaseExtractor):
             ))
 
         # ---- Victory detection ----
-        winner_ids, victory_type = _determine_winners(players)
+        ranking = gs.states.newspaper_state.ranking
+        winner_ids, victory_type = _determine_winners(players, ranking)
 
         # ---- Provinces ----
         provinces: list[ProvinceData] = []
@@ -840,7 +842,7 @@ class ReplayExtractor(BaseExtractor):
                 avg_morale=prov_morale_sum.get(pid, 0.0) / n,
                 min_morale=prov_morale_min.get(pid, 0.0),
                 max_morale=prov_morale_max.get(pid, 0.0),
-                final_upgrade_counts=dict(current_province_buildings.get(pid, {})),
+                final_upgrade_counts=_group_building_counts(current_province_buildings.get(pid, {})),
             ))
 
         game_total_prod: dict[str, float] = defaultdict(float)
@@ -880,23 +882,30 @@ class ReplayExtractor(BaseExtractor):
         )
 
 
-def _determine_winners(players: list[PlayerData]) -> tuple[list[int], str]:
+def _determine_winners(players: list[PlayerData], ranking=None) -> tuple[list[int], str]:
     if not players:
         return [], "unknown"
 
-    # Prefer still-playing non-defeated players as the winner pool
+    # Use newspaper ranking when the game has a finalized result
+    if ranking is not None and ranking.initialized:
+        if ranking.winner != -1:
+            return [ranking.winner], "solo"
+        if ranking.winner_team != -1:
+            team_players = [p.player_id for p in players if p.team_id == ranking.winner_team]
+            if team_players:
+                return team_players, "coalition"
+
+    # Fallback heuristic for replays without a finalized ranking
     still_playing = [p for p in players if p.is_playing and not p.is_defeated]
 
     if len(still_playing) == 1:
         return [still_playing[0].player_id], "solo"
 
     if len(still_playing) >= 2:
-        # All on same team → coalition
         team_ids = {p.team_id for p in still_playing if p.team_id > 0}
         if len(team_ids) == 1 and all(p.team_id > 0 for p in still_playing):
             return [p.player_id for p in still_playing], "coalition"
 
-    # Fallback: use VP among non-defeated (covers games where playing flag is unreliable)
     pool = still_playing or [p for p in players if not p.is_defeated] or players
     max_vp = max((p.final_vp for p in pool), default=0)
     if max_vp <= 0:

@@ -18,8 +18,6 @@ class BuildingAggregate(BaseModel):
     upgrade_identifier: str
     games_appeared: int
     avg_per_game: float
-    avg_per_winner: float
-    avg_per_loser: float
     avg_level: float
     avg_per_tier: dict[int, float] = {}
 
