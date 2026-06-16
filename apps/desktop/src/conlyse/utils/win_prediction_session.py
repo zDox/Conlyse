@@ -1,11 +1,12 @@
 """
 Live win-share prediction for the Desktop replay viewer.
 
-Maintains a rolling buffer of resampled (3-day spaced) game-state snapshots for one
+Maintains a rolling buffer of resampled (1-day spaced) game-state snapshots for one
 replay session and builds GNN win-predictor inputs from it, reusing
 `ml.data.{province_features,player_features}` — the exact same feature-building code
 path as `gnn-extract` — so there is no train/serve skew.
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,7 +15,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from conflict_interface.data_types.newest.map_state.land_province import LandProvince
-
 from ml.data.dataset import GnnBatch, collate_fn
 from ml.data.player_features import NUM_PLAYER_FEATURES, build_player_feature_vector
 from ml.data.province_features import (
@@ -33,12 +33,14 @@ logger = logging.getLogger(__name__)
 
 def _real_player_ids(players: dict) -> list[int]:
     return sorted(
-        pid for pid, profile in players.items() if pid > 0 and profile.nation_name and profile.name != "Guest"
+        pid
+        for pid, profile in players.items()
+        if pid > 0 and profile.nation_name and profile.name != "Guest"
     )
 
 
 class WinPredictionSession:
-    """Rolling buffer of up to `T_STEPS` (3-day spaced) snapshots for one replay session."""
+    """Rolling buffer of up to `T_STEPS` (1-day spaced) snapshots for one replay session."""
 
     def __init__(self, province_graph: ProvinceGraph, max_steps: int = T_STEPS) -> None:
         self.province_graph = province_graph
@@ -51,7 +53,7 @@ class WinPredictionSession:
         self._snapshots: list[dict] = []
         self._days: list[float] = []
 
-    def maybe_update(self, ritf: "ReplayInterface") -> bool:
+    def maybe_update(self, ritf: ReplayInterface) -> bool:
         """Capture a new snapshot if `current_time` crossed the next `STEP_DAYS`
         boundary (or this is the first call). Returns True if the buffer changed."""
         game_state = ritf.game_state
@@ -89,7 +91,9 @@ class WinPredictionSession:
 
         ut_map = dict(game_state.states.mod_state.upgrades)
         capital_province_ids = {
-            profile.capital_id for profile in players.values() if profile.capital_id and profile.capital_id > 0
+            profile.capital_id
+            for profile in players.values()
+            if profile.capital_id and profile.capital_id > 0
         }
 
         provinces = game_state.states.map_state.map.provinces
@@ -105,7 +109,9 @@ class WinPredictionSession:
             node_idx = self.id_to_index.get(province.id)
             if node_idx is None:
                 continue
-            node_features[node_idx] = build_province_feature_vector(province, ut_map, capital_province_ids)
+            node_features[node_idx] = build_province_feature_vector(
+                province, ut_map, capital_province_ids
+            )
             owner_seat_idx[node_idx] = build_owner_seat_idx(province, self.seat_idx)
 
         player_features = np.zeros((len(self.player_ids), NUM_PLAYER_FEATURES), dtype=np.float32)
@@ -114,7 +120,9 @@ class WinPredictionSession:
             profile = players.get(player_id)
             if profile is None:
                 continue
-            player_features[i] = build_player_feature_vector(profile, province_counts.get(player_id, 0))
+            player_features[i] = build_player_feature_vector(
+                profile, province_counts.get(player_id, 0)
+            )
             alive_mask[i] = not profile.defeated
 
         return {
@@ -124,7 +132,7 @@ class WinPredictionSession:
             "alive_mask": torch.from_numpy(alive_mask),
         }
 
-    def to_model_input(self, ritf: "ReplayInterface") -> GnnBatch | None:
+    def to_model_input(self, ritf: ReplayInterface) -> GnnBatch | None:
         """Builds a batch-of-1 `GnnBatch` from the buffered history plus a freshly
         captured "now" snapshot (always recomputed for freshness)."""
         game_state = ritf.game_state

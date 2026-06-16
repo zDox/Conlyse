@@ -1,9 +1,12 @@
 """
 Train the GNN + Transformer win-predictor.
 
-Each game is one sample (no row-level leakage within a game), so a plain `KFold`
-over game files replaces the old `GroupKFold`.
+Each game contributes `NUM_ANCHORS` samples (one per mid-game anchor day, see
+`ml.data.resampling`), so a `GroupKFold` over game ids is used — this keeps all
+anchors of one game in the same fold and avoids leaking a game's outcome between
+train and validation splits.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -12,12 +15,13 @@ from pathlib import Path
 
 import torch
 import torch.nn.functional as F
-from sklearn.model_selection import KFold
+from sklearn.model_selection import GroupKFold
 from torch.utils.data import DataLoader, Subset
 
 from .data.dataset import GnnBatch, GnnWinDataset, collate_fn
 from .data.player_features import NUM_PLAYER_FEATURES
 from .data.province_features import BUILDING_VOCAB, NUM_PROVINCE_FEATURES
+from .data.resampling import NUM_ANCHORS
 from .model.win_predictor import WinPredictor, win_predictor_loss
 
 logger = logging.getLogger(__name__)
@@ -49,6 +53,7 @@ def to_device(batch: GnnBatch, device: str) -> GnnBatch:
         player_ids=batch.player_ids.to(device),
         game_ids=batch.game_ids.to(device),
         day_of_game=batch.day_of_game.to(device),
+        game_progress=batch.game_progress.to(device),
         batch_size=batch.batch_size,
         num_steps=batch.num_steps,
         max_players=batch.max_players,
@@ -96,7 +101,9 @@ def evaluate(model: WinPredictor, loader: DataLoader, device: str) -> dict[str, 
     return metrics
 
 
-def _run_epoch(model: WinPredictor, loader: DataLoader, optimizer: torch.optim.Optimizer, device: str) -> float:
+def _run_epoch(
+    model: WinPredictor, loader: DataLoader, optimizer: torch.optim.Optimizer, device: str
+) -> float:
     model.train()
     total_loss = 0.0
     n_batches = 0
@@ -125,18 +132,26 @@ def train(
     n = len(dataset)
     if n == 0:
         raise ValueError(f"No samples found in {dataset_dir}")
-    logger.info("Dataset: %d games", n)
+    n_games = len(dataset.file_game_ids)
+    groups = [game_id for game_id in dataset.file_game_ids for _ in range(NUM_ANCHORS)]
+    logger.info("Dataset: %d games, %d samples", n_games, n)
 
-    if n >= 2:
-        n_folds = max(2, min(n_folds, n))
-        kf = KFold(n_splits=n_folds, shuffle=True, random_state=0)
-        splits = list(kf.split(range(n)))
+    if n_games >= 2:
+        n_folds = max(2, min(n_folds, n_games))
+        gkf = GroupKFold(n_splits=n_folds)
+        splits = list(gkf.split(range(n), groups=groups))
     else:
         splits = [(list(range(n)), list(range(n)))]
 
     fold_metrics = []
     for fold, (train_idx, val_idx) in enumerate(splits):
-        logger.info("Fold %d/%d: %d train, %d val games", fold + 1, len(splits), len(train_idx), len(val_idx))
+        logger.info(
+            "Fold %d/%d: %d train, %d val games",
+            fold + 1,
+            len(splits),
+            len(train_idx),
+            len(val_idx),
+        )
         train_loader = DataLoader(
             Subset(dataset, train_idx), batch_size=batch_size, shuffle=True, collate_fn=collate_fn
         )
@@ -154,14 +169,22 @@ def train(
             logger.info(
                 "Fold %d epoch %d/%d: train_loss=%.4f val_kl=%.4f val_brier=%.4f "
                 "top1=%.3f top3=%.3f top5=%.3f coalition_mass=%.3f",
-                fold + 1, epoch + 1, epochs, train_loss,
-                metrics["kl"], metrics["brier"],
-                metrics["top1_acc"], metrics["top3_acc"], metrics["top5_acc"],
+                fold + 1,
+                epoch + 1,
+                epochs,
+                train_loss,
+                metrics["kl"],
+                metrics["brier"],
+                metrics["top1_acc"],
+                metrics["top3_acc"],
+                metrics["top5_acc"],
                 metrics["coalition_mass"],
             )
         fold_metrics.append(metrics)
 
-    avg_metrics = {key: sum(m[key] for m in fold_metrics) / len(fold_metrics) for key in fold_metrics[0]}
+    avg_metrics = {
+        key: sum(m[key] for m in fold_metrics) / len(fold_metrics) for key in fold_metrics[0]
+    }
     logger.info("Average validation metrics across folds: %s", avg_metrics)
 
     logger.info("Retraining final model on all %d games", n)

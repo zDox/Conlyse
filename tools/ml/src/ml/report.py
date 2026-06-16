@@ -4,8 +4,9 @@ Generate an HTML evaluation report for the GNN win predictor.
 Combines the overall metrics from `ml.train.evaluate` (KL-divergence, masked Brier
 score, top-k accuracy, coalition mass recovered) with a reliability diagram over
 per-player win-share predictions and a breakdown of those metrics by game progress
-(`day_of_game`).
+(`game_progress`, the fixed anchor fraction of the game elapsed at "now").
 """
+
 from __future__ import annotations
 
 import base64
@@ -74,7 +75,8 @@ def _df_to_html_table(df: pd.DataFrame, float_fmt: str = "{:.4f}") -> str:
 
     header = "".join(f"<th>{c}</th>" for c in df.columns)
     body = "".join(
-        "<tr>" + "".join(f"<td>{fmt(v)}</td>" for v in row) + "</tr>" for row in df.itertuples(index=False)
+        "<tr>" + "".join(f"<td>{fmt(v)}</td>" for v in row) + "</tr>"
+        for row in df.itertuples(index=False)
     )
     return f"<table><thead><tr>{header}</tr></thead><tbody>{body}</tbody></table>"
 
@@ -109,11 +111,16 @@ def _collect(model, loader: DataLoader, device: str) -> tuple[np.ndarray, np.nda
                 brier = float(((probs[i] - batch.target[i])[alive_i] ** 2).mean().item())
             else:
                 brier = float("nan")
-            kl = float(F.kl_div(log_probs[i : i + 1], batch.target[i : i + 1], reduction="batchmean").item())
+            kl = float(
+                F.kl_div(
+                    log_probs[i : i + 1], batch.target[i : i + 1], reduction="batchmean"
+                ).item()
+            )
             coalition_mass = float((probs[i] * is_winner[i].float()).sum().item())
 
             row = {
                 "day_of_game": float(batch.day_of_game[i].item()),
+                "game_progress": float(batch.game_progress[i].item()),
                 "brier": brier,
                 "kl": kl,
                 "coalition_mass": coalition_mass,
@@ -123,13 +130,21 @@ def _collect(model, loader: DataLoader, device: str) -> tuple[np.ndarray, np.nda
                 row[f"top{k}"] = bool(is_winner[i][top_idx].any().item())
             per_game_rows.append(row)
 
-    return np.concatenate(flat_probs), np.concatenate(flat_is_winner).astype(int), pd.DataFrame(per_game_rows)
+    return (
+        np.concatenate(flat_probs),
+        np.concatenate(flat_is_winner).astype(int),
+        pd.DataFrame(per_game_rows),
+    )
 
 
-def _plot_reliability(is_winner: np.ndarray, probs: np.ndarray, n_bins: int = 10) -> tuple[plt.Figure, pd.DataFrame]:
+def _plot_reliability(
+    is_winner: np.ndarray, probs: np.ndarray, n_bins: int = 10
+) -> tuple[plt.Figure, pd.DataFrame]:
     prob_true, prob_pred = calibration_curve(is_winner, probs, n_bins=n_bins, strategy="quantile")
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 7), gridspec_kw={"height_ratios": [3, 1]}, sharex=True)
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1, figsize=(6, 7), gridspec_kw={"height_ratios": [3, 1]}, sharex=True
+    )
     ax1.plot([0, 1], [0, 1], linestyle="--", color="#9ca3af", label="Perfectly calibrated")
     ax1.plot(prob_pred, prob_true, marker="o", color="#dc2626", label="Model")
     ax1.set_ylabel("Observed win-coalition rate")
@@ -147,21 +162,17 @@ def _plot_reliability(is_winner: np.ndarray, probs: np.ndarray, n_bins: int = 10
     return fig, table
 
 
-def _progress_breakdown(per_game: pd.DataFrame, n_bins: int = 5) -> pd.DataFrame:
-    n_unique = per_game["day_of_game"].nunique()
-    if n_unique > 1:
-        per_game = per_game.copy()
-        per_game["bucket"] = pd.qcut(per_game["day_of_game"], q=min(n_bins, n_unique), duplicates="drop")
-    else:
-        per_game = per_game.copy()
-        per_game["bucket"] = per_game["day_of_game"].round(1).astype(str)
-
+def _progress_breakdown(per_game: pd.DataFrame) -> pd.DataFrame:
+    """Bucket by the exact `game_progress` anchor fractions (`NUM_ANCHORS` evenly
+    spaced values, e.g. 5%, 15%, ..., 95%) — deterministic across all games, unlike
+    absolute `day_of_game` which depends on each game's length."""
     rows = []
-    for bucket, group in per_game.groupby("bucket"):
+    for progress, group in per_game.groupby("game_progress"):
         rows.append(
             {
-                "day_of_game": str(bucket),
-                "n_games": len(group),
+                "game_progress": f"{progress:.0%}",
+                "day_of_game": float(group["day_of_game"].mean()),
+                "n_samples": len(group),
                 "kl": float(group["kl"].mean()),
                 "brier": float(group["brier"].mean()),
                 "coalition_mass": float(group["coalition_mass"].mean()),
@@ -185,12 +196,19 @@ def _plot_progress(table: pd.DataFrame) -> plt.Figure:
     colors = {1: "#2563eb", 3: "#16a34a", 5: "#f59e0b"}
     for k in _TOPK_VALUES:
         ax2.plot(x, table[f"top{k}_acc"], marker="o", color=colors[k], label=f"Top-{k} accuracy")
-    ax2.plot(x, table["coalition_mass"], marker="s", color="#9333ea", linestyle="--", label="Coalition mass")
+    ax2.plot(
+        x,
+        table["coalition_mass"],
+        marker="s",
+        color="#9333ea",
+        linestyle="--",
+        label="Coalition mass",
+    )
     ax2.set_ylabel("Accuracy / mass")
     ax2.set_ylim(0.0, 1.05)
     ax2.set_xticks(list(x))
-    ax2.set_xticklabels(table["day_of_game"], rotation=30, ha="right")
-    ax2.set_xlabel("Game progress (day_of_game bucket)")
+    ax2.set_xticklabels(table["game_progress"], rotation=30, ha="right")
+    ax2.set_xlabel("% of game time elapsed")
     ax2.legend()
     ax2.grid(alpha=0.3)
 
@@ -203,6 +221,7 @@ def _render_html(
     dataset_dir: Path,
     checkpoint_path: Path,
     n_games: int,
+    n_samples: int,
     overall: dict[str, float],
     reliability_chart: str,
     reliability_table: pd.DataFrame,
@@ -228,7 +247,7 @@ def _render_html(
 <body>
 <h1>Win-predictor model — evaluation report</h1>
 <p class="note">
-  Dataset: <code>{dataset_dir}</code> &mdash; {n_games:,} games<br>
+  Dataset: <code>{dataset_dir}</code> &mdash; {n_games:,} games, {n_samples:,} samples<br>
   Model: <code>{checkpoint_path}</code>
 </p>
 
@@ -256,9 +275,11 @@ def _render_html(
 
 <h2>Metrics by game progress</h2>
 <p class="note">
-  Games are bucketed by <code>day_of_game</code> ("now" for each sample) into
-  roughly equal-sized quantile groups, so this shows whether the model performs
-  better on longer-running games than on early-game snapshots.
+  Samples are bucketed by <code>game_progress</code> — the fixed anchor fraction of
+  the game elapsed at "now" (5%, 15%, ..., 95%) — so this shows whether the model
+  performs better later in games than on early, less-decided snapshots. The
+  <code>day_of_game</code> column is the mean absolute day for each bucket, for
+  context (it varies by game length).
 </p>
 {progress_chart}
 {_df_to_html_table(progress_table)}
@@ -297,7 +318,8 @@ def generate_report(
     html = _render_html(
         dataset_dir=dataset_dir,
         checkpoint_path=checkpoint_path,
-        n_games=len(dataset),
+        n_games=len(dataset.file_game_ids),
+        n_samples=len(dataset),
         overall=overall,
         reliability_chart=reliability_chart,
         reliability_table=reliability_table,
