@@ -1,9 +1,11 @@
 """Aggregates per-province GNN embeddings into per-player embeddings.
 
-v1 uses mean+max scatter pooling (grouped by `owner_seat_idx`) concatenated with the
+Uses mean+max+sum scatter pooling (grouped by `owner_seat_idx`) concatenated with the
 per-player feature vector and projected through an MLP — cheaper than attention pooling
 and handles arbitrary province counts per player without padding. Players with 0
 provinces fall back to the player-feature projection only (zero province contribution).
+Sum pooling captures empire-scale totals (resource production, buildings, etc.) that
+mean+max alone cannot distinguish when player province counts differ.
 """
 from __future__ import annotations
 
@@ -26,7 +28,7 @@ class PlayerPooling(nn.Module):
         self.max_seats = max_seats
         self.player_feature_proj = nn.Linear(player_feature_dim, hidden_dim)
         self.mlp = nn.Sequential(
-            nn.Linear(province_dim * 2 + hidden_dim, hidden_dim),
+            nn.Linear(province_dim * 3 + hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
         )
@@ -45,16 +47,19 @@ class PlayerPooling(nn.Module):
 
         mean_pool = scatter(node_embeddings, combined_idx, dim=0, dim_size=dim_size, reduce="mean")
         max_pool = scatter(node_embeddings, combined_idx, dim=0, dim_size=dim_size, reduce="max")
+        sum_pool = scatter(node_embeddings, combined_idx, dim=0, dim_size=dim_size, reduce="sum")
 
         province_dim = node_embeddings.shape[-1]
         mean_pool = mean_pool.view(num_graphs, num_seats, province_dim)
         max_pool = max_pool.view(num_graphs, num_seats, province_dim)
+        sum_pool = sum_pool.view(num_graphs, num_seats, province_dim)
 
         num_players = player_features.shape[1]
         # Seat 0 == neutral; players occupy seats 1..num_players.
         mean_pool = mean_pool[:, 1 : 1 + num_players]
         max_pool = max_pool[:, 1 : 1 + num_players]
+        sum_pool = sum_pool[:, 1 : 1 + num_players]
 
-        province_repr = torch.cat([mean_pool, max_pool], dim=-1)
+        province_repr = torch.cat([mean_pool, max_pool, sum_pool], dim=-1)
         player_repr = self.player_feature_proj(player_features)
         return self.mlp(torch.cat([province_repr, player_repr], dim=-1))

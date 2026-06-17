@@ -1,18 +1,22 @@
-"""Per-player feature vector — a residual input to player pooling (§2 of the plan)."""
+"""Per-player feature vector — a residual input to player pooling."""
 from __future__ import annotations
 
 import math
+from typing import Optional
 
 import numpy as np
 from conflict_interface.data_types.newest.player_state.faction import Faction
 from conflict_interface.data_types.newest.player_state.player_profile import PlayerProfile
+
+from .newspaper_features import NUM_NEWSPAPER_FEATURES
 
 _FACTIONS = list(Faction)
 
 # is_ai, is_native_ai, is_alive, team_id, province_count, total_vp, national_morale
 _NUM_SCALAR_FEATURES = 7
 
-NUM_PLAYER_FEATURES = _NUM_SCALAR_FEATURES + len(_FACTIONS)
+# Changing NUM_PLAYER_FEATURES invalidates existing checkpoints — always retrain from scratch.
+NUM_PLAYER_FEATURES = _NUM_SCALAR_FEATURES + len(_FACTIONS) + NUM_NEWSPAPER_FEATURES
 
 
 def _one_hot(members: list, value) -> np.ndarray:
@@ -27,7 +31,11 @@ def _one_hot(members: list, value) -> np.ndarray:
     return vec
 
 
-def build_player_feature_vector(profile: PlayerProfile, province_count: int) -> np.ndarray:
+def build_player_feature_vector(
+    profile: PlayerProfile,
+    province_count: int,
+    newspaper_features: Optional[np.ndarray] = None,
+) -> np.ndarray:
     scalars = np.array(
         [
             1.0 if profile.computer_player else 0.0,
@@ -41,4 +49,5 @@ def build_player_feature_vector(profile: PlayerProfile, province_count: int) -> 
         dtype=np.float32,
     )
     faction_vec = _one_hot(_FACTIONS, profile.faction)
-    return np.concatenate([scalars, faction_vec])
+    news_vec = newspaper_features if newspaper_features is not None else np.zeros(NUM_NEWSPAPER_FEATURES, dtype=np.float32)
+    return np.concatenate([scalars, faction_vec, news_vec])

@@ -8,13 +8,25 @@ extractor's `PlayerData` to avoid a cross-package dependency.
 """
 from __future__ import annotations
 
+from typing import Optional
+
 import numpy as np
+from conflict_interface.data_types.newest.newspaper_state.ranking import Ranking
 from conflict_interface.data_types.newest.player_state.player_profile import PlayerProfile
 
 
-def determine_winner_ids(profiles: list[PlayerProfile]) -> list[int]:
+def determine_winner_ids(
+    profiles: list[PlayerProfile],
+    ranking: Optional[Ranking] = None,
+) -> list[int]:
     if not profiles:
         return []
+
+    if ranking is not None and ranking.initialized:
+        if ranking.winner != -1:
+            return [ranking.winner]
+        if ranking.winner_team != -1:
+            return [p.player_id for p in profiles if p.team_id == ranking.winner_team]
 
     still_playing = [p for p in profiles if p.playing and not p.defeated]
 

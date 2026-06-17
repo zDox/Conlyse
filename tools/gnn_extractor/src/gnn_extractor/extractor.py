@@ -26,6 +26,7 @@ import numpy as np
 import torch
 from conflict_interface.data_types.newest.map_state.land_province import LandProvince
 from conflict_interface.interface.replay_interface import ReplayInterface
+from ml.data.newspaper_features import compute_newspaper_features, filter_articles_in_window
 from ml.data.player_features import NUM_PLAYER_FEATURES, build_player_feature_vector
 from ml.data.province_features import (
     NUM_PROVINCE_FEATURES,
@@ -33,7 +34,7 @@ from ml.data.province_features import (
     build_province_feature_vector,
 )
 from ml.data.province_graph import get_or_build_province_graph
-from ml.data.resampling import NUM_ANCHORS, T_STEPS, build_anchor_days, build_resampling_schedule
+from ml.data.resampling import NUM_ANCHORS, STEP_DAYS, T_STEPS, build_anchor_days, build_resampling_schedule
 from ml.data.target import compute_target_vector, determine_winner_ids
 
 logger = logging.getLogger(__name__)
@@ -142,12 +143,17 @@ class GnnReplayExtractor:
                 )
                 owner_seat_idx_pool[pool_idx, node_idx] = build_owner_seat_idx(province, seat_idx)
 
+            newspaper_state = gs.states.newspaper_state
+            articles = (newspaper_state.articles if newspaper_state else None) or []
+            window_articles = filter_articles_in_window(articles, start_time, day - STEP_DAYS, day)
+            newspaper_feats = compute_newspaper_features(window_articles, seat_idx, num_players)
+
             for i, player_id in enumerate(player_ids):
                 profile = profiles.get(player_id)
                 if profile is None:
                     continue
                 player_features_pool[pool_idx, i] = build_player_feature_vector(
-                    profile, province_counts.get(player_id, 0)
+                    profile, province_counts.get(player_id, 0), newspaper_feats[i]
                 )
                 alive_mask_pool[pool_idx, i] = not profile.defeated
 
@@ -156,8 +162,10 @@ class GnnReplayExtractor:
         if gs is None:
             raise ValueError("game_state is None at last_time")
         final_profiles = gs.states.player_state.players
+        ranking = gs.states.newspaper_state.ranking
         winner_ids = determine_winner_ids(
-            [final_profiles[pid] for pid in player_ids if pid in final_profiles]
+            [final_profiles[pid] for pid in player_ids if pid in final_profiles],
+            ranking=ranking,
         )
         target = compute_target_vector(winner_ids, player_ids)
 

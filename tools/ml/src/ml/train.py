@@ -19,6 +19,7 @@ from sklearn.model_selection import GroupKFold
 from torch.utils.data import DataLoader, Subset
 
 from .data.dataset import GnnBatch, GnnWinDataset, collate_fn
+from .data.newspaper_features import UNIT_VOCAB
 from .data.player_features import NUM_PLAYER_FEATURES
 from .data.province_features import BUILDING_VOCAB, NUM_PROVINCE_FEATURES
 from .data.resampling import NUM_ANCHORS
@@ -32,6 +33,11 @@ _TOPK_VALUES = (1, 3, 5)
 def building_vocab_hash() -> str:
     """Fingerprint of `building_vocab.json` — checkpoints fail to load if it changes."""
     return hashlib.sha256("\n".join(BUILDING_VOCAB).encode()).hexdigest()[:16]
+
+
+def unit_vocab_hash() -> str:
+    """Fingerprint of `unit_vocab.json` — checkpoints fail to load if it changes."""
+    return hashlib.sha256("\n".join(UNIT_VOCAB).encode()).hexdigest()[:16]
 
 
 def model_config() -> dict:
@@ -202,6 +208,7 @@ def train(
             "model_state_dict": model.state_dict(),
             "config": model_config(),
             "building_vocab_hash": building_vocab_hash(),
+            "unit_vocab_hash": unit_vocab_hash(),
         },
         checkpoint_path,
     )

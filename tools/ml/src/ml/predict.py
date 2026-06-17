@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 from .data.dataset import GnnBatch
 from .model.win_predictor import WinPredictor
-from .train import building_vocab_hash
+from .train import building_vocab_hash, unit_vocab_hash
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,13 @@ def load_model(checkpoint_path: Path, device: str = "cpu") -> WinPredictor:
         raise ValueError(
             f"Checkpoint {checkpoint_path} was trained against a different building_vocab.json "
             f"(hash {expected_hash} != {building_vocab_hash()}). Re-extract the dataset and retrain."
+        )
+
+    expected_unit_hash = checkpoint.get("unit_vocab_hash")
+    if expected_unit_hash is not None and expected_unit_hash != unit_vocab_hash():
+        raise ValueError(
+            f"Checkpoint {checkpoint_path} was trained against a different unit_vocab.json "
+            f"(hash {expected_unit_hash} != {unit_vocab_hash()}). Re-extract the dataset and retrain."
         )
 
     model = WinPredictor(**checkpoint["config"])

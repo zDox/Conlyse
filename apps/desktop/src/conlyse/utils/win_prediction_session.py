@@ -3,10 +3,9 @@ Live win-share prediction for the Desktop replay viewer.
 
 Maintains a rolling buffer of resampled (1-day spaced) game-state snapshots for one
 replay session and builds GNN win-predictor inputs from it, reusing
-`ml.data.{province_features,player_features}` — the exact same feature-building code
-path as `gnn-extract` — so there is no train/serve skew.
+`ml.data.{province_features,player_features,newspaper_features}` — the exact same
+feature-building code path as `gnn-extract` — so there is no train/serve skew.
 """
-
 from __future__ import annotations
 
 import logging
@@ -15,7 +14,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from conflict_interface.data_types.newest.map_state.land_province import LandProvince
+
 from ml.data.dataset import GnnBatch, collate_fn
+from ml.data.newspaper_features import compute_newspaper_features, filter_articles_in_window
 from ml.data.player_features import NUM_PLAYER_FEATURES, build_player_feature_vector
 from ml.data.province_features import (
     NUM_PROVINCE_FEATURES,
@@ -33,9 +34,7 @@ logger = logging.getLogger(__name__)
 
 def _real_player_ids(players: dict) -> list[int]:
     return sorted(
-        pid
-        for pid, profile in players.items()
-        if pid > 0 and profile.nation_name and profile.name != "Guest"
+        pid for pid, profile in players.items() if pid > 0 and profile.nation_name and profile.name != "Guest"
     )
 
 
@@ -53,7 +52,7 @@ class WinPredictionSession:
         self._snapshots: list[dict] = []
         self._days: list[float] = []
 
-    def maybe_update(self, ritf: ReplayInterface) -> bool:
+    def maybe_update(self, ritf: "ReplayInterface") -> bool:
         """Capture a new snapshot if `current_time` crossed the next `STEP_DAYS`
         boundary (or this is the first call). Returns True if the buffer changed."""
         game_state = ritf.game_state
@@ -70,7 +69,8 @@ class WinPredictionSession:
         if self._days and (day - self._days[-1]) < STEP_DAYS:
             return False
 
-        snapshot = self._capture(game_state)
+        window_start_day = self._days[-1] if self._days else max(0.0, day - STEP_DAYS)
+        snapshot = self._capture(ritf, window_start_day, day)
         if snapshot is None:
             return False
 
@@ -81,7 +81,8 @@ class WinPredictionSession:
             self._days.pop(0)
         return True
 
-    def _capture(self, game_state) -> dict | None:
+    def _capture(self, ritf: "ReplayInterface", window_start_day: float, window_end_day: float) -> dict | None:
+        game_state = ritf.game_state
         players = game_state.states.player_state.players
         if not self.player_ids:
             self.player_ids = _real_player_ids(players)
@@ -91,9 +92,7 @@ class WinPredictionSession:
 
         ut_map = dict(game_state.states.mod_state.upgrades)
         capital_province_ids = {
-            profile.capital_id
-            for profile in players.values()
-            if profile.capital_id and profile.capital_id > 0
+            profile.capital_id for profile in players.values() if profile.capital_id and profile.capital_id > 0
         }
 
         provinces = game_state.states.map_state.map.provinces
@@ -109,10 +108,13 @@ class WinPredictionSession:
             node_idx = self.id_to_index.get(province.id)
             if node_idx is None:
                 continue
-            node_features[node_idx] = build_province_feature_vector(
-                province, ut_map, capital_province_ids
-            )
+            node_features[node_idx] = build_province_feature_vector(province, ut_map, capital_province_ids)
             owner_seat_idx[node_idx] = build_owner_seat_idx(province, self.seat_idx)
+
+        newspaper_state = game_state.states.newspaper_state
+        articles = (newspaper_state.articles if newspaper_state else None) or []
+        window_articles = filter_articles_in_window(articles, ritf.start_time, window_start_day, window_end_day)
+        newspaper_feats = compute_newspaper_features(window_articles, self.seat_idx, len(self.player_ids))
 
         player_features = np.zeros((len(self.player_ids), NUM_PLAYER_FEATURES), dtype=np.float32)
         alive_mask = np.zeros(len(self.player_ids), dtype=bool)
@@ -121,7 +123,7 @@ class WinPredictionSession:
             if profile is None:
                 continue
             player_features[i] = build_player_feature_vector(
-                profile, province_counts.get(player_id, 0)
+                profile, province_counts.get(player_id, 0), newspaper_feats[i]
             )
             alive_mask[i] = not profile.defeated
 
@@ -132,20 +134,23 @@ class WinPredictionSession:
             "alive_mask": torch.from_numpy(alive_mask),
         }
 
-    def to_model_input(self, ritf: ReplayInterface) -> GnnBatch | None:
+    def to_model_input(self, ritf: "ReplayInterface") -> GnnBatch | None:
         """Builds a batch-of-1 `GnnBatch` from the buffered history plus a freshly
         captured "now" snapshot (always recomputed for freshness)."""
         game_state = ritf.game_state
         if game_state is None:
             return None
 
-        now_snapshot = self._capture(game_state)
+        day_of_game = (ritf.current_time - ritf.start_time).total_seconds() / 86400.0
+        window_start_day = self._days[-1] if self._days else max(0.0, day_of_game - STEP_DAYS)
+
+        now_snapshot = self._capture(ritf, window_start_day, day_of_game)
         if now_snapshot is None:
             return None
 
         # Right-align: older buffered snapshots + a fresh "now" in the last slot.
         history = self._snapshots[:-1] if self._snapshots else []
-        steps = history[-(self.max_steps - 1) :] + [now_snapshot]
+        steps = history[-(self.max_steps - 1):] + [now_snapshot]
         num_valid = len(steps)
 
         num_nodes = self.province_graph.num_nodes
@@ -164,8 +169,6 @@ class WinPredictionSession:
             player_features[t] = snapshot["player_features"]
             alive_mask[t] = snapshot["alive_mask"]
             time_mask[t] = True
-
-        day_of_game = (ritf.current_time - ritf.start_time).total_seconds() / 86400.0
 
         sample = {
             "game_id": ritf.game_id or 0,
