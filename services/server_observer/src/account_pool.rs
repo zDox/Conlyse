@@ -358,16 +358,19 @@ impl AccountPool {
     /// freshly provisioned one, verifies it, assigns it, and persists to disk.
     /// Falls back to pool rotation if the API call fails or the new proxy fails verification.
     pub async fn replace_proxy(&mut self, username: &str, game_server_url: &str) -> bool {
-        let old_proxy_id = self
+        let old_proxy = self
             .accounts
             .iter()
             .find(|a| a.username == username)
-            .map(|a| a.proxy_config.proxy_id.clone())
-            .unwrap_or_default();
+            .map(|a| (a.proxy_config.proxy_id.clone(), a.proxy_config.host.clone()));
+        let (old_proxy_id, old_address) = old_proxy.unwrap_or_default();
 
         // Try WebShare replace API first.
-        if !old_proxy_id.is_empty() {
-            if let Some(new_proxy) = self.request_webshare_replacement(&old_proxy_id).await {
+        if !old_proxy_id.is_empty() && !old_address.is_empty() {
+            if let Some(new_proxy) = self
+                .request_webshare_replacement(&old_proxy_id, &old_address)
+                .await
+            {
                 let new_url = new_proxy.proxy_url();
                 tracing::info!(
                     account = username,
@@ -414,7 +417,12 @@ impl AccountPool {
         self.reset_account_proxy(username).await
     }
 
-    async fn request_webshare_replacement(&self, proxy_id: &str) -> Option<Proxy> {
+    /// Replaces a single broken proxy via the WebShare v3 replacement API. That API is
+    /// asynchronous: the POST only creates a replacement job, which is polled by id until it
+    /// reaches a terminal state. WebShare doesn't hand back the new proxy directly, so once the
+    /// job completes we re-fetch the proxy list and diff it against what we knew before to find
+    /// the newly added proxy.
+    async fn request_webshare_replacement(&self, proxy_id: &str, old_address: &str) -> Option<Proxy> {
         let client = reqwest::Client::new();
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -423,14 +431,47 @@ impl AccountPool {
         );
 
         #[derive(Serialize)]
+        struct ToReplace<'a> {
+            #[serde(rename = "type")]
+            kind: &'a str,
+            ip_addresses: [&'a str; 1],
+        }
+
+        #[derive(Serialize)]
+        struct ReplaceWith<'a> {
+            #[serde(rename = "type")]
+            kind: &'a str,
+            count: u32,
+        }
+
+        #[derive(Serialize)]
         struct ReplaceRequest<'a> {
-            proxy_id: &'a str,
+            to_replace: ToReplace<'a>,
+            replace_with: [ReplaceWith<'a>; 1],
+            dry_run: bool,
+        }
+
+        #[derive(Deserialize)]
+        struct ReplaceJob {
+            id: u64,
+            state: String,
+            proxies_added: Option<u32>,
         }
 
         let resp = client
-            .post("https://proxy.webshare.io/api/v2/proxy/replace/")
-            .headers(headers)
-            .json(&ReplaceRequest { proxy_id })
+            .post("https://proxy.webshare.io/api/v3/proxy/replace/")
+            .headers(headers.clone())
+            .json(&ReplaceRequest {
+                to_replace: ToReplace {
+                    kind: "ip_address",
+                    ip_addresses: [old_address],
+                },
+                replace_with: [ReplaceWith {
+                    kind: "any",
+                    count: 1,
+                }],
+                dry_run: false,
+            })
             .send()
             .await
             .ok()?;
@@ -444,7 +485,40 @@ impl AccountPool {
             return None;
         }
 
-        resp.json::<Proxy>().await.ok()
+        let job: ReplaceJob = resp.json().await.ok()?;
+
+        let mut job = job;
+        const MAX_POLLS: u32 = 10;
+        for _ in 0..MAX_POLLS {
+            if job.state == "completed" || job.state == "failed" {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            let poll_resp = client
+                .get(format!(
+                    "https://proxy.webshare.io/api/v3/proxy/replace/{}/",
+                    job.id
+                ))
+                .headers(headers.clone())
+                .send()
+                .await
+                .ok()?;
+            if !poll_resp.status().is_success() {
+                return None;
+            }
+            job = poll_resp.json().await.ok()?;
+        }
+
+        if job.state != "completed" || job.proxies_added.unwrap_or(0) == 0 {
+            tracing::warn!(proxy_id, state = %job.state, "WebShare replacement job did not complete successfully");
+            return None;
+        }
+
+        let refreshed = Self::fetch_proxies(&self.webshare_token).await.ok()?;
+        refreshed
+            .into_iter()
+            .find(|(id, _)| !self.proxies.contains_key(id))
+            .map(|(_, proxy)| proxy)
     }
 
     pub async fn reset_account_proxy(&mut self, username: &str) -> bool {
@@ -518,4 +592,3 @@ impl AccountPool {
         true
     }
 }
-
