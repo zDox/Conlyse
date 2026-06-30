@@ -94,3 +94,32 @@ groups:
         annotations:
           summary: "Converter Redis consumer lag is high ({{ $value }} messages)"
           description: "Stream cap is ~50,000 entries. At this lag, message loss risk is elevated if the converter stays behind."
+
+  - name: host_resources
+    rules:
+      - alert: HostHighCpuUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host CPU usage is high ({{ $value | printf \"%.1f\" }}%)"
+          description: "Average CPU utilization has been above 85% for 5+ minutes."
+
+      - alert: HostHighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host memory usage is high ({{ $value | printf \"%.1f\" }}%)"
+          description: "Memory utilization has been above 85% for 5+ minutes. Check for runaway containers (e.g. migration/backfill jobs)."
+
+      - alert: HostHighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host disk usage is high ({{ $value | printf \"%.1f\" }}%)"
+          description: "Root filesystem usage has been above 85% for 10+ minutes. The converter's hot-storage response cache is a common cause of rapid growth — check disk before it blocks Redis writes (MISCONF)."

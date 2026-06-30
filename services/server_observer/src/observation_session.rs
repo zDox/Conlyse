@@ -130,6 +130,10 @@ pub struct ObservationSession {
     /// Survives `reset_package()` so connectivity checks can use the real game-server address
     /// even after the session package has been cleared on error.
     pub last_game_server_address: String,
+    /// Last raw HTTP response body received from the game server. Updated on every request that
+    /// returns an HTTP 200 body (auth errors, parse errors, success, etc.). Persists across
+    /// resets so the dead letter always has the most recent server response for diagnosis.
+    pub last_raw_response: Option<String>,
 
     map_cache: Option<StaticMapCache>,
     api: Option<ObservationApi>,
@@ -158,6 +162,7 @@ impl ObservationSession {
             next_update_at: SystemTime::now(),
             update_sequence_number: 0,
             last_game_server_address: String::new(),
+            last_raw_response: None,
             map_cache,
             api: None,
             storage_path,
@@ -246,6 +251,7 @@ impl ObservationSession {
         }
 
         self.package = self.create_observation_package()?;
+        self.hub_interface = None;
         Ok(())
     }
 
@@ -340,6 +346,20 @@ impl ObservationSession {
         self.api = None;
     }
 
+    /// Like `reset_package`, but also discards any persisted resume metadata
+    /// (stale auth/cookies/client_version). Without this, `ensure_observation_package`
+    /// would keep resuming from the same broken saved state on every retry instead of
+    /// performing a fresh hub login + game join, which is what re-derives the live
+    /// client_version (scraped from index.html) and a valid auth session.
+    pub fn reset_package_and_credentials(&mut self) {
+        if let Ok(storage) = self.ensure_storage() {
+            let _ = storage.clear_resume_metadata();
+        }
+        self.hub_interface = None;
+        self.package = ObservationPackage::default();
+        self.api = None;
+    }
+
     async fn ensure_static_map_data(&mut self, map_id: &str) -> bool {
         let Some(map_cache) = &self.map_cache else {
             return false;
@@ -363,12 +383,12 @@ impl ObservationSession {
     fn handle_game_server_error(&mut self, result: &GameServerResult) -> ObservationResult {
         match result.error_code {
             GameServerError::AuthError => {
-                self.reset_package();
+                self.reset_package_and_credentials();
                 ObservationResult::make_auth_failed(false, result.error_message.clone())
             }
             GameServerError::HttpError => {
                 // 4xx — permanent client error, reset so we re-authenticate
-                self.reset_package();
+                self.reset_package_and_credentials();
                 ObservationResult::make_server_error(result.error_message.clone())
             }
             GameServerError::ServerError => {
@@ -476,6 +496,10 @@ impl ObservationSession {
                 &mut self.package.state_ids,
                 &mut self.package.time_stamps,
             );
+
+            if !result.raw_response.is_empty() {
+                self.last_raw_response = Some(result.raw_response.clone());
+            }
 
             if !result.success() {
                 return self.handle_game_server_error(&result);

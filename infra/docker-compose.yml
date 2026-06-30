@@ -104,6 +104,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - LOG_DIR=/app/logs
+      - PYTHONMALLOC=malloc
     networks:
       - conlyse-network
     restart: unless-stopped
@@ -158,6 +159,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET_NAME:-replays}
+      PYTHONMALLOC: malloc
     volumes:
       - ./prod/server-converter-config.json:/app/config.json:ro
       - converter-hot-storage:/data/hot_storage
@@ -168,6 +170,21 @@ services:
       - label=disable
 
   # --- Observability Stack ---
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: conlyse-node-exporter
+    command:
+      - --path.rootfs=/host
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run/k3s/containerd/.+|var/lib/docker/.+)($$|/)
+    volumes:
+      - /:/host:ro,rslave
+    pid: host
+    networks:
+      - conlyse-network
+    restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:latest

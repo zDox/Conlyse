@@ -112,6 +112,17 @@ impl RecordingStorage {
             .is_some()
     }
 
+    pub fn clear_resume_metadata(&self) -> Result<(), RecordingStorageError> {
+        let metadata_snapshot = {
+            let mut state = self.state.lock().unwrap_or_else(|poisoned| { tracing::error!("recording storage mutex poisoned; recovering"); poisoned.into_inner() });
+            state.metadata_cache["resume"] = Value::Null;
+            state.resume_metadata = Value::Null;
+            state.updates_since_last_flush = 0;
+            state.metadata_cache.clone()
+        };
+        save_metadata_file(&self.metadata_file, &metadata_snapshot)
+    }
+
     pub fn flush_metadata(&self) -> Result<(), RecordingStorageError> {
         let metadata = self
             .state

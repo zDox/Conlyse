@@ -16,12 +16,11 @@ if TYPE_CHECKING:
     from conflict_interface.data_types.newest.map_state.map_state_enums import ProvinceType
     from conflict_interface.data_types.newest.map_state.map_state_enums import ProvinceStateID
     from conflict_interface.data_types.newest.map_state.land_province import LandProvince
-    from conflict_interface.data_types.newest.map_state.sea_province import SeaProvince
     from conflict_interface.data_types.newest.mod_state.mod_state_enums import ModGameFeatures
     from conflict_interface.data_types.newest.mod_state.unit_type import UnitType
     from conflict_interface.data_types.newest.mod_state.upgrade_type import UpgradeType
     from conflict_interface.data_types.newest.newspaper_state.article import Article
-    from conflict_interface.data_types.newest.player_state.faction import Faction
+    from conflict_interface.data_types.newest.mod_state.faction import Faction
     from conflict_interface.data_types.newest.player_state.player_profile import PlayerProfile
     from conflict_interface.data_types.newest.player_state.team_profile import TeamProfile
     from conflict_interface.data_types.newest.research_state.research_state import ResearchState

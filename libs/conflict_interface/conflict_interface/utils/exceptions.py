@@ -81,6 +81,39 @@ class UnsupportedDatatypeVersionError(Exception):
         super().__init__(msg)
 
 
+class MissingFullStateSnapshotError(Exception):
+    """
+    Raised when an incremental (AUTO_STATE_TYPE) response's datatype version
+    differs from the currently-tracked game state's version, with no full
+    (FULL_STATE_TYPE) snapshot in between to mark the transition.
+
+    Incremental updates are applied via GameState.update(), which requires
+    both states to be the exact same class. A datatype version change can
+    only be applied safely starting from a full snapshot (see
+    ReplayBuilder.append_json_responses/build_from_stream, which route a
+    version change to a new replay segment only when the response is full).
+    Without that snapshot, the old- and new-version state objects are
+    different classes and cannot be diffed against each other.
+
+    This almost always means the observer/publisher missed publishing the
+    full game state at the moment the client's datatype version changed -
+    the recording has a genuine gap, not a bug in this code path.
+    """
+
+    def __init__(self, old_version, new_version, game_id: int = None, player_id: int = None):
+        self.old_version = old_version
+        self.new_version = new_version
+        self.game_id = game_id
+        self.player_id = player_id
+        ctx = f" (game_id={game_id}, player_id={player_id})" if game_id is not None else ""
+        super().__init__(
+            f"Datatype version changed from {old_version} to {new_version} between two "
+            f"incremental updates with no full state snapshot in between{ctx}. The observer "
+            f"likely missed publishing the full game state when the client updated; this "
+            f"recording has a gap and cannot be incrementally patched across the transition."
+        )
+
+
 class GameActivationException(Exception):
     def __init__(self, error_code: GameActivationErrorCodes, message: str = None):
         super().__init__(message or error_code.name)

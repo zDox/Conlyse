@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Callable
 from typing import Iterator
@@ -12,6 +13,7 @@ from conflict_interface.logger_config import get_logger
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.replay_timeline import ReplayTimeline
 from conflict_interface.replay.response_metadata import ResponseMetadata
+from conflict_interface.utils.exceptions import MissingFullStateSnapshotError
 from conflict_interface.utils.exceptions import UnsupportedDatatypeVersionError
 from conflict_interface.utils.helper import unix_ms_to_datetime
 
@@ -200,7 +202,7 @@ class ReplayBuilder:
             self.replay_timeline.latest_version = meta.client_version
             # Create appropriate patch
             bipatch = ReplayBuilder._create_patch_from_json(
-                json_response, current_state, new_state
+                json_response, current_state, new_state, self.game_id, self.player_id
             )
 
             # Update current state if full replacement
@@ -332,7 +334,9 @@ class ReplayBuilder:
                 self.replay_timeline.close_last_segment()
             self.replay_timeline.latest_version = meta.client_version
 
-            bipatch = ReplayBuilder._create_patch_from_json(json_response, current_state, new_state)
+            bipatch = ReplayBuilder._create_patch_from_json(
+                json_response, current_state, new_state, self.game_id, self.player_id
+            )
 
             if json_response["full"]:
                 current_state = new_state
@@ -357,10 +361,18 @@ class ReplayBuilder:
         self.replay_timeline.close()
 
     @staticmethod
+    def _version_label(state: GameState) -> str:
+        """Best-effort 'v214'/'newest'-style label for a GameState instance's class."""
+        match = re.search(r"\.(newest|v\d+)\.", type(state).__module__)
+        return match.group(1) if match else type(state).__module__
+
+    @staticmethod
     def _create_patch_from_json(
             json_response: dict,
             current_state: GameState,
-            new_state: GameState
+            new_state: GameState,
+            game_id: Optional[int] = None,
+            player_id: Optional[int] = None,
     ) -> BidirectionalReplayPatch:
         """
         Create a bidirectional patch based on response type.
@@ -371,6 +383,21 @@ class ReplayBuilder:
         # Incremental update - track specific changes
         if json_response["full"]:
             return BidirectionalReplayPatch()
+
+        if type(current_state) is not type(new_state):
+            # A version change is only ever expected to arrive via a full snapshot
+            # (see append_json_responses/build_from_stream, which route a version
+            # change to a new segment only when json_response["full"]). Getting
+            # here means an incremental update changed version with no snapshot
+            # in between - GameState.update() can't diff two different classes,
+            # and the underlying recording has a genuine gap.
+            raise MissingFullStateSnapshotError(
+                old_version=ReplayBuilder._version_label(current_state),
+                new_version=ReplayBuilder._version_label(new_state),
+                game_id=game_id,
+                player_id=player_id,
+            )
+
         bipatch = BidirectionalReplayPatch()
         current_state.update(new_state, path=[], rp=bipatch)
         return bipatch

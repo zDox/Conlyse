@@ -1,6 +1,6 @@
 [project]
 name = "conlyse"
-version = "0.1.0"
+version = "0.1.1"
 description = "Conflict of Nations replay analytics tool"
 authors = [
     { name = "zDox" },

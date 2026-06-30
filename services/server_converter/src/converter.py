@@ -176,9 +176,16 @@ class ServerConverter:
                     continue
 
                 if self.db.is_version_pending(game_id, player_id):
-                    logger.debug("Skipping: waiting for version update", extra=ctx)
-                    version_pending_games.append((game_id, player_id))
-                    continue
+                    pending_version = self.db.get_pending_datatype_version(game_id, player_id)
+                    if pending_version is not None and pending_version > LATEST_VERSION:
+                        logger.debug("Skipping: waiting for version update", extra=ctx)
+                        version_pending_games.append((game_id, player_id))
+                        continue
+                    logger.info(
+                        "Retrying previously version_pending game (pending_version=%s, LATEST_VERSION=%d)",
+                        pending_version, LATEST_VERSION, extra=ctx,
+                    )
+                    self.db.clear_version_pending(game_id, player_id)
 
                 cached_responses = self.response_cache.get_cached_responses(game_id, player_id)
 

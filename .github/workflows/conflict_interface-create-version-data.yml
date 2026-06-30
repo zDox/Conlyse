@@ -1,0 +1,95 @@
+name: conflict_interface create version data
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Client version number to capture data for"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-version-data:
+    runs-on: ubuntu-latest
+    env:
+      TEST_ACCOUNT_USERNAME: ${{ secrets.TEST_ACCOUNT_USERNAME }}
+      TEST_ACCOUNT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD }}
+      TEST_ACCOUNT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL }}
+      TEST_PROXY_URL: ${{ secrets.TEST_PROXY_URL }}
+      CONFLICT_DATA_TOKEN: ${{ secrets.CONFLICT_DATA_PUSH_TOKEN }}
+      VERSION: ${{ inputs.version }}
+
+    steps:
+      - name: Checkout ConflictInterface
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install system build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: Install ConflictInterface
+        working-directory: libs/conflict_interface
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Install jsbeautifier
+        run: pip install jsbeautifier
+
+      - name: Record game responses
+        run: |
+          python scripts/record_game_responses.py "$VERSION" --out-dir recording_output --static-map-dir static_map_output
+
+      - name: Download and beautify client javascript
+        run: |
+          mkdir -p javascript_output
+          curl -sL "https://www.conflictnations.com/clients/con-client/con-client_live/js/main-built-min.js?bust=$(date +%s)" \
+            -o main-built-min.js
+          js-beautify -o javascript_output/main-built.js main-built-min.js
+
+      - name: Clone ConflictData
+        run: |
+          git clone "https://x-access-token:${CONFLICT_DATA_TOKEN}@github.com/zDox/ConflictData.git"
+
+      - name: Add new version data and push branch
+        id: add_version_data
+        run: |
+          cd ConflictData
+          DEST_RECORDING="v${VERSION}/recording"
+          DEST_JS="v${VERSION}/javascript"
+          DEST_STATIC_MAP="v${VERSION}/static_map"
+          mkdir -p "$DEST_RECORDING" "$DEST_JS" "$DEST_STATIC_MAP"
+          cp ../recording_output/*.json "$DEST_RECORDING/"
+          cp ../javascript_output/main-built.js "$DEST_JS/"
+          cp ../static_map_output/*.json "$DEST_STATIC_MAP/"
+
+          BRANCH="add-version-data-v${VERSION}"
+          git checkout -b "$BRANCH"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "v${VERSION}"
+          git commit -m "Add v${VERSION} recording and javascript data"
+          git push origin "$BRANCH"
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Create PR on ConflictData
+        env:
+          GITHUB_TOKEN: ${{ secrets.CONFLICT_DATA_PUSH_TOKEN }}
+        run: |
+          gh pr create \
+            --repo zDox/ConflictData \
+            --head "${{ github.repository_owner }}:${{ steps.add_version_data.outputs.branch }}" \
+            --base main \
+            --title "Add v${VERSION} recording + javascript data" \
+            --body "Automated update: add 10 recorded game-state responses and the beautified client javascript for client version ${VERSION}."

@@ -1,4 +1,5 @@
 use crate::connectivity_check;
+use crate::metrics::{record_proxy_replacement};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -398,6 +399,7 @@ impl AccountPool {
                     if let Some(cb) = &self.proxy_reset_callback {
                         cb(username.to_string());
                     }
+                    record_proxy_replacement("webshare_api");
                     tracing::info!(
                         account = username,
                         old_proxy_id = %old_proxy_id,
@@ -414,7 +416,11 @@ impl AccountPool {
         }
 
         // Fallback: rotate within the existing pool.
-        self.reset_account_proxy(username).await
+        let ok = self.reset_account_proxy(username).await;
+        if !ok {
+            record_proxy_replacement("failed");
+        }
+        ok
     }
 
     /// Replaces a single broken proxy via the WebShare v3 replacement API. That API is
@@ -549,14 +555,34 @@ impl AccountPool {
             .filter(|id| self.proxies.contains_key(id))
             .collect();
 
-        let Some(new_proxy_id) = self
+        // Try to find an unassigned proxy first; fall back to least-shared when pool is exhausted.
+        let (new_proxy_id, shared) = if let Some(id) = self
             .proxies
             .keys()
             .find(|id| !assigned_ids.contains(*id))
             .cloned()
-        else {
-            tracing::error!("no unassigned proxy available for reset");
-            return false;
+        {
+            (id, false)
+        } else {
+            tracing::warn!(
+                account = username,
+                "no unassigned proxy available; sharing least-used proxy"
+            );
+            let best = self
+                .proxies
+                .keys()
+                .min_by_key(|pid| {
+                    self.accounts
+                        .iter()
+                        .filter(|a| &a.proxy_config.proxy_id == *pid)
+                        .count()
+                })
+                .cloned();
+            let Some(id) = best else {
+                tracing::error!("proxy pool is empty; cannot assign any proxy");
+                return false;
+            };
+            (id, true)
         };
 
         let Some(proxy) = self.proxies.get(&new_proxy_id) else {
@@ -573,17 +599,43 @@ impl AccountPool {
             },
         );
 
+        let share_count = if shared {
+            self.accounts
+                .iter()
+                .filter(|a| a.proxy_config.proxy_id == new_proxy_id)
+                .count()
+                + 1
+        } else {
+            1
+        };
+
         let Some(account) = self.accounts.iter_mut().find(|a| a.username == username) else {
             return false;
         };
         account.proxy_config = new_cfg;
 
-        tracing::info!(
-            account = username,
-            old_proxy_id = old_proxy_id,
-            new_proxy_id = new_proxy_id,
-            "successfully reset account proxy"
-        );
+        if shared {
+            tracing::info!(
+                account = username,
+                old_proxy_id = old_proxy_id,
+                new_proxy_id = new_proxy_id,
+                share_count,
+                "reset account proxy (sharing)"
+            );
+            record_proxy_replacement("pool_sharing");
+        } else {
+            tracing::info!(
+                account = username,
+                old_proxy_id = old_proxy_id,
+                new_proxy_id = new_proxy_id,
+                "successfully reset account proxy"
+            );
+            record_proxy_replacement("pool_rotation");
+        }
+
+        if let Err(err) = self.save_to_file() {
+            tracing::warn!(?err, "failed to persist proxy assignment to disk after rotation");
+        }
 
         if let Some(callback) = &self.proxy_reset_callback {
             callback(username.to_string());

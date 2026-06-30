@@ -25,3 +25,10 @@ scrape_configs:
           - conlyse-server-converter:8001
     labels:
       service: server_converter
+
+  - job_name: node_exporter
+    static_configs:
+      - targets:
+          - conlyse-node-exporter:9100
+    labels:
+      service: host

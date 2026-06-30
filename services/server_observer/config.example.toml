@@ -32,6 +32,10 @@ port = 6379
 stream_name = "game_responses"
 # password = "optional-redis-password"
 
+[proxy]
+# How often (seconds) to proactively check each account's proxy and replace failing ones.
+health_check_interval_seconds = 120
+
 [storage]
 [storage.s3]
 endpoint_url = "https://your-s3-endpoint.example.com"

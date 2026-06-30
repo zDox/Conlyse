@@ -278,7 +278,7 @@ game.update()
 Some unit types are faction-specific. Pass the optional `faction` argument if needed, or omit it to use the current player's faction automatically:
 
 ```python
-from conflict_interface.data_types.newest.player_state.faction import Faction
+from conflict_interface.data_types.newest.mod_state.faction import Faction
 
 unit = game.get_unit_type_by_name_and_tier("Tank", 3, faction=Faction.WESTERN)
 ```

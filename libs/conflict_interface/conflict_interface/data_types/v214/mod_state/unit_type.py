@@ -1,0 +1,322 @@
+from dataclasses import dataclass
+from typing import Optional
+from typing import Set
+from typing import Union
+
+from ..custom_types import HashMap
+from ..custom_types import TimeDeltaMillisecondsInt
+from conflict_interface.game_object.game_object import GameObject
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import conflict_serializable
+from ..mod_state.configuration import PositionConfig
+from ..mod_state.configuration import AirMobileConfig
+from ..mod_state.configuration import AirplaneConfig
+from ..mod_state.configuration import AntiAirConfig
+from ..mod_state.configuration import ArmyBoostConfig
+from ..mod_state.configuration import CarrierConfig
+from ..mod_state.configuration import ConflictCondition
+from ..mod_state.configuration import ControllableConfig
+from ..mod_state.configuration import ConvertToResourceConfig
+from ..mod_state.configuration import DiplomaticAggressionConfig
+from ..mod_state.configuration import DisbandConfig
+from ..mod_state.configuration import DummyMissileCarrierConfig
+from ..mod_state.configuration import DummyMissileConfig
+from ..mod_state.configuration import DummyScoutConfig
+from ..mod_state.configuration import FactionSpecificConfig
+from ..mod_state.configuration import IncludeExcludeConfig
+from ..mod_state.configuration import LaunchTargetConfig
+from ..mod_state.configuration import LimitedMobilizationConfig
+from ..mod_state.configuration import MissileCarrierConfig
+from ..mod_state.configuration import MissileConfig
+from ..mod_state.configuration import RadarConfig
+from ..mod_state.configuration import RadarSignatureConfig
+from ..mod_state.configuration import RenderConfig
+from ..mod_state.configuration import ScoutConfig
+from ..mod_state.configuration import SortingConfig
+from ..mod_state.configuration import SoundConfig
+from ..mod_state.configuration import StackingConfig
+from ..mod_state.configuration import TerrainRestrictedConfig
+from ..mod_state.configuration import TokenConsumerConfig
+from ..mod_state.configuration import TokenProducerConfig
+from ..mod_state.configuration import TokenSensitivityConfig
+from ..mod_state.configuration import UnitTypeFrontEndConfig
+from ..mod_state.configuration import VariantConfig
+from ..mod_state.mod_state_enums import UnitFeature
+from ..player_state.faction import Faction
+from ..research_state.research_type import ResearchType
+from ..resource_state.resource_state_enums import ResourceType
+
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@dataclass
+class UnitType(GameObject):
+    """
+
+    """
+    C = "ultshared.warfare.UltUnitType"
+    id: int
+    stats_column_id: int
+    unit_pack: int
+    ranking_factor: float
+    build_time: TimeDeltaMillisecondsInt
+    costs: HashMap[ResourceType, float]
+    daily_costs: HashMap[ResourceType, float]
+    speeds: HashMap[int, float]
+    hit_points: HashMap[int, float]
+    damage_types: HashMap[int, float]
+    damage_area: HashMap[int, float] # Corresponds to the damage weight in other mentioned documents
+    strength: HashMap[int, float]
+    defense: HashMap[int, float]
+    ranges: HashMap[int, float]
+    view_widths: HashMap[int, float]
+    required_upgrades: HashMap[int, float]
+    required_researches: HashMap[int, float]
+    unit_cap_research_items: HashMap[int, int]
+    friendly_speed_factor: float
+    foreign_speed_factor: float
+    identifier: str
+    minimum_tech_level: float
+    unit_features: Optional[HashMap[UnitFeature, float]]
+    size_factors: Optional[HashMap[int, float]]
+    attack_painter: str
+    pin_painter: str
+    unit_class: int
+    set: int
+    formation_name_small: str
+    formation_name_big: str
+    unit_description: str
+    name_faction1: str
+    name_faction2: str
+    name_faction3: str
+    name_faction4: str
+    type_name: str
+    type_size_name: str
+    sort_value: int
+    producible: bool
+    unit_moral_impact_factor: float
+    images: HashMap[str, str] # TODO check tpyes
+    unit_name: str
+
+    diplomatic_aggression_config: DiplomaticAggressionConfig
+    air_mobile_config: AirMobileConfig
+    army_boost_config: ArmyBoostConfig
+    limited_mobilization_config: LimitedMobilizationConfig
+    controllable_config: Optional[ControllableConfig]
+    carrier_config: Optional[CarrierConfig]
+    missile_config: Union[MissileConfig, DummyMissileConfig]
+    anti_air_config: AntiAirConfig
+    sorting_config: SortingConfig
+    sound_config: SoundConfig
+    airplane_config: AirplaneConfig
+    scout_config: Union[ScoutConfig, DummyScoutConfig]
+    token_producer_config: TokenProducerConfig
+    token_consumer_config: TokenConsumerConfig
+    missile_carrier_config: Union[MissileCarrierConfig, DummyMissileCarrierConfig]
+    radar_signature_config: Optional[RadarSignatureConfig]
+    radar_config: Optional[RadarConfig]
+    convert_to_resource_config: Optional[ConvertToResourceConfig]
+    disband_config: Optional[DisbandConfig]
+    stacking_config: StackingConfig
+    launch_target_config: LaunchTargetConfig
+    token_sensitivity_config: TokenSensitivityConfig
+    production_requirements_config: ConflictCondition
+    position_config: PositionConfig
+    frontend_config: UnitTypeFrontEndConfig
+    terrain_restriction_config: TerrainRestrictedConfig
+    render_config: RenderConfig
+    faction_specific_config: FactionSpecificConfig
+    variant_config: VariantConfig
+    limited_commands: dict[str, Union[IncludeExcludeConfig, bool]]
+
+
+    _tier: int = None
+    _is_max_tier: int = None
+    _factions: Set[Faction] = None
+
+
+    MAPPING = {
+        "id": "itemID",
+        "stats_column_id": "statsColumnID",
+        "unit_pack": "unitPack",
+        "ranking_factor": "rankingFactor",
+        "build_time": "buildTime",
+        "costs": "costs",
+        "daily_costs": "dailyCosts",
+        "speeds": "speeds",
+        "hit_points": "hitPoints",
+        "damage_types": "damageTypes",
+        "damage_area": "damageArea",
+        "strength": "strength",
+        "defense": "defence",
+        "ranges": "ranges",
+        "view_widths": "viewWidths",
+        "required_upgrades": "requiredUpgrades",
+        "required_researches": "requiredResearches",
+        "unit_cap_research_items": "unitCapResearchItems",
+        "friendly_speed_factor": "friendlySpeedFactor",
+        "foreign_speed_factor": "foreignSpeedFactor",
+        "identifier": "identifier",
+        "minimum_tech_level": "minimumTechLevel",
+        "unit_features": "unitFeatures",
+        "size_factors": "sizeFactors",
+        "attack_painter": "attackPainter",
+        "pin_painter": "pinPainter",
+        "unit_class": "unitClass",
+        "set": "set",
+        "type_size_name": "typeSizeName",
+        "controllable_config": "controllableConfig",
+        "formation_name_small": "formationNameSmall",
+        "formation_name_big": "formationNameBig",
+        "unit_description": "unitDesc",
+        "name_faction1": "nameFaction1",
+        "name_faction2": "nameFaction2",
+        "name_faction3": "nameFaction3",
+        "name_faction4": "nameFaction4",
+        "type_name": "typeName",
+        "unit_moral_impact_factor": "unitMoraleImpactFactor",
+        "sort_value": "sortValue",
+        "producible": "producible",
+        "sorting_config": "sortingConfig",
+        "sound_config": "soundConfig",
+        "airplane_config": "airplaneConfig",
+        "carrier_config": "carrierConfig",
+        "missile_config": "missileConfig",
+        "anti_air_config": "antiAirConfig",
+        "scout_config": "scoutConfig",
+        "token_producer_config": "tokenProducerConfig",
+        "token_consumer_config": "tokenConsumerConfig",
+        "missile_carrier_config": "missileCarrierConfig",
+        "diplomatic_aggression_config": "diplomaticAggressionConfig",
+        "air_mobile_config": "airmobile",
+        "army_boost_config": "armyBoostConfig",
+        "limited_mobilization_config": "limitedMobilizationConfig",
+        "images": "images",
+        "unit_name": "unitName",
+        "radar_signature_config": "radarSignatureConfig",
+        "radar_config": "radarConfig",
+        "convert_to_resource_config": "convertToResourceConfig",
+        "disband_config": "disbandConfig",
+        "stacking_config": "stackingConfig",
+        "launch_target_config": "launchTargetConfig",
+        "token_sensitivity_config": "tokenSensitivityConfig",
+        "production_requirements_config": "productionRequirementConfig",
+        "position_config": "positionConfig",
+        "frontend_config": "frontendConfig",
+        "render_config": "renderConfig",
+        "terrain_restriction_config": "terrainRestrictionConfig",
+        "faction_specific_config": "factionSpecificConfig",
+        "variant_config": "variantConfig",
+        "limited_commands": "limitedCommands"
+    }
+    def get_name_with_tier(self):
+        """
+        Returns the name of the unit, including its tier if applicable.
+        Tier 1 units at maximum tier will not have the tier displayed.
+        """
+        if self.tier == 1 and self.is_maximum_tier():
+            return self.unit_name
+        else:
+            return f"{self.unit_name} Lvl. {self.tier}"
+
+    @property
+    def tier(self):
+        """
+        Returns the tier of the unit, calculating it if necessary.
+        If there are no required researches, defaults to Tier 1.
+        """
+        if self._tier is None:
+            required_research = self.get_required_research_type()
+            self._tier = max(1, required_research.tier if required_research else 1)
+        return self._tier
+
+    def is_maximum_tier(self):
+        """
+        Determines if this unit is at its maximum tier.
+        A unit is at max tier if it has no further replaceable research.
+        """
+        if self._is_max_tier is None:
+            required_research = self.get_required_research_type()
+            self._is_max_tier = not required_research.can_be_replaced() if required_research else True
+        return self._is_max_tier
+
+    def get_required_research_type(self) -> ResearchType | None:
+        """
+        Returns the research type required for this unit.
+        If multiple researches are required, it retrieves the first one.
+        """
+        if self.required_researches:
+            research_key = list(self.required_researches)[0]
+            return self.game.game_state.states.mod_state.research_types.get(research_key)
+        return None
+
+    def get_level_marker(self):
+        """
+        Returns the level marker of the unit.
+        If the tier is greater than 1 and the unit is at its maximum tier, it returns "max".
+        Otherwise, it simply returns the tier.
+        """
+        tier = self.tier
+        return "max" if tier > 1 and self.is_maximum_tier() else tier
+
+    @property
+    def factions(self):
+        if self._factions is None:
+            self._factions = set()
+            research = self.get_required_research_type()
+            if research and research.faction_specific_config:
+                self._factions.update(research.faction_specific_config.factions)
+            else:
+                self._factions = {Faction.EUROPEAN, Faction.WESTERN, Faction.EASTERN}
+        return self._factions
+
+    def has_faction(self, faction: Faction):
+        return faction in self.factions
+
+    def has_feature(self, feature: UnitFeature):
+        if self.unit_features:
+            return feature in self.unit_features
+        return False
+
+    def get_feature(self, feature: UnitFeature) -> float:
+        return self.unit_features.get(feature)
+
+    def is_ship(self) -> bool:
+        return self.has_feature(UnitFeature.SHIP)
+
+    def has_faction_specific_images(self):
+        # Check if faction_specific_images is defined in render_config
+        if hasattr(self.render_config, 'faction_specific_images'):
+            return self.render_config.faction_specific_images is None
+        return True
+
+    def get_default_angle_index(self) -> float | None:
+        if self.radar_config and self.radar_config.signature_types:
+            for signature in self.radar_config.signature_types.keys():
+                if self.id == signature:
+                    return 10
+        return 0
+
+    def get_icon_key_ww2(self, variant=None, category=None, angle=None, is_moving=False, faction: Faction | None=None):
+        # Default unit_class to the unit's class if not provided
+        if self.unit_class is None:
+            raise NotImplementedError("The following should be here: unit_class = self.get_unit_class()")
+        # Build the icon key
+        icon_key = ''
+        if category:
+            icon_key += f"{category}/"
+
+        if variant:
+            icon_key += f"{self.identifier}_{variant}"
+        else:
+            icon_key += str(self.identifier)
+
+        if is_moving:
+            icon_key += "_move"
+        if faction and self.has_faction_specific_images():
+            icon_key += f"_{faction.value}"
+
+        # Append angle, defaulting to 0 if not provided, ensuring integer
+        angle_value = int(angle) if angle is not None else 0
+        icon_key += f"_{angle_value}"
+
+        return icon_key

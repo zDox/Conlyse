@@ -1,0 +1,32 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from typing import get_type_hints
+
+from ..custom_types import LinkedList
+from ..action import Action
+from conflict_interface.game_object.game_object_binary import SerializationCategory
+from conflict_interface.game_object.decorators import conflict_serializable
+
+if TYPE_CHECKING:
+    from ..army_state.army import Army
+
+from ..version import VERSION
+@conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
+@dataclass
+class ArmyAction(Action):
+    C = "ultshared.action.UltArmyAction"
+    armies: LinkedList[Army]
+
+    MAPPING = {
+        "armies": "armies",
+    }
+
+    @classmethod
+    def get_type_hints_cached(cls):
+        if cls._type_hints is None:
+            # Import Army at runtime only when type hints are needed
+            from ..army_state.army import Army
+            cls._type_hints = get_type_hints(cls, localns={'Army': Army})
+        return cls._type_hints

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pickle
 import struct
 from array import array
 from logging import getLogger
@@ -356,7 +355,7 @@ class ReplayStorage:
         if self._last_game_state_b is None:
             raise ValueError("Last game state is not recorded in the replay.")
         try:
-            self.last_game_state = pickle.loads(self._last_game_state_b)
+            self.last_game_state = self.serializer.deserialize(self._last_game_state_b)
         except Exception as e:
             raise RuntimeError(f"Failed to deserialize last game state: {e}") from e
         return self.last_game_state
@@ -464,19 +463,18 @@ class ReplayStorage:
 
     def unload_initial_game_state(self, game_state: GameState):
         """
-        Serializes the initial game state using pickle.
+        Serializes the initial game state using the custom GameObjectSerializer.
 
         Temporarily removes game references to avoid circular serialization,
-        then restores them after pickling.
+        then restores them after serializing.
         """
         self._initial_game_state_b = self.serializer.serialize_game_object(game_state)
         self.initial_game_state = game_state
 
     def unload_last_game_state(self):
-        """Serializes the last game state using pickle."""
+        """Serializes the last game state using the custom GameObjectSerializer."""
         assert self.last_game_state is not None, "No GameState provided."
-        assert self.last_game_state.game is None, "Last game state has game set"
-        self._last_game_state_b = pickle.dumps(self.last_game_state)
+        self._last_game_state_b = self.serializer.serialize_game_object(self.last_game_state)
 
     def unload_path_tree(self):
         """

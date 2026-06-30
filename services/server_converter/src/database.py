@@ -134,9 +134,13 @@ class ReplayDatabase:
                 created_at TIMESTAMP NOT NULL,
                 updated_at TIMESTAMP NOT NULL,
                 response_count INTEGER DEFAULT 0,
+                pending_datatype_version INTEGER,
                 UNIQUE(game_id, player_id)
             )
             """
+        )
+        cursor.execute(
+            "ALTER TABLE replays ADD COLUMN IF NOT EXISTS pending_datatype_version INTEGER"
         )
 
         # Maps table stores static map payloads uploaded to S3 (compressed with zstd).
@@ -453,6 +457,24 @@ class ReplayDatabase:
         return cursor.fetchone() is not None
 
     @_reconnect_on_failure
+    def get_pending_datatype_version(self, game_id: int, player_id: int) -> Optional[int]:
+        """
+        Return the datatype version that blocked this game/player, or None.
+
+        None is also returned for legacy version_pending rows recorded before this
+        column existed - callers should treat that as "unknown, retry to find out".
+        """
+        cursor = self.conn.cursor()
+        query = self._format_query(
+            "SELECT pending_datatype_version FROM replays "
+            "WHERE game_id = {} AND player_id = {} AND status_converter = 'version_pending'",
+            2,
+        )
+        cursor.execute(query, (game_id, player_id))
+        row = cursor.fetchone()
+        return row["pending_datatype_version"] if row else None
+
+    @_reconnect_on_failure
     def record_version_pending(
         self, game_id: int, player_id: int, datatype_version: int
     ) -> None:
@@ -467,18 +489,37 @@ class ReplayDatabase:
         replay_name = f"game_{game_id}_player_{player_id}"
         cursor.execute(
             """
-            INSERT INTO replays (game_id, player_id, replay_name, status_converter, created_at, updated_at)
-            VALUES (%s, %s, %s, 'version_pending', %s, %s)
+            INSERT INTO replays (game_id, player_id, replay_name, status_converter,
+                                  pending_datatype_version, created_at, updated_at)
+            VALUES (%s, %s, %s, 'version_pending', %s, %s, %s)
             ON CONFLICT (game_id, player_id)
-            DO UPDATE SET status_converter = 'version_pending', updated_at = EXCLUDED.updated_at
+            DO UPDATE SET status_converter = 'version_pending',
+                          pending_datatype_version = EXCLUDED.pending_datatype_version,
+                          updated_at = EXCLUDED.updated_at
             """,
-            (game_id, player_id, replay_name, now, now),
+            (game_id, player_id, replay_name, datatype_version, now, now),
         )
         self.conn.commit()
         logger.info(
             "Marked game %d, player %d as version_pending (unsupported datatype version %d)",
             game_id, player_id, datatype_version,
         )
+
+    @_reconnect_on_failure
+    def clear_version_pending(self, game_id: int, player_id: int) -> None:
+        """
+        Reset a previously version_pending game/player back to a fresh, unstarted state
+        so the converter retries it as if no replay had been created yet.
+        """
+        cursor = self.conn.cursor()
+        now = datetime.now()
+        query = self._format_query(
+            "UPDATE replays SET status_converter = NULL, pending_datatype_version = NULL, "
+            "updated_at = {} WHERE game_id = {} AND player_id = {} AND status_converter = 'version_pending'",
+            3,
+        )
+        cursor.execute(query, (now, game_id, player_id))
+        self.conn.commit()
 
     # --- Static maps helpers -------------------------------------------------
     @_reconnect_on_failure

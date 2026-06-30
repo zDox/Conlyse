@@ -265,6 +265,15 @@ class ReplayInterface(GameInterface):
         metas = self.get_segments_metadata()
         return sum(m.current_patches for m in metas.values())
 
+    def validate_integrity(self) -> None:
+        """
+        Run structural consistency checks against every segment's patch-tree
+        storage. Raises if any segment's patch tree is inconsistent.
+        """
+        assert self._replay is not None, "Replay is not open"
+        for segment in self._replay.segments.values():
+            segment.validate_structure()
+
     def register_hook_systems(self):
         for segment in self._replay.segments.values():
             self._hook_systems[segment] = ReplayHookSystem(segment)

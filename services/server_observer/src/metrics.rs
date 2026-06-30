@@ -195,6 +195,55 @@ static REDIS_PUBLISH_FAILURES_TOTAL: Lazy<IntCounter> = Lazy::new(|| {
     counter
 });
 
+// Proxy health metrics
+static PROXY_HEALTH_CHECKS_TOTAL: Lazy<IntCounterVec> = Lazy::new(|| {
+    let opts = Opts::new(
+        "proxy_health_checks_total",
+        "Outcomes of proactive proxy health checks",
+    );
+    let vec = IntCounterVec::new(opts, &["result"]).expect("create proxy_health_checks_total");
+    default_registry()
+        .register(Box::new(vec.clone()))
+        .expect("register proxy_health_checks_total");
+    vec
+});
+
+static PROXY_REPLACEMENTS_TOTAL: Lazy<IntCounterVec> = Lazy::new(|| {
+    let opts = Opts::new(
+        "proxy_replacements_total",
+        "Proxy replacement outcomes by method",
+    );
+    let vec = IntCounterVec::new(opts, &["outcome"]).expect("create proxy_replacements_total");
+    default_registry()
+        .register(Box::new(vec.clone()))
+        .expect("register proxy_replacements_total");
+    vec
+});
+
+static HEALTHY_PROXIES: Lazy<IntGauge> = Lazy::new(|| {
+    let opts = Opts::new(
+        "healthy_proxies",
+        "Number of proxies currently passing health checks",
+    );
+    let gauge = IntGauge::with_opts(opts).expect("create healthy_proxies");
+    default_registry()
+        .register(Box::new(gauge.clone()))
+        .expect("register healthy_proxies");
+    gauge
+});
+
+static UNHEALTHY_PROXIES: Lazy<IntGauge> = Lazy::new(|| {
+    let opts = Opts::new(
+        "unhealthy_proxies",
+        "Number of proxies currently failing health checks",
+    );
+    let gauge = IntGauge::with_opts(opts).expect("create unhealthy_proxies");
+    default_registry()
+        .register(Box::new(gauge.clone()))
+        .expect("register unhealthy_proxies");
+    gauge
+});
+
 // Public helpers used by the rest of the crate
 pub fn record_game_started(scenario_id: i32) {
     GAMES_STARTED_TOTAL
@@ -270,6 +319,23 @@ pub fn set_down_server_count(n: i64) {
 
 pub fn record_redis_publish_failure() {
     REDIS_PUBLISH_FAILURES_TOTAL.inc();
+}
+
+pub fn record_proxy_health_check(result: &str) {
+    PROXY_HEALTH_CHECKS_TOTAL
+        .with_label_values(&[result])
+        .inc();
+}
+
+pub fn set_proxy_health_counts(healthy: i64, unhealthy: i64) {
+    HEALTHY_PROXIES.set(healthy);
+    UNHEALTHY_PROXIES.set(unhealthy);
+}
+
+pub fn record_proxy_replacement(outcome: &str) {
+    PROXY_REPLACEMENTS_TOTAL
+        .with_label_values(&[outcome])
+        .inc();
 }
 
 pub struct MetricsServer {

@@ -46,7 +46,17 @@ jobs:
         run: |
           mkdir -p tests/test_data
           VERSION=${{ steps.latest_version.outputs.latest_version }}
-          wget -O "tests/test_data/full_test_data_1_v${VERSION}.json" "https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/FullTestData/full_test_data_1_v${VERSION}.json"
+          wget -O /tmp/response_01.json "https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/v${VERSION}/recording/response_01.json"
+          python -c "import json; json.dump(json.load(open('/tmp/response_01.json'))['response'], open('tests/test_data/full_test_data_1_v${VERSION}.json', 'w'))"
+
+          mkdir -p "tests/test_data/recording_v${VERSION}/static_map"
+          for i in $(seq -w 1 10); do
+            wget -O "tests/test_data/recording_v${VERSION}/response_${i}.json" \
+              "https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/v${VERSION}/recording/response_${i}.json"
+          done
+          MAP_ID=$(python -c "import json; print(json.load(open('tests/test_data/recording_v${VERSION}/response_01.json'))['map_id'])")
+          wget -O "tests/test_data/recording_v${VERSION}/static_map/${MAP_ID}_${VERSION}.json" \
+            "https://raw.githubusercontent.com/zDox/ConflictData/refs/heads/main/v${VERSION}/static_map/${MAP_ID}_${VERSION}.json"
 
 
       - name: Run tests with unittest

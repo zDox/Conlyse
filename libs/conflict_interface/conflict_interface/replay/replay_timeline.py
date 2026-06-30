@@ -27,7 +27,7 @@ MAX_STATIC_MAP_DATA_SIZE = 1024 * 1024 * 10 # 10 Mb
 logger = get_logger()
 
 _MAGIC = b"RPLYZSTD"
-_VERSION = 2
+_VERSION = 3
 
 
 class ReplayTimeline:

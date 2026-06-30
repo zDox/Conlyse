@@ -6,6 +6,7 @@ use crate::metrics::{
     record_game_completed, record_game_failed, record_game_started, record_game_resumed, record_game_update_retry,
     record_missed_interval, record_scheduled_update_latency, record_game_update_completed,
     record_game_update_started, set_active_games, set_down_server_count,
+    record_proxy_health_check, set_proxy_health_counts,
 };
 use crate::server_outage_tracker::ServerOutageTracker;
 use crate::observation_session::{ObservationError, ObservationResult, ObservationSession};
@@ -59,6 +60,7 @@ pub struct ServerObserver {
     dead_letter_path: String,
     game_server_status_map: GameServerStatusMap,
     outage_tracker: ServerOutageTracker,
+    proxy_health_check_interval_secs: u64,
 }
 
 impl ServerObserver {
@@ -166,6 +168,10 @@ impl ServerObserver {
             .get::<String>("dead_letter_path")
             .unwrap_or_else(|_| "dead_letter.jsonl".to_string());
 
+        let proxy_health_check_interval_secs = settings
+            .get::<u64>("proxy.health_check_interval_seconds")
+            .unwrap_or(120);
+
         let observer = Arc::new(Self {
             account_pool,
             scheduler,
@@ -190,6 +196,7 @@ impl ServerObserver {
             dead_letter_path,
             game_server_status_map: GameServerStatusMap::new(),
             outage_tracker: ServerOutageTracker::new(),
+            proxy_health_check_interval_secs,
         });
 
         tracing::info!(
@@ -264,6 +271,57 @@ impl ServerObserver {
                             }
                         }
                     }
+                }
+            });
+        }
+
+        // Spawn the proxy health-check probe: periodically checks each account's proxy and
+        // triggers replacement for any that fail, before sessions notice the failure themselves.
+        {
+            let weak = Arc::downgrade(&self);
+            let interval_secs = self.proxy_health_check_interval_secs;
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(Duration::from_secs(interval_secs)).await;
+                    let Some(observer) = weak.upgrade() else { break };
+                    if observer.stop_flag.load(Ordering::SeqCst) { break; }
+
+                    // Snapshot accounts without holding the lock during I/O.
+                    let accounts: Vec<(String, crate::account_pool::ProxyConfig)> = {
+                        let pool = observer.account_pool.lock().await;
+                        pool.accounts.iter()
+                            .filter(|a| a.proxy_config.enabled)
+                            .map(|a| (a.username.clone(), a.proxy_config.clone()))
+                            .collect()
+                    };
+
+                    let mut healthy = 0i64;
+                    let mut unhealthy = 0i64;
+
+                    for (username, proxy_cfg) in accounts {
+                        let proxy_url = proxy_cfg.to_url();
+                        let ok = connectivity_check::proxy_passes_checks(
+                            &proxy_url,
+                            connectivity_check::FALLBACK_GAME_SERVER_URL,
+                        ).await;
+                        if ok {
+                            healthy += 1;
+                            record_proxy_health_check("pass");
+                        } else {
+                            unhealthy += 1;
+                            record_proxy_health_check("fail");
+                            tracing::warn!(
+                                account = %username,
+                                proxy_host = %proxy_cfg.host,
+                                "proactive health check: proxy failed, triggering replacement"
+                            );
+                            let mut pool = observer.account_pool.lock().await;
+                            pool.replace_proxy(&username, connectivity_check::FALLBACK_GAME_SERVER_URL).await;
+                        }
+                    }
+
+                    set_proxy_health_counts(healthy, unhealthy);
+                    tracing::debug!(healthy, unhealthy, "proxy health check sweep complete");
                 }
             });
         }
@@ -811,6 +869,7 @@ impl ServerObserver {
             };
             record_game_failed(error_type);
 
+            let last_raw_response = session_arc.lock().await.last_raw_response.clone();
             let ts = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
@@ -821,6 +880,7 @@ impl ServerObserver {
                 "error_code": error_type,
                 "error_message": &result.error_message,
                 "account": &username,
+                "last_raw_response": last_raw_response,
             });
             if let Ok(mut f) = std::fs::OpenOptions::new()
                 .create(true)

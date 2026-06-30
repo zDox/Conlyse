@@ -20,7 +20,8 @@ from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
 from ..mod_state.boost import Boost
-from ..player_state.faction import Faction
+from ..mod_state.mod_state_enums import UnitFeature
+from ..mod_state.faction import Faction
 
 from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
@@ -429,10 +430,12 @@ class UnitTypeFrontEndConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
     player_progression_image: Optional[str]
     officer_premium_id: Optional[int]
+    preferred_attack_damage_type: Optional[UnitFeature]
 
     MAPPING = {
         "player_progression_image": "playerProgressionImage",
         "officer_premium_id": "officerPremiumItemID",
+        "preferred_attack_damage_type": "preferredAttackDamageType",
     }
 
 @conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
@@ -493,6 +496,23 @@ class DiplomaticAggressionConfig(GameObject):
     MAPPING = {
         "incident_mapping": "incidentMapping",
         "victim_incident_mapping": "victimIncidentMapping",
+    }
+
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
+@dataclass
+class DiplomacyTradeRerollConfig(GameObject):
+    C = "ultshared.modding.configuration.UltDiplomacyTradeRerollConfig"
+
+    enabled: bool
+    max_rerolls_per_day: int
+    recent_trades_to_ignore: int
+    price_multipliers: UnmodifiableMap[str, float] # TODO key could be enum
+
+    MAPPING = {
+        "enabled": "enabled",
+        "max_rerolls_per_day": "maxRerollsPerDay",
+        "recent_trades_to_ignore": "recentTradesToIgnore",
+        "price_multipliers": "priceMultipliers",
     }
 
 @conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
