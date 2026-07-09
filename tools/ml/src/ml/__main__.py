@@ -31,6 +31,7 @@ def _cmd_train(args: argparse.Namespace) -> None:
         batch_size=args.batch_size,
         lr=args.lr,
         device=args.device,
+        amp=args.amp,
     )
 
 
@@ -81,6 +82,7 @@ def main() -> None:
     train_p.add_argument("--batch-size", type=int, default=4, help="Batch size in games (default: 4)")
     train_p.add_argument("--lr", type=float, default=1e-4, help="Learning rate (default: 1e-4)")
     train_p.add_argument("--device", default="cpu", help="torch device (default: cpu)")
+    train_p.add_argument("--amp", action="store_true", help="Use bfloat16 autocast (halves VRAM; recommended for GPU)")
     _add_common_args(train_p)
 
     # ── eval ───────────────────────────────────────────────────────────────

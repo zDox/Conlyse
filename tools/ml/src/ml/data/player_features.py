@@ -5,7 +5,7 @@ import math
 from typing import Optional
 
 import numpy as np
-from conflict_interface.data_types.newest.player_state.faction import Faction
+from conflict_interface.data_types.newest.mod_state.faction import Faction
 from conflict_interface.data_types.newest.player_state.player_profile import PlayerProfile
 
 from .newspaper_features import NUM_NEWSPAPER_FEATURES

@@ -67,7 +67,7 @@ def to_device(batch: GnnBatch, device: str) -> GnnBatch:
 
 
 @torch.no_grad()
-def evaluate(model: WinPredictor, loader: DataLoader, device: str) -> dict[str, float]:
+def evaluate(model: WinPredictor, loader: DataLoader, device: str, amp: bool = False) -> dict[str, float]:
     model.eval()
     total_kl = 0.0
     total_brier_sum = 0.0
@@ -76,9 +76,12 @@ def evaluate(model: WinPredictor, loader: DataLoader, device: str) -> dict[str, 
     topk_hits = dict.fromkeys(_TOPK_VALUES, 0)
     n_samples = 0
 
+    _autocast = torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=amp and device != "cpu")
+
     for batch in loader:
         batch = to_device(batch, device)
-        logits = model(batch)
+        with _autocast:
+            logits = model(batch)
         probs = F.softmax(logits, dim=-1)
 
         total_kl += win_predictor_loss(logits, batch.target).item() * batch.batch_size
@@ -108,16 +111,19 @@ def evaluate(model: WinPredictor, loader: DataLoader, device: str) -> dict[str, 
 
 
 def _run_epoch(
-    model: WinPredictor, loader: DataLoader, optimizer: torch.optim.Optimizer, device: str
+    model: WinPredictor, loader: DataLoader, optimizer: torch.optim.Optimizer, device: str,
+    amp: bool = False,
 ) -> float:
     model.train()
     total_loss = 0.0
     n_batches = 0
+    _autocast = torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=amp and device != "cpu")
     for batch in loader:
         batch = to_device(batch, device)
         optimizer.zero_grad()
-        logits = model(batch)
-        loss = win_predictor_loss(logits, batch.target)
+        with _autocast:
+            logits = model(batch)
+            loss = win_predictor_loss(logits, batch.target)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
@@ -133,6 +139,7 @@ def train(
     batch_size: int = 4,
     lr: float = 1e-4,
     device: str = "cpu",
+    amp: bool = False,
 ) -> None:
     dataset = GnnWinDataset(dataset_dir)
     n = len(dataset)
@@ -170,8 +177,8 @@ def train(
 
         metrics: dict[str, float] = {}
         for epoch in range(epochs):
-            train_loss = _run_epoch(model, train_loader, optimizer, device)
-            metrics = evaluate(model, val_loader, device)
+            train_loss = _run_epoch(model, train_loader, optimizer, device, amp=amp)
+            metrics = evaluate(model, val_loader, device, amp=amp)
             logger.info(
                 "Fold %d epoch %d/%d: train_loss=%.4f val_kl=%.4f val_brier=%.4f "
                 "top1=%.3f top3=%.3f top5=%.3f coalition_mass=%.3f",
@@ -194,14 +201,38 @@ def train(
     logger.info("Average validation metrics across folds: %s", avg_metrics)
 
     logger.info("Retraining final model on all %d games", n)
+    output_dir.mkdir(parents=True, exist_ok=True)
     full_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     model = WinPredictor(**model_config()).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    for epoch in range(epochs):
-        train_loss = _run_epoch(model, full_loader, optimizer, device)
-        logger.info("Final model epoch %d/%d: train_loss=%.4f", epoch + 1, epochs, train_loss)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
+    resume_path = output_dir / "win_predictor_resume.pt"
+    start_epoch = 0
+    if resume_path.exists():
+        ckpt = torch.load(resume_path, map_location=device, weights_only=False)
+        if ckpt.get("config") == model_config():
+            model.load_state_dict(ckpt["model_state_dict"])
+            optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+            start_epoch = ckpt["epoch"]
+            logger.info("Resuming final model from epoch %d/%d", start_epoch, epochs)
+        else:
+            logger.warning("Resume checkpoint config mismatch — starting from scratch")
+
+    for epoch in range(start_epoch, epochs):
+        train_loss = _run_epoch(model, full_loader, optimizer, device, amp=amp)
+        logger.info("Final model epoch %d/%d: train_loss=%.4f", epoch + 1, epochs, train_loss)
+        torch.save(
+            {
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "epoch": epoch + 1,
+                "config": model_config(),
+                "building_vocab_hash": building_vocab_hash(),
+                "unit_vocab_hash": unit_vocab_hash(),
+            },
+            resume_path,
+        )
+
     checkpoint_path = output_dir / "win_predictor.pt"
     torch.save(
         {
@@ -212,4 +243,5 @@ def train(
         },
         checkpoint_path,
     )
+    resume_path.unlink(missing_ok=True)
     logger.info("Checkpoint saved to %s", checkpoint_path)

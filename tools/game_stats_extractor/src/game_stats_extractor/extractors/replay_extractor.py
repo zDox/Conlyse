@@ -821,7 +821,9 @@ class ReplayExtractor(BaseExtractor):
 
         # ---- Victory detection ----
         ranking = gs.states.newspaper_state.ranking
-        winner_ids, victory_type = _determine_winners(players, ranking)
+        winner_ids, victory_type = _determine_winners(
+            players, ranking, victory_points_modifier=gs.states.game_info_state.victory_points_modifier
+        )
 
         # ---- Provinces ----
         provinces: list[ProvinceData] = []
@@ -882,7 +884,18 @@ class ReplayExtractor(BaseExtractor):
         )
 
 
-def _determine_winners(players: list[PlayerData], ranking=None) -> tuple[list[int], str]:
+# Victory-point multipliers by coalition size, i.e. a coalition of n players needs
+# victory_points_modifier * _VICTORY_POINTS_FACTORS[n] combined VP to win. This mirrors
+# the game's own ultshared.modding.configuration.UltTeamConfig.victoryPointsFactors table
+# (confirmed against real in-game values for n=1..5); it is a fixed design table, not a
+# formula, and the game caps coalitions at maxCoalitionSize=5. Sizes beyond 5 fall through
+# to the relative-VP fallback below.
+_VICTORY_POINTS_FACTORS = {1: 1.0, 2: 1.6, 3: 2.3, 4: 2.9, 5: 3.2}
+
+
+def _determine_winners(
+    players: list[PlayerData], ranking=None, victory_points_modifier: int = 0
+) -> tuple[list[int], str]:
     if not players:
         return [], "unknown"
 
@@ -895,7 +908,7 @@ def _determine_winners(players: list[PlayerData], ranking=None) -> tuple[list[in
             if team_players:
                 return team_players, "coalition"
 
-    # Fallback heuristic for replays without a finalized ranking
+    # Elimination: only one player, or one team, still standing
     still_playing = [p for p in players if p.is_playing and not p.is_defeated]
 
     if len(still_playing) == 1:
@@ -907,6 +920,30 @@ def _determine_winners(players: list[PlayerData], ranking=None) -> tuple[list[in
             return [p.player_id for p in still_playing], "coalition"
 
     pool = still_playing or [p for p in players if not p.is_defeated] or players
+
+    # Real victory-point thresholds: a single player reaching victory_points_modifier VP
+    # wins solo; otherwise a team whose combined VP clears its size-scaled threshold wins.
+    if victory_points_modifier > 0:
+        solo_candidates = [p for p in pool if p.final_vp >= victory_points_modifier]
+        if solo_candidates:
+            top = max(solo_candidates, key=lambda p: p.final_vp)
+            return [top.player_id], "solo"
+
+        teams: dict[int, list[PlayerData]] = defaultdict(list)
+        for p in pool:
+            if p.team_id > 0:
+                teams[p.team_id].append(p)
+
+        for members in teams.values():
+            factor = _VICTORY_POINTS_FACTORS.get(len(members))
+            if factor is None:
+                continue  # coalition bigger than the known table — falls through below
+            if sum(p.final_vp for p in members) >= victory_points_modifier * factor:
+                return [p.player_id for p in members], "coalition"
+
+    # Nobody met a real threshold — either victory_points_modifier is unknown, or the
+    # coalition is bigger than the known table covers, or the game was ended by admin/vote
+    # with no clear winner. Guess from relative standing as a last resort.
     max_vp = max((p.final_vp for p in pool), default=0)
     if max_vp <= 0:
         return [], "unknown"

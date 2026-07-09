@@ -166,6 +166,7 @@ class GnnReplayExtractor:
         winner_ids = determine_winner_ids(
             [final_profiles[pid] for pid in player_ids if pid in final_profiles],
             ranking=ranking,
+            victory_points_modifier=gs.states.game_info_state.victory_points_modifier,
         )
         target = compute_target_vector(winner_ids, player_ids)
 
