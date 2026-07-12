@@ -54,6 +54,8 @@ export interface GlobalAggregate {
   avg_coalition_size?: number;
   top_coalition_pairs?: [string, string, number][];
   elimination_timing_distribution?: Record<string, number>;
+  total_traitor_wins?: number;
+  traitor_win_rate?: number;
 }
 
 export interface CountryAggregate {
@@ -92,6 +94,7 @@ export interface ProvinceAggregate {
   province_name: string;
   terrain_type: string;
   is_coastal: boolean;
+  region: string;
   games_appeared: number;
   avg_ownership_changes: number;
   contest_frequency: number;

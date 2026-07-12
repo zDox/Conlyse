@@ -105,6 +105,11 @@ class GlobalAggregator(BaseAggregator[GlobalAggregate]):
                 bucket = str(int(p.elimination_game_pct // 10) * 10)
                 elim_dist[bucket] = elim_dist.get(bucket, 0) + 1
 
+        # Traitor wins — solo wins where the winner left a >=2-member coalition shortly before winning
+        solo_games = sum(1 for g in games if g.victory_type == "solo")
+        total_traitor_wins = sum(1 for g in games if g.traitor_ids)
+        traitor_win_rate = total_traitor_wins / solo_games if solo_games > 0 else 0.0
+
         return GlobalAggregate(
             total_games=len(games),
             avg_duration_hours=statistics.mean(durations),
@@ -127,6 +132,8 @@ class GlobalAggregator(BaseAggregator[GlobalAggregate]):
             avg_coalition_size=statistics.mean(coalition_sizes) if coalition_sizes else 0.0,
             top_coalition_pairs=top_coalition_pairs,
             elimination_timing_distribution=elim_dist,
+            total_traitor_wins=total_traitor_wins,
+            traitor_win_rate=traitor_win_rate,
         )
 
 

@@ -19,6 +19,7 @@ const SECTIONS: SidebarSection[] = [
     items: [
       { id: 'chart-global-duration',  label: 'Game Duration' },
       { id: 'chart-global-victory',   label: 'Victory Types' },
+      { id: 'chart-global-traitors',  label: 'Traitor Wins' },
       { id: 'chart-global-dropout',   label: 'Player Dropout' },
       { id: 'chart-global-diplomacy', label: 'Diplomacy' },
       { id: 'chart-global-activity',  label: 'Player Activity' },

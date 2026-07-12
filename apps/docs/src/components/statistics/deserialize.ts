@@ -52,6 +52,7 @@ export function deserializeProvinces(raw: ColumnarData): ProvinceAggregate[] {
     province_name:            r[idx.province_name]            as string,
     terrain_type:             r[idx.terrain_type]             as string,
     is_coastal:               r[idx.is_coastal]               as boolean,
+    region:                   r[idx.region]                   as string,
     games_appeared:           r[idx.games_appeared]           as number,
     avg_ownership_changes:    r[idx.avg_ownership_changes]    as number,
     contest_frequency:        r[idx.contest_frequency]        as number,

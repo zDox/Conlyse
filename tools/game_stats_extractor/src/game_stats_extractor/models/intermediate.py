@@ -61,6 +61,7 @@ class ProvinceData:
     province_name: str
     terrain_type: str
     is_coastal: bool
+    region: str
     initial_owner_id: int
     final_owner_id: int
     ownership_changes: int
@@ -85,7 +86,8 @@ class GameData:
     avg_update_interval_seconds: float
     winner_ids: list[int]
     victory_type: str  # "solo", "coalition", "unknown"
-    game_ended: bool
+    traitor_ids: list[int] = field(default_factory=list)
+    game_ended: bool = False
     players: list[PlayerData] = field(default_factory=list)
     provinces: list[ProvinceData] = field(default_factory=list)
     total_wars_declared: int = 0

@@ -16,17 +16,29 @@ interface Props {
   data: ProvinceAggregate[];
 }
 
-const TERRAIN_COLOURS: Record<string, string> = {
-  PLAINS:   '#7bc67a',
-  HILLS:    '#b8a05a',
-  MOUNTAIN: '#8c9db5',
-  FOREST:   '#3a8a4a',
-  URBAN:    '#5b7ec9',
-  JUNGLE:   '#2e7d52',
-  TUNDRA:   '#8ecae6',
-  DESERT:   '#e9c46a',
-  SUBURBAN: '#9b72cf',
+const REGION_COLOURS: Record<string, string> = {
+  EUROPA:        '#2a78d6',
+  ASIA:          '#1baf7a',
+  AFRICA:        '#eda100',
+  NORTH_AMERICA: '#008300',
+  SOUTH_AMERICA: '#4a3aa7',
+  OCEANIA:       '#e34948',
+  NONE:          '#9a9a9a',
 };
+
+const REGION_LABELS: Record<string, string> = {
+  EUROPA:        'Europe',
+  ASIA:          'Asia',
+  AFRICA:        'Africa',
+  NORTH_AMERICA: 'North America',
+  SOUTH_AMERICA: 'South America',
+  OCEANIA:       'Oceania',
+  NONE:          'Unknown',
+};
+
+function formatRegion(region: string): string {
+  return REGION_LABELS[region] ?? region;
+}
 
 const QUADRANT_STYLE = {
   fontSize: 10,
@@ -36,7 +48,7 @@ const QUADRANT_STYLE = {
 
 interface ScatterPoint {
   name: string;
-  terrain: string;
+  region: string;
   changes: number;
   winCorr: number;
   fill: string;
@@ -108,20 +120,20 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payl
       lineHeight: 1.6,
     }}>
       <div style={{ fontWeight: 600 }}>{p.name}</div>
-      <div>{p.terrain.charAt(0) + p.terrain.slice(1).toLowerCase()}</div>
+      <div>{formatRegion(p.region)}</div>
       <div>Avg ownership changes: {p.changes.toFixed(2)}</div>
       <div>Winner held in {p.winCorr.toFixed(1)}% of games</div>
     </div>
   );
 }
 
-function TerrainLegend({ terrains }: { terrains: string[] }) {
+function RegionLegend({ regions }: { regions: string[] }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', marginTop: 10, fontSize: 11, color: 'var(--ifm-font-color-base)' }}>
-      {terrains.map((t) => (
-        <span key={t} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: TERRAIN_COLOURS[t] ?? '#aaa', display: 'inline-block' }} />
-          {t.charAt(0) + t.slice(1).toLowerCase()}
+      {regions.map((r) => (
+        <span key={r} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: REGION_COLOURS[r] ?? '#aaa', display: 'inline-block' }} />
+          {formatRegion(r)}
         </span>
       ))}
     </div>
@@ -132,10 +144,10 @@ export default function ProvinceStrategicScatterChart({ data }: Props) {
   const points = useMemo<ScatterPoint[]>(
     () => data.map((p) => ({
       name: p.province_name,
-      terrain: p.terrain_type,
+      region: p.region,
       changes: parseFloat(p.avg_ownership_changes.toFixed(2)),
       winCorr: parseFloat((p.win_correlation * 100).toFixed(2)),
-      fill: TERRAIN_COLOURS[p.terrain_type] ?? '#aaaaaa',
+      fill: REGION_COLOURS[p.region] ?? '#aaaaaa',
     })),
     [data],
   );
@@ -154,7 +166,7 @@ export default function ProvinceStrategicScatterChart({ data }: Props) {
   }, [points]);
 
   const outlierSet = useMemo(() => buildOutlierSet(points), [points]);
-  const terrains = useMemo(() => [...new Set(points.map((p) => p.terrain))].sort(), [points]);
+  const regions = useMemo(() => [...new Set(points.map((p) => p.region))].sort(), [points]);
   const CustomDot = useMemo(() => makeDotRenderer(outlierSet, medChanges, medWinCorr), [outlierSet, medChanges, medWinCorr]);
 
   return (
@@ -194,7 +206,7 @@ export default function ProvinceStrategicScatterChart({ data }: Props) {
           <Scatter data={points} shape={CustomDot} />
         </ScatterChart>
       </ResponsiveContainer>
-      <TerrainLegend terrains={terrains} />
+      <RegionLegend regions={regions} />
     </div>
   );
 }

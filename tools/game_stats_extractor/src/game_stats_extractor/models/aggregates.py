@@ -57,6 +57,8 @@ class GlobalAggregate(BaseModel):
     avg_coalition_size: float = 0.0
     top_coalition_pairs: list[list[str | int]] = []
     elimination_timing_distribution: dict[str, int] = {}
+    total_traitor_wins: int = 0
+    traitor_win_rate: float = 0.0
 
 
 class CountryAggregate(BaseModel):
@@ -97,6 +99,7 @@ class ProvinceAggregate(BaseModel):
     province_name: str
     terrain_type: str
     is_coastal: bool
+    region: str
     games_appeared: int
     avg_ownership_changes: float
     contest_frequency: float

@@ -19,9 +19,6 @@ export default function GlobalStatsSection({ data, timeseries }: Props) {
   return (
     <section id="section-global" className={styles.section}>
       <h2 className={styles.heading}>Global Overview</h2>
-      <p className={styles.description}>
-        Patterns across all {data.total_games.toLocaleString()} recorded games.
-      </p>
       <div className={styles.grid}>
         <div id="chart-global-duration" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Game Duration Distribution</h3>
@@ -39,6 +36,18 @@ export default function GlobalStatsSection({ data, timeseries }: Props) {
           <p className={styles.chartSubtitle}>How games were won</p>
           <VictoryTypeChart data={data.victory_type_distribution} />
         </div>
+        <div id="chart-global-traitors" className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>Traitor Wins</h3>
+          <p className={styles.chartSubtitle}>
+            Solo wins where the winner left a coalition in the final 3 in-game days
+          </p>
+          <div className={styles.statCallout}>
+            <div className={styles.statValue}>{(data.total_traitor_wins ?? 0).toLocaleString()}</div>
+            <div className={styles.statCaption}>
+              {((data.traitor_win_rate ?? 0) * 100).toFixed(0)}% of solo wins came from betraying a coalition right before the win
+            </div>
+          </div>
+        </div>
         <div id="chart-global-dropout" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Player Dropout</h3>
           <p className={styles.chartSubtitle}>
@@ -55,12 +64,12 @@ export default function GlobalStatsSection({ data, timeseries }: Props) {
         </div>
         <div id="chart-global-activity" className={styles.chartCard} style={{ gridColumn: '1 / -1' }}>
           <h3 className={styles.chartTitle}>Player Activity Over Time</h3>
-          <p className={styles.chartSubtitle}>Avg alive players and active humans at each point in a typical game · use buttons to switch time axis</p>
+          <p className={styles.chartSubtitle}>Avg alive players and active humans at each point in a typical game</p>
           <PlayerActivityTimeSeriesChart data={timeseries} />
         </div>
         <div id="chart-global-coalition-size" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Coalition Size Distribution</h3>
-          <p className={styles.chartSubtitle}>How many players shared the win — solo vs 2-, 3-, or more-player coalitions</p>
+          <p className={styles.chartSubtitle}>How many players shared the win</p>
           <CoalitionSizeDistributionChart data={data} />
         </div>
         <div id="chart-global-coalition-pairs" className={styles.chartCard}>

@@ -25,7 +25,7 @@ def _rp(v) -> float:
 
 def _provinces_columnar(provinces: list[ProvinceAggregate]) -> dict:
     cols = [
-        "province_id", "province_name", "terrain_type", "is_coastal",
+        "province_id", "province_name", "terrain_type", "is_coastal", "region",
         "games_appeared", "avg_ownership_changes", "contest_frequency",
         "win_correlation", "resource_production_type",
         "avg_resource_production", "avg_money_production", "avg_morale",
@@ -33,7 +33,7 @@ def _provinces_columnar(provinces: list[ProvinceAggregate]) -> dict:
     ]
     rows = [
         [
-            p.province_id, p.province_name, p.terrain_type, p.is_coastal,
+            p.province_id, p.province_name, p.terrain_type, p.is_coastal, p.region,
             p.games_appeared, _r(p.avg_ownership_changes), _rp(p.contest_frequency),
             _rp(p.win_correlation), p.resource_production_type,
             _r(p.avg_resource_production), _r(p.avg_money_production), _r(p.avg_morale),
