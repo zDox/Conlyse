@@ -160,7 +160,12 @@ class GameObjectSerializer:
 
         if t is dict:
             from_raw = self._from_raw
-            return {from_raw(k): from_raw(v) for k, v in data["__dict__"]}
+            primitives = self._PRIMITIVES
+            return {
+                (k if type(k) in primitives else from_raw(k)):
+                    (v if type(v) in primitives else from_raw(v))
+                for k, v in data["__dict__"]
+            }
 
 
         if t is list:
@@ -170,7 +175,8 @@ class GameObjectSerializer:
             else:
                 # Plain list
                 from_raw = self._from_raw
-                return [from_raw(v) for v in data]
+                primitives = self._PRIMITIVES
+                return [v if type(v) in primitives else from_raw(v) for v in data]
 
         raise TypeError(f"Cannot deserialize:  {type(data)} \n {str(data)[:1000]}")
 
@@ -187,19 +193,29 @@ class GameObjectSerializer:
             )
         cat = self._category[cls]
         from_raw = self._from_raw
+        # Avoid a full recursive _from_raw call (frame setup + branch tree)
+        # for the common case of an already-primitive field value.
+        primitives = self._PRIMITIVES
 
         if cat in (SerializationCategory.DATACLASS, SerializationCategory.GAME_STATE, SerializationCategory.STATIC_MAP_DATA):
             field_names = self._fields[cls]
-            kwargs = {name: from_raw(data[i + 2]) for i, name in enumerate(field_names)}
+            kwargs = {}
+            for i, name in enumerate(field_names):
+                v = data[i + 2]
+                kwargs[name] = v if type(v) in primitives else from_raw(v)
             instance = cls(**kwargs)
             instance.game = None
             return instance
 
         elif cat == SerializationCategory.LIST:
-            return cls([from_raw(v) for v in data[2]])
+            return cls([v if type(v) in primitives else from_raw(v) for v in data[2]])
 
         elif cat == SerializationCategory.DICT:
-            return cls({from_raw(pair[0]): from_raw(pair[1]) for pair in data[2]})
+            return cls({
+                (pair[0] if type(pair[0]) in primitives else from_raw(pair[0])):
+                    (pair[1] if type(pair[1]) in primitives else from_raw(pair[1]))
+                for pair in data[2]
+            })
 
         elif cat == SerializationCategory.DATETIME:
             return cls.fromtimestamp(data[2], UTC)
