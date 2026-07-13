@@ -81,6 +81,7 @@ class CountryAggregate(BaseModel):
     avg_peace_treaties_signed: float = 0.0
     avg_alliances_formed: float = 0.0
     avg_right_of_ways_signed: float = 0.0
+    avg_shared_intelligence_signed: float = 0.0
     avg_total_production: dict[str, float] = {}
     avg_production_rate: dict[str, float] = {}
     avg_final_building_counts: dict[str, float] = {}
