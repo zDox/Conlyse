@@ -201,6 +201,18 @@ class ReplayExtractor(BaseExtractor):
             if _is_land_province(p)
         }
 
+        # `region` is static per-map data. The live per-game province objects never
+        # carry it (always None), so it has to come from the static map data
+        # (locations, keyed by province id) supplied via --map-data-dir.
+        region_by_pid: dict[int, str] = {}
+        static_map_data = getattr(map_obj, "static_map_data", None)
+        if static_map_data is not None:
+            for loc in static_map_data.locations:
+                loc_region = getattr(loc, "region", None)
+                loc_id = getattr(loc, "id", None)
+                if loc_id is not None and loc_region and hasattr(loc_region[0], "name"):
+                    region_by_pid[loc_id] = str(loc_region[0].name)
+
         # Province static info (name, terrain, coastal) — read once
         province_meta: dict[int, dict] = {
             pid: {
@@ -210,7 +222,7 @@ class ReplayExtractor(BaseExtractor):
                 "region": (
                     str(p.region[0].name)
                     if getattr(p, "region", None) and hasattr(p.region[0], "name")
-                    else "NONE"
+                    else region_by_pid.get(pid, "NONE")
                 ),
                 "resource_production_type": (
                     str(p.resource_production_type.name)
