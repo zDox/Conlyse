@@ -45,8 +45,8 @@ export default function CoalitionSizeDistributionChart({ data }: Props) {
             borderRadius: 6,
             color: 'var(--ifm-font-color-base)',
           }}
-          formatter={(value: number, _: string, props) => [
-            `${value} games (${props.payload.pct}%)`,
+          formatter={(_: number, __: string, props) => [
+            `${props.payload.pct}%`,
             'Games',
           ]}
         />

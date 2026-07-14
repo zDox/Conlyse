@@ -95,6 +95,7 @@ export interface ProvinceAggregate {
   terrain_type: string;
   is_coastal: boolean;
   region: string;
+  original_owner_nation: string | null;
   games_appeared: number;
   avg_ownership_changes: number;
   contest_frequency: number;

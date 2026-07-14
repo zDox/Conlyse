@@ -25,7 +25,6 @@ export default function CountryDiplomacyChart({ data, topN = 20, minGames = 3 }:
       wars: parseFloat(c.avg_wars_declared.toFixed(1)),
       rows: parseFloat(c.avg_right_of_ways_signed.toFixed(1)),
       peace: parseFloat(c.avg_peace_treaties_signed.toFixed(1)),
-      games: c.games_played,
     }))
     .sort((a, b) => (b.wars + b.rows + b.peace) - (a.wars + a.rows + a.peace))
     .slice(0, topN);
@@ -57,9 +56,9 @@ export default function CountryDiplomacyChart({ data, topN = 20, minGames = 3 }:
             color: 'var(--ifm-font-color-base)',
           }}
           formatter={(value: number, name: string, props) => {
-            const { wars, rows, peace, games } = props.payload;
+            const { wars, rows, peace } = props.payload;
             return [
-              `${value} avg · total ${(wars + rows + peace).toFixed(1)} diplomatic acts · ${games} games`,
+              `${value} avg · total ${(wars + rows + peace).toFixed(1)} diplomatic acts`,
               name,
             ];
           }}

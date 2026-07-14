@@ -40,7 +40,6 @@ export default function ProvinceMoraleChart({ data, topN = 20 }: Props) {
       name: p.province_name,
       morale: parseFloat(p.avg_morale.toFixed(1)),
       terrain: p.terrain_type,
-      games: p.games_appeared,
       coastal: p.is_coastal,
     }));
 
@@ -72,10 +71,10 @@ export default function ProvinceMoraleChart({ data, topN = 20 }: Props) {
             color: 'var(--ifm-font-color-base)',
           }}
           formatter={(value: number, _: string, props) => {
-            const { terrain, games, coastal } = props.payload;
+            const { terrain, coastal } = props.payload;
             const coastalLabel = coastal ? ' · coastal' : '';
             return [
-              `${value}% avg morale · ${terrain}${coastalLabel} · ${games} games`,
+              `${value}% avg morale · ${terrain}${coastalLabel}`,
               'Avg morale',
             ];
           }}

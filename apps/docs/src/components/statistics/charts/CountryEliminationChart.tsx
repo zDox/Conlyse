@@ -24,7 +24,6 @@ export default function CountryEliminationChart({ data, topN = 20 }: Props) {
       name: c.nation_name,
       elimination_rate: parseFloat((c.elimination_rate * 100).toFixed(1)),
       survival_days: parseFloat(c.avg_survival_days.toFixed(1)),
-      games: c.games_played,
     }));
 
   return (
@@ -55,7 +54,7 @@ export default function CountryEliminationChart({ data, topN = 20 }: Props) {
             color: 'var(--ifm-font-color-base)',
           }}
           formatter={(value: number, _: string, props) => [
-            `${value}% eliminated · ${props.payload.survival_days}d avg survival · ${props.payload.games} games`,
+            `${value}% eliminated · ${props.payload.survival_days}d avg survival`,
             'Elimination rate',
           ]}
         />

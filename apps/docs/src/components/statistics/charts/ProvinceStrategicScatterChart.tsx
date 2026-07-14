@@ -49,61 +49,22 @@ const QUADRANT_STYLE = {
 interface ScatterPoint {
   name: string;
   region: string;
+  originalOwner: string | null;
   changes: number;
   winCorr: number;
   fill: string;
 }
-
-const OUTLIER_N = 10;
 
 function median(sorted: number[]): number {
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-function buildOutlierSet(points: ScatterPoint[]): Set<string> {
-  const top = (sorted: ScatterPoint[]) => sorted.slice(0, OUTLIER_N).map((p) => p.name);
-  return new Set([
-    ...top([...points].sort((a, b) => b.winCorr - a.winCorr)),
-    ...top([...points].sort((a, b) => b.changes - a.changes)),
-    ...top([...points].sort((a, b) => (b.changes * b.winCorr) - (a.changes * a.winCorr))),
-  ]);
-}
+function CustomDot(props: { cx?: number; cy?: number; payload?: ScatterPoint }) {
+  const { cx = 0, cy = 0, payload } = props;
+  if (!payload) return null;
 
-function makeDotRenderer(outliers: Set<string>, medChanges: number, medWinCorr: number) {
-  return function CustomDot(props: { cx?: number; cy?: number; payload?: ScatterPoint }) {
-    const { cx = 0, cy = 0, payload } = props;
-    if (!payload) return null;
-    const isOutlier = outliers.has(payload.name);
-
-    const labelRight = payload.changes > medChanges;
-    const labelAbove = payload.winCorr < medWinCorr;
-    const lx = labelRight ? cx - 6 : cx + 6;
-    const ly = labelAbove ? cy + 11 : cy - 5;
-
-    return (
-      <g>
-        <circle
-          cx={cx}
-          cy={cy}
-          r={isOutlier ? 5 : 3}
-          fill={payload.fill}
-          fillOpacity={isOutlier ? 0.9 : 0.35}
-        />
-        {isOutlier && (
-          <text
-            x={lx}
-            y={ly}
-            fontSize={9}
-            fill="var(--ifm-font-color-base)"
-            textAnchor={labelRight ? 'end' : 'start'}
-          >
-            {payload.name}
-          </text>
-        )}
-      </g>
-    );
-  };
+  return <circle cx={cx} cy={cy} r={4} fill={payload.fill} fillOpacity={0.7} />;
 }
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payload: ScatterPoint }[] }) {
@@ -121,6 +82,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payl
     }}>
       <div style={{ fontWeight: 600 }}>{p.name}</div>
       <div>{formatRegion(p.region)}</div>
+      {p.originalOwner && <div>Original owner: {p.originalOwner}</div>}
       <div>Avg ownership changes: {p.changes.toFixed(2)}</div>
       <div>Winner held in {p.winCorr.toFixed(1)}% of games</div>
     </div>
@@ -145,6 +107,7 @@ export default function ProvinceStrategicScatterChart({ data }: Props) {
     () => data.map((p) => ({
       name: p.province_name,
       region: p.region,
+      originalOwner: p.original_owner_nation,
       changes: parseFloat(p.avg_ownership_changes.toFixed(2)),
       winCorr: parseFloat((p.win_correlation * 100).toFixed(2)),
       fill: REGION_COLOURS[p.region] ?? '#aaaaaa',
@@ -165,9 +128,7 @@ export default function ProvinceStrategicScatterChart({ data }: Props) {
     };
   }, [points]);
 
-  const outlierSet = useMemo(() => buildOutlierSet(points), [points]);
   const regions = useMemo(() => [...new Set(points.map((p) => p.region))].sort(), [points]);
-  const CustomDot = useMemo(() => makeDotRenderer(outlierSet, medChanges, medWinCorr), [outlierSet, medChanges, medWinCorr]);
 
   return (
     <div>

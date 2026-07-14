@@ -101,6 +101,7 @@ class ProvinceAggregate(BaseModel):
     terrain_type: str
     is_coastal: bool
     region: str
+    original_owner_nation: Optional[str] = None
     games_appeared: int
     avg_ownership_changes: float
     contest_frequency: float

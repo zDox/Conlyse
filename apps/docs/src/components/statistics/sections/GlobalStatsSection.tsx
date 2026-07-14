@@ -33,20 +33,10 @@ export default function GlobalStatsSection({ data, timeseries }: Props) {
         </div>
         <div id="chart-global-victory" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Victory Types</h3>
-          <p className={styles.chartSubtitle}>How games were won</p>
-          <VictoryTypeChart data={data.victory_type_distribution} />
-        </div>
-        <div id="chart-global-traitors" className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Traitor Wins</h3>
           <p className={styles.chartSubtitle}>
-            Solo wins where the winner left a coalition in the final 3 in-game days
+            How games were won — a "traitor" win is a solo victory where the winner left a coalition in the final 3 in-game days
           </p>
-          <div className={styles.statCallout}>
-            <div className={styles.statValue}>{(data.total_traitor_wins ?? 0).toLocaleString()}</div>
-            <div className={styles.statCaption}>
-              {((data.traitor_win_rate ?? 0) * 100).toFixed(0)}% of solo wins came from betraying a coalition right before the win
-            </div>
-          </div>
+          <VictoryTypeChart data={data.victory_type_distribution} totalTraitorWins={data.total_traitor_wins} />
         </div>
         <div id="chart-global-dropout" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Player Dropout</h3>

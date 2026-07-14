@@ -27,7 +27,6 @@ export default function CoalitionWinRateChart({ data, topN = 20 }: Props) {
       coalition_pct: parseFloat((((c.coalition_wins ?? 0) / c.games_played) * 100).toFixed(1)),
       solo_wins: c.solo_wins ?? 0,
       coalition_wins: c.coalition_wins ?? 0,
-      games: c.games_played,
     }));
 
   if (chartData.length === 0) return <p style={{ color: 'var(--ifm-color-emphasis-500)', fontSize: 13 }}>No coalition data available yet.</p>;
@@ -62,7 +61,7 @@ export default function CoalitionWinRateChart({ data, topN = 20 }: Props) {
           formatter={(value: number, name: string, props) => {
             const label = name === 'solo_pct' ? 'Solo wins' : 'Coalition wins';
             const count = name === 'solo_pct' ? props.payload.solo_wins : props.payload.coalition_wins;
-            return [`${value}% (${count} wins of ${props.payload.games} games)`, label];
+            return [`${value}% (${count} wins)`, label];
           }}
         />
         <Legend

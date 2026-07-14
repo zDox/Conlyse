@@ -204,7 +204,10 @@ class ReplayExtractor(BaseExtractor):
         # `region` is static per-map data. The live per-game province objects never
         # carry it (always None), so it has to come from the static map data
         # (locations, keyed by province id) supplied via --map-data-dir.
+        # `legal_owner` is likewise static per-map data — the province's home/core
+        # owner regardless of who currently occupies it via conquest.
         region_by_pid: dict[int, str] = {}
+        legal_owner_by_pid: dict[int, int] = {}
         static_map_data = getattr(map_obj, "static_map_data", None)
         if static_map_data is not None:
             for loc in static_map_data.locations:
@@ -212,6 +215,9 @@ class ReplayExtractor(BaseExtractor):
                 loc_id = getattr(loc, "id", None)
                 if loc_id is not None and loc_region and hasattr(loc_region[0], "name"):
                     region_by_pid[loc_id] = str(loc_region[0].name)
+                loc_legal_owner = getattr(loc, "legal_owner", None)
+                if loc_id is not None and loc_legal_owner is not None:
+                    legal_owner_by_pid[loc_id] = int(loc_legal_owner)
 
         # Province static info (name, terrain, coastal) — read once
         province_meta: dict[int, dict] = {
@@ -229,6 +235,7 @@ class ReplayExtractor(BaseExtractor):
                     if p.resource_production_type and hasattr(p.resource_production_type, "name")
                     else (str(p.resource_production_type) if p.resource_production_type else None)
                 ),
+                "legal_owner_id": legal_owner_by_pid.get(pid, getattr(p, "legal_owner", -1)),
             }
             for pid, p in initial_land.items()
         }
@@ -897,6 +904,7 @@ class ReplayExtractor(BaseExtractor):
                 region=pmeta["region"],
                 initial_owner_id=initial_owners.get(pid, -1),
                 final_owner_id=current_owners.get(pid, -1),
+                legal_owner_id=pmeta["legal_owner_id"],
                 ownership_changes=ownership_changes.get(pid, 0),
                 resource_production_type=pmeta["resource_production_type"],
                 resource_production=int(final_p.resource_production or 0) if final_p else 0,

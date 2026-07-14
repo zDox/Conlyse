@@ -64,6 +64,7 @@ class ProvinceData:
     region: str
     initial_owner_id: int
     final_owner_id: int
+    legal_owner_id: int
     ownership_changes: int
     resource_production_type: Optional[str]
     resource_production: int

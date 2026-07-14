@@ -25,7 +25,6 @@ export default function CountryEliminationTimingChart({ data, topN = 20 }: Props
       name: c.nation_name,
       avg_elim_pct: parseFloat((c.avg_elimination_pct ?? 0).toFixed(1)),
       elim_rate: parseFloat((c.elimination_rate * 100).toFixed(1)),
-      games: c.games_played,
     }));
 
   if (chartData.length === 0) return <p style={{ color: 'var(--ifm-color-emphasis-500)', fontSize: 13 }}>No elimination timing data available yet.</p>;
@@ -58,7 +57,7 @@ export default function CountryEliminationTimingChart({ data, topN = 20 }: Props
             color: 'var(--ifm-font-color-base)',
           }}
           formatter={(value: number, _: string, props) => [
-            `Eliminated at ${value}% of game · ${props.payload.elim_rate}% elim rate · ${props.payload.games} games`,
+            `Eliminated at ${value}% of game · ${props.payload.elim_rate}% elim rate`,
             'Avg elimination point',
           ]}
         />

@@ -15,20 +15,23 @@ interface Props {
   data: GlobalAggregate;
 }
 
-const LABELS: Record<string, string> = {
-  '0': '0–10%', '10': '10–20%', '20': '20–30%', '30': '30–40%', '40': '40–50%',
-  '50': '50–60%', '60': '60–70%', '70': '70–80%', '80': '80–90%', '90': '90–100%',
-};
-
 export default function EliminationTimingDistributionChart({ data }: Props) {
   const dist = data.elimination_timing_distribution ?? {};
   if (Object.keys(dist).length === 0) return <p style={{ color: 'var(--ifm-color-emphasis-500)', fontSize: 13 }}>No elimination timing data available yet.</p>;
 
-  const chartData = ['0', '10', '20', '30', '40', '50', '60', '70', '80', '90']
-    .map((b) => ({ label: LABELS[b], bucket: parseInt(b), count: dist[b] ?? 0 }))
-    .filter((d) => d.count > 0);
+  const total = Object.values(dist).reduce((s, v) => s + v, 0);
 
-  const max = Math.max(...chartData.map((d) => d.count));
+  const chartData = Object.keys(dist)
+    .map((b) => parseInt(b))
+    .sort((a, b) => a - b)
+    .map((bucket) => ({
+      label: `Day ${bucket}–${bucket + 10}`,
+      bucket,
+      pct: total > 0 ? ((dist[String(bucket)] ?? 0) / total) * 100 : 0,
+    }))
+    .filter((d) => d.pct > 0);
+
+  const max = Math.max(...chartData.map((d) => d.pct));
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -41,7 +44,7 @@ export default function EliminationTimingDistributionChart({ data }: Props) {
           textAnchor="end"
           interval={0}
         />
-        <YAxis tick={{ fontSize: 11, fill: 'var(--ifm-font-color-base)' }} />
+        <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11, fill: 'var(--ifm-font-color-base)' }} />
         <Tooltip
           contentStyle={{
             background: 'var(--ifm-background-surface-color)',
@@ -49,14 +52,14 @@ export default function EliminationTimingDistributionChart({ data }: Props) {
             borderRadius: 6,
             color: 'var(--ifm-font-color-base)',
           }}
-          formatter={(value: number) => [value, 'Eliminations']}
+          formatter={(value: number) => [`${value.toFixed(1)}%`, 'Eliminations']}
         />
-        <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+        <Bar dataKey="pct" radius={[3, 3, 0, 0]}>
           {chartData.map((entry, index) => (
             <Cell
               key={`cell-${index}`}
-              fill={entry.count === max ? '#e74c3c' : '#4a90e2'}
-              fillOpacity={0.85 + (entry.count / max) * 0.15}
+              fill={entry.pct === max ? '#e74c3c' : '#4a90e2'}
+              fillOpacity={0.85 + (entry.pct / max) * 0.15}
             />
           ))}
         </Bar>
