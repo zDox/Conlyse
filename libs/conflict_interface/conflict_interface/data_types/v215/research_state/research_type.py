@@ -21,11 +21,11 @@ class ResearchType(GameObject):
     identifier: str # Icon identifier for Research Icons
     set: int # Tab ID infantry = 1
     set_order_id: int # Order in Tab ID ( ID for one research line)
-    costs: HashMap[ResourceType, int]
+    costs: HashMap[ResourceType, float]
     build_time: TimeDeltaSecondsInt
     day_available: int
     replaced_research: int
-    required_researches: HashMap[int, int]
+    required_researches: HashMap[int, float]
     required_plans: HashMap[int, int] # TODO Check int int
     tracking_option_id: int
     unlocked_items: HashMap[int, int] # TODO -||-

@@ -150,11 +150,11 @@ class Army(GameObject):
     pre_fight_size: int = None
     pre_fight_type: int = None
 
-    range: int = 5
+    range: float = 5.0
     base_speed: float = None
 
-    view_width: int = None
-    detailed_view_width: int = None
+    view_width: float = None
+    detailed_view_width: float = None
     aggressiveness: Aggressiveness = Aggressiveness.DEFAULT
     forced_march: ForcedMarch = ForcedMarch.DEACTIVE
     removed: bool = False
@@ -171,7 +171,7 @@ class Army(GameObject):
     end_of_unit_walk: bool = None  # No idea what this is. Might be a boolean.
 
     hit_points: float = None
-    max_hit_points: int = None
+    max_hit_points: float = None
 
     missile_carrier_feature: Optional[MissileCarrierFeature] = None
     entrenched: bool = False

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Optional
 from typing import Union
 
@@ -19,7 +20,8 @@ from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
 from ..mod_state.boost import Boost
-from ..player_state.faction import Faction
+from ..mod_state.mod_state_enums import UnitFeature
+from ..mod_state.faction import Faction
 
 from ..version import VERSION
 @conflict_serializable(SerializationCategory.DATACLASS, version = VERSION)
@@ -56,7 +58,7 @@ from ..version import VERSION
 class AirplaneConfig(GameObject):
     C = "ultshared.modding.configuration.UltAirplaneConfig"
     spy: bool
-    patrol_radius: int
+    patrol_radius: float
     patrol_target_damage_types: UnmodifiableCollection[int]
     embarkation_time: int
     disembarkation_time: int
@@ -106,7 +108,7 @@ from ..version import VERSION
 @dataclass
 class AntiAirConfig(GameObject):
     C = "ultshared.modding.configuration.UltAntiAirConfig"
-    range: int
+    range: float
     attackPainter: Optional[str]
     MAPPING = {"range": "range",
                "attackPainter": "attackPainter"}
@@ -144,7 +146,7 @@ class TokenProducerConfigProduction(GameObject):
     C = "ultshared.modding.configuration.UltTokenProducerConfig$TokenProduction"
     type_id: int
     amount: int
-    range: int
+    range: float
     duration: TimeDeltaMillisecondsInt = TimeDeltaMillisecondsInt(0)
     MAPPING = {
         "type_id": "typeID",
@@ -361,7 +363,7 @@ class ArmyStackingPenaltyConfig(GameObject):
 class AStarConfig(GameObject):
     C = "ultshared.modding.configuration.UltAStarConfig"
 
-    war_declearation_cost: int
+    war_declearation_cost: float
     enemy_harbour_cost_factor: float
     friendly_harbour_cost_factor: float
 
@@ -428,10 +430,12 @@ class UnitTypeFrontEndConfig(GameObject):
     C = "ultshared.modding.configuration.UltFreeformConfig"
     player_progression_image: Optional[str]
     officer_premium_id: Optional[int]
+    preferred_attack_damage_type: Optional[UnitFeature]
 
     MAPPING = {
         "player_progression_image": "playerProgressionImage",
         "officer_premium_id": "officerPremiumItemID",
+        "preferred_attack_damage_type": "preferredAttackDamageType",
     }
 
 @conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
@@ -496,6 +500,23 @@ class DiplomaticAggressionConfig(GameObject):
 
 @conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
+class DiplomacyTradeRerollConfig(GameObject):
+    C = "ultshared.modding.configuration.UltDiplomacyTradeRerollConfig"
+
+    enabled: bool
+    max_rerolls_per_day: int
+    recent_trades_to_ignore: int
+    price_multipliers: UnmodifiableMap[str, float] # TODO key could be enum
+
+    MAPPING = {
+        "enabled": "enabled",
+        "max_rerolls_per_day": "maxRerollsPerDay",
+        "recent_trades_to_ignore": "recentTradesToIgnore",
+        "price_multipliers": "priceMultipliers",
+    }
+
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
+@dataclass
 class AirMobileConfig(GameObject):
     C = "ultshared.modding.configuration.UltAirMobileConfig"
 
@@ -521,8 +542,10 @@ class ArmyBoostConfig(GameObject):
 class LimitedMobilizationConfig(GameObject):
     C = "ultshared.modding.configuration.UltLimitedMobilizationConfig"
 
+    mobilization_classes: UnmodifiableSet[int] #TODO Check typing, int is unknown
     limit: int
     MAPPING = {
+        "mobilization_classes": "mobilizationClasses",
         "limit": "limit",
     }
 
@@ -580,7 +603,7 @@ class DisbandConfig(GameObject):
     C = "ultshared.modding.configuration.UltDisbandConfig"
 
     resources_returned: float
-    duration: int
+    duration: float
 
     MAPPING = {
         "resources_returned": "resourcesReturned",
@@ -661,6 +684,22 @@ class ConflictCondition(GameObject):
         "expression": "expression",
     }
 
+@conflict_serializable(SerializationCategory.ENUM, version=VERSION)
+class PossiblePosition(StrEnum):
+    ProvinceCenter = "PROVINCE_CENTRE"
+    SeaConnections = "SEA_CONNECTIONS"
+    LandConnections = "LAND_CONNECTIONS"
+
+@conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
+@dataclass
+class PositionConfig(GameObject):
+    C = "ultshared.modding.configuration.UltPositionConfig"
+    possible_positions: HashSet[PossiblePosition]
+
+    MAPPING = {
+        "possible_positions": "possiblePositions",
+    }
+
 @conflict_serializable(SerializationCategory.DATACLASS, version=VERSION)
 @dataclass
 class PurchaseStrategyConfig(GameObject):
@@ -668,7 +707,7 @@ class PurchaseStrategyConfig(GameObject):
 
     purchasable: bool
     requirements: ConflictCondition
-    costs: Union[LinkedHashMap[int, int], HashMap[int, int]]
+    costs: Union[LinkedHashMap[int, float], HashMap[int, float]]
     enable_all_priority: bool = False
     initial_count: int = 0
     MAPPING = {

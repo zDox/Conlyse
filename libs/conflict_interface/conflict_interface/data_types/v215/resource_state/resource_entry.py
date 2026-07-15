@@ -34,8 +34,8 @@ class ResourceEntry(GameObject):
 
     available_for_premium: bool
     include_in_statistics: bool
-    min_price: int
-    max_price: int
+    min_price: float
+    max_price: float
 
     manpower: bool
     currency: bool

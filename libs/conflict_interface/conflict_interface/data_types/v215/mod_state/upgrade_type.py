@@ -30,17 +30,17 @@ class UpgradeType(GameObject):
     max_condition: int
     min_condition: int
     article_prefix: str
-    costs: HashMap[int, int]
-    unit_costs: HashMap[int, int]
-    daily_costs: HashMap[int, int]
-    daily_productions: HashMap[int, int]
+    costs: HashMap[int, float]
+    unit_costs: HashMap[int, float]
+    daily_costs: HashMap[int, float]
+    daily_productions: HashMap[int, float]
     production_bonus: HashMap[int, float]
     features: HashMap[UpgradeFeature, float]
     feature_functions: HashMap[int, int] # TODO type unknown
     build_time_functions: HashMap[int, int] # TODO type unknown
     replaced_upgrade: Optional[int]
     removed_upgrades: HashMap[int, ModableUpgrade] # TODO type unknown
-    required_upgrades: HashMap[int, int]
+    required_upgrades: HashMap[int, float]
     required_researches: HashMap[int, ResearchRequirementConfig] # TODO type unknown
 
 
@@ -54,7 +54,7 @@ class UpgradeType(GameObject):
     new_upgrade_description: Optional[str]
     new_upgrade_name: Optional[str]
 
-    possible_province_states: HashMap[ProvinceStateID, int]
+    possible_province_states: HashMap[ProvinceStateID, float]
 
     heal_armies_upgrade_feature_config: Optional[HealArmiesUpgradeFeatureConfig]
     construction_speedup_config: Optional[ConstructionSpeedupConfig]
@@ -66,7 +66,7 @@ class UpgradeType(GameObject):
 
     unit_spawn_config: Optional[UnitSpawnConfig]
 
-    ranking_factor: int = 1
+    ranking_factor: float = 1.0
     feature_icon_prefix: str = ""
     day_of_availability: int = 0
 
