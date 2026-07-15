@@ -65,6 +65,7 @@ class CountryAggregate(BaseModel):
     """Section 2.2 — per-country aggregate across all games where that country was played."""
     nation_name: str
     games_played: int
+    human_games_played: int = 0
     wins: int
     win_rate: float
     avg_final_vp: float
@@ -92,6 +93,26 @@ class CountryAggregate(BaseModel):
     coalition_win_rate: float = 0.0
     avg_winning_coalition_size: float = 0.0
     avg_elimination_pct: Optional[float] = None
+
+
+class ClusterInfo(BaseModel):
+    """A KMeans cluster over normalized nation building-composition vectors."""
+    id: int
+    label: str
+    size: int
+    top_buildings: list[str] = []
+
+
+class NationSimilarityAggregate(BaseModel):
+    """Section 2.2b — per-nation build-style clustering, restricted to nations with
+    enough human-played games to be meaningfully player-controlled."""
+    nation_name: str
+    games_played: int
+    human_games_played: int
+    cluster_id: int
+    pca_x: float
+    pca_y: float
+    top_buildings: list[str] = []
 
 
 class ProvinceAggregate(BaseModel):

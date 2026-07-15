@@ -61,6 +61,7 @@ export interface GlobalAggregate {
 export interface CountryAggregate {
   nation_name: string;
   games_played: number;
+  human_games_played: number;
   wins: number;
   win_rate: number;
   avg_final_vp: number;
@@ -87,6 +88,23 @@ export interface CountryAggregate {
   coalition_win_rate?: number;
   avg_winning_coalition_size?: number;
   avg_elimination_pct?: number | null;
+}
+
+export interface ClusterInfo {
+  id: number;
+  label: string;
+  size: number;
+  top_buildings: string[];
+}
+
+export interface NationSimilarityAggregate {
+  nation_name: string;
+  games_played: number;
+  human_games_played: number;
+  cluster_id: number;
+  pca_x: number;
+  pca_y: number;
+  top_buildings: string[];
 }
 
 export interface ProvinceAggregate {

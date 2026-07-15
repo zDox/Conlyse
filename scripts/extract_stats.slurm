@@ -2,7 +2,7 @@
 #SBATCH --job-name=game-stats-extractor
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
-#SBATCH --mem=96G
+#SBATCH --mem-per-cpu=1500M
 #SBATCH --time=02:00:00
 #SBATCH --tmp=100g
 #SBATCH --output=%x_%j.out

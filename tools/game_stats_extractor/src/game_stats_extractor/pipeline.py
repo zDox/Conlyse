@@ -15,6 +15,7 @@ from tqdm import tqdm
 from .aggregators.building_aggregator import BuildingAggregator
 from .aggregators.country_aggregator import CountryAggregator
 from .aggregators.global_aggregator import GlobalAggregator
+from .aggregators.nation_similarity_aggregator import NationSimilarityAggregator
 from .aggregators.province_aggregator import ProvinceAggregator
 from .aggregators.timeseries_aggregator import TimeSeriesAggregator
 from .extractors.replay_extractor import ReplayExtractor
@@ -91,11 +92,15 @@ class Pipeline:
         logger.info("Aggregating building statistics...")
         building_aggs = BuildingAggregator().aggregate(games)
 
+        logger.info("Aggregating nation build-similarity clusters...")
+        nation_similarity_aggs, cluster_info = NationSimilarityAggregator().aggregate(country_aggs)
+
         logger.info(
-            "Writing output: %d countries, %d provinces, %d building types",
+            "Writing output: %d countries, %d provinces, %d building types, %d clustered nations",
             len(country_aggs),
             len(province_aggs),
             len(building_aggs),
+            len(nation_similarity_aggs),
         )
         write_output(
             self.output_dir,
@@ -104,6 +109,8 @@ class Pipeline:
             province_aggs,
             timeseries_agg,
             building_aggs,
+            nation_similarity_aggs,
+            cluster_info,
             games,
             self.replays_dir,
             failed,
