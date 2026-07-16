@@ -71,7 +71,7 @@ class Unit(GameObject):
     on_sea: bool = False
     at_airfield: bool = False
     hit_points: float = 0
-    max_hit_points: int = 0
+    max_hit_points: float = 0
 
     MAPPING = {
         "id": "id",

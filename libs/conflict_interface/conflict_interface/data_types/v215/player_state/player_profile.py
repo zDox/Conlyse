@@ -6,7 +6,8 @@ from dataclasses import dataclass
 
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
-from ..player_state.faction import Faction
+from ..mod_state.configuration import DiplomacyTradeRerollConfig
+from conflict_interface.data_types.newest.mod_state.faction import Faction
 from ..point import Point
 from conflict_interface.replay.replay_patch import BidirectionalReplayPatch
 from conflict_interface.replay.constants import PathNode
@@ -29,7 +30,7 @@ class PlayerProfile(GameObject):
     title: str
     nation_name: str
     nation_adjective: str
-    average_national_morale: int
+    average_national_morale: float
     computer_player: bool
     native_computer: bool
     site_user_id: int
@@ -57,6 +58,7 @@ class PlayerProfile(GameObject):
     accumulated_victory_points: int
     daily_victory_points: int
     terrorist_country: bool
+    ai_trade_reroll_config: Optional[DiplomacyTradeRerollConfig]
 
     banned: bool = False
     mail: str = ""
@@ -110,6 +112,7 @@ class PlayerProfile(GameObject):
         "accumulated_victory_points": "accumulatedVps",
         "daily_victory_points": "dailyVictoryPoints",
         "terrorist_country": "terroristCountry",
+        "ai_trade_reroll_config": "aiTradeRerollConfig",
     }
 
     def update(self, other: "PlayerProfile", path: list[PathNode] = None, rp: BidirectionalReplayPatch = None):

@@ -56,7 +56,7 @@ class Map(GameObject):
     localized_player_profiles: bool
     regions: Optional[HashMap[RegionType, Region]]
     overlap_x: int
-    population_factor: int
+    population_factor: float
     locations: HashSet[Union[LandProvince, SeaProvince]]
 
     _province_id_to_index: dict[int, int] = None

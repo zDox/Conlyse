@@ -11,72 +11,72 @@ V = TypeVar("V")
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class UnitList(list):
+class UnitList(list[V]):
     C = "[Lultshared.warfare.UltUnit;"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class ProductionList(list):
+class ProductionList(list[V]):
     C = "ultshared.UltProductionList"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class BidListOuter(list):
+class BidListOuter(list[V]):
     C = "[Lultshared.UltBidList;"  # TODO maby a better way to do this but its the most generic also they are just stupid for using 2 different types of lists
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class BidListInner(list):
+class BidListInner(list[V]):
     C = "ultshared.UltBidList"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class AskListOuter(list):
+class AskListOuter(list[V]):
     C = "[Lultshared.UltAskList;"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class AskListInner(list):
+class AskListInner(list[V]):
     C = "ultshared.UltAskList"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class RankingEntryList(list):
+class RankingEntryList(list[V]):
     C = "[Lultshared.UltRankingEntry;"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class LinkedList(list):
+class LinkedList(list[V]):
     C = "java.util.LinkedList"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class Vector(list):
+class Vector(list[V]):
     C = "java.util.Vector"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class ArrayList(list):
+class ArrayList(list[V]):
     C = "java.util.ArrayList"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class ArraysArrayList(list):
+class ArraysArrayList(list[V]):
     C = "java.util.Arrays$ArrayList"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class EmptyList(list):
+class EmptyList(list[V]):
     C = "java.util.Collections$EmptyList"
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class UnmodifiableCollection(list):
+class UnmodifiableCollection(list[V]):
     C = "java.util.Collections$UnmodifiableCollection"
 
 @parse_edge_case(tag="SqlDate", version=VERSION)
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class SqlDate(list):
+class SqlDate(list[V]):
     """
     A list that represents a SQL date. It is used to convert the date to a string
     """
@@ -84,12 +84,12 @@ class SqlDate(list):
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class HashSet(list):
+class HashSet(list[V]):
     C = "java.util.HashSet"
 
 
 @conflict_serializable(SerializationCategory.DICT, version=VERSION)
-class HashSetMap(dict):
+class HashSetMap(dict[K, V]):
     """
     Dictionary in python but HashSet in Conflict. Used for performance of lookups.
     """
@@ -97,7 +97,7 @@ class HashSetMap(dict):
 
 
 @conflict_serializable(SerializationCategory.LIST, version=VERSION)
-class UnmodifiableSet(list):
+class UnmodifiableSet(list[V]):
     C = "java.util.Collections$UnmodifiableSet"
 
 
@@ -107,7 +107,7 @@ class HashMap(dict[K, V]):
 
 
 @conflict_serializable(SerializationCategory.DICT, version=VERSION)
-class LinkedHashMap(dict):
+class LinkedHashMap(dict[K, V]):
     C = "java.util.LinkedHashMap"
 
 

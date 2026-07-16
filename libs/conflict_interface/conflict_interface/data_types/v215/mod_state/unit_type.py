@@ -8,6 +8,7 @@ from ..custom_types import TimeDeltaMillisecondsInt
 from conflict_interface.game_object.game_object import GameObject
 from conflict_interface.game_object.game_object_binary import SerializationCategory
 from conflict_interface.game_object.decorators import conflict_serializable
+from ..mod_state.configuration import PositionConfig
 from ..mod_state.configuration import AirMobileConfig
 from ..mod_state.configuration import AirplaneConfig
 from ..mod_state.configuration import AntiAirConfig
@@ -41,7 +42,7 @@ from ..mod_state.configuration import TokenSensitivityConfig
 from ..mod_state.configuration import UnitTypeFrontEndConfig
 from ..mod_state.configuration import VariantConfig
 from ..mod_state.mod_state_enums import UnitFeature
-from ..player_state.faction import Faction
+from ..mod_state.faction import Faction
 from ..research_state.research_type import ResearchType
 from ..resource_state.resource_state_enums import ResourceType
 
@@ -68,13 +69,13 @@ class UnitType(GameObject):
     defense: HashMap[int, float]
     ranges: HashMap[int, float]
     view_widths: HashMap[int, float]
-    required_upgrades: HashMap[int, int]
-    required_researches: HashMap[int, int]
+    required_upgrades: HashMap[int, float]
+    required_researches: HashMap[int, float]
     unit_cap_research_items: HashMap[int, int]
     friendly_speed_factor: float
     foreign_speed_factor: float
     identifier: str
-    minimum_tech_level: int
+    minimum_tech_level: float
     unit_features: Optional[HashMap[UnitFeature, float]]
     size_factors: Optional[HashMap[int, float]]
     attack_painter: str
@@ -119,6 +120,7 @@ class UnitType(GameObject):
     launch_target_config: LaunchTargetConfig
     token_sensitivity_config: TokenSensitivityConfig
     production_requirements_config: ConflictCondition
+    position_config: PositionConfig
     frontend_config: UnitTypeFrontEndConfig
     terrain_restriction_config: TerrainRestrictedConfig
     render_config: RenderConfig
@@ -198,6 +200,7 @@ class UnitType(GameObject):
         "launch_target_config": "launchTargetConfig",
         "token_sensitivity_config": "tokenSensitivityConfig",
         "production_requirements_config": "productionRequirementConfig",
+        "position_config": "positionConfig",
         "frontend_config": "frontendConfig",
         "render_config": "renderConfig",
         "terrain_restriction_config": "terrainRestrictionConfig",

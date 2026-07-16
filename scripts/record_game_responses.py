@@ -24,7 +24,6 @@ from conflict_interface.data_types.newest.custom_types import HashMap, LinkedLis
 from conflict_interface.data_types.newest.game_api_types.game_state_action import GameStateAction
 from conflict_interface.data_types.newest.game_api_types.login_action import DEFAULT_LOGIN_ACTION
 from conflict_interface.data_types.newest.to_json import dump_any
-from conflict_interface.data_types.newest.version import VERSION as DATATYPE_VERSION
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
 
@@ -81,13 +80,13 @@ def _update_ids_from_response(
             time_stamps[key] = str(state["timeStamp"])
 
 
-def _record_static_map_data(real_game, static_map_dir: Path) -> str:
+def _record_static_map_data(real_game, static_map_dir: Path, version: int) -> str:
     map_id = real_game.game_api.map_id
     static_map_json = real_game.game_api.get_static_map_data(
         map_id, session=real_game.game_api.session, proxy=real_game.game_api.proxy
     )
     static_map_dir.mkdir(parents=True, exist_ok=True)
-    static_map_path = static_map_dir / f"{map_id}_{DATATYPE_VERSION}.json"
+    static_map_path = static_map_dir / f"{map_id}_{version}.json"
     with static_map_path.open("w", encoding="utf-8") as f:
         json.dump(static_map_json, f, ensure_ascii=False, indent=2, sort_keys=True)
     print(f"Wrote {static_map_path}", file=sys.stderr)
@@ -107,7 +106,7 @@ def record(version: int, out_dir: Path, static_map_dir: Path) -> None:
         print("Selecting random country", file=sys.stderr)
         real_game.select_country(country_id=-1, team_id=-1, random_country_team=True)
 
-    map_id = _record_static_map_data(real_game, static_map_dir)
+    map_id = _record_static_map_data(real_game, static_map_dir, version)
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
