@@ -57,12 +57,15 @@ class GlobalAggregate(BaseModel):
     avg_coalition_size: float = 0.0
     top_coalition_pairs: list[list[str | int]] = []
     elimination_timing_distribution: dict[str, int] = {}
+    total_traitor_wins: int = 0
+    traitor_win_rate: float = 0.0
 
 
 class CountryAggregate(BaseModel):
     """Section 2.2 — per-country aggregate across all games where that country was played."""
     nation_name: str
     games_played: int
+    human_games_played: int = 0
     wins: int
     win_rate: float
     avg_final_vp: float
@@ -79,6 +82,7 @@ class CountryAggregate(BaseModel):
     avg_peace_treaties_signed: float = 0.0
     avg_alliances_formed: float = 0.0
     avg_right_of_ways_signed: float = 0.0
+    avg_shared_intelligence_signed: float = 0.0
     avg_total_production: dict[str, float] = {}
     avg_production_rate: dict[str, float] = {}
     avg_final_building_counts: dict[str, float] = {}
@@ -91,12 +95,34 @@ class CountryAggregate(BaseModel):
     avg_elimination_pct: Optional[float] = None
 
 
+class ClusterInfo(BaseModel):
+    """A KMeans cluster over normalized nation building-composition vectors."""
+    id: int
+    label: str
+    size: int
+    top_buildings: list[str] = []
+
+
+class NationSimilarityAggregate(BaseModel):
+    """Section 2.2b — per-nation build-style clustering, restricted to nations with
+    enough human-played games to be meaningfully player-controlled."""
+    nation_name: str
+    games_played: int
+    human_games_played: int
+    cluster_id: int
+    pca_x: float
+    pca_y: float
+    top_buildings: list[str] = []
+
+
 class ProvinceAggregate(BaseModel):
     """Section 2.3 — per-province aggregate across all games where that province appeared."""
     province_id: int
     province_name: str
     terrain_type: str
     is_coastal: bool
+    region: str
+    original_owner_nation: Optional[str] = None
     games_appeared: int
     avg_ownership_changes: float
     contest_frequency: float

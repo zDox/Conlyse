@@ -19,9 +19,6 @@ export default function GlobalStatsSection({ data, timeseries }: Props) {
   return (
     <section id="section-global" className={styles.section}>
       <h2 className={styles.heading}>Global Overview</h2>
-      <p className={styles.description}>
-        Patterns across all {data.total_games.toLocaleString()} recorded games.
-      </p>
       <div className={styles.grid}>
         <div id="chart-global-duration" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Game Duration Distribution</h3>
@@ -36,8 +33,10 @@ export default function GlobalStatsSection({ data, timeseries }: Props) {
         </div>
         <div id="chart-global-victory" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Victory Types</h3>
-          <p className={styles.chartSubtitle}>How games were won</p>
-          <VictoryTypeChart data={data.victory_type_distribution} />
+          <p className={styles.chartSubtitle}>
+            How games were won — a "traitor" win is a solo victory where the winner left a coalition in the final 3 in-game days
+          </p>
+          <VictoryTypeChart data={data.victory_type_distribution} totalTraitorWins={data.total_traitor_wins} />
         </div>
         <div id="chart-global-dropout" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Player Dropout</h3>
@@ -55,12 +54,12 @@ export default function GlobalStatsSection({ data, timeseries }: Props) {
         </div>
         <div id="chart-global-activity" className={styles.chartCard} style={{ gridColumn: '1 / -1' }}>
           <h3 className={styles.chartTitle}>Player Activity Over Time</h3>
-          <p className={styles.chartSubtitle}>Avg alive players and active humans at each point in a typical game · use buttons to switch time axis</p>
+          <p className={styles.chartSubtitle}>Avg alive players and active humans at each point in a typical game</p>
           <PlayerActivityTimeSeriesChart data={timeseries} />
         </div>
         <div id="chart-global-coalition-size" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Coalition Size Distribution</h3>
-          <p className={styles.chartSubtitle}>How many players shared the win — solo vs 2-, 3-, or more-player coalitions</p>
+          <p className={styles.chartSubtitle}>How many players shared the win</p>
           <CoalitionSizeDistributionChart data={data} />
         </div>
         <div id="chart-global-coalition-pairs" className={styles.chartCard}>

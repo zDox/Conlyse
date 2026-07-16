@@ -4,7 +4,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .models.aggregates import BuildingAggregate, CountryAggregate, GlobalAggregate, MetaInfo, ProvinceAggregate, TimeSeriesOutput
+from .models.aggregates import (
+    BuildingAggregate,
+    ClusterInfo,
+    CountryAggregate,
+    GlobalAggregate,
+    MetaInfo,
+    NationSimilarityAggregate,
+    ProvinceAggregate,
+    TimeSeriesOutput,
+)
 from .models.intermediate import GameData
 
 
@@ -25,7 +34,8 @@ def _rp(v) -> float:
 
 def _provinces_columnar(provinces: list[ProvinceAggregate]) -> dict:
     cols = [
-        "province_id", "province_name", "terrain_type", "is_coastal",
+        "province_id", "province_name", "terrain_type", "is_coastal", "region",
+        "original_owner_nation",
         "games_appeared", "avg_ownership_changes", "contest_frequency",
         "win_correlation", "resource_production_type",
         "avg_resource_production", "avg_money_production", "avg_morale",
@@ -33,7 +43,8 @@ def _provinces_columnar(provinces: list[ProvinceAggregate]) -> dict:
     ]
     rows = [
         [
-            p.province_id, p.province_name, p.terrain_type, p.is_coastal,
+            p.province_id, p.province_name, p.terrain_type, p.is_coastal, p.region,
+            p.original_owner_nation,
             p.games_appeared, _r(p.avg_ownership_changes), _rp(p.contest_frequency),
             _rp(p.win_correlation), p.resource_production_type,
             _r(p.avg_resource_production), _r(p.avg_money_production), _r(p.avg_morale),
@@ -46,7 +57,7 @@ def _provinces_columnar(provinces: list[ProvinceAggregate]) -> dict:
 
 def _countries_columnar(countries: list[CountryAggregate]) -> dict:
     cols = [
-        "nation_name", "games_played", "wins", "win_rate", "avg_final_vp",
+        "nation_name", "games_played", "human_games_played", "wins", "win_rate", "avg_final_vp",
         "avg_placement", "median_placement", "avg_final_provinces",
         "avg_initial_provinces", "avg_expansion", "avg_provinces_captured",
         "avg_provinces_lost", "elimination_rate", "avg_survival_days",
@@ -61,7 +72,7 @@ def _countries_columnar(countries: list[CountryAggregate]) -> dict:
     ]
     rows = [
         [
-            c.nation_name, c.games_played, c.wins, _r(c.win_rate), _r(c.avg_final_vp),
+            c.nation_name, c.games_played, c.human_games_played, c.wins, _r(c.win_rate), _r(c.avg_final_vp),
             _r(c.avg_placement), _r(c.median_placement), _r(c.avg_final_provinces),
             _r(c.avg_initial_provinces), _r(c.avg_expansion),
             _r(c.avg_provinces_captured), _r(c.avg_provinces_lost),
@@ -177,6 +188,27 @@ def _buildings_columnar(buildings: list[BuildingAggregate]) -> dict:
     return {"columns": cols, "rows": rows}
 
 
+def _nation_similarity_columnar(
+    nations: list[NationSimilarityAggregate], clusters: list[ClusterInfo]
+) -> dict:
+    cols = [
+        "nation_name", "games_played", "human_games_played",
+        "cluster_id", "pca_x", "pca_y", "top_buildings",
+    ]
+    rows = [
+        [
+            n.nation_name, n.games_played, n.human_games_played,
+            n.cluster_id, n.pca_x, n.pca_y, n.top_buildings,
+        ]
+        for n in nations
+    ]
+    return {
+        "columns": cols,
+        "rows": rows,
+        "clusters": [c.model_dump() for c in clusters],
+    }
+
+
 def write_output(
     output_dir: Path,
     global_agg: GlobalAggregate,
@@ -184,6 +216,8 @@ def write_output(
     province_aggs: list[ProvinceAggregate],
     timeseries_agg: TimeSeriesOutput,
     building_aggs: list[BuildingAggregate],
+    nation_similarity_aggs: list[NationSimilarityAggregate],
+    cluster_info: list[ClusterInfo],
     games: list[GameData],
     replay_dir: Path,
     failed_replays: int,
@@ -205,6 +239,10 @@ def write_output(
     _write_compact(output_dir / "countries.json",  _countries_columnar(country_aggs))
     _write_compact(output_dir / "timeseries.json", _timeseries_compact(timeseries_agg))
     _write_compact(output_dir / "buildings.json",  _buildings_columnar(building_aggs))
+    _write_compact(
+        output_dir / "nation_similarity.json",
+        _nation_similarity_columnar(nation_similarity_aggs, cluster_info),
+    )
 
     # Small files: readable indented JSON
     _write_json(output_dir / "global.json", global_agg.model_dump())

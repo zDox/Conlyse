@@ -32,12 +32,11 @@ export default function CountryStatsSection({ data, timeseries }: Props) {
       <div className={styles.grid}>
         <div id="chart-countries-vp" className={styles.chartCard} style={{ gridColumn: '1 / -1' }}>
           <h3 className={styles.chartTitle}>Victory Point Progression (Top 10 Nations)</h3>
-          <p className={styles.chartSubtitle}>Avg VP at each point in the game for the top 10 nations by win rate · use buttons to switch time axis</p>
+          <p className={styles.chartSubtitle}>Avg VP at each point in the game for the top 10 nations by win rate</p>
           <CountryVPTimeSeriesChart data={timeseries} countries={data} topN={10} />
         </div>
         <div id="chart-countries-winrate" className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Win Rate by Country (Top 20)</h3>
-          <p className={styles.chartSubtitle}>% of games won · coloured by performance tier</p>
           <CountryWinRateChart data={data} topN={20} />
         </div>
         <div id="chart-countries-territory" className={styles.chartCard}>

@@ -27,7 +27,6 @@ export default function CountryAggressivenessChart({ data, topN = 20, minGames =
       captured: parseFloat(c.avg_provinces_captured.toFixed(1)),
       lost: parseFloat(c.avg_provinces_lost.toFixed(1)),
       net: parseFloat((c.avg_provinces_captured - c.avg_provinces_lost).toFixed(1)),
-      games: c.games_played,
     }));
 
   return (
@@ -57,9 +56,9 @@ export default function CountryAggressivenessChart({ data, topN = 20, minGames =
             color: 'var(--ifm-font-color-base)',
           }}
           formatter={(value: number, name: string, props) => {
-            const { net, games } = props.payload;
+            const { net } = props.payload;
             const sign = net >= 0 ? '+' : '';
-            return [`${value} avg · net ${sign}${net} · ${games} games`, name];
+            return [`${value} avg · net ${sign}${net}`, name];
           }}
         />
         <Legend wrapperStyle={{ fontSize: 11 }} />

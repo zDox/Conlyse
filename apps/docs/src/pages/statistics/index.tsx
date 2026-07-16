@@ -10,14 +10,17 @@ import ProvinceStatsSection from '../../components/statistics/sections/ProvinceS
 import {
   deserializeBuildings,
   deserializeCountries,
+  deserializeNationSimilarity,
   deserializeProvinces,
   deserializeTimeSeries,
 } from '../../components/statistics/deserialize';
 import type {
   BuildingAggregate,
+  ClusterInfo,
   CountryAggregate,
   GlobalAggregate,
   MetaInfo,
+  NationSimilarityAggregate,
   ProvinceAggregate,
   TimeSeriesOutput,
 } from '../../components/statistics/types';
@@ -30,6 +33,8 @@ interface StatsData {
   meta: MetaInfo;
   timeseries: TimeSeriesOutput;
   buildings: BuildingAggregate[];
+  nationSimilarity: NationSimilarityAggregate[];
+  buildClusters: ClusterInfo[];
 }
 
 const STATS_BASE_URL = process.env.NODE_ENV === 'development'
@@ -37,14 +42,16 @@ const STATS_BASE_URL = process.env.NODE_ENV === 'development'
   : 'https://r2.conlyse.zdox.dev/stats';
 
 async function fetchStats(): Promise<StatsData> {
-  const [global, countriesRaw, provincesRaw, meta, timeseriesRaw, buildingsRaw] = await Promise.all([
+  const [global, countriesRaw, provincesRaw, meta, timeseriesRaw, buildingsRaw, nationSimilarityRaw] = await Promise.all([
     fetch(`${STATS_BASE_URL}/global.json`).then((r) => r.json()),
     fetch(`${STATS_BASE_URL}/countries.json`).then((r) => r.json()),
     fetch(`${STATS_BASE_URL}/provinces.json`).then((r) => r.json()),
     fetch(`${STATS_BASE_URL}/meta.json`).then((r) => r.json()),
     fetch(`${STATS_BASE_URL}/timeseries.json`).then((r) => r.json()),
     fetch(`${STATS_BASE_URL}/buildings.json`).then((r) => r.json()),
+    fetch(`${STATS_BASE_URL}/nation_similarity.json`).then((r) => r.json()),
   ]);
+  const { nations: nationSimilarity, clusters: buildClusters } = deserializeNationSimilarity(nationSimilarityRaw);
   return {
     global,
     countries: deserializeCountries(countriesRaw),
@@ -52,6 +59,8 @@ async function fetchStats(): Promise<StatsData> {
     meta,
     timeseries: deserializeTimeSeries(timeseriesRaw),
     buildings: deserializeBuildings(buildingsRaw),
+    nationSimilarity,
+    buildClusters,
   };
 }
 
@@ -97,7 +106,13 @@ export default function StatisticsPage() {
               <CountryStatsSection data={data.countries} timeseries={data.timeseries} />
               <EconomicStatsSection global={data.global} countries={data.countries} timeseries={data.timeseries} />
               <ProvinceStatsSection data={data.provinces} />
-              <BuildingsSection data={data.buildings} countries={data.countries} timeseries={data.timeseries} />
+              <BuildingsSection
+                data={data.buildings}
+                countries={data.countries}
+                timeseries={data.timeseries}
+                similarity={data.nationSimilarity}
+                clusters={data.buildClusters}
+              />
             </>
           )}
         </main>

@@ -1,10 +1,12 @@
 import type {
   BuildingAggregate,
   BuildingTimeSeriesPoint,
+  ClusterInfo,
   ColumnarData,
   CountryAggregate,
   CountryTimeSeries,
   MoraleTimeSeriesPoint,
+  NationSimilarityAggregate,
   PlayerActivityPoint,
   ProvinceAggregate,
   ProductionTimeSeriesPoint,
@@ -16,6 +18,7 @@ export function deserializeCountries(raw: ColumnarData): CountryAggregate[] {
   return raw.rows.map((r) => ({
     nation_name:           r[idx.nation_name]           as string,
     games_played:          r[idx.games_played]          as number,
+    human_games_played:    (r[idx.human_games_played]   as number | undefined) ?? 0,
     wins:                  r[idx.wins]                  as number,
     win_rate:              r[idx.win_rate]              as number,
     avg_final_vp:          r[idx.avg_final_vp]          as number,
@@ -52,6 +55,8 @@ export function deserializeProvinces(raw: ColumnarData): ProvinceAggregate[] {
     province_name:            r[idx.province_name]            as string,
     terrain_type:             r[idx.terrain_type]             as string,
     is_coastal:               r[idx.is_coastal]               as boolean,
+    region:                   r[idx.region]                   as string,
+    original_owner_nation:    (r[idx.original_owner_nation]   as string | null | undefined) ?? null,
     games_appeared:           r[idx.games_appeared]           as number,
     avg_ownership_changes:    r[idx.avg_ownership_changes]    as number,
     contest_frequency:        r[idx.contest_frequency]        as number,
@@ -73,6 +78,22 @@ export function deserializeBuildings(raw: ColumnarData): BuildingAggregate[] {
     avg_level:          r[idx.avg_level]          as number,
     avg_per_tier:       (r[idx.avg_per_tier] ?? {}) as Record<string, number>,
   }));
+}
+
+export function deserializeNationSimilarity(
+  raw: ColumnarData & { clusters: ClusterInfo[] },
+): { nations: NationSimilarityAggregate[]; clusters: ClusterInfo[] } {
+  const idx = Object.fromEntries(raw.columns.map((c, i) => [c, i]));
+  const nations = raw.rows.map((r) => ({
+    nation_name:         r[idx.nation_name]         as string,
+    games_played:        r[idx.games_played]        as number,
+    human_games_played:  r[idx.human_games_played]  as number,
+    cluster_id:          r[idx.cluster_id]          as number,
+    pca_x:                r[idx.pca_x]              as number,
+    pca_y:                r[idx.pca_y]              as number,
+    top_buildings:       (r[idx.top_buildings]      as string[] | undefined) ?? [],
+  }));
+  return { nations, clusters: raw.clusters ?? [] };
 }
 
 type BucketSeries = Record<string, { avg: (number | null)[]; n: (number | null)[] }>;

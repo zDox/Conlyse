@@ -11,6 +11,8 @@ dependencies = [
     "conflict-interface>=0.1.2",
     "pydantic>=2.0",
     "tqdm",
+    "numpy",
+    "scikit-learn",
 ]
 
 [project.scripts]

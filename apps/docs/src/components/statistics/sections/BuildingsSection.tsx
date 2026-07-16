@@ -2,16 +2,19 @@ import React from 'react';
 import BuildingFrequencyChart from '../charts/BuildingFrequencyChart';
 import BuildingProgressionChart from '../charts/BuildingProgressionChart';
 import CountryBuildingChart from '../charts/CountryBuildingChart';
-import type { BuildingAggregate, CountryAggregate, TimeSeriesOutput } from '../types';
+import CountrySimilarityScatterChart from '../charts/CountrySimilarityScatterChart';
+import type { BuildingAggregate, ClusterInfo, CountryAggregate, NationSimilarityAggregate, TimeSeriesOutput } from '../types';
 import styles from './Section.module.css';
 
 interface Props {
   data: BuildingAggregate[];
   countries: CountryAggregate[];
   timeseries: TimeSeriesOutput;
+  similarity: NationSimilarityAggregate[];
+  clusters: ClusterInfo[];
 }
 
-export default function BuildingsSection({ data, countries, timeseries }: Props) {
+export default function BuildingsSection({ data, countries, timeseries, similarity, clusters }: Props) {
   if (data.length === 0) return null;
 
   return (
@@ -44,6 +47,16 @@ export default function BuildingsSection({ data, countries, timeseries }: Props)
             pct_buckets={timeseries.pct_buckets}
           />
         </div>
+        {similarity.length > 0 && (
+          <div id="chart-buildings-similarity" className={styles.chartCard} style={{ gridColumn: '1 / -1' }}>
+            <h3 className={styles.chartTitle}>Nation Build Similarity</h3>
+            <p className={styles.chartSubtitle}>
+              Nations clustered by build composition (buildings normalized to % of that nation&apos;s builds, then PCA + k-means) ·
+              restricted to nations with at least a handful of human-played games · dot color = build-style cluster
+            </p>
+            <CountrySimilarityScatterChart data={similarity} clusters={clusters} />
+          </div>
+        )}
       </div>
     </section>
   );

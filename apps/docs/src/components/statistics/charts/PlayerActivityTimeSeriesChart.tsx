@@ -35,7 +35,6 @@ export default function PlayerActivityTimeSeriesChart({ data }: Props) {
     active_human: p.avg_active_human,
     passive_human: p.avg_passive_human,
     ai: p.avg_ai,
-    n: p.games_sampled,
   }));
 
   const xInterval = mode === 'pct' ? 3 : Math.max(1, Math.floor(data.max_game_days / 10));
@@ -104,11 +103,7 @@ export default function PlayerActivityTimeSeriesChart({ data }: Props) {
               const line = LINES.find((l) => l.key === name);
               return [value.toFixed(1), line?.label ?? name];
             }}
-            labelFormatter={(label, payload) => {
-              const n = payload?.[0]?.payload?.n ?? 0;
-              const pos = mode === 'pct' ? `${label}% of game` : `Day ${label}`;
-              return `${pos} · ${n} games`;
-            }}
+            labelFormatter={(label) => (mode === 'pct' ? `${label}% of game` : `Day ${label}`)}
           />
           <Legend
             wrapperStyle={{ fontSize: 11 }}

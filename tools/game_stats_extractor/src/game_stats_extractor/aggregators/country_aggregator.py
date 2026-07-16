@@ -125,6 +125,7 @@ def _aggregate_country(
     return CountryAggregate(
         nation_name=nation_name,
         games_played=games_played,
+        human_games_played=human_n,
         wins=wins,
         win_rate=wins / games_played,
         avg_final_vp=_mean(final_vps),

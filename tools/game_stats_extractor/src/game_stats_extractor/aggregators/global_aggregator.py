@@ -96,14 +96,19 @@ class GlobalAggregator(BaseAggregator[GlobalAggregate]):
         top_pairs = sorted(pair_counts.items(), key=lambda x: x[1], reverse=True)[:20]
         top_coalition_pairs = [[a, b, cnt] for (a, b), cnt in top_pairs]
 
-        # Elimination timing distribution — 10% game buckets, human players only
+        # Elimination timing distribution — 10 game-day buckets, human players only
         elim_dist: dict[str, int] = {}
         for g in games:
             for p in g.players:
-                if p.is_ai or not p.is_defeated or p.elimination_game_pct is None:
+                if p.is_ai or not p.is_defeated or p.elimination_game_day is None:
                     continue
-                bucket = str(int(p.elimination_game_pct // 10) * 10)
+                bucket = str(int(p.elimination_game_day // 10) * 10)
                 elim_dist[bucket] = elim_dist.get(bucket, 0) + 1
+
+        # Traitor wins — solo wins where the winner left a >=2-member coalition shortly before winning
+        solo_games = sum(1 for g in games if g.victory_type == "solo")
+        total_traitor_wins = sum(1 for g in games if g.traitor_ids)
+        traitor_win_rate = total_traitor_wins / solo_games if solo_games > 0 else 0.0
 
         return GlobalAggregate(
             total_games=len(games),
@@ -127,6 +132,8 @@ class GlobalAggregator(BaseAggregator[GlobalAggregate]):
             avg_coalition_size=statistics.mean(coalition_sizes) if coalition_sizes else 0.0,
             top_coalition_pairs=top_coalition_pairs,
             elimination_timing_distribution=elim_dist,
+            total_traitor_wins=total_traitor_wins,
+            traitor_win_rate=traitor_win_rate,
         )
 
 

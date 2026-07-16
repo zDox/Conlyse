@@ -54,11 +54,14 @@ export interface GlobalAggregate {
   avg_coalition_size?: number;
   top_coalition_pairs?: [string, string, number][];
   elimination_timing_distribution?: Record<string, number>;
+  total_traitor_wins?: number;
+  traitor_win_rate?: number;
 }
 
 export interface CountryAggregate {
   nation_name: string;
   games_played: number;
+  human_games_played: number;
   wins: number;
   win_rate: number;
   avg_final_vp: number;
@@ -87,11 +90,30 @@ export interface CountryAggregate {
   avg_elimination_pct?: number | null;
 }
 
+export interface ClusterInfo {
+  id: number;
+  label: string;
+  size: number;
+  top_buildings: string[];
+}
+
+export interface NationSimilarityAggregate {
+  nation_name: string;
+  games_played: number;
+  human_games_played: number;
+  cluster_id: number;
+  pca_x: number;
+  pca_y: number;
+  top_buildings: string[];
+}
+
 export interface ProvinceAggregate {
   province_id: number;
   province_name: string;
   terrain_type: string;
   is_coastal: boolean;
+  region: string;
+  original_owner_nation: string | null;
   games_appeared: number;
   avg_ownership_changes: number;
   contest_frequency: number;

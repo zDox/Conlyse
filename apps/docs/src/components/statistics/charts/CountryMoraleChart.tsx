@@ -25,7 +25,6 @@ export default function CountryMoraleChart({ data, topN = 20 }: Props) {
       name: c.nation_name,
       morale: parseFloat((c.avg_national_morale ?? 0).toFixed(1)),
       win_rate: parseFloat((c.win_rate * 100).toFixed(1)),
-      games: c.games_played,
     }));
 
   if (chartData.length === 0) return <p style={{ color: 'var(--ifm-color-emphasis-500)', fontSize: 13 }}>No morale data available yet.</p>;
@@ -58,7 +57,7 @@ export default function CountryMoraleChart({ data, topN = 20 }: Props) {
             color: 'var(--ifm-font-color-base)',
           }}
           formatter={(value: number, _: string, props) => [
-            `${value}% morale · ${props.payload.win_rate}% win rate · ${props.payload.games} games`,
+            `${value}% morale · ${props.payload.win_rate}% win rate`,
             'Avg national morale',
           ]}
         />

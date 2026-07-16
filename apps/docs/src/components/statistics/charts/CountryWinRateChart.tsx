@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { CountryAggregate } from '../types';
+import { percentileRank, percentileToColor } from '../colorScale';
 
 interface Props {
   data: CountryAggregate[];
@@ -17,12 +18,14 @@ interface Props {
 }
 
 export default function CountryWinRateChart({ data, topN = 20 }: Props) {
+  const allWinRates = data.map((c) => c.win_rate);
   const chartData = data
     .sort((a, b) => b.win_rate - a.win_rate)
     .slice(0, topN)
     .map((c) => ({
       name: c.nation_name,
       win_rate: parseFloat((c.win_rate * 100).toFixed(1)),
+      percentile: percentileRank(c.win_rate, allWinRates),
     }));
 
   return (
@@ -56,10 +59,7 @@ export default function CountryWinRateChart({ data, topN = 20 }: Props) {
         />
         <Bar dataKey="win_rate" radius={[0, 3, 3, 0]}>
           {chartData.map((entry, index) => (
-            <Cell
-              key={`cell-${index}`}
-              fill={entry.win_rate >= 50 ? '#50c878' : entry.win_rate >= 25 ? '#f5a623' : '#e74c3c'}
-            />
+            <Cell key={`cell-${index}`} fill={percentileToColor(entry.percentile)} />
           ))}
         </Bar>
       </BarChart>

@@ -24,7 +24,6 @@ export default function CountryPlacementChart({ data, topN = 20 }: Props) {
       name: c.nation_name,
       placement: parseFloat(c.avg_placement.toFixed(2)),
       vp: Math.round(c.avg_final_vp),
-      games: c.games_played,
     }));
 
   return (
@@ -54,7 +53,7 @@ export default function CountryPlacementChart({ data, topN = 20 }: Props) {
             color: 'var(--ifm-font-color-base)',
           }}
           formatter={(value: number, _: string, props) => [
-            `#${value} avg rank · ${props.payload.vp} avg VP · ${props.payload.games} games`,
+            `#${value} avg rank · ${props.payload.vp} avg VP`,
             'Placement',
           ]}
         />

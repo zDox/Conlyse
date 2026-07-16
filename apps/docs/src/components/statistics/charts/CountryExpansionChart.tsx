@@ -25,7 +25,6 @@ export default function CountryExpansionChart({ data, topN = 20 }: Props) {
       expansion: parseFloat(c.avg_expansion.toFixed(1)),
       initial: parseFloat(c.avg_initial_provinces.toFixed(1)),
       final: parseFloat(c.avg_final_provinces.toFixed(1)),
-      games: c.games_played,
     }));
 
   return (
@@ -55,7 +54,7 @@ export default function CountryExpansionChart({ data, topN = 20 }: Props) {
             color: 'var(--ifm-font-color-base)',
           }}
           formatter={(value: number, _: string, props) => [
-            `${value > 0 ? '+' : ''}${value} provinces (${props.payload.initial} → ${props.payload.final}) · ${props.payload.games} games`,
+            `${value > 0 ? '+' : ''}${value} provinces (${props.payload.initial} → ${props.payload.final})`,
             'Avg expansion',
           ]}
         />

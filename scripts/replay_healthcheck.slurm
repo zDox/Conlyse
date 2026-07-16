@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --job-name=game-stats-extractor
+#SBATCH --job-name=replay-healthcheck
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
-#SBATCH --mem-per-cpu=1500M
-#SBATCH --time=02:00:00
+#SBATCH --mem-per-cpu=2G
+#SBATCH --time=04:00:00
 #SBATCH --tmp=100g
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
@@ -29,16 +29,17 @@ rsync -aq ${SCRATCH}/replays/ ${TMPDIR}/replays/
 echo "[$(date)] Copying map data to node-local storage..."
 rsync -aq ${SCRATCH}/static_maps/ ${TMPDIR}/static_maps/
 
-# Run extractor
-echo "[$(date)] Running game-stats-extractor..."
-game-stats-extractor \
+# Run health check
+echo "[$(date)] Running replay_healthcheck..."
+python scripts/replay_healthcheck/__main__.py \
     --replays-dir "${TMPDIR}/replays" \
     --map-data-dir "${TMPDIR}/static_maps" \
-    --output "${TMPDIR}/stats" \
-    --workers "${SLURM_CPUS_PER_TASK}"
+    --workers "${SLURM_CPUS_PER_TASK}" \
+    --output-dir "${TMPDIR}/health_report"
 
-# Copy results back to scratch
-echo "[$(date)] Copying stats back to SCRATCH..."
-rsync -aq --delete ${TMPDIR}/stats/ ${SCRATCH}/stats/
+# Copy the HTML + JSON reports back to scratch
+echo "[$(date)] Copying health report back to SCRATCH..."
+mkdir -p "${SCRATCH}/replay_health_reports/${SLURM_JOB_ID}"
+rsync -aq "${TMPDIR}/health_report/" "${SCRATCH}/replay_health_reports/${SLURM_JOB_ID}/"
 
 echo "[$(date)] Job finished!"

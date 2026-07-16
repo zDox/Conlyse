@@ -23,7 +23,6 @@ export default function ProvinceWinCorrelationChart({ data, topN = 25 }: Props) 
     .map((p) => ({
       name: p.province_name,
       win_pct: parseFloat((p.win_correlation * 100).toFixed(1)),
-      games: p.games_appeared,
     }));
 
   return (
@@ -53,10 +52,7 @@ export default function ProvinceWinCorrelationChart({ data, topN = 25 }: Props) 
             borderRadius: 6,
             color: 'var(--ifm-font-color-base)',
           }}
-          formatter={(value: number, _: string, props) => [
-            `${value}% (${props.payload.games} games)`,
-            'Winner controlled',
-          ]}
+          formatter={(value: number) => [`${value}%`, 'Winner controlled']}
         />
         <Bar dataKey="win_pct" radius={[0, 3, 3, 0]}>
           {chartData.map((entry, index) => (

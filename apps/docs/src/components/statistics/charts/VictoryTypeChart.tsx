@@ -3,22 +3,35 @@ import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recha
 
 interface Props {
   data: Record<string, number>;
+  totalTraitorWins?: number;
 }
 
-const COLORS = ['#4a90e2', '#50c878', '#f5a623', '#e74c3c'];
-
-const LABELS: Record<string, string> = {
-  solo: 'Solo Victory',
-  coalition: 'Coalition Victory',
-  unknown: 'Unknown',
+const SLICE_META: Record<string, { label: string; color: string }> = {
+  solo: { label: 'Solo Victory (Loyal)', color: '#4a90e2' },
+  solo_traitor: { label: 'Solo Victory (Traitor)', color: '#e74c3c' },
+  coalition: { label: 'Coalition Victory', color: '#50c878' },
+  unknown: { label: 'Unknown', color: '#f5a623' },
 };
 
-export default function VictoryTypeChart({ data }: Props) {
+export default function VictoryTypeChart({ data, totalTraitorWins }: Props) {
   const chartData = Object.entries(data)
     .filter(([, v]) => v > 0)
-    .map(([key, value]) => ({
-      name: LABELS[key] ?? key,
+    .flatMap(([key, value]) => {
+      if (key === 'solo' && totalTraitorWins) {
+        const traitor = Math.min(totalTraitorWins, value);
+        const loyal = value - traitor;
+        return [
+          loyal > 0 ? { key: 'solo', value: loyal } : null,
+          traitor > 0 ? { key: 'solo_traitor', value: traitor } : null,
+        ].filter((d): d is { key: string; value: number } => d !== null);
+      }
+      return [{ key, value }];
+    })
+    .map(({ key, value }) => ({
+      key,
+      name: SLICE_META[key]?.label ?? key,
       value,
+      color: SLICE_META[key]?.color ?? '#999999',
     }));
 
   return (
@@ -32,8 +45,8 @@ export default function VictoryTypeChart({ data }: Props) {
           outerRadius={90}
           dataKey="value"
         >
-          {chartData.map((_, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          {chartData.map((d) => (
+            <Cell key={`cell-${d.key}`} fill={d.color} />
           ))}
         </Pie>
         <Tooltip
@@ -45,7 +58,7 @@ export default function VictoryTypeChart({ data }: Props) {
           }}
           formatter={(value: number, name: string) => {
             const total = chartData.reduce((s, d) => s + d.value, 0);
-            return [`${value} games (${((value / total) * 100).toFixed(1)}%)`, name];
+            return [`${((value / total) * 100).toFixed(1)}%`, name];
           }}
         />
         <Legend wrapperStyle={{ fontSize: 12, color: 'var(--ifm-font-color-base)' }} />

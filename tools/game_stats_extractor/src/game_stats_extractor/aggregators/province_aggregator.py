@@ -48,6 +48,25 @@ def _aggregate_province(
 
     is_coastal = sum(1 for _, p in entries if p.is_coastal) > games_appeared / 2
 
+    region_counts: dict[str, int] = defaultdict(int)
+    for _, p in entries:
+        region_counts[p.region] += 1
+    region = max(region_counts, key=lambda k: region_counts[k])
+
+    # Original (legal/home) owner nation — resolve each game's legal_owner_id
+    # (a per-game player slot) to that game's nation name, then take the mode.
+    owner_nation_counts: dict[str, int] = defaultdict(int)
+    for game, p in entries:
+        if p.legal_owner_id < 0:
+            continue
+        for player in game.players:
+            if player.player_id == p.legal_owner_id:
+                owner_nation_counts[player.nation_name] += 1
+                break
+    original_owner_nation = (
+        max(owner_nation_counts, key=lambda k: owner_nation_counts[k]) if owner_nation_counts else None
+    )
+
     ownership_changes = [p.ownership_changes for _, p in entries]
     avg_ownership_changes = statistics.mean(ownership_changes)
     contest_frequency = sum(1 for c in ownership_changes if c > 0) / games_appeared
@@ -86,6 +105,8 @@ def _aggregate_province(
         province_name=province_name,
         terrain_type=terrain_type,
         is_coastal=is_coastal,
+        region=region,
+        original_owner_nation=original_owner_nation,
         games_appeared=games_appeared,
         avg_ownership_changes=avg_ownership_changes,
         contest_frequency=contest_frequency,

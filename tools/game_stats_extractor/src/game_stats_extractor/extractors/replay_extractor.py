@@ -23,10 +23,22 @@ logger = logging.getLogger(__name__)
 
 _UNOWNED = 0
 
+# A solo winner who left a coalition with >=2 remaining members within this many
+# in-game days of the game ending counts as a "traitor" win.
+_TRAITOR_WINDOW_DAYS = 3
+
 # One-time actions and game-managed upgrades that should not appear in building statistics.
 # Programmatic rule: only upgrades with non-empty costs are player-buildable; but these actions
 # have costs yet produce no persistent building that we want to count.
 _NON_BUILDING_NAMES = frozenset({"Annex City", "Relocate Headquarters", "Nationalize"})
+
+# Victory-point multipliers by coalition size, i.e. a coalition of n players needs
+# victory_points_modifier * _VICTORY_POINTS_FACTORS[n] combined VP to win. This mirrors
+# the game's own ultshared.modding.configuration.UltTeamConfig.victoryPointsFactors table
+# (confirmed against real in-game values for n=1..5); it is a fixed design table, not a
+# formula, and the game caps coalitions at maxCoalitionSize=5. Sizes beyond 5 fall through
+# to the relative-VP fallback below.
+_VICTORY_POINTS_FACTORS = {1: 1.0, 2: 1.6, 3: 2.3, 4: 2.9, 5: 3.2}
 
 
 def _is_land_province(province) -> bool:
@@ -189,17 +201,41 @@ class ReplayExtractor(BaseExtractor):
             if _is_land_province(p)
         }
 
+        # `region` is static per-map data. The live per-game province objects never
+        # carry it (always None), so it has to come from the static map data
+        # (locations, keyed by province id) supplied via --map-data-dir.
+        # `legal_owner` is likewise static per-map data — the province's home/core
+        # owner regardless of who currently occupies it via conquest.
+        region_by_pid: dict[int, str] = {}
+        legal_owner_by_pid: dict[int, int] = {}
+        static_map_data = getattr(map_obj, "static_map_data", None)
+        if static_map_data is not None:
+            for loc in static_map_data.locations:
+                loc_region = getattr(loc, "region", None)
+                loc_id = getattr(loc, "id", None)
+                if loc_id is not None and loc_region and hasattr(loc_region[0], "name"):
+                    region_by_pid[loc_id] = str(loc_region[0].name)
+                loc_legal_owner = getattr(loc, "legal_owner", None)
+                if loc_id is not None and loc_legal_owner is not None:
+                    legal_owner_by_pid[loc_id] = int(loc_legal_owner)
+
         # Province static info (name, terrain, coastal) — read once
         province_meta: dict[int, dict] = {
             pid: {
                 "name": p.name,
                 "terrain_type": str(p.terrain_type.name) if hasattr(p.terrain_type, "name") else str(p.terrain_type),
                 "is_coastal": bool(getattr(p, "costal", False)),
+                "region": (
+                    str(p.region[0].name)
+                    if getattr(p, "region", None) and hasattr(p.region[0], "name")
+                    else region_by_pid.get(pid, "NONE")
+                ),
                 "resource_production_type": (
                     str(p.resource_production_type.name)
                     if p.resource_production_type and hasattr(p.resource_production_type, "name")
                     else (str(p.resource_production_type) if p.resource_production_type else None)
                 ),
+                "legal_owner_id": legal_owner_by_pid.get(pid, getattr(p, "legal_owner", -1)),
             }
             for pid, p in initial_land.items()
         }
@@ -382,9 +418,20 @@ class ReplayExtractor(BaseExtractor):
         player_elimination_pct: dict[int, float] = {}
         player_elimination_day: dict[int, int] = {}
 
+        # Coalition (team_id) membership tracking — team_id is dynamic within a game
+        # (players can join/leave), unlike the per-player fields above which are static
+        # or monotonic. team_members seeds from the initial snapshot and is kept in sync
+        # on every team_id change so we can tell whether a departing player left behind
+        # a still-active coalition (>=2 members) vs. a team that simply dissolved.
+        team_members: dict[int, set[int]] = defaultdict(set)
+        for _pid, _profile in initial_players_map.items():
+            if _pid > _UNOWNED and _profile.team_id > 0:
+                team_members[_profile.team_id].add(_pid)
+        player_last_departure_day: dict[int, int] = {}
+
         # ---- Register hooks — only changed provinces/relations fire events ----
         replay.register_province_trigger(["owner_id", "morale", "resource_production", "money_production", "upgrades_set"])
-        replay.register_player_trigger(["victory_points", "defeated", "computer_player"])
+        replay.register_player_trigger(["victory_points", "defeated", "computer_player", "team_id"])
         replay.register_foreign_affairs_trigger()
 
         # ---- Iterate all timestamps ----
@@ -579,6 +626,17 @@ class ReplayExtractor(BaseExtractor):
                     _, new_cp = player_event.attributes["computer_player"]
                     if new_cp is not None:
                         is_computer_player[pid] = bool(new_cp)
+                if "team_id" in player_event.attributes:
+                    old_team, new_team = player_event.attributes["team_id"]
+                    if old_team is not None and new_team is not None and old_team != new_team:
+                        if old_team > 0 and len(team_members.get(old_team, ())) >= 2:
+                            et = replay.current_time
+                            if et is not None:
+                                elapsed = (et - start_time).total_seconds()
+                                player_last_departure_day[pid] = _day_bucket(elapsed, total_duration_seconds, game_days)
+                        team_members[old_team].discard(pid)
+                        if new_team > 0:
+                            team_members[new_team].add(pid)
 
             # Snapshot player territory counts and VP — O(players), not O(provinces)
             ct = replay.current_time
@@ -821,7 +879,17 @@ class ReplayExtractor(BaseExtractor):
 
         # ---- Victory detection ----
         ranking = gs.states.newspaper_state.ranking
-        winner_ids, victory_type = _determine_winners(players, ranking)
+        game_info = gs.states.game_info_state
+        victory_points_modifier = (game_info.victory_points_modifier or 0) if game_info else 0
+        winner_ids, victory_type = _determine_winners(players, ranking, victory_points_modifier)
+
+        # ---- Traitor detection — solo winner who left a coalition shortly before winning ----
+        traitor_ids = [
+            wid for wid in winner_ids
+            if victory_type == "solo"
+            and wid in player_last_departure_day
+            and (game_days - player_last_departure_day[wid]) <= _TRAITOR_WINDOW_DAYS
+        ]
 
         # ---- Provinces ----
         provinces: list[ProvinceData] = []
@@ -833,8 +901,10 @@ class ReplayExtractor(BaseExtractor):
                 province_name=pmeta["name"],
                 terrain_type=pmeta["terrain_type"],
                 is_coastal=pmeta["is_coastal"],
+                region=pmeta["region"],
                 initial_owner_id=initial_owners.get(pid, -1),
                 final_owner_id=current_owners.get(pid, -1),
+                legal_owner_id=pmeta["legal_owner_id"],
                 ownership_changes=ownership_changes.get(pid, 0),
                 resource_production_type=pmeta["resource_production_type"],
                 resource_production=int(final_p.resource_production or 0) if final_p else 0,
@@ -861,6 +931,7 @@ class ReplayExtractor(BaseExtractor):
             avg_update_interval_seconds=avg_update_interval_seconds,
             winner_ids=winner_ids,
             victory_type=victory_type,
+            traitor_ids=traitor_ids,
             game_ended=True,  # guaranteed by early exit in extract()
             players=players,
             provinces=provinces,
@@ -882,7 +953,11 @@ class ReplayExtractor(BaseExtractor):
         )
 
 
-def _determine_winners(players: list[PlayerData], ranking=None) -> tuple[list[int], str]:
+def _determine_winners(
+    players: list[PlayerData],
+    ranking=None,
+    victory_points_modifier: int = 0,
+) -> tuple[list[int], str]:
     if not players:
         return [], "unknown"
 
@@ -907,6 +982,30 @@ def _determine_winners(players: list[PlayerData], ranking=None) -> tuple[list[in
             return [p.player_id for p in still_playing], "coalition"
 
     pool = still_playing or [p for p in players if not p.is_defeated] or players
+
+    # Real victory-point thresholds: a single player reaching victory_points_modifier VP
+    # wins solo; otherwise a team whose combined VP clears its size-scaled threshold wins.
+    if victory_points_modifier > 0:
+        solo_candidates = [p for p in pool if p.final_vp >= victory_points_modifier]
+        if solo_candidates:
+            top = max(solo_candidates, key=lambda p: p.final_vp)
+            return [top.player_id], "solo"
+
+        teams: dict[int, list[PlayerData]] = defaultdict(list)
+        for p in pool:
+            if p.team_id > 0:
+                teams[p.team_id].append(p)
+
+        for members in teams.values():
+            factor = _VICTORY_POINTS_FACTORS.get(len(members))
+            if factor is None:
+                continue  # coalition bigger than the known table — falls through below
+            if sum(p.final_vp for p in members) >= victory_points_modifier * factor:
+                return [p.player_id for p in members], "coalition"
+
+    # Nobody met a real threshold — either victory_points_modifier is unknown, or the
+    # coalition is bigger than the known table covers, or the game was ended by admin/vote
+    # with no clear winner. Guess from relative standing as a last resort.
     max_vp = max((p.final_vp for p in pool), default=0)
     if max_vp <= 0:
         return [], "unknown"
