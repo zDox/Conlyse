@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 """
-Checks whether the live game client has published a new clientVersion that
-ConflictData has neither a `v{N}/` folder nor an in-flight PR branch for yet.
-Prints `{"version": N}` on the last line if a new version was found,
-otherwise prints `no_change`.
+Detects the clientVersion the live game client currently ships and reports it
+alongside the version conflict_interface supports.
+
+Prints a single JSON object on the last line:
+
+    {"client_version": 217, "supported_version": 216, "needs_version_data": true}
+
+`needs_version_data` is true when ConflictData has neither a `v{N}/` folder nor
+an in-flight `add-version-data-v{N}` branch for the detected version yet.
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ import requests
 from conflict_interface.api.hub_types.hub_game_state_enum import HubGameState
 from conflict_interface.interface.hub_interface import HubInterface
 from conflict_interface.logger_config import setup_library_logger
+from conflict_interface.versions import LATEST_VERSION
 
 CONFLICT_DATA_REPO = "zDox/ConflictData"
 
@@ -86,11 +92,19 @@ def main() -> int:
     client_version = guest_game.game_api.client_version
     print(f"Detected client_version={client_version}", file=sys.stderr)
 
-    if version_folder_exists(client_version, github_token) or version_branch_exists(client_version, github_token):
-        print("no_change")
-        return 0
+    has_version_data = version_folder_exists(client_version, github_token) or version_branch_exists(
+        client_version, github_token
+    )
 
-    print(json.dumps({"version": client_version}))
+    print(
+        json.dumps(
+            {
+                "client_version": client_version,
+                "supported_version": LATEST_VERSION,
+                "needs_version_data": not has_version_data,
+            }
+        )
+    )
     return 0
 
 

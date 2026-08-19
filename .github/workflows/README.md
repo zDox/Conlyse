@@ -46,6 +46,27 @@ Builds and publishes the ServerObserver Docker image to GitHub Container Registr
 
 **Note:** The Docker image does NOT contain configuration or account pool files. These must be mounted at runtime for security and configuration flexibility.
 
+### 4. Client version tracking (`conflict_interface-check-new-version.yml`)
+
+Detects the client version Conflict of Nations currently ships and keeps the README badges honest.
+
+- **Trigger**: Daily at 05:00 UTC, on a push to `main` that changes `data_types/newest/version.py`, and manually
+- **Actions**:
+  - Runs `scripts/check_new_version.py` — hub-logs-in, guest-joins a live game and reads its `clientVersion`
+  - Runs `scripts/write_version_badges.py` to regenerate `.github/badges/supported-client.json` and
+    `.github/badges/latest-client.json` (shields.io endpoint format, rendered as badges in the root README).
+    Commits to `main` only when a number actually changed
+  - Dispatches `conflict_interface-create-version-data.yml` when ConflictData has no data for the detected version yet
+
+The "latest CoN client" badge turns orange whenever the live version is ahead of
+`libs/conflict_interface/conflict_interface/data_types/newest/version.py`, i.e. Conlyse needs a datatype bump.
+
+### 5. Version data capture (`conflict_interface-create-version-data.yml`)
+
+- **Trigger**: `workflow_dispatch` with a `version` input (normally dispatched by the workflow above)
+- **Actions**: records game responses and static map data, downloads and beautifies the live client JS bundle, then
+  opens a PR against `zDox/ConflictData` adding `v{version}/`
+
 ## Secrets
 
 The following secrets are used by the workflows:

@@ -3,10 +3,15 @@ name: conflict_interface check new version
 on:
   schedule:
     - cron: "0 5 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "libs/conflict_interface/conflict_interface/data_types/newest/version.py"
   workflow_dispatch:
 
 permissions:
   actions: write
+  contents: write
 
 jobs:
   check-new-version:
@@ -44,23 +49,38 @@ jobs:
         run: |
           python scripts/check_new_version.py > script_output.txt
 
-          if grep -qx "no_change" script_output.txt; then
-            echo "has_new=false" >> "$GITHUB_OUTPUT"
+          RAW_OUTPUT=$(tail -n 1 script_output.txt)
+          python - "$RAW_OUTPUT" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          d = json.loads(sys.argv[1])
+          print(f"client_version={d['client_version']}")
+          print(f"supported_version={d['supported_version']}")
+          print(f"needs_version_data={str(d['needs_version_data']).lower()}")
+          PY
+
+      - name: Update version badges
+        run: |
+          python scripts/write_version_badges.py \
+            --client-version "${{ steps.check_version.outputs.client_version }}" \
+            --supported-version "${{ steps.check_version.outputs.supported_version }}"
+
+          if git diff --quiet -- .github/badges; then
+            echo "Badges already up to date; nothing to commit."
             exit 0
           fi
 
-          RAW_OUTPUT=$(tail -n 1 script_output.txt)
-          version=$(python -c 'import json, sys; d=json.loads(sys.argv[1]); print(d["version"])' "$RAW_OUTPUT")
-
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "has_new=true" >> "$GITHUB_OUTPUT"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/badges
+          git commit -m "Update client version badges (supported v${{ steps.check_version.outputs.supported_version }}, live v${{ steps.check_version.outputs.client_version }})"
+          git push origin HEAD:${{ github.ref_name }}
 
       - name: Stop if there was no new version
-        if: steps.check_version.outputs.has_new != 'true'
+        if: steps.check_version.outputs.needs_version_data != 'true'
         run: echo "No new client version; nothing to do."
 
       - name: Trigger create-version-data workflow
-        if: steps.check_version.outputs.has_new == 'true'
+        if: steps.check_version.outputs.needs_version_data == 'true'
         run: |
           gh workflow run conflict_interface-create-version-data.yml \
-            -f version="${{ steps.check_version.outputs.version }}"
+            -f version="${{ steps.check_version.outputs.client_version }}"
