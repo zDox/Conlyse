@@ -1,5 +1,8 @@
 # Conlyse
 
+[![Supported client version](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FzDox%2FConlyse%2Fmain%2F.github%2Fbadges%2Fsupported-client.json)](libs/conflict_interface/conflict_interface/data_types/newest/version.py)
+[![Latest CoN client version](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FzDox%2FConlyse%2Fmain%2F.github%2Fbadges%2Flatest-client.json)](.github/workflows/conflict_interface-check-new-version.yml)
+
 Conlyse is an unofficial, open-source system for **recording, storing, and replaying Conflict of Nations games**. A headless Rust service captures live game state and publishes it to Redis; a Python daemon converts the stream into a compact, patch-based replay format (`.conrp`); and a PySide6 + OpenGL desktop client lets you time-travel through any moment of a recorded game.
 
 ![Conlyse Desktop](apps/docs/static/img/desktop.png)

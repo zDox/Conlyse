@@ -6,3 +6,4 @@ conflict_interface.egg-info
 
 
 tests/test_data/
+reports/
