@@ -13,8 +13,11 @@ Two badges are produced:
 The colour of the "latest" badge encodes drift: green when the two match,
 orange when Conlyse is behind the live game.
 
-Output is byte-stable, so re-running with unchanged inputs leaves the files
-untouched and the CI commit guard becomes a no-op.
+The files are published on the orphan `badges` branch rather than committed to
+main, which is pull-request-only; the README reads them from there via
+raw.githubusercontent.com. Output is byte-stable, so re-running with unchanged
+inputs produces identical bytes and the workflow's comparison guard skips the
+push.
 """
 
 from __future__ import annotations
@@ -26,7 +29,6 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUT_DIR = REPO_ROOT / ".github" / "badges"
 VERSION_FILE = REPO_ROOT / "libs/conflict_interface/conflict_interface/data_types/newest/version.py"
 
 SUPPORTED_BADGE = "supported-client.json"
@@ -95,8 +97,9 @@ def main() -> int:
     parser.add_argument(
         "--out-dir",
         type=Path,
-        default=DEFAULT_OUT_DIR,
-        help=f"Directory to write the badge JSON into (default: {DEFAULT_OUT_DIR})",
+        required=True,
+        help="Directory to write the badge JSON into. Deliberately has no default: the "
+        "badges live on the `badges` branch, not in this checkout.",
     )
     args = parser.parse_args()
 

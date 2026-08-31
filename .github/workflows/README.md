@@ -53,9 +53,11 @@ Detects the client version Conflict of Nations currently ships and keeps the REA
 - **Trigger**: Daily at 05:00 UTC, on a push to `main` that changes `data_types/newest/version.py`, and manually
 - **Actions**:
   - Runs `scripts/check_new_version.py` — hub-logs-in, guest-joins a live game and reads its `clientVersion`
-  - Runs `scripts/write_version_badges.py` to regenerate `.github/badges/supported-client.json` and
-    `.github/badges/latest-client.json` (shields.io endpoint format, rendered as badges in the root README).
-    Commits to `main` only when a number actually changed
+  - Runs `scripts/write_version_badges.py` to regenerate `supported-client.json` and `latest-client.json`
+    (shields.io endpoint format, rendered as badges in the root README), then force-pushes them to the
+    `badges` branch — but only when a number actually changed. `main` is pull-request-only, so the badges
+    live on that content-only orphan branch instead and the README reads them from
+    `raw.githubusercontent.com/zDox/Conlyse/badges/`
   - Dispatches `conflict_interface-create-version-data.yml` when ConflictData has no data for the detected version yet
 
 The "latest CoN client" badge turns orange whenever the live version is ahead of

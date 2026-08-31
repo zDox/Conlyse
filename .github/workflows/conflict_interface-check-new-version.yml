@@ -53,22 +53,43 @@ jobs:
           print(f"needs_version_data={str(d['needs_version_data']).lower()}")
           PY
 
-      - name: Update version badges
+      - name: Publish version badges
+        env:
+          CLIENT_VERSION: ${{ steps.check_version.outputs.client_version }}
+          SUPPORTED_VERSION: ${{ steps.check_version.outputs.supported_version }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
         run: |
-          python scripts/write_version_badges.py \
-            --client-version "${{ steps.check_version.outputs.client_version }}" \
-            --supported-version "${{ steps.check_version.outputs.supported_version }}"
+          set -euo pipefail
 
-          if git diff --quiet -- .github/badges; then
-            echo "Badges already up to date; nothing to commit."
+          # main is pull-request-only, so the badges live on their own `badges` branch:
+          # a content-only orphan commit holding just the two JSON files at the root.
+          BADGE_DIR="$RUNNER_TEMP/badges"
+          python scripts/write_version_badges.py \
+            --out-dir "$BADGE_DIR" \
+            --client-version "$CLIENT_VERSION" \
+            --supported-version "$SUPPORTED_VERSION"
+
+          # Skip the push when neither number moved; the branch keeps its current commit.
+          if git fetch --depth=1 origin badges 2>/dev/null \
+            && git show FETCH_HEAD:supported-client.json | cmp -s - "$BADGE_DIR/supported-client.json" \
+            && git show FETCH_HEAD:latest-client.json | cmp -s - "$BADGE_DIR/latest-client.json"; then
+            echo "Badges already up to date; nothing to publish."
             exit 0
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/badges
-          git commit -m "Update client version badges (supported v${{ steps.check_version.outputs.supported_version }}, live v${{ steps.check_version.outputs.client_version }})"
-          git push origin HEAD:${{ github.ref_name }}
+          # Assemble the commit with plumbing so the checkout itself is left untouched.
+          # git mktree wants the entries sorted by name, hence latest- before supported-.
+          blob_supported=$(git hash-object -w "$BADGE_DIR/supported-client.json")
+          blob_latest=$(git hash-object -w "$BADGE_DIR/latest-client.json")
+          tree=$(printf '100644 blob %s\t%s\n100644 blob %s\t%s\n' \
+                   "$blob_latest" latest-client.json \
+                   "$blob_supported" supported-client.json | git mktree)
+          commit=$(git commit-tree "$tree" \
+            -m "Update client version badges (supported v${SUPPORTED_VERSION}, live v${CLIENT_VERSION})")
+          git push --force origin "$commit:refs/heads/badges"
 
       - name: Stop if there was no new version
         if: steps.check_version.outputs.needs_version_data != 'true'
