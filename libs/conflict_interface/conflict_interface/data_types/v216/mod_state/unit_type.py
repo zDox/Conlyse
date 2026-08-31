@@ -42,7 +42,7 @@ from ..mod_state.configuration import TokenSensitivityConfig
 from ..mod_state.configuration import UnitTypeFrontEndConfig
 from ..mod_state.configuration import VariantConfig
 from ..mod_state.mod_state_enums import UnitFeature
-from ..player_state.faction import Faction
+from ..mod_state.faction import Faction
 from ..research_state.research_type import ResearchType
 from ..resource_state.resource_state_enums import ResourceType
 
